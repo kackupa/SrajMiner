@@ -39,6 +39,19 @@ export class MiningScene extends Phaser.Scene {
   warned = false;
   shake = 0;
   lastFullWarning = 0;
+  landingHintShown = false;
+  reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  syncInput(paused: boolean) {
+    const keyboard = this.input.keyboard;
+    if (!keyboard) return;
+    keyboard.resetKeys();
+    keyboard.clearCaptures();
+    if (!paused) keyboard.addCapture(['W', 'A', 'S', 'D', 'UP', 'LEFT', 'DOWN', 'RIGHT', 'SPACE']);
+  }
+  get surfaceCameraY() {
+    return -Math.max(this.scale.height * 0.49, Math.min(365, this.scale.height * 0.67));
+  }
+
   constructor() {
     super('mine');
   }
@@ -54,6 +67,8 @@ export class MiningScene extends Phaser.Scene {
     if (saved) {
       this.pod.x = saved.x;
       this.pod.y = saved.y;
+      this.pod.docked = atSurface(saved.x, saved.y) && saved.y >= -30;
+      if (this.pod.docked) this.pod.y = WORLD.spawnY;
       if (this.pod.overlaps(saved.x, saved.y).length) this.pod.reset();
     }
     this.mining = new MiningSystem(this.world, this.progress);
@@ -64,7 +79,21 @@ export class MiningScene extends Phaser.Scene {
           this.soundFx.unlock();
           if (this.saves.warning) this.ui.toast(this.saves.warning);
         },
-        pause: () => this.pause(),
+        pause: () => {
+          if (this.ui.hasStarted && this.ui.modal) this.ui.close();
+          else this.pause();
+        },
+        modeChanged: (paused) => this.syncInput(paused),
+        serviceAll: () => {
+          if (!this.surface) return false;
+          const ok = this.progress.serviceAll();
+          if (ok) {
+            this.soundFx.reward();
+            this.save();
+            this.ui.toast('Refueled and repaired. Ready to depart.');
+          }
+          return ok;
+        },
         resume: () => this.ui.close(),
         save: () => {
           this.save();
@@ -110,8 +139,14 @@ export class MiningScene extends Phaser.Scene {
         },
         rescue: () => this.fail(true),
         newGame: () => {
-          localStorage.removeItem('mars-miner.v1');
-          location.reload();
+          try {
+            localStorage.removeItem('mars-miner.v1');
+            // Do not let pagehide autosave overwrite the explicitly cleared expedition.
+            this.ui.hasStarted = false;
+            location.reload();
+          } catch {
+            this.ui.toast('Could not replace the save. Browser storage is unavailable.');
+          }
         },
         mute: () => (this.soundFx.muted = !this.soundFx.muted),
       },
@@ -127,8 +162,9 @@ export class MiningScene extends Phaser.Scene {
     this.g = this.add.graphics();
     this.keys = this.input.keyboard!.addKeys(
       'W,A,S,D,UP,LEFT,DOWN,RIGHT,SPACE,ESC,E',
+      false,
     ) as typeof this.keys;
-    this.input.keyboard!.addCapture(['W', 'A', 'S', 'D', 'UP', 'LEFT', 'DOWN', 'RIGHT', 'SPACE']);
+    this.syncInput(this.ui.paused);
     this.input.keyboard!.on('keydown-ESC', () => {
       if (this.ui.hasStarted) {
         this.ui.modal ? this.ui.close() : this.pause();
@@ -177,7 +213,15 @@ export class MiningScene extends Phaser.Scene {
         .setOrigin(0.5),
     );
     this.camX = this.pod.x - this.scale.width / 2;
-    this.camY = Math.max(-this.scale.height * 0.49, this.pod.y - this.scale.height * 0.44);
+    this.camY = Math.max(
+      this.surfaceCameraY,
+      this.pod.y -
+        Phaser.Math.Linear(
+          -this.surfaceCameraY,
+          this.scale.height * 0.44,
+          Phaser.Math.Clamp(this.pod.y / 400, 0, 1),
+        ),
+    );
     this.world.reveal(this.pod.x, this.pod.y);
     this.ui.update(this.depth, this.surface, 1);
     if (import.meta.env.DEV)
@@ -198,6 +242,7 @@ export class MiningScene extends Phaser.Scene {
           chunks: this.world.chunks.size,
           seed: this.world.seed,
           paused: this.ui.paused,
+          docked: this.pod.docked,
           overlaps: this.pod.overlaps(this.pod.x, this.pod.y).length,
         }),
       });
@@ -239,7 +284,7 @@ export class MiningScene extends Phaser.Scene {
     this.pod.reset();
     this.mining.target = undefined;
     this.mining.ratio = 0;
-    this.camY = -this.scale.height * 0.49;
+    this.camY = this.surfaceCameraY;
     this.ui.open('failure');
     this.ui.toast(
       recovery
@@ -286,7 +331,7 @@ export class MiningScene extends Phaser.Scene {
         ORES[tile.ore].hex,
       );
     } else if (tile.ore && !collected && this.tick - this.lastFullWarning > 2) {
-      this.ui.toast('Cargo full. This ore was left behind — return to sell.');
+      this.ui.toast('Cargo full. This ore was discarded and cannot be recovered.');
       this.lastFullWarning = this.tick;
     }
   }
@@ -305,12 +350,19 @@ export class MiningScene extends Phaser.Scene {
       const target = this.pod.update(dt, input, (damage) => {
         this.progress.hull = Math.max(0, this.progress.hull - damage);
         this.shake = 5;
+        if (!this.landingHintShown) {
+          this.ui.toast('Hard landing. Hold W before impact to brake your descent.');
+          this.landingHintShown = true;
+        }
         this.soundFx.tone(55, 0.22, 'sawtooth', 0.07, 20);
         this.float(`−${Math.ceil(damage)} HULL`, this.pod.x, this.pod.y - 25, '#ff927d');
       });
       this.mining.update(dt, target, (tile, collected) => this.broken(tile, collected));
       this.progress.maxDepth = Math.max(this.progress.maxDepth, this.depth);
-      if (this.progress.hull <= 0 || (this.progress.fuel <= 0 && this.pod.y >= 0)) this.fail();
+      if (this.progress.hull <= 0 || (this.progress.fuel <= 0 && this.pod.y >= 0)) {
+        this.fail();
+        return;
+      }
       if (this.progress.fuel <= 0 && this.pod.y < 0) {
         this.progress.rescue();
         this.pod.reset();
@@ -346,7 +398,15 @@ export class MiningScene extends Phaser.Scene {
         -100,
         Math.min(WORLD.width * 40 - this.scale.width + 100, this.pod.x - this.scale.width / 2),
       ),
-      goalY = Math.max(-this.scale.height * 0.49, this.pod.y - this.scale.height * 0.44);
+      goalY = Math.max(
+        this.surfaceCameraY,
+        this.pod.y -
+          Phaser.Math.Linear(
+            -this.surfaceCameraY,
+            this.scale.height * 0.44,
+            Phaser.Math.Clamp(this.pod.y / 400, 0, 1),
+          ),
+      );
     this.camX += (goalX - this.camX) * (1 - Math.exp(-6 * dt));
     this.camY += (goalY - this.camY) * (1 - Math.exp(-6 * dt));
     this.shake = Math.max(0, this.shake - dt * 15);
@@ -365,9 +425,10 @@ export class MiningScene extends Phaser.Scene {
       if (f.life <= 0) f.text.destroy();
     }
     this.floating = this.floating.filter((f) => f.life > 0);
+    this.ui.target(this.mining.target, this.mining.ratio, this.mining.warningRemaining);
     this.uiClock += dt;
     if (this.uiClock > 0.08) {
-      this.ui.update(this.depth, this.surface, this.uiClock);
+      this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked);
       this.uiClock = 0;
     }
     this.draw();
@@ -377,7 +438,8 @@ export class MiningScene extends Phaser.Scene {
       w = this.scale.width,
       h = this.scale.height,
       T = WORLD.tile;
-    const sx = (x: number) => Math.round(x - this.camX + (Math.random() - 0.5) * this.shake),
+    const sx = (x: number) =>
+        Math.round(x - this.camX + (this.reducedMotion ? 0 : (Math.random() - 0.5) * this.shake)),
       sy = (y: number) => Math.round(y - this.camY);
     g.clear();
     g.fillStyle(0x131b20);
@@ -452,7 +514,7 @@ export class MiningScene extends Phaser.Scene {
         g.fillRect(x + ww / 2 - 9, y - 103, 3, 39);
         g.fillStyle(s.color, 0.8);
         g.fillRect(x + ww / 2 - 9, y - 101, 21, 10);
-        this.labels[i].setVisible(true).setPosition(x, y - 132);
+        this.labels[i].setVisible(h >= 500).setPosition(x, y - 103);
       }
       const ax = sx(490);
       g.lineStyle(3, 0x38413e);
@@ -526,6 +588,19 @@ export class MiningScene extends Phaser.Scene {
                 ],
                 true,
               );
+            else if (tile.ore === 'silver')
+              g.fillTriangle(
+                px + ox,
+                py + oy - 5,
+                px + ox - 3,
+                py + oy + 5,
+                px + ox + 3,
+                py + oy + 5,
+              );
+            else if (tile.ore === 'iron') {
+              g.fillRect(px + ox, py + oy, 8, 3);
+              g.fillRect(px + ox + 2, py + oy + 4, 8, 3);
+            } else if (tile.ore === 'gold') g.fillCircle(px + ox, py + oy, 4);
             else g.fillRect(px + ox, py + oy, 5 + (i % 3), 4 + (i % 2));
             g.fillStyle(0xffffff, 0.6);
             g.fillRect(px + ox, py + oy, 2, 1);
@@ -601,7 +676,16 @@ export class MiningScene extends Phaser.Scene {
     g.fillStyle(0x715b40);
     g.fillRect(x - 8, y + 6, 16, 3);
     g.fillStyle(0xb1bdb2);
-    g.fillTriangle(x - 8, y + 14, x + 8, y + 14, x, y + 22);
+    const sideways =
+      this.mining.target && Math.abs(this.mining.target.x * 40 + 20 - this.pod.x) > 20;
+    if (sideways) g.fillTriangle(x + f * 16, y - 7, x + f * 16, y + 7, x + f * 27, y);
+    else g.fillTriangle(x - 8, y + 14, x + 8, y + 14, x, y + 22);
+    if (this.pod.docked) {
+      g.lineStyle(2, 0x95c9b6, 0.9);
+      g.lineBetween(x - 26, y + 21, x + 26, y + 21);
+      g.lineBetween(x - 26, y + 21, x - 26, y + 14);
+      g.lineBetween(x + 26, y + 21, x + 26, y + 14);
+    }
     g.lineStyle(1, 0x4b6664);
     g.lineBetween(x - 5, y + 16, x + 4, y + 16);
     g.lineBetween(x - 3, y + 19, x + 2, y + 19);

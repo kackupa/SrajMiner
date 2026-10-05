@@ -1,3 +1,4 @@
+import { atSurface } from '../surface/SurfaceStation';
 import { WORLD, PHYSICS as P, FUEL } from '../config';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { Progress } from '../economy/Progress';
@@ -9,11 +10,14 @@ export class PlayerPod {
   vy = 0;
   facing = 1;
   thrusting = false;
+  docked = true;
   constructor(
     public world: TileWorld,
     public progress: Progress,
   ) {}
   reset() {
+    this.docked = true;
+    this.thrusting = false;
     this.x = WORLD.spawnX;
     this.y = WORLD.spawnY;
     this.vx = 0;
@@ -35,6 +39,15 @@ export class PlayerPod {
     return hits;
   }
   update(dt: number, input: Controls, onImpact: (damage: number) => void): Tile | undefined {
+    if (this.docked) {
+      if (!input.left && !input.right && !input.down && !input.up) {
+        this.vx = 0;
+        this.vy = 0;
+        this.thrusting = false;
+        return;
+      }
+      this.docked = false;
+    }
     const p = this.progress,
       engine = p.max('engine'),
       dir = Number(input.right) - Number(input.left);
@@ -72,6 +85,21 @@ export class PlayerPod {
       } else this.x = nx;
       const ny = this.y + (this.vy * dt) / steps,
         hitsY = this.overlaps(this.x, ny);
+      if (
+        this.vy >= 0 &&
+        !input.up &&
+        this.y <= WORLD.spawnY &&
+        ny >= WORLD.spawnY &&
+        atSurface(this.x, WORLD.spawnY) &&
+        !input.down
+      ) {
+        this.y = WORLD.spawnY;
+        if (!input.left && !input.right) this.vx = 0;
+        this.vy = 0;
+        this.docked = !input.left && !input.right;
+        this.thrusting = false;
+        return;
+      }
       if (hitsY.length) {
         if (this.vy > 0) {
           if (input.down) target = hitsY.find((t) => t.type !== 'boundary');

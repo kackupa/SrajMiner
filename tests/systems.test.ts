@@ -180,6 +180,8 @@ test('hard falls damage hull, short falls are safe', () => {
     p = new Progress(),
     pod = new PlayerPod(w, p);
   for (let y = 0; y < 15; y++) w.break(24, y);
+  pod.docked = false;
+  pod.y = 24;
   assert.ok(sim(pod, 3, idle) > 0);
   assert.ok(p.hull < 100);
   const q = new PlayerPod(new TileWorld(2), new Progress());
@@ -282,5 +284,68 @@ test('storage failures are reported without crashing the game', () => {
     if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
     else delete (globalThis as any).localStorage;
   }
+});
+
+test('recovered pod stays docked above a fully excavated outpost', () => {
+  const w = new TileWorld(3),
+    p = new Progress(),
+    pod = new PlayerPod(w, p);
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 48; x++) w.break(x, y);
+  pod.reset();
+  const count = w.destroyed.size;
+  sim(pod, 10, idle);
+  assert.equal(pod.y, WORLD.spawnY);
+  assert.equal(p.hull, 100);
+  assert.equal(p.fuel, 140);
+  assert.equal(w.destroyed.size, count);
+  sim(pod, 1, { ...idle, down: true });
+  assert.ok(pod.y > 0);
+  assert.equal(pod.docked, false);
+});
+test('surface dock catches a returning pod without refilling terrain', () => {
+  const w = new TileWorld(3),
+    p = new Progress(),
+    pod = new PlayerPod(w, p);
+  w.break(24, 0);
+  pod.docked = false;
+  pod.y = -150;
+  sim(pod, 3, idle);
+  assert.equal(pod.docked, true);
+  assert.equal(pod.y, WORLD.spawnY);
+  assert.equal(p.hull, 100);
+  assert.equal(w.get(24, 0).type, 'empty');
+  const oldX = pod.x;
+  sim(pod, 0.3, { ...idle, right: true });
+  assert.ok(pod.x > oldX + 10);
+});
+test('combined service is atomic and uses the same itemized prices', () => {
+  const p = new Progress();
+  p.fuel = 40;
+  p.hull = 50;
+  p.money = 52;
+  assert.equal(p.serviceAll(), false);
+  assert.equal(p.fuel, 40);
+  assert.equal(p.hull, 50);
+  assert.equal(p.money, 52);
+  p.money = 53;
+  assert.equal(p.serviceAll(), true);
+  assert.equal(p.money, 0);
+  assert.equal(p.fuel, 140);
+  assert.equal(p.hull, 100);
+});
+test('full cargo warns before destruction and preserves an escape option', () => {
+  const w = new TileWorld(3),
+    p = new Progress(),
+    m = new MiningSystem(w, p);
+  for (let i = 0; i < 16; i++) p.collect('copper');
+  const tile = w.get(24, 0);
+  m.update(0.3, tile, () => {});
+  assert.ok(m.warningRemaining > 0);
+  assert.equal(w.get(24, 0).type, 'dirt');
+  m.update(0.1, undefined, () => {});
+  assert.equal(w.get(24, 0).type, 'dirt');
+  for (let i = 0; i < 130; i++) m.update(0.01, tile, () => {});
+  assert.equal(w.get(24, 0).type, 'empty');
+  assert.equal(p.count, 16);
 });
 console.log(`\n${passed} system tests passed.`);

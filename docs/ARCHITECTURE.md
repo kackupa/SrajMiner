@@ -43,3 +43,9 @@ Phaser Graphics draws only the current viewport, with screen coordinates transfo
 ## Future discovery extension
 
 The saved `artifact` flag and one-time survey event provide a narrow extension point. Future artifacts can replace the simple event with data-driven discoveries without changing terrain determinism or the economy interface. No large story framework is justified yet.
+
+## Docking and menu transitions
+
+The outpost has a magnetic landing field at the spawn height. A recovered pod is docked and stays still until directional input. A/D can move along the field, W launches, and S deliberately passes through into the mine. Descending pods in the outpost range are caught unless deliberately drilling down. This is independent of terrain, so old excavations remain intact. Near-surface positions in version-1 saves infer docking on load; underground saves resume underground.
+
+HUD mode transitions reset Phaser key state and enable gameplay capture only during gameplay. DOM dialogs retain native Space/Enter activation and scrolling. The scene's outpost actions still verify physical service range. Combined refuel/repair checks the full amount before mutating any state. Cargo-overflow mining delays the cut for a data-driven warning interval while preserving the option to excavate an escape route.

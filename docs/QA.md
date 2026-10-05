@@ -48,3 +48,19 @@ Screenshots at 1440×960 and 960×720 were reviewed. The smaller layout has no h
 ## Practical limits
 
 This is not exhaustive human playtesting. Long-session economy, thousands of excavations in browser storage, every possible tunnel geometry, cross-browser behavior, and subjective sound mix still need broader coverage. Generated caves and impact damage can punish uncontrolled descents; use thrust to brake. The monolithic Phaser dependency triggers Vite's large-chunk advisory (~353 KB gzip for game JavaScript); it is not a build failure.
+
+## UX improvement build
+
+The priority review fixes are implemented: magnetic surface docking, native keyboard activation in menus, a Pause/Resume toggle, and a surface camera layout that keeps labels below the HUD. Existing version-1 saves continue to work; docking is inferred for near-surface positions rather than changing the save format. No excavated tiles are restored.
+
+Outpost panels now have Sell / Service / Upgrades navigation and an atomic, itemized-price Refuel + Repair option. The exchange retains the last receipt during the visit. Upgrade cards show percentage improvements and the remaining credits required.
+
+Drilling shows the target resource, value per slot, cutting time, and progress. Full cargo adds a 0.9-second pre-cut warning: release the direction to cancel, or continue holding to discard the ore and clear the route. Resource silhouettes are distinct, the working drill can point sideways, fuel shows liters, low hull has a visible warning, and the first hard landing explains braking with W. Reduced-motion preferences suppress camera shake.
+
+Validation for this build: 22 system tests pass; the full keyboard-driven mining/sale/service/upgrade/reload regression passes; production build succeeds. `tests/browser-ux.js` additionally verifies ten seconds of idle docking above an entirely excavated outpost, Space-based sale, tab navigation, retained receipts, combined service ($60 for 110 missing liters and 60 missing hull), cancellation before ore loss, and deliberate discard without exceeding cargo capacity. Both fuel and hull recovery fixtures pass after moving the hull-impact fixture outside the safe outpost landing field.
+
+Reviewed screenshots: `ux-surface-960.png`, `ux-workshop-960.png`, `ux-short-workshop.png`, and `ux-cargo-warning.png` in `output/playwright/`. Tested layouts include 1440×960, 960×720, and a scrollable workshop at 960×560. No application errors appeared in the final isolated browser session.
+
+Run the new test in a dedicated development-browser session using `playwright-cli -s=mars-regression run-code --filename=tests/browser-ux.js`. It creates controlled fixtures in that session's storage, never a shared player save.
+
+The improvement pass also fixes New Expedition being overwritten by pagehide autosave. `tests/browser-new-expedition.js` verifies that the confirmed reset yields a fresh seed, $80, base upgrades, and zero destroyed tiles; run it after a saved test expedition in an isolated session.

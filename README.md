@@ -29,7 +29,7 @@ npm test
 - **Esc:** pause/resume. **E:** open the ore exchange at the outpost.
 - Surface buttons open **Sell Ore**, **Service**, and **Upgrades**. These panels pause the simulation.
 
-Start by holding S over the copper seam under your pod. Follow nearby veins, then hold W to fly up your shaft. Move sideways onto solid ground before releasing thrust. Sell your haul, refuel, repair, and buy an upgrade. Hard falls hurt; short drops do not. Full cargo means additional ore is discarded if you keep drilling.
+The pod starts safely held by the magnetic dock. A/D moves along the outpost, W launches, and S releases the dock to drill into the copper seam below. The field safely catches returning pods without refilling any excavated terrain. Follow nearby veins, then hold W to fly up your shaft. Move sideways onto solid ground before releasing thrust. Sell your haul, refuel, repair, and buy an upgrade. Hard falls hurt; short drops do not. At full cargo, a target warning gives you 0.9 seconds before drilling begins: release to preserve the ore, or keep holding to discard it and clear a route. The target panel shows ore value and cutting time.
 
 Fuel exhaustion underground or zero hull triggers recovery: unsold cargo is lost, but your credits, upgrades, and tunnels remain. Emergency recovery in the pause menu prevents a stranded or bankrupt save from becoming unplayable.
 

@@ -31,7 +31,7 @@ async (page) => {
   await page.getByRole('button', { name: 'CONTINUE EXPEDITION ↗' }).waitFor();
   const hullFixture = {
     ...base,
-    x: 860,
+    x: 200,
     y: -170,
     fuel: 190,
     hull: 1,

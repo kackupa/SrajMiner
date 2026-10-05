@@ -63,6 +63,14 @@ export class Progress {
     this[key] = this.max(key);
     return true;
   }
+  serviceAll() {
+    const cost = this.serviceCost('fuel') + this.serviceCost('hull');
+    if (this.money < cost) return false;
+    this.money -= cost;
+    this.fuel = this.max('fuel');
+    this.hull = this.max('hull');
+    return true;
+  }
   rescue() {
     this.cargo = emptyCargo();
     this.fuel = this.max('fuel');

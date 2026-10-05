@@ -1,14 +1,12 @@
 # Next sprint — findings from v0.1 playtests
 
-## Start here after the review
+## Completed from the review
 
-Follow [the prioritized UX/UI and gameplay review](UX_GAMEPLAY_REVIEW.md). The first implementation batch is:
+Safe docking, keyboard menu activation, Pause/Resume, the smaller surface layout, ore identification, pre-cut full-cargo warnings, and connected outpost services are built and tested. Upgrade benefits/affordability, retained receipts, low-hull feedback, remaining fuel in liters, and reduced camera motion are also implemented. See the new section in [QA](QA.md).
 
-1. Fix post-recovery falls with safe docking (reproduced: 360 m fall and 30 hull lost without input).
-2. Restore Space/Enter menu behavior and make the pause icon toggle Resume.
-3. Fix station-label/depth-HUD overlap at 960×720 and improve essential text readability.
+## Next priorities
 
-Then improve target-ore identification, warn before full-cargo ore loss, and connect the surface services into one continuous visit. The review includes evidence, affected modules, acceptance criteria, and the next-session handoff. These are queued recommendations; this review did not change gameplay.
+The remaining recommendations in [the review](UX_GAMEPLAY_REVIEW.md) are explored-tunnel navigation, long-session economy testing, less rectangular vein generation (with save compatibility), sound/settings persistence, visible deep-discovery history, and save export/import. Do not rebalance the entire economy without new human playtest evidence.
 
 ## Longer-term playtest work
 

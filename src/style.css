@@ -931,3 +931,226 @@ kbd {
     font-size: 8px;
   }
 }
+/* Expedition usability pass */
+.outpost-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 22px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+.outpost-tabs button {
+  flex: 1;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  padding: 11px 8px;
+}
+.outpost-tabs button[aria-pressed='true'] {
+  color: #182426;
+  background: var(--amber);
+  border-color: var(--amber);
+}
+.modal:has(.outpost-tabs) {
+  width: 600px;
+}
+.modal p,
+.service-row small,
+.ore-list > div {
+  font-size: 13px;
+}
+.modal .primary {
+  font-size: 12px;
+}
+.service-row b,
+.upgrade-row b {
+  font-size: 12px;
+}
+.upgrade-row p {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.upgrade-row {
+  grid-template-columns: 30px 1fr 114px;
+}
+.purchase {
+  text-align: right;
+}
+.purchase button {
+  width: 100%;
+  font-size: 12px;
+}
+.purchase small {
+  display: block;
+  font:
+    10px 'Space Mono',
+    monospace;
+  color: #c6ad8d;
+  margin-top: 7px;
+}
+.meter-head,
+.cargo-line {
+  font-size: 11px;
+}
+.station-dock button {
+  font-size: 11px;
+}
+.drill-target {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 340px;
+  padding: 13px 16px;
+  background: #142023f5;
+  border: 1px solid #95c9b64d;
+  pointer-events: none;
+}
+.drill-target > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.drill-target b {
+  font:
+    12px 'Space Mono',
+    monospace;
+  color: var(--amber);
+}
+.drill-target span {
+  font:
+    9px 'Space Mono',
+    monospace;
+  color: #b5c7b5;
+}
+.drill-target small {
+  display: block;
+  margin-top: 8px;
+  font:
+    10px/1.5 'Space Mono',
+    monospace;
+  color: #b5c7b5;
+}
+.cut-meter {
+  height: 3px;
+  margin-top: 11px;
+  background: #ffffff18;
+}
+.cut-meter i {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+}
+.ore-warning {
+  border-color: #f29c7b;
+}
+.ore-warning small {
+  color: #ffb79c;
+}
+#low-warning {
+  font-size: 11px;
+  max-width: 90%;
+  text-align: center;
+}
+.mission-tip {
+  max-width: 400px;
+}
+.mission-tip div > span {
+  font-size: 10px;
+  line-height: 1.5;
+}
+.mission-tip b {
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .mission-tip {
+    top: 16px;
+    max-width: 310px;
+    left: 53%;
+    padding: 10px 12px;
+  }
+  .depth-panel {
+    top: 25px;
+  }
+  .depth-value {
+    font-size: 54px;
+  }
+  .station-dock button {
+    padding: 13px 12px;
+    font-size: 10px;
+  }
+  .telemetry {
+    width: 208px;
+  }
+}
+@media (max-height: 750px) {
+  .modal {
+    padding: 22px 27px;
+  }
+  .modal h2 {
+    font-size: 30px;
+    margin: 12px 0 15px;
+  }
+  .upgrade-row {
+    padding: 10px 0;
+  }
+  .modal-bank {
+    margin-top: 15px;
+  }
+  .outpost-tabs {
+    margin-bottom: 14px;
+  }
+  .modal-layer {
+    padding: 12px;
+  }
+  .location-label {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  .drill-target {
+    width: 90%;
+    bottom: 75px;
+  }
+  .upgrade-row {
+    grid-template-columns: 20px 1fr 94px;
+  }
+  .upgrade-row b {
+    font-size: 10px;
+  }
+  .upgrade-row p {
+    font-size: 9px;
+  }
+}
+@media (max-height: 750px) {
+  .upgrade-row {
+    padding: 7px 0;
+  }
+  .upgrade-row p {
+    line-height: 1.4;
+    margin: 4px 0;
+  }
+  .level-pips {
+    margin-top: 5px;
+  }
+  .purchase button {
+    padding: 8px 6px;
+    font-size: 11px;
+  }
+  .purchase small {
+    font-size: 9px;
+    margin-top: 4px;
+  }
+  .modal-bank {
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  .modal:has(.outpost-tabs) {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+  .outpost-tabs {
+    padding-bottom: 9px;
+    margin-bottom: 10px;
+  }
+}

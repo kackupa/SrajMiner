@@ -1,6 +1,6 @@
 # UX/UI and gameplay review — 2026-10-05
 
-This is a prioritized handoff for the next implementation session. No game behavior was changed during this review. Evidence comes from source inspection, an isolated Chromium session, screenshots, the previous full-loop playtests, and a targeted physics reproduction. The user's current browser save was not touched.
+Implementation status: items 1–6 are built and verified; low-hull/braking cues from item 7 and directional drill/resource silhouettes/reduced shake from item 8 are also implemented. Navigation, economy experiments, and remaining long-term polish stay open. The following records the original review evidence and acceptance criteria. No game behavior was changed during this review. Evidence comes from source inspection, an isolated Chromium session, screenshots, the previous full-loop playtests, and a targeted physics reproduction. The user's current browser save was not touched.
 
 ## Batch 1 — fix control and recovery problems first
 

@@ -147,3 +147,5 @@ export type Levels = Record<Upgrade, number>;
 export const UPGRADE_KEYS = Object.keys(UPGRADES) as Upgrade[];
 export const value = (levels: Levels, key: Upgrade) => UPGRADES[key].values[levels[key] - 1];
 export const SERVICE = { fuelPrice: 0.3, hullPrice: 0.45 };
+
+export const MINING = { fullCargoWarningSeconds: 0.9 };
