@@ -1,0 +1,5 @@
+# Playwright CLI wraps each browser file as a function expression; no trailing semicolon.
+tests/browser-*.js
+dist/
+output/
+package-lock.json
