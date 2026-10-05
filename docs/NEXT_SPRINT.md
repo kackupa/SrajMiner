@@ -1,5 +1,17 @@
 # Next sprint — findings from v0.1 playtests
 
+## Start here after the review
+
+Follow [the prioritized UX/UI and gameplay review](UX_GAMEPLAY_REVIEW.md). The first implementation batch is:
+
+1. Fix post-recovery falls with safe docking (reproduced: 360 m fall and 30 hull lost without input).
+2. Restore Space/Enter menu behavior and make the pause icon toggle Resume.
+3. Fix station-label/depth-HUD overlap at 960×720 and improve essential text readability.
+
+Then improve target-ore identification, warn before full-cargo ore loss, and connect the surface services into one continuous visit. The review includes evidence, affected modules, acceptance criteria, and the next-session handoff. These are queued recommendations; this review did not change gameplay.
+
+## Longer-term playtest work
+
 1. **Tune longer expeditions with human players.** Automated keyboard trips filled a 16-slot hold and reached silver within the first minute. The loop is immediate, but fuel pressure and high-tier prices need 15–30 minute sessions, across several seeds, before claiming sustained balance. Record return fuel, average sale, and recovery rate.
 2. **Make long return routes easier to read.** Vertical shafts were easy to reverse. Side branches require remembering junctions. Add a restrained explored-tunnel map or breadcrumbs if human tests confirm disorientation; avoid revealing unvisited ore.
 3. **Improve vein shapes.** Coarse cell clusters work and are deterministic, but screenshot review makes their rectangular grouping visible. Try short seeded vein walks or warped cell boundaries, preserving old world generation for existing saves.
