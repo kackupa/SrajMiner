@@ -9,8 +9,8 @@
 | `game/MiningScene.ts`       | Simulation orchestration, original procedural rendering, particles, camera, lifecycle |
 | `world/TileWorld.ts`        | Pure seeded geology, ore veins, bounded chunk cache, excavation and discovery sets    |
 | `player/PlayerPod.ts`       | Acceleration, thrust, substepped axis-separated tile collision, impact callbacks      |
-| `mining/MiningSystem.ts`    | Continuous contact, hardness progress, tile destruction, collection                   |
-| `economy/Progress.ts`       | Cargo, money, capacities, upgrade and service transactions, recovery                  |
+| `mining/MiningSystem.ts`    | Continuous contact, hardness progress, tile destruction, pickups, magnet line of sight |
+| `economy/Progress.ts`       | Cargo, money, route-fragment contract claims, capacities, upgrades, services, recovery |
 | `surface/SurfaceStation.ts` | Station layout and service range                                                      |
 | `ui/HUD.ts`                 | DOM HUD, menus, feedback, focus handling, sale animation                              |
 | `save/SaveManager.ts`       | Schema validation, versioned localStorage read/write, reconstruction                  |
@@ -48,4 +48,4 @@ The saved `artifact` flag and one-time survey event provide a narrow extension p
 
 The outpost has a magnetic landing field at the spawn height. A recovered pod is docked and stays still until directional input. A/D can move along the field, W launches, and S deliberately passes through into the mine. Descending pods in the outpost range are caught unless deliberately drilling down. This is independent of terrain, so old excavations remain intact. Near-surface positions in version-1 saves infer docking on load; underground saves resume underground.
 
-HUD mode transitions reset Phaser key state and enable gameplay capture only during gameplay. DOM dialogs retain native Space/Enter activation and scrolling. The scene's outpost actions still verify physical service range. Combined refuel/repair checks the full amount before mutating any state. Cargo-overflow mining delays the cut for a data-driven warning interval while preserving the option to excavate an escape route.
+HUD mode transitions reset Phaser key state and enable gameplay capture only during gameplay. DOM dialogs retain native Space/Enter activation and scrolling. The scene's outpost actions still verify physical service range. Combined refuel/repair checks the full amount before mutating any state. Mining always proceeds at cargo capacity; `MiningSystem` reports the collected/spilled split per tile, and the scene turns overflow into a seed-and-tile-keyed physical pickup saved immediately with the region.

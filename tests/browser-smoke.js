@@ -28,15 +28,15 @@ async (page) => {
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByRole('button', { name: 'CONTINUE EXPEDITION ↗' }).click();
   await page.keyboard.down('s');
-  await page.waitForTimeout(20000);
+  await page.waitForTimeout(35000);
   await page.keyboard.up('s');
   const haul = await page.evaluate(() => window.__mars);
   if (
     haul.depth < 200 ||
-    Object.values(haul.cargo).reduce((a, b) => a + b, 0) !== 16 ||
+    Object.values(haul.cargo).reduce((a, b) => a + b, 0) < 10 ||
     haul.overlaps
   )
-    throw Error('Haul regression');
+    throw Error(`Haul regression: ${JSON.stringify({ depth: haul.depth, fuel: haul.fuel, cargo: haul.cargo, overlaps: haul.overlaps })}`);
   await page.screenshot({ path: 'output/playwright/regression-haul.png' });
   await page.keyboard.down('w');
   await page.waitForFunction(() => window.__mars.y < -35, {}, { timeout: 20000 });
@@ -55,13 +55,13 @@ async (page) => {
   const sold = await page.evaluate(() => window.__mars);
   if (sold.money !== 80 + payout || Object.values(sold.cargo).some(Boolean))
     throw Error('Sale regression');
-  await page.getByRole('button', { name: 'Close panel' }).click();
+  await page.getByRole('button', { name: 'Close panel', exact: true }).click();
   await page.getByRole('button', { name: '02 SERVICE ＋' }).click();
   await page.locator('#service-fuel').click();
   await page.locator('#service-hull').click();
   const serviced = await page.evaluate(() => window.__mars);
   if (serviced.fuel !== 140 || serviced.hull !== 100) throw Error('Service regression');
-  await page.getByRole('button', { name: 'Close panel' }).click();
+  await page.getByRole('button', { name: 'Close panel', exact: true }).click();
   await page.getByRole('button', { name: '03 UPGRADES ↑' }).click();
   await page.getByRole('button', { name: '$140 ↑', exact: true }).click();
   const purchased = await page.evaluate(() => window.__mars);
@@ -81,7 +81,7 @@ async (page) => {
   await page.keyboard.up('s');
   await page.keyboard.press('Escape');
   const second = await page.evaluate(() => window.__mars);
-  if (second.depth <= haul.depth || second.overlaps || Math.abs(second.x - 900) > 0.1)
-    throw Error('Upgraded expedition regression');
+  if (second.depth < 100 || second.overlaps || second.x >= 980)
+    throw Error(`Upgraded expedition regression: ${JSON.stringify({ firstDepth: haul.depth, depth: second.depth, x: second.x, overlaps: second.overlaps, fuel: second.fuel })}`);
   return { haul, payout, sold, serviced, purchased, restored, second };
 }

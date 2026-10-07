@@ -28,15 +28,18 @@ async (page) => {
  const full={...base,x:980,y:-22,seed:1410513364,fuel:140,hull:100,destroyed:[],cargo:{copper:16,iron:0,silver:0,gold:0,diamond:0}};
  await page.evaluate(s=>localStorage.setItem('mars-miner.v1',JSON.stringify(s)),full);
  await page.reload();await page.getByRole('button',{name:'CONTINUE EXPEDITION ↗'}).click();
- await page.setViewportSize({width:1440,height:960});await page.keyboard.down('s');await page.waitForTimeout(400);
- const warning=await page.locator('#drill-target').innerText();
+ await page.setViewportSize({width:1440,height:960});await page.keyboard.down('s');
+ await page.waitForFunction(()=>document.querySelector('#drill-target')?.textContent.includes('EXCESS ORE DROPS HERE'));
+ const warning=await page.locator('#drill-target').textContent();
  const before=await page.evaluate(()=>window.__mars);
- if(!warning.includes('ORE WILL BE LOST')||before.destroyed.length)throw Error('Missing pre-cut safeguard');
- await page.screenshot({path:'output/playwright/ux-cargo-warning.png'});
- await page.keyboard.up('s');await page.waitForTimeout(100);
- if((await page.evaluate(()=>window.__mars.destroyed.length))!==0)throw Error('Canceled cut destroyed ore');
- await page.keyboard.down('s');await page.waitForTimeout(1450);await page.keyboard.up('s');await page.keyboard.press('Escape');
- const discarded=await page.evaluate(()=>window.__mars);
- if(!discarded.destroyed.includes('24,0')||discarded.cargo.copper!==16)throw Error('Deliberate escape cut failed');
- return {idle:{y:idle.y,hull:idle.hull,fuel:idle.fuel,docked:idle.docked},serviced:{money:serviced.money,hull:serviced.hull,fuel:serviced.fuel},warning,discarded:discarded.destroyed};
+ if(!warning.includes('EXCESS ORE DROPS HERE')||before.destroyed.length)throw Error(`Missing recoverable-spill guidance before the full-capacity cut: ${JSON.stringify({warning,destroyed:before.destroyed.length,cargo:before.cargo})}`);
+ await page.screenshot({path:'output/playwright/ux-cargo-spill-guidance.png'});
+ await page.waitForFunction(()=>window.__mars.destroyed.includes('24,0'),null,{timeout:6000});await page.keyboard.up('s');await page.keyboard.press('Escape');
+ const overflow=await page.evaluate(()=>window.__mars);
+ const drops=overflow.maps['mars-frontier']?.drops??0;
+ if(!overflow.destroyed.includes('24,0')||overflow.cargo.copper!==16||drops<1)throw Error(`Full cargo must clear a route and leave recoverable ore: ${JSON.stringify({destroyed:overflow.destroyed.slice(-5),cargo:overflow.cargo,drops,depth:overflow.depth})}`);
+ await page.reload();await page.getByRole('button',{name:'CONTINUE EXPEDITION ↗'}).click();
+ const persisted=await page.evaluate(()=>window.__mars);
+ if((persisted.maps['mars-frontier']?.drops??0)<1)throw Error('Recoverable full-cargo ore did not persist across reload');
+ return {idle:{y:idle.y,hull:idle.hull,fuel:idle.fuel,docked:idle.docked},serviced:{money:serviced.money,hull:serviced.hull,fuel:serviced.fuel},spillGuidance:warning,overflowDrops:persisted.maps['mars-frontier'].drops,cargo:overflow.cargo};
 }

@@ -14,9 +14,13 @@ All tunable values live in `src/game/config.ts`.
 
 The first 3×3 copper seam is guaranteed. Other geology varies by seed. Ore tests use 3×3 coarse cells (2×2 for diamond), followed by irregular thinning. Valuable resources win overlap checks, so marginal probabilities are not the final ore percentages.
 
+## Campaign contracts
+
+Each of the four guaranteed Cryo Shelf route fragments pays one salvage claim matching a ship component: $420 frame, $720 propulsion, $980 navigation, and $680 habitat core. The $2,800 total exactly covers the ship; ordinary ore income can fund upgrades and services. Each claim is issued only when its fragment is first recovered, and the saved fragment record prevents repeat payouts.
+
 ## Upgrade levels
 
-| Category | Levels 1 → 5                          | Purchase costs, levels 2 → 5 |
+| Category | Starter values, levels 1 → 5         | Purchase costs, levels 2 → 5 |
 | -------- | ------------------------------------- | ---------------------------- |
 | Drill    | 1 / 1.5 / 2.2 / 3.1 / 4.3 × speed     | $140 / $360 / $850 / $1,800  |
 | Fuel     | 140 / 190 / 260 / 350 / 480 L         | $120 / $320 / $750 / $1,600  |
@@ -24,16 +28,28 @@ The first 3×3 copper seam is guaranteed. Other geology varies by seed. Ore test
 | Hull     | 100 / 140 / 195 / 270 / 380 integrity | $130 / $340 / $800 / $1,700  |
 | Engine   | 1 / 1.18 / 1.4 / 1.65 / 1.95 × output | $160 / $400 / $950 / $2,000  |
 
+Tracks continue beyond level 5. Their level-6+ purchase price grows linearly from the final authored tier cost, so cumulative spending grows quadratically, and base-stat gains use a square-root curve to avoid explosive balance changes. The scanner continues from full horizontal map coverage into greater vertical survey depth. These formulas are in `src/game/config.ts`; the table above remains the authored starter curve. Human economy testing for post-five progression remains open.
+
+## Pilot specializations
+
+Specializations are free to change while docked at Hab 07. Balanced is the no-modifier migration default. Seam Cutter raises hard-rock cutting speed by 20%; Surveyor expands the scanner reveal radius by two tiles while leaving geology and hidden deposits unchanged; Hauler raises cargo capacity by 25%, rounded to the nearest half unit. Switching to a smaller hold is disabled until the unsold cargo fits, so a loadout swap cannot create or retain over-capacity ore. These are playstyle choices rather than additional survival meters. Their relative value still needs human playtesting.
+
 Fuel and hull purchases also fill the newly added capacity. An early full copper load earns $288, enough to service the pod and afford its first upgrade. Starting bank balance is $80.
 
 ## Consumption and service
 
-Movement/descent input: 0.55 L/s. Thrust: 1.25 L/s. Active drilling: an additional 1.4 L/s. No idle drain. Fuel service costs $0.30 per missing liter; hull repair costs $0.45 per missing integrity, each rounded up to whole credits.
+Movement/descent input: 0.55 L/s. Thrust: 1.25 L/s. Active drilling: an additional 1.4 L/s. No idle drain. Fuel service costs $0.30 per missing liter; hull repair costs $0.45 per missing integrity, each rounded up to whole credits. The optional salvage magnet costs $420 once, reaches 190 px through clear tunnels, applies 620 px/s² pull, and caps ore pickup speed at 260 px/s.
+
+Pilot suit palettes are optional visual rewards priced at $160 / $320 / $520 after the free Hab Issue suit. They change only the pilot's cockpit colors.
 
 Base drilling times are 0.30 s for dirt, 0.60 s for basalt, 1.05 s below 300 m, 1.50 s below 600 m, and 1.90 s below 1,000 m. Divide by drill output. Traversal between tiles adds time. Level 2 drill is intentionally conspicuous.
+
+Drill and cargo levels also grow the rendered pod by 4% and 5.5% per tier above level 1, capped at 1.38×. This is visual progression only; the 26×32 px collision body is unchanged and the maximum hull width remains below the 40 px tile width.
 
 ## Damage tuning from playtesting
 
 Initial testing showed a 360 m run and return could consume around three quarters of the hull through cave drops and landing. Raised the safe impact threshold from 245 to 280 pixels/s and reduced damage from 0.25 to 0.20 per excess pixel/s. Terminal fall speed remains 430: a maximum-speed landing costs 30 hull. One-tile drops remain safe. Hull upgrades raise the margin for error, while engine upgrades make ascent and braking stronger.
+
+The HUD now warns “FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT” at 168 pixels/s (60% of the damage threshold), leaving time to react before a damaging landing. This cue has unit coverage but still needs live human timing/noticeability review. Low fuel and critical hull cues override it.
 
 Fuel is deliberately forgiving on the first expedition. Longer excursions and chasing high-value seams introduce the return decision. Long-session late-game economics still need wider human playtesting.
