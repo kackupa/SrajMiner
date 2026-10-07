@@ -38,7 +38,8 @@ Fuel and hull purchases also fill the newly added capacity. An early full copper
 
 ## Consumption and service
 
-Movement/descent input: 0.55 L/s. Thrust: 1.25 L/s. Active drilling: an additional 1.4 L/s. No idle drain. Fuel service costs $0.30 per missing liter; hull repair costs $0.45 per missing integrity, each rounded up to whole credits. The optional salvage magnet costs $420 once, reaches 190 px through clear tunnels, applies 620 px/s² pull, and caps ore pickup speed at 260 px/s.
+Movement/descent input: 0.55 L/s. Thrust: 1.25 L/s. Active drilling: an additional 1.4 L/s. No idle drain. Fuel service costs $0.30 per missing liter; hull repair costs $0.45 per missing integrity, each rounded up to whole credits.
+Underground platforms cost $140 plus 2 copper and 1 iron; service beacons cost $420 plus 3 iron and 2 silver. Construction is available from 180–3,400 m; a map supports at most 12 platforms and one service beacon, within the shared 16-structure cap. Sentry turrets cost $560 plus 2 iron, 2 silver, and 1 gold; up to three can be built per map, each intercepting swimmers within 440 px and reloading in 1.4 seconds. The emergency escape suit costs $780 for one use; it provides jetpack flight independent of miner fuel after hull failure, but preserves neither the miner nor carried cargo and can still be lost to a swimmer strike. The optional salvage magnet costs $420 once, reaches 190 px through clear tunnels, applies 620 px/s² pull, and caps ore pickup speed at 260 px/s.
 
 Pilot suit palettes are optional visual rewards priced at $160 / $320 / $520 after the free Hab Issue suit. They change only the pilot's cockpit colors.
 

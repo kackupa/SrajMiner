@@ -1,4 +1,4 @@
-import { CORE, CORE_RELICS, coreSurveyComplete, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, type Upgrade, type ShipComponent, type MapId, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { CORE, CORE_RELICS, coreSurveyComplete, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, UNDERGROUND_BUILDING, type Upgrade, type ShipComponent, type MapId, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import { parseSaveFile, type SaveData } from '../save/SaveManager';
 import { Progress, type Cargo } from '../economy/Progress';
 import type { Tile } from '../world/TileWorld';
@@ -7,6 +7,8 @@ import type { PlayerPod } from '../player/PlayerPod';
 import type { AudioMix } from '../audio/AudioSystem';
 import { campaignMapRecords, crewArchiveRestored } from '../campaign/Records';
 import { surfaceTownTier } from '../surface/SurfaceStation';
+import { canAffordStructure, type StructureKind, type UndergroundStructure } from '../building/UndergroundStructures';
+import { ESCAPE_SUIT } from '../config';
 export const flightWarning = (input: {
   surface: boolean;
   fuelRatio: number;
@@ -69,6 +71,7 @@ export type UIActions = {
   buyMagnet: () => boolean;
   buyStasis: () => boolean;
   buyReturnWinch: () => boolean;
+  buyEscapeSuit: () => boolean;
   buyPaint: (key: PodPaint) => boolean;
   selectPaint: (key: PodPaint) => boolean;
   buySuit: (key: PilotSuit) => boolean;
@@ -86,6 +89,9 @@ export type UIActions = {
   setAudioMix: (channel: keyof AudioMix, value: number) => void;
   buildShipComponent: (key: ShipComponent) => boolean;
   travelMap: (id: MapId) => boolean;
+  buildStructure: (kind: StructureKind) => boolean;
+  structures: () => readonly UndergroundStructure[];
+  surfaceAccess: () => boolean;
   exportSave: () => SaveData | null;
   importSave: (save: SaveData) => boolean;
 };
@@ -229,7 +235,7 @@ export class HUD {
       <div id="drill-target" class="drill-target hidden"></div><div id="route-map-panel" class="route-map-panel hidden"><div><b>EXPLORED TUNNELS</b><button id="map-close" aria-label="Close explored map">×</button></div><canvas id="route-map" width="240" height="220" aria-label="Map of explored tunnels and nearby surveyed ore"></canvas><div class="map-legend" aria-label="Ore map legend">${ORE_KEYS.map((key) => `<span><i class="ore-key ore-${ORE_SILHOUETTES[key]}" data-ore="${key}" role="img" aria-label="${ORES[key].name} marker" style="--ore-color:${ORES[key].hex}"></i>${ORES[key].name}</span>`).join('')}<span><i class="special"></i>Signature find</span><span><i class="hash"></i>Archive hash</span></div><small>Ore appears only after your scanner surveys nearby rock · M toggles map</small></div><div id="toast" role="status" aria-live="polite"></div><div id="low-warning" role="status"></div>
       <div class="station-dock" id="station-dock"><div class="dock-label"><i></i><div><b>HAB 07</b><span id="town-status">PROSPECTOR CAMP · TIER 0</span></div></div><button id="open-sell"><span>01</span> SELL ORE <b>↗</b></button><button id="open-service"><span>02</span> SERVICE <b>＋</b></button><button id="open-upgrades"><span>03</span> UPGRADES <b>↑</b></button><button id="open-archive"><span>04</span> ARCHIVE <b>▤</b></button><button id="open-shipyard"><span>05</span> SHIPYARD <b>↗</b></button><button id="open-destinations"><span>06</span> MAPS <b>⌖</b></button><button id="open-paints"><span>07</span> PAINT <b>✦</b></button></div>
       <input id="save-import-input" type="file" accept="application/json,.json" hidden /><div id="modal-layer" class="modal-layer"></div></main>
-      <footer><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>MOUSE AIM + DRILL IN FLIGHT <span></span><kbd>S</kbd> DOWN / DROP <span></span><kbd>W</kbd> THRUST <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">$80</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
+      <footer><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>MOUSE AIM + DRILL IN FLIGHT <span></span><kbd>S</kbd> DOWN / DROP <span></span><kbd>W</kbd> THRUST <span></span><kbd>E</kbd> SELL / SERVICE <span></span><kbd>B</kbd> BUILD <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">$80</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
     this.on('pause', () => actions.pause());
     this.on('audio', () => this.updateMuteButton(actions.mute()));
     this.updateMuteButton(actions.isMuted());
@@ -316,7 +322,7 @@ export class HUD {
           briefing: 'Recover ore and navigation fragments from Vesper-9. Bring each haul home to build the launch craft and chart new regions. Ship projects and planetary core records grow Hab 07 upward into a sky town. Your tunnels stay yours.',
         };
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal intro" role="dialog" aria-modal="true" aria-label="Expedition briefing"><div class="eyebrow">${intro.eyebrow}</div><div class="intro-symbol">✦</div><h1>${intro.headline}</h1><p>${intro.dek}</p><div class="intro-loop"><span>01 <b>${intro.loop[0]}</b></span><i>→</i><span>02 <b>${intro.loop[1]}</b></span><i>→</i><span>03 <b>${intro.loop[2]}</b></span></div><p class="briefing">${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP</span></div><div><kbd>E</kbd><span>SELL AT SURFACE</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH THE RETURN-FUEL ESTIMATE AND KEEP A RESERVE.</p><button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button><small class="intro-note">ORIGINAL REACTIVE SYNTH MUSIC · Q USES A PURCHASED CHARGE · X USES AN INSTALLED STASIS MODULE · R USES THE OPTIONAL SURFACE WINCH</small></section>`;
+      `<section class="modal intro" role="dialog" aria-modal="true" aria-label="Expedition briefing"><div class="eyebrow">${intro.eyebrow}</div><div class="intro-symbol">✦</div><h1>${intro.headline}</h1><p>${intro.dek}</p><div class="intro-loop"><span>01 <b>${intro.loop[0]}</b></span><i>→</i><span>02 <b>${intro.loop[1]}</b></span><i>→</i><span>03 <b>${intro.loop[2]}</b></span></div><p class="briefing">${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP</span></div><div><kbd>E</kbd><span>SELL / SERVICE</span></div><div><kbd>B</kbd><span>BUILD AT DEPTH</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH THE RETURN-FUEL ESTIMATE AND KEEP A RESERVE.</p><button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button><small class="intro-note">ORIGINAL REACTIVE SYNTH MUSIC · Q USES A PURCHASED CHARGE · X USES AN INSTALLED STASIS MODULE · R USES THE OPTIONAL SURFACE WINCH</small></section>`;
     this.on('launch', () => {
       this.hasStarted = true;
       this.close();
@@ -334,7 +340,24 @@ export class HUD {
     let title = '',
       sub = '',
       content = '';
-    if (name === 'audio') {
+    if (name === 'construction') {
+      title = 'Make a foothold.';
+      sub = 'UNDERGROUND FABRICATOR';
+      const structures = this.actions.structures();
+      const materials = (kind: StructureKind) => Object.entries(UNDERGROUND_BUILDING[kind].materials)
+        .map(([ore, units]) => `${units} ${ore.toUpperCase()}`).join(' · ');
+      const platformCount = structures.filter((entry) => entry.kind === 'platform').length;
+      const hasService = structures.some((entry) => entry.kind === 'service');
+      const turretCount = structures.filter((entry) => entry.kind === 'turret').length;
+      const option = (kind: StructureKind, label: string, description: string, owned: boolean) => {
+        const cost = UNDERGROUND_BUILDING[kind];
+        const affordable = canAffordStructure(kind, p.cargo, p.money);
+        const blocked = !affordable || owned || structures.length >= UNDERGROUND_BUILDING.maxStructuresPerMap;
+        const buttonText = owned ? 'ALREADY BUILT' : !affordable ? 'NEED ORE / CREDITS' : `BUILD · $${cost.credits}`;
+        return `<article class="service-row"><div><b>${label}</b><small>${description}<br>BUILD COST · ${materials(kind)} + $${cost.credits}</small></div><button id="build-${kind}" ${blocked ? 'disabled' : ''}>${buttonText}</button></article>`;
+      };
+      content = `<p>Build in a cleared cavern. Down drops through decks; local gravity decides which side catches you. Structures stay on this planet.</p><div class="upgrade-list">${option('platform', 'ANCHOR DECK', 'A five-tile landing and staging platform.', platformCount >= 12)}${option('service', 'REFUEL BEACON', 'One per planet. Press E nearby to refuel or repair at standard prices.', hasService)}${option('turret', 'SENTRY TURRET', `${turretCount}/3 built. Automatically intercepts rock swimmers in range.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}</div><p class="fine">Construction requires a 180 m+ site and open room around the build point.</p>`;
+    } else if (name === 'audio') {
       const mix = this.actions.audioMix();
       title = 'Tune the sound.';
       sub = 'AUDIO / LOCAL SETTINGS';
@@ -345,8 +368,8 @@ export class HUD {
       content = `<div class="ore-list">${ORE_KEYS.map((k) => `<div><span><i style="background:${ORES[k].hex}"></i>${ORES[k].name}</span><span>× ${saleCargo[k]}</span><b>$${saleCargo[k] * ORES[k].value}</b></div>`).join('')}</div><div class="sale-total"><span>${receipt ? 'CREDITS BANKED' : 'ESTIMATED PAYOUT'}</span><b>$${receipt?.total ?? p.cargoValue}</b></div><button id="sell" class="primary" ${p.count ? '' : 'disabled'}>SELL CARGO <span>↗</span></button>`;
     } else if (name === 'service') {
       title = 'Ready for another run.';
-      sub = 'FUEL & REPAIR / OUTPOST 07';
-      content = `<p>Top up before you head back into the dark.</p><button id="service-all" class="primary" ${p.serviceCost('fuel') + p.serviceCost('hull') === 0 || p.serviceCost('fuel') + p.serviceCost('hull') > p.money ? 'disabled' : ''}>REFUEL + REPAIR <span>$${p.serviceCost('fuel') + p.serviceCost('hull')}</span></button>${(['fuel', 'hull'] as const).map((k) => `<div class="service-row"><div><b>${k === 'fuel' ? 'REFUEL TANK' : 'REPAIR HULL'}</b><small>${Math.ceil(p[k])} / ${p.max(k)} ${k === 'fuel' ? 'L' : 'integrity'}</small></div><button id="service-${k}" ${p.serviceCost(k) === 0 || p.serviceCost(k) > p.money ? 'disabled' : ''}>${p.serviceCost(k) === 0 ? 'FULL' : `$${p.serviceCost(k)} →`}</button></div>`).join('')}<p class="fine">Emergency recovery is available in the pause menu. It restores your pod, but forfeits unsold cargo.</p>`;
+      sub = this.actions.structures().some((entry) => entry.kind === 'service') ? 'FUEL & REPAIR / LOCAL PIT STOP' : 'FUEL & REPAIR / OUTPOST 07';
+      content = `<p>Top up before you head back into the dark. Charges use the same standard prices as Hab 07.</p><button id="service-all" class="primary" ${p.serviceCost('fuel') + p.serviceCost('hull') === 0 || p.serviceCost('fuel') + p.serviceCost('hull') > p.money ? 'disabled' : ''}>REFUEL + REPAIR <span>$${p.serviceCost('fuel') + p.serviceCost('hull')}</span></button>${(['fuel', 'hull'] as const).map((k) => `<div class="service-row"><div><b>${k === 'fuel' ? 'REFUEL TANK' : 'REPAIR HULL'}</b><small>${Math.ceil(p[k])} / ${p.max(k)} ${k === 'fuel' ? 'L' : 'integrity'}</small></div><button id="service-${k}" ${p.serviceCost(k) === 0 || p.serviceCost(k) > p.money ? 'disabled' : ''}>${p.serviceCost(k) === 0 ? 'FULL' : `$${p.serviceCost(k)} →`}</button></div>`).join('')}${this.actions.surfaceAccess() ? '<p class="fine">Emergency recovery is available in the pause menu. It restores your pod, but forfeits unsold cargo.</p>' : '<p class="fine">A beacon is a pit stop, not a teleport. Keep enough fuel to fly back to the surface.</p>'}`;
     } else if (name === 'upgrades') {
       title = 'Make the next run count.';
       sub = 'POD WORKSHOP / OUTPOST 07';
@@ -367,7 +390,9 @@ export class HUD {
       }).join('')}</div><div class="tool-purchase"><div><b>MINING CHARGES · ${p.charges} READY</b><small>Q drops a charge under gravity with a ${CHARGE.fuseSeconds.toFixed(1)}s fuse. Clears up to 13 tiles; ore drops persist until collected. The blast can open ground below you.</small></div><button id="buy-charges" ${p.money < CHARGE.packCost ? 'disabled' : ''}>${p.money < CHARGE.packCost ? `NEED $${CHARGE.packCost - p.money}` : `+${CHARGE.packSize} · $${CHARGE.packCost}`}</button></div><div class="tool-purchase"><div><b>SALVAGE MAGNET · ${p.salvageMagnet ? 'INSTALLED' : 'OPTIONAL ADD-ON'}</b><small>${p.salvageMagnet ? `Active · reels charge-freed ore from up to ${SALVAGE_MAGNET.radius} px through open tunnels. Cargo capacity still applies.` : `Automatically reels charge-freed ore from up to ${SALVAGE_MAGNET.radius} px through open tunnels. Cargo capacity still applies.`}</small></div><button id="buy-magnet" ${p.salvageMagnet || p.money < SALVAGE_MAGNET.cost ? 'disabled' : ''}>${p.salvageMagnet ? 'INSTALLED' : p.money < SALVAGE_MAGNET.cost ? `NEED $${SALVAGE_MAGNET.cost - p.money}` : `INSTALL · $${SALVAGE_MAGNET.cost}`}</button></div><section class="specialization-section" aria-label="Pilot specialization"><h3>CHOOSE YOUR PILOT PATH</h3><p>Set up for your next expedition. Paths are free to switch while docked.</p><div class="specialization-grid">${specializationCards}</div></section>`;
       const stasisCard = `<div class="tool-purchase"><div><b>STASIS MODULE · ${p.stasisModule ? 'INSTALLED' : 'OPTIONAL ADD-ON'}</b><small>${p.stasisModule ? `Hold X underground to cancel gravity while airborne. Uses ${STASIS_MODULE.fuelPerSecond} L/s; horizontal steering still works.` : `Freeze your fall underground by holding X. Uses ${STASIS_MODULE.fuelPerSecond} L/s; horizontal steering still works.`}</small></div><button id="buy-stasis" ${p.stasisModule || p.money < STASIS_MODULE.cost ? 'disabled' : ''}>${p.stasisModule ? 'INSTALLED' : p.money < STASIS_MODULE.cost ? `NEED $${STASIS_MODULE.cost - p.money}` : `INSTALL · $${STASIS_MODULE.cost}`}</button></div>`;
       const winchCard = `<div class="tool-purchase"><div><b>SURFACE WINCH · ${p.returnWinch ? 'INSTALLED' : 'OPTIONAL ADD-ON'}</b><small>${p.returnWinch ? `Hold R underground to reel upward ${RETURN_WINCH.pullMultiplier.toFixed(1)}× faster. Active pull uses ${RETURN_WINCH.fuelMultiplier.toFixed(1)}× thrust fuel and needs an open shaft.` : `A faster way home: hold R to reel upward ${RETURN_WINCH.pullMultiplier.toFixed(1)}× faster through open tunnels. Uses ${RETURN_WINCH.fuelMultiplier.toFixed(1)}× thrust fuel while pulling.`}</small></div><button id="buy-return-winch" ${p.returnWinch || p.money < RETURN_WINCH.cost ? 'disabled' : ''}>${p.returnWinch ? 'INSTALLED' : p.money < RETURN_WINCH.cost ? `NEED $${RETURN_WINCH.cost - p.money}` : `INSTALL · $${RETURN_WINCH.cost}`}</button></div>`;
+      const escapeSuitCard = `<div class="tool-purchase"><div><b>EMERGENCY ESCAPE SUIT · ${p.escapeSuit ? 'PACKED' : 'ONE USE'}</b><small>${p.escapeSuit ? 'If the miner is destroyed, eject with an independent rocket pack. A / D steer, W boosts, and Q still drops charges. Reach the surface or a built service beacon; drilling is disabled.' : `One-use crash backup: hull failure ejects you in a protected suit with its own jetpack. Reach a surface dock or service beacon to survive. $${ESCAPE_SUIT.cost}.`}</small></div><button id="buy-escape-suit" ${p.escapeSuit || p.money < ESCAPE_SUIT.cost ? 'disabled' : ''}>${p.escapeSuit ? 'PACKED' : p.money < ESCAPE_SUIT.cost ? `NEED $${ESCAPE_SUIT.cost - p.money}` : `PACK · $${ESCAPE_SUIT.cost}`}</button></div>`;
       content = content.replace('<div class="tool-purchase"><div><b>MINING CHARGES', `${stasisCard}${winchCard}<div class="tool-purchase"><div><b>MINING CHARGES`);
+      content = content.replace('<section class="specialization-section"', `${escapeSuitCard}<section class="specialization-section"`);
     } else if (name === 'archive') {
       title = 'Signals worth following.';
       sub = 'EXPEDITION ARCHIVE / OUTPOST 07';
@@ -479,7 +504,7 @@ export class HUD {
         '<p>Your unsold ore was lost. Your banked credits, upgrades, and excavated tunnels are safe. A refueled, repaired pod is waiting at the outpost.</p><button id="resume" class="primary">BACK TO THE SURFACE <span>↑</span></button>';
     }
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><div class="eyebrow">${sub}</div><h2>${title}</h2>${['sell', 'service', 'upgrades'].includes(name) ? `<nav class="outpost-tabs" aria-label="Outpost services">${['sell', 'service', 'upgrades'].map((k) => `<button id="tab-${k}" aria-pressed="${name === k}">${k === 'sell' ? 'Sell ore' : k === 'service' ? 'Service' : 'Upgrades'}</button>`).join('')}</nav>` : ''}${content}<div class="modal-bank">AVAILABLE CREDIT <b>$${p.money.toLocaleString()}</b></div></section>`;
+      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><div class="eyebrow">${sub}</div><h2>${title}</h2>${['sell', 'service', 'upgrades'].includes(name) && (name !== 'service' || this.actions.surfaceAccess()) ? `<nav class="outpost-tabs" aria-label="Outpost services">${['sell', 'service', 'upgrades'].map((k) => `<button id="tab-${k}" aria-pressed="${name === k}">${k === 'sell' ? 'Sell ore' : k === 'service' ? 'Service' : 'Upgrades'}</button>`).join('')}</nav>` : ''}${content}<div class="modal-bank">AVAILABLE CREDIT <b>$${p.money.toLocaleString()}</b></div></section>`;
     for (const k of ['sell', 'service', 'upgrades']) this.on(`tab-${k}`, () => this.open(k));
     this.on('style-paint', () => { this.styleSection = 'paint'; this.renderModal(); });
     this.on('style-suit', () => { this.styleSection = 'suit'; this.renderModal(); });
@@ -501,12 +526,26 @@ export class HUD {
       this.actions.serviceAll();
       this.renderModal();
     });
+    for (const kind of ['platform', 'service'] as const) this.on(`build-${kind}`, () => {
+      if (this.actions.buildStructure(kind)) this.toast(kind === 'service' ? 'Refuel beacon built. E opens the underground service stop.' : 'Anchor deck built. It catches the pod under local gravity.');
+      else this.toast('Build site blocked. Clear a five-tile cavern and move away from other structures.');
+      this.renderModal();
+    });
+    this.on('build-turret', () => {
+      if (this.actions.buildStructure('turret')) this.toast('Sentry online. It intercepts rock swimmers that enter range.');
+      else this.toast('Build site blocked. Clear the cavern and move away from other structures.');
+      this.renderModal();
+    });
     this.on('buy-stasis', () => {
       if (this.actions.buyStasis()) this.toast('Stasis module installed. Hold X underground to hover; fuel drains while active.');
       this.renderModal();
     });
     this.on('buy-return-winch', () => {
       if (this.actions.buyReturnWinch()) this.toast('Surface winch installed. Hold R in an open shaft to reel upward faster; fuel cost rises while active.');
+      this.renderModal();
+    });
+    this.on('buy-escape-suit', () => {
+      if (this.actions.buyEscapeSuit()) this.toast('Escape suit packed. If the miner is destroyed, pilot controls switch to jetpack flight.');
       this.renderModal();
     });
     this.on('close', () => this.close());
@@ -625,13 +664,13 @@ export class HUD {
       ? 'LOCAL SAVE · JUST SAVED'
       : 'LOCAL SAVE · FAILED';
   }
-  update(depth: number, surface: boolean, dt: number, docked = false, returnFuel = 0, descentSpeed = 0, farHemisphere = false) {
+  update(depth: number, surface: boolean, dt: number, docked = false, returnFuel = 0, descentSpeed = 0, farHemisphere = false, pilotEscaping = false) {
     const p = this.p;
     this.nearSurface = surface;
     for (const k of ['fuel', 'hull'] as const) {
       const ratio = p[k] / p.max(k);
       document.querySelector(`#${k}-label`)!.textContent =
-        k === 'fuel' ? `${Math.ceil(p.fuel)} / ${p.max('fuel')} L` : `${Math.ceil(ratio * 100)}%`;
+        k === 'fuel' ? `${Math.ceil(p.fuel)} / ${p.max('fuel')} L` : pilotEscaping ? 'EJECTED' : `${Math.ceil(ratio * 100)}%`;
       const bar = document.querySelector(`#${k}-bar`) as HTMLElement;
       bar.style.width = `${ratio * 100}%`;
       bar.classList.toggle('low', ratio < 0.25);
@@ -681,7 +720,7 @@ export class HUD {
     if (this.savedAt && !this.saveFailed)
       document.querySelector('#save-status')!.textContent =
         `LOCAL SAVE · ${Math.floor((Date.now() - this.savedAt) / 1000)}s AGO`;
-    document.querySelector('#low-warning')!.textContent = flightWarning({
+    document.querySelector('#low-warning')!.textContent = pilotEscaping ? 'ESCAPE SUIT ACTIVE · A / D STEER · W BOOSTS · REACH A SURFACE OR BEACON' : flightWarning({
       surface,
       fuelRatio: p.fuel / p.max('fuel'),
       hullRatio: p.hull / p.max('hull'),

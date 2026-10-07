@@ -1,8 +1,9 @@
 import { atSurface, surfaceTownTier, TOWN_TIER_HEIGHTS } from '../surface/SurfaceStation';
-import { WORLD, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
+import { WORLD, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
 import { TileWorld, type Tile } from '../world/TileWorld';
+import { crossedStructureDeck, type UndergroundStructure } from '../building/UndergroundStructures';
 import { Progress } from '../economy/Progress';
-export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean };
+export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; escapePack?: boolean };
 export type GrappleAnchor = { x: number; y: number };
 export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach: number, gravitySign = 1): GrappleAnchor | undefined {
     const tx = Math.floor(x / WORLD.tile), ty = Math.floor(y / WORLD.tile), cells = Math.ceil(reach / WORLD.tile);
@@ -34,6 +35,7 @@ export class PlayerPod {
   stasisActive = false;
   reeling = false;
   grappleAnchor?: GrappleAnchor;
+  structures: readonly UndergroundStructure[] = [];
   private grappleHang = 0;
   private grappleCooldown = 0;
   scannerRadius = 4;
@@ -109,9 +111,10 @@ export class PlayerPod {
       }
     }
     const dir = Number(input.right) - Number(input.left);
+    const escapePack = !!input.escapePack;
     this.stasisActive = requestStasis;
     this.reeling = requestWinch;
-    this.thrusting = (input.up || requestWinch) && p.fuel > 0 && !this.stasisActive;
+    this.thrusting = (input.up || requestWinch) && (p.fuel > 0 || escapePack) && !this.stasisActive;
     if (dir) this.facing = dir;
     // Center a vertical cut gently, so landing near a grid edge does not drill two shafts.
     if (input.down && !dir && this.vy * gravitySign >= 0) {
@@ -119,12 +122,14 @@ export class PlayerPod {
       const aligned = this.x + Math.max(-70 * dt, Math.min(70 * dt, center - this.x));
       if (!this.overlaps(aligned, this.y).length) this.x = aligned;
     }
-    this.vx += dir * P.acceleration * engine * dt;
+    const escapeSpeed = escapePack ? ESCAPE_SUIT.speedMultiplier : 1;
+    const escapeThrust = escapePack ? ESCAPE_SUIT.thrustMultiplier : 1;
+    this.vx += dir * P.acceleration * engine * escapeSpeed * dt;
     if (!dir) this.vx *= Math.exp(-10 * dt);
-    this.vx = Math.max(-P.horizontal * engine, Math.min(P.horizontal * engine, this.vx));
+    this.vx = Math.max(-P.horizontal * engine * escapeSpeed, Math.min(P.horizontal * engine * escapeSpeed, this.vx));
     if (this.stasisActive) this.vy = 0;
-    else this.vy += gravitySign * (P.gravity + (input.down ? 110 : 0) - (this.thrusting ? P.thrust * engine * (this.reeling ? RETURN_WINCH.pullMultiplier : 1) : 0)) * dt;
-    const maxRise = P.rise * engine * (this.reeling ? RETURN_WINCH.pullMultiplier : 1);
+    else this.vy += gravitySign * (P.gravity + (input.down ? 110 : 0) - (this.thrusting ? P.thrust * engine * escapeThrust * (this.reeling ? RETURN_WINCH.pullMultiplier : 1) : 0)) * dt;
+    const maxRise = P.rise * engine * escapeSpeed * (this.reeling ? RETURN_WINCH.pullMultiplier : 1);
     this.vy = gravitySign > 0 ? Math.max(-maxRise, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxRise, this.vy));
     if (this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !requestWinch && !this.stasisActive) {
       const anchor = findGrappleAnchor(this.world, this.x, this.y, value(p.levels, 'grapple'), gravitySign);
@@ -139,7 +144,7 @@ export class PlayerPod {
     }
     p.fuel = Math.max(
       0,
-      p.fuel - dt * ((dir || input.down ? FUEL.moving : 0) + (this.thrusting ? FUEL.thrust * (this.reeling ? RETURN_WINCH.fuelMultiplier : 1) : 0) + (this.stasisActive ? STASIS_MODULE.fuelPerSecond : 0)),
+      p.fuel - (escapePack ? 0 : dt * ((dir || input.down ? FUEL.moving : 0) + (this.thrusting ? FUEL.thrust * (this.reeling ? RETURN_WINCH.fuelMultiplier : 1) : 0) + (this.stasisActive ? STASIS_MODULE.fuelPerSecond : 0))),
     );
     let target: Tile | undefined;
     const steps = Math.max(1, Math.ceil((Math.max(Math.abs(this.vx), Math.abs(this.vy)) * dt) / 7));
@@ -160,6 +165,7 @@ export class PlayerPod {
         ny = this.y + (this.vy * dt) / steps,
         hitsY = this.overlaps(this.x, ny);
       const platformY = this.townPlatformCrossing(this.x, this.y, ny, stepGravity, input.down);
+      const builtDeckY = crossedStructureDeck(this.structures, this.x, this.y, ny, stepGravity, P.halfHeight, input.down);
       const surfaceY = surfaceYAt(this.y), dockY = surfaceY - stepGravity * 22,
         movingOutward = this.vy * -stepGravity > 0,
         crossesDock = stepGravity > 0 ? this.y >= dockY && ny <= dockY : this.y <= dockY && ny >= dockY;
@@ -185,9 +191,10 @@ export class PlayerPod {
         this.reeling = false;
         return;
       }
-      if (platformY !== undefined && this.vy * stepGravity > 0) {
+      const landingY = platformY ?? builtDeckY;
+      if (landingY !== undefined && this.vy * stepGravity > 0) {
         if (Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
-        this.y = platformY;
+        this.y = landingY;
         this.vy = 0;
       } else
       if (hitsY.length) {
@@ -208,6 +215,6 @@ export class PlayerPod {
         this.vy = 0;
       }
     }
-    return input.up ? undefined : target;
+    return input.up || escapePack ? undefined : target;
   }
 }

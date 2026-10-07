@@ -7,6 +7,7 @@
 | `src/main.ts`               | Font/style loading and Phaser boot                                                    |
 | `game/config.ts`            | World dimensions, physics, fuel, ore, bands, upgrades, prices                         |
 | `game/MiningScene.ts`       | Simulation orchestration, original procedural rendering, particles, camera, lifecycle |
+| `game/building/UndergroundStructures.ts` | Build-site, affordability, service-radius, and one-way deck rules             |
 | `world/TileWorld.ts`        | Pure seeded geology, ore veins, bounded chunk cache, excavation and discovery sets    |
 | `player/PlayerPod.ts`       | Acceleration, thrust, substepped axis-separated tile collision, impact callbacks      |
 | `mining/MiningSystem.ts`    | Continuous contact, hardness progress, tile destruction, pickups, magnet line of sight |
@@ -32,7 +33,7 @@ Exploration/excavation sets still grow with the total explored mine. A future la
 
 ## Saves
 
-One versioned record stores seed, player position, money, levels, fuel, hull, cargo, deepest depth, the discovery flag, destroyed coordinates, and discovered coordinates. Maximum capacities are derived from persisted levels and central balance data. Velocities reset on reload so a save does not resume in an uncontrolled fall. Saved position is collision-checked, with surface recovery if invalid.
+One versioned record stores campaign resources and progression plus per-map seed, player position, excavation, exploration, ore pickups, armed charge, and built underground structures. Version 15 added buildable structures; version 16 added defense turrets; version 17 adds one-use escape-suit ownership and a durable active pilot-escape flag, migrating version 1–16 saves. Maximum capacities are derived from persisted levels and central balance data. Velocities reset on reload so a save does not resume in an uncontrolled fall. Saved position is collision-checked, with surface recovery if invalid.
 
 Validation rejects malformed records, invalid levels, non-finite numbers, unsupported versions, and malformed tile coordinates. Browser storage failure is nonfatal and visible. New games explicitly confirm replacing the record.
 

@@ -1,4 +1,10 @@
-# QA report — 2026-10-06
+# QA report — 2026-10-07
+
+## Underground construction — 2026-10-07
+
+Underground construction adds gravity-aware five-tile decks, a service beacon, automatic defense turrets, and a one-use pilot escape suit. The existing rock swimmers now pursue the miner; turrets intercept them within range and use a reload between shots. System coverage verifies build costs/site limits, one-way catching on both hemispheres, turret intercepts, fuel-independent escape-pack flight without drilling, zero-hull escape-save validation, and migration from earlier saves. All 82 system tests pass and the production build succeeds. An isolated browser could not connect to the local test server in this turn, so the construction modal, escape-suit purchase, crash ejection, and live return route remain unverified in-browser.
+
+
 
 ## Vertical mining town — 2026-10-07
 

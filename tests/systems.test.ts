@@ -6,13 +6,14 @@ import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolum
 import { MiningSystem, aimedDrillTarget, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from '../src/game/mining/MiningSystem';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
-import { ORE_KEYS, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, CORE_WORLD_Y, FAR_SURFACE_ROW, FAR_SURFACE_Y, PHYSICS, DESCENT_WARNING_SPEED, UPGRADES, UPGRADE_KEYS, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, estimateVerticalReturnFuel, drillWidth, POD_SIZE, podVisualScale } from '../src/game/config';
+import { ORE_KEYS, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, CORE_WORLD_Y, FAR_SURFACE_ROW, FAR_SURFACE_Y, PHYSICS, DESCENT_WARNING_SPEED, UPGRADES, UPGRADE_KEYS, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, estimateVerticalReturnFuel, drillWidth, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
 import { drawOreSymbol, flightWarning } from '../src/game/ui/HUD';
 import { restoreMapState, snapshotMapState } from '../src/game/campaign/MapState';
 import { atSurface, dockedOnSurface, surfaceTownTier, TOWN_TIER_HEIGHTS } from '../src/game/surface/SurfaceStation';
 import { campaignMapRecords, collectCoreRelic, crewArchiveRestored } from '../src/game/campaign/Records';
 import { screenToWorld, worldToScreen } from '../src/game/world/Projection';
+import { canAffordStructure, crossedStructureDeck, findBuildSite, nearbyServiceStation, type UndergroundStructure } from '../src/game/building/UndergroundStructures';
 let passed = 0;
 function test(name: string, fn: () => void) {
   fn();
@@ -75,7 +76,8 @@ test('region snapshots restore excavation, discoveries, ore drops, charges, and 
   first.reveal(980, 280);
   const drops = [{ id: `${first.seed}:24,0`, ore: 'copper' as const, units: 1.5, x: 980, y: 280, vx: 6, vy: 0 }];
   const charge = { x: 980, y: 280, vy: 37, fuse: 0.7 };
-  saved['cryo-shelf'] = snapshotMapState(undefined, first, 980, 280, 84, drops, charge);
+  const constructed = [{ id: 'service:980:280', kind: 'service' as const, x: 980, y: 280 }];
+  saved['cryo-shelf'] = snapshotMapState(undefined, first, 980, 280, 84, drops, charge, constructed);
 
   const other = restoreMapState(undefined, 'prism-fault', 902);
   other.world.break(24, 1);
@@ -88,6 +90,8 @@ test('region snapshots restore excavation, discoveries, ore drops, charges, and 
   assert.ok(resumed.world.discovered.size > 0);
   assert.deepEqual(saved['cryo-shelf']?.drops[0], drops[0], 'restored drops do not alias durable save data');
   assert.deepEqual(resumed.activeCharge, charge);
+  assert.deepEqual(resumed.structures, constructed, 'planet-local refuel beacons survive map restoration');
+  assert.notEqual(resumed.structures, constructed, 'restored structures do not alias the caller-owned list');
   const revisited = snapshotMapState(saved['cryo-shelf'], resumed.world, 980, 280, 32, resumed.drops, resumed.activeCharge);
   assert.equal(revisited.maxDepth, 84, 'best depth is retained when returning from a shallower visit');
   assert.equal(revisited.destroyed.includes('24,0'), true);
@@ -142,6 +146,41 @@ test('sky town decks catch the pod on either hemisphere and allow drop-through',
   for (let i = 0; i < 120 && pod.vy !== 0; i++) pod.update(1 / 120, idle, () => {});
   assert.equal(pod.y, FAR_SURFACE_Y + highestDeck + 16, 'inverted gravity lands on the matching far-side deck');
   assert.equal(pod.overlaps(pod.x, pod.y).length, 0);
+});
+test('underground builds require mined space, materials, credits, and persistable planet-local sites', () => {
+  const world = new TileWorld(705, [], [], 'cryo-shelf');
+  for (let x = 22; x <= 26; x++) for (let y = 25; y <= 27; y++) world.break(x, y);
+  for (let x = 21; x <= 27; x++) for (let y = 20; y <= 24; y++) world.break(x, y);
+  for (let x = 22; x <= 26; x++) world.get(x, 28).type = 'rock';
+  const site = findBuildSite(world, 980, 960, 1, 'platform', []);
+  assert.ok(site, 'a cleared 180 m cavern can accept a deck');
+  assert.equal(findBuildSite(world, 980, 960, 1, 'service', []), undefined, 'service beacons require a taller cleared chamber');
+  for (let x = 22; x <= 26; x++) for (let y = 22; y <= 28; y++) world.break(x, y);
+  const emptyCargo = { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 } as const;
+  const serviceSite = findBuildSite(world, 980, 960, 1, 'service', []);
+  assert.ok(serviceSite);
+  const turretSite = findBuildSite(world, 980, 960, 1, 'turret', []);
+  assert.ok(turretSite, 'a cleared cavern can host a sentry');
+  assert.equal(canAffordStructure('turret', { ...emptyCargo, iron: 2, silver: 2, gold: 1 }, 560), true);
+  assert.equal(findBuildSite(world, 980, 960, 1, 'service', [{ id: 'service:1', kind: 'service', ...serviceSite }]), undefined, 'only one service stop can be built per planet');
+  assert.equal(findBuildSite(world, 980, 960, 1, 'platform', [{ id: 'nearby', kind: 'platform', x: 990, y: 1000 }]), undefined, 'structures need 240 px of spacing');
+  assert.equal(canAffordStructure('platform', emptyCargo, 1000), false);
+  assert.equal(canAffordStructure('platform', { ...emptyCargo, copper: 2, iron: 1 }, 140), true);
+  assert.equal(canAffordStructure('service', { ...emptyCargo, iron: 3, silver: 2 }, 420), true);
+  const deck: UndergroundStructure = { id: `platform:${site.x}:${site.y}`, kind: 'platform', ...site };
+  const pod = new PlayerPod(world, new Progress());
+  pod.structures = [deck];
+  pod.x = site.x;
+  pod.y = site.y - 100;
+  pod.vy = 200;
+  pod.docked = false;
+  for (let i = 0; i < 120 && pod.vy !== 0; i++) pod.update(1 / 120, idle, () => {});
+  assert.equal(pod.y, site.y - 16, 'the live pod physics catches a constructed platform');
+  assert.equal(crossedStructureDeck([deck], site.x, site.y - 100, site.y + 100, 1, 16, false), site.y - 16, 'home-side gravity lands on the deck');
+  assert.equal(crossedStructureDeck([deck], site.x, site.y - 100, site.y + 100, 1, 16, true), undefined, 'down drops through a built deck');
+  const farDeck = { ...deck, id: 'platform:far', y: FAR_SURFACE_Y + site.y };
+  assert.equal(crossedStructureDeck([farDeck], site.x, farDeck.y + 100, farDeck.y - 100, -1, 16, false), farDeck.y + 16, 'the deck catches correctly with inverted gravity');
+  assert.ok(nearbyServiceStation([{ id: 'beacon', kind: 'service', ...serviceSite }], serviceSite.x, serviceSite.y));
 });
 test('W thrust reverses through the core and reaches the far crust dock without collision damage', () => {
   const world = new TileWorld(703, [], [], 'cryo-shelf'), progress = new Progress(), pod = new PlayerPod(world, progress);
@@ -402,10 +441,15 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
     ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false, ownedSuits: ['hab'], selectedSuit: 'hab',
     ownedDecals: ['standard'], selectedDecal: 'standard', ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced', stasisModule: false, returnWinch: false,
   } as const;
-  const currentSave = { ...save, version: 14 as const };
+  const currentSave = { ...save, version: 17 as const, maps: { 'cryo-shelf': { ...save.maps['cryo-shelf'], structures: [] } }, escapeSuit: false, pilotEscaping: false };
   assert.equal(validateSave(currentSave), true);
-  assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'new planetary records fit the existing version-14 milestone save shape');
+  assert.equal(validateSave({ ...currentSave, hull: 0, pilotEscaping: true }), true, 'a crashed miner can be saved while its pilot is alive in the escape suit');
+  assert.equal(validateSave({ ...currentSave, hull: 0 }), false, 'zero hull without an active escape is rejected');
+  assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'escape support fits the version-17 save shape');
   assert.equal(validateSave({ ...currentSave, milestones: ['core-unknown'] }), false, 'unrecognized core-record IDs are rejected');
+  const migratedV14 = migrateSave(save);
+  assert.deepEqual(migratedV14?.maps['cryo-shelf']?.structures, [], 'version-14 campaigns receive an empty construction list');
+  assert.equal(migrateSave({ ...currentSave, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 17, 'version-16 campaigns migrate to the escape-suit schema');
   assert.deepEqual(migrateSave(currentSave)?.milestones, NAVIGATION_HASHES.map((hash) => hash.id));
   assert.equal(migrateSave({ ...currentSave, version: 13, levels: { ...currentSave.levels, grapple: undefined } })?.levels.grapple, 1, 'v13 campaigns gain an unupgraded grapple');
   const { ownedProfiles: _profiles, selectedProfile: _profile, ...version9 } = save;
@@ -886,6 +930,13 @@ test('rock swimmers arrive below the opening, phase through terrain, and deal on
   assert.equal(swimmer.update(1 / 60, 260, 980, 500), true, 'contact reports one hit so the scene can apply existing hull damage');
   assert.equal(swimmer.active, undefined, 'the creature withdraws after contact');
   for (let i = 0; i < 3; i++) assert.equal(swimmer.update(1, 260, 980, 500), false, 'the warning/cooldown prevents repeated hits');
+  swimmer.active = { x: 1100, y: 500, vx: 0, vy: 0, life: 10, phase: 0 };
+  const turret: UndergroundStructure = { id: 'turret:1100:500', kind: 'turret', x: 1100, y: 500 };
+  let fired = false;
+  assert.equal(swimmer.update(1 / 60, 260, 980, 500, [turret], () => { fired = true; }), false);
+  assert.equal(fired, true, 'a sentry intercepts a swimmer in range before it hits the pod');
+  assert.equal(swimmer.active, undefined);
+  assert.ok((turret.reload ?? 0) > 0, 'turret reload prevents continuous firing');
 });
 test('stasis module cancels gravity in flight at a fuel cost and releases cleanly', () => {
   const world = new TileWorld(65), p = new Progress(), pod = new PlayerPod(world, p);
@@ -910,6 +961,24 @@ test('stasis module cancels gravity in flight at a fuel cost and releases cleanl
   lockedPod.update(1 / 60, { ...idle, stasis: true }, () => {});
   assert.equal(lockedPod.stasisActive, false, 'stasis input has no effect before the add-on is installed');
   assert.ok(lockedPod.vy > 0);
+});
+test('one-use escape suit is purchasable and gives fuel-independent flight without drilling', () => {
+  const progress = new Progress();
+  progress.money = ESCAPE_SUIT.cost - 1;
+  assert.equal(progress.buyEscapeSuit(), false, 'the suit cannot be bought below its listed cost');
+  progress.money++;
+  assert.equal(progress.buyEscapeSuit(), true);
+  assert.equal(progress.money, 0);
+  assert.equal(progress.buyEscapeSuit(), false, 'a carried suit cannot be duplicated');
+  const world = new TileWorld(811), pod = new PlayerPod(world, progress);
+  for (let x = 22; x <= 26; x++) for (let y = 0; y <= 20; y++) world.break(x, y);
+  pod.docked = false;
+  pod.y = 500;
+  progress.fuel = 0;
+  const cut = pod.update(0.1, { ...idle, up: true, escapePack: true }, () => {});
+  assert.equal(progress.fuel, 0, 'escape pack uses its own propellant');
+  assert.ok(pod.vy < 0, 'pack thrusts against gravity');
+  assert.equal(cut, undefined, 'escape flight never returns a drill target');
 });
 test('surface winch boosts an open-shaft return, costs more fuel, and catches the pod at the dock', () => {
   const purchase = new Progress();
@@ -1253,12 +1322,12 @@ test('cosmetic progression stays visual-only and persists in versioned saves', (
   assert.equal(p.selectPaint('hab'), true);
   assert.equal(p.selectPaint('prism'), false);
   const save = {
-    version: 14 as const, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
-    maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null } },
+    version: 17 as const, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
+    maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [] } },
     money: p.money, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull, cargo: { ...p.cargo }, maxDepth: 0,
     artifact: false, milestones: [], shipComponents: [], routeFragments: [], charges: 0,
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false, ownedSuits: [...p.ownedSuits], selectedSuit: p.selectedSuit,
-    ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal, ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization, stasisModule: p.stasisModule, returnWinch: p.returnWinch,
+    ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal, ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization, stasisModule: p.stasisModule, returnWinch: p.returnWinch, escapeSuit: p.escapeSuit, pilotEscaping: p.pilotEscaping,
   } satisfies SaveData;
   assert.ok(validateSave(save));
   assert.equal(validateSave({ ...save, selectedPaint: 'prism' }), false);
@@ -1283,10 +1352,10 @@ test('large excavation and physical drops survive serialized save import', () =>
     vy: 0,
   }));
   const data: SaveData = {
-    version: 14, campaignSeed: 123, activeMap: 'cryo-shelf',
+    version: 17, campaignSeed: 123, activeMap: 'cryo-shelf',
     maps: { 'cryo-shelf': {
       seed: 123, x: WORLD.spawnX, y: WORLD.spawnY, maxDepth: 120000,
-      destroyed, discovered: [...destroyed], drops, activeCharge: null,
+      destroyed, discovered: [...destroyed], drops, activeCharge: null, structures: [{ id: 'service:980:12000', kind: 'service', x: 980, y: 12000 }],
     } },
     money: 80, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull,
     cargo: { ...p.cargo }, maxDepth: 120000, artifact: false, milestones: [],
@@ -1294,7 +1363,7 @@ test('large excavation and physical drops survive serialized save import', () =>
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false,
     ownedSuits: [...p.ownedSuits], selectedSuit: p.selectedSuit,
     ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal,
-    ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization, stasisModule: p.stasisModule, returnWinch: p.returnWinch,
+    ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization, stasisModule: p.stasisModule, returnWinch: p.returnWinch, escapeSuit: p.escapeSuit, pilotEscaping: p.pilotEscaping,
   };
   assert.ok(validateSave(data));
   const serialized = JSON.stringify(data);
@@ -1303,6 +1372,7 @@ test('large excavation and physical drops survive serialized save import', () =>
   assert.equal(imported.maps['cryo-shelf']?.destroyed.length, 10000);
   assert.equal(imported.maps['cryo-shelf']?.discovered.length, 10000);
   assert.equal(imported.maps['cryo-shelf']?.drops.length, 1000);
+  assert.deepEqual(imported.maps['cryo-shelf']?.structures, [{ id: 'service:980:12000', kind: 'service', x: 980, y: 12000 }]);
   const restored = new Progress();
   new SaveManager().restore(restored, imported);
   assert.equal(restored.money, data.money);
@@ -1316,12 +1386,12 @@ test('versioned save validation and reconstruction', () => {
   w.break(24, 0);
   w.reveal(980, 0);
   const d: SaveData = {
-    version: 14,
+    version: 17,
     campaignSeed: 2,
     activeMap: 'mars-frontier',
     maps: { 'mars-frontier': {
       seed: 2, x: 980, y: 24, maxDepth: 120,
-      destroyed: [...w.destroyed], discovered: [...w.discovered], drops: [], activeCharge: null,
+      destroyed: [...w.destroyed], discovered: [...w.discovered], drops: [], activeCharge: null, structures: [],
     } },
     money: 500,
     levels: { ...p.levels },
@@ -1344,13 +1414,13 @@ test('versioned save validation and reconstruction', () => {
     ownedProfiles: ['standard', 'antenna'],
     selectedProfile: 'antenna',
     specialization: 'hauler',
-    stasisModule: true, returnWinch: false,
+    stasisModule: true, returnWinch: false, escapeSuit: false, pilotEscaping: true,
   };
   d.cargo.copper = 0.5;
   assert.ok(validateSave(d));
   const migratedV12 = migrateSave({ ...d, version: 12, returnWinch: undefined });
   assert.ok(migratedV12);
-  assert.equal(migratedV12.version, 14);
+  assert.equal(migratedV12.version, 17);
   assert.equal(migratedV12.returnWinch, false, 'older campaigns receive the new optional module as unowned');
   const oldChargeSave = { ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, activeCharge: { x: 980, y: 280, fuse: 0.7 } } } };
   assert.ok(validateSave(oldChargeSave), 'existing active charges remain valid without a velocity field');
@@ -1359,7 +1429,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(validateSave({ ...d, version: 3 }), false);
   const migratedV3 = migrateSave({ ...d, version: 3, routeFragments: undefined } as unknown as SaveData);
   assert.ok(migratedV3);
-  assert.equal(migratedV3.version, 14);
+  assert.equal(migratedV3.version, 17);
   assert.deepEqual(migratedV3.routeFragments, []);
   assert.deepEqual(migratedV3.maps['mars-frontier']?.drops, []);
   assert.equal(migratedV3.charges, 0);
@@ -1367,25 +1437,25 @@ test('versioned save validation and reconstruction', () => {
   const legacyV4 = { ...d, version: 4, charges: undefined, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, drops: undefined, activeCharge: undefined } } };
   const migratedV4 = migrateSave(legacyV4);
   assert.ok(migratedV4);
-  assert.equal(migratedV4.version, 14);
+  assert.equal(migratedV4.version, 17);
   assert.deepEqual(migratedV4.maps['mars-frontier']?.drops, []);
   const legacyV7 = { ...d, version: 7, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV7 = migrateSave(legacyV7);
   assert.ok(migratedV7);
-  assert.equal(migratedV7.version, 14);
+  assert.equal(migratedV7.version, 17);
   assert.equal(migratedV7.selectedSuit, 'hab');
   assert.deepEqual(migratedV7.ownedSuits, ['hab']);
   const legacyV6 = { ...d, version: 6, salvageMagnet: undefined, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV6 = migrateSave(legacyV6);
   assert.ok(migratedV6);
-  assert.equal(migratedV6.version, 14);
+  assert.equal(migratedV6.version, 17);
   assert.equal(migratedV6.salvageMagnet, false);
   assert.equal(migratedV6.selectedSuit, 'hab');
   assert.deepEqual(migratedV6.ownedPaints, ['hab', 'polar']);
   const legacyV5 = { ...d, version: 5, ownedPaints: undefined, selectedPaint: undefined, salvageMagnet: undefined };
   const migratedV5 = migrateSave(legacyV5);
   assert.ok(migratedV5);
-  assert.equal(migratedV5.version, 14);
+  assert.equal(migratedV5.version, 17);
   assert.equal(migratedV5.salvageMagnet, false);
   assert.deepEqual(migratedV5.ownedPaints, ['hab']);
   const withDrop = { ...d, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, destroyed: [...d.maps['mars-frontier']!.destroyed, '24,3'], drops: [{ id: '2:24,3', ore: 'gold', units: 1.5, x: 980, y: 130, vx: 24, vy: -40 }] } } };
@@ -1402,7 +1472,7 @@ test('versioned save validation and reconstruction', () => {
   };
   const migrated = migrateSave(legacy);
   assert.ok(migrated);
-  assert.equal(migrated.version, 14);
+  assert.equal(migrated.version, 17);
   assert.equal(migrated.activeMap, 'mars-frontier');
   assert.equal(migrated.maps['mars-frontier']?.x, 980);
   assert.deepEqual(migrated.shipComponents, []);
@@ -1434,7 +1504,7 @@ test('versioned save validation and reconstruction', () => {
   const legacyV8 = { ...d, version: 8, ownedDecals: undefined, selectedDecal: undefined };
   const migratedV8 = migrateSave(legacyV8);
   assert.ok(migratedV8);
-  assert.equal(migratedV8.version, 14);
+  assert.equal(migratedV8.version, 17);
   assert.deepEqual(migratedV8.ownedDecals, ['standard']);
   assert.equal(migratedV8.selectedDecal, 'standard');
   assert.deepEqual(migratedV8.ownedProfiles, ['standard']);
@@ -1442,12 +1512,12 @@ test('versioned save validation and reconstruction', () => {
   const legacyV9 = { ...d, version: 9, ownedProfiles: undefined, selectedProfile: undefined };
   const migratedV9 = migrateSave(legacyV9);
   assert.ok(migratedV9);
-  assert.equal(migratedV9.version, 14);
+  assert.equal(migratedV9.version, 17);
   assert.deepEqual(migratedV9.ownedProfiles, ['standard']);
   assert.equal(migratedV9.specialization, 'balanced');
   const migratedV10 = migrateSave({ ...d, version: 10, specialization: undefined });
   assert.ok(migratedV10);
-  assert.equal(migratedV10.version, 14);
+  assert.equal(migratedV10.version, 17);
   assert.equal(migratedV10.specialization, 'balanced');
   assert.deepEqual(migratedV10.maps, d.maps, 'v10 migration preserves every region record');
   assert.equal(validateSave({ ...d, specialization: 'unknown' }), false);

@@ -1,5 +1,6 @@
-import { ROCK_SWIMMER, WORLD, type MapId } from '../config';
+import { ROCK_SWIMMER, UNDERGROUND_BUILDING, type MapId } from '../config';
 import { random } from './TileWorld';
+import type { UndergroundStructure } from '../building/UndergroundStructures';
 
 export type RockSwimmerState = {
   x: number;
@@ -10,7 +11,7 @@ export type RockSwimmerState = {
   phase: number;
 };
 
-/** A shy, non-combat cave hazard. It phases through rock and can be evaded. */
+/** A cave predator that phases through rock, pressures the pod, and can be deterred by turrets. */
 export class RockSwimmer {
   active?: RockSwimmerState;
   private wait: number = ROCK_SWIMMER.firstArrivalSeconds;
@@ -18,7 +19,8 @@ export class RockSwimmer {
 
   constructor(private seed: number, private mapId: MapId) {}
 
-  update(dt: number, depth: number, podX: number, podY: number) {
+  update(dt: number, depth: number, podX: number, podY: number, structures: UndergroundStructure[] = [], onTurretFire: (x: number, y: number) => void = () => {}) {
+    for (const turret of structures.filter((entry) => entry.kind === 'turret')) turret.reload = Math.max(0, (turret.reload ?? 0) - dt);
     if (depth < ROCK_SWIMMER.firstDepth) {
       this.active = undefined;
       this.wait = ROCK_SWIMMER.firstArrivalSeconds;
@@ -45,11 +47,20 @@ export class RockSwimmer {
     swimmer.life -= dt;
     const dx = podX - swimmer.x, dy = podY - swimmer.y;
     const distance = Math.hypot(dx, dy);
-    // A nearby engine makes the creature veer away, leaving a generous warning window.
-    if (distance < ROCK_SWIMMER.warningRadius) {
-      const flee = (ROCK_SWIMMER.warningRadius - distance) / ROCK_SWIMMER.warningRadius;
-      swimmer.vx -= (dx / Math.max(1, distance)) * 52 * flee * dt;
-      swimmer.vy -= (dy / Math.max(1, distance)) * 38 * flee * dt;
+    for (const turret of structures) {
+      if (turret.kind !== 'turret' || (turret.reload ?? 0) > 0) continue;
+      if (Math.hypot(turret.x - swimmer.x, turret.y - swimmer.y) <= UNDERGROUND_BUILDING.turret.range) {
+        turret.reload = UNDERGROUND_BUILDING.turret.reloadSeconds;
+        onTurretFire(turret.x, turret.y);
+        this.active = undefined;
+        this.wait = ROCK_SWIMMER.repeatSeconds;
+        return false;
+      }
+    }
+    // The swimmer now homes toward the pod and can attack if the player ignores the warning.
+    if (distance > 1) {
+      swimmer.vx += dx / distance * 24 * dt;
+      swimmer.vy += dy / distance * 18 * dt;
     }
     const speed = Math.hypot(swimmer.vx, swimmer.vy);
     if (speed > ROCK_SWIMMER.speed) {

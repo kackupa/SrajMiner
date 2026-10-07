@@ -6,6 +6,7 @@ import {
   CHARGE,
   SALVAGE_MAGNET,
   STASIS_MODULE,
+  ESCAPE_SUIT,
   RETURN_WINCH,
   upgradeCost,
   POD_PAINTS,
@@ -44,6 +45,14 @@ export class Progress {
   salvageMagnet = false;
   stasisModule = false;
   returnWinch = false;
+  escapeSuit = false;
+  pilotEscaping = false;
+  buyEscapeSuit() {
+    if (this.escapeSuit || this.money < ESCAPE_SUIT.cost) return false;
+    this.money -= ESCAPE_SUIT.cost;
+    this.escapeSuit = true;
+    return true;
+  }
   buyStasisModule() {
     if (this.stasisModule || this.money < STASIS_MODULE.cost) return false;
     this.money -= STASIS_MODULE.cost;

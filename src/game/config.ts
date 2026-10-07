@@ -23,6 +23,14 @@ export const PHYSICS = {
   halfWidth: 13,
   halfHeight: 16,
 };
+export const UNDERGROUND_BUILDING = {
+  minimumDepthMeters: 180,
+  platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
+  service: { credits: 420, materials: { iron: 3, silver: 2 }, widthTiles: 5, uniquePerMap: true },
+  turret: { credits: 560, materials: { iron: 2, silver: 2, gold: 1 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
+  maxStructuresPerMap: 16,
+  serviceRadius: 100,
+} as const;
 // Warn early enough to brake before reaching the damaging landing threshold.
 export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.6;
 export const FUEL = { moving: 0.55, thrust: 1.25, drilling: 1.4 };
@@ -288,6 +296,7 @@ export const SERVICE = { fuelPrice: 0.3, hullPrice: 0.45 };
 export const CHARGE = { packCost: 180, packSize: 3, fuseSeconds: 1.2, blastRadius: 2, pickupRadius: 28, gravity: 560, maxFallSpeed: 360, radius: 6 };
 export const SALVAGE_MAGNET = { cost: 420, radius: 190, acceleration: 620, maxSpeed: 260 };
 export const STASIS_MODULE = { cost: 760, fuelPerSecond: 1.8 };
+export const ESCAPE_SUIT = { cost: 780, thrustMultiplier: 1.45, speedMultiplier: 1.25 } as const;
 export const RETURN_WINCH = { cost: 880, pullMultiplier: 1.7, fuelMultiplier: 1.5 };
 export const AUTO_GRAPPLE = { fallSpeed: 205, minRise: 26, hangSeconds: 0.85, cooldownSeconds: [7, 6, 5, 4, 3] };
 export const ROCK_SWIMMER = {

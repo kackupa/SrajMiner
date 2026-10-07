@@ -1,10 +1,11 @@
 import { Progress, emptyCargo } from '../economy/Progress';
-import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, MAPS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, CORE_RELICS, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import type { UndergroundStructure } from '../building/UndergroundStructures';
+import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, MAPS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, CORE_RELICS, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 14;
+  version: 17;
   campaignSeed: number;
   activeMap: MapId;
   maps: Partial<Record<MapId, WorldSave>>;
@@ -31,6 +32,8 @@ export type SaveData = {
   specialization: Specialization;
   stasisModule: boolean;
   returnWinch: boolean;
+  escapeSuit: boolean;
+  pilotEscaping: boolean;
 };
 export type WorldSave = {
   seed: number;
@@ -41,6 +44,7 @@ export type WorldSave = {
   discovered: string[];
   drops: OreDrop[];
   activeCharge: ActiveCharge | null;
+  structures: UndergroundStructure[];
 };
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const validDrop = (drop: OreDrop) =>
@@ -63,7 +67,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 14 &&
+    d.version === 17 &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
     Object.hasOwn(MAPS, d.activeMap) &&
@@ -72,7 +76,15 @@ export function validateSave(s: unknown): s is SaveData {
         m.x > WORLD.width * WORLD.tile - 13 || !finite(m.y) || m.y < -180 || m.y > 1e7 ||
         !finite(m.maxDepth) || m.maxDepth < 0 || ![m.destroyed, m.discovered].every((a) =>
           Array.isArray(a) && a.length <= 500000 && a.every((v) => typeof v === 'string' && /^\d{1,2},\d{1,7}$/.test(v))) ||
-        !Array.isArray(m.drops) || m.drops.length > 500000 || !validCharge(m.activeCharge)) return false;
+        !Array.isArray(m.drops) || m.drops.length > 500000 || !validCharge(m.activeCharge) ||
+        !Array.isArray(m.structures) || m.structures.length > UNDERGROUND_BUILDING.maxStructuresPerMap || m.structures.some((structure) =>
+          !structure || typeof structure.id !== 'string' || structure.id.length > 80 ||
+          !['platform', 'service', 'turret'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > WORLD.width * WORLD.tile - 100 ||
+          !finite(structure.y) || structure.y < 0 || structure.y > 1e7 || (structure.reload !== undefined && (!finite(structure.reload) || structure.reload < 0 || structure.reload > UNDERGROUND_BUILDING.turret.reloadSeconds))) ||
+        new Set(m.structures.map((structure) => structure.id)).size !== m.structures.length ||
+        m.structures.filter((structure) => structure.kind === 'service').length > 1 ||
+        m.structures.filter((structure) => structure.kind === 'platform').length > 12 ||
+        m.structures.filter((structure) => structure.kind === 'turret').length > UNDERGROUND_BUILDING.turret.maxPerMap) return false;
       const ids = new Set<string>();
       return m.drops.every((drop) => {
         if (!validDrop(drop) || ids.has(drop.id) || !dropMatchesMinedTile(drop, m.seed, m.destroyed)) return false;
@@ -85,10 +97,13 @@ export function validateSave(s: unknown): s is SaveData {
     typeof d.salvageMagnet === 'boolean' &&
     typeof d.stasisModule === 'boolean' &&
     typeof d.returnWinch === 'boolean' &&
+    typeof d.escapeSuit === 'boolean' &&
+    typeof d.pilotEscaping === 'boolean' &&
+    !(d.escapeSuit && d.pilotEscaping) &&
     Array.isArray(d.ownedSuits) && d.ownedSuits.includes('hab') && d.ownedSuits.every((v) => PILOT_SUIT_KEYS.includes(v)) && new Set(d.ownedSuits).size === d.ownedSuits.length && PILOT_SUIT_KEYS.includes(d.selectedSuit) && d.ownedSuits.includes(d.selectedSuit) &&
     Array.isArray(d.ownedDecals) && d.ownedDecals.includes('standard') && d.ownedDecals.every((v) => POD_DECAL_KEYS.includes(v)) && new Set(d.ownedDecals).size === d.ownedDecals.length && POD_DECAL_KEYS.includes(d.selectedDecal) && d.ownedDecals.includes(d.selectedDecal) &&
     Array.isArray(d.ownedProfiles) && d.ownedProfiles.includes('standard') && d.ownedProfiles.every((v) => POD_PROFILE_KEYS.includes(v)) && new Set(d.ownedProfiles).size === d.ownedProfiles.length && POD_PROFILE_KEYS.includes(d.selectedProfile) && d.ownedProfiles.includes(d.selectedProfile) &&
-    finite(d.fuel) && d.fuel >= 0 && finite(d.hull) && d.hull > 0 && finite(d.maxDepth) && d.maxDepth >= 0 &&
+    finite(d.fuel) && d.fuel >= 0 && finite(d.hull) && d.hull >= 0 && (d.hull > 0 || d.pilotEscaping) && finite(d.maxDepth) && d.maxDepth >= 0 &&
     typeof d.artifact === 'boolean' && !!d.levels && UPGRADE_KEYS.every(
       (k) => Number.isSafeInteger(d.levels[k]) && d.levels[k] >= 1,
     ) && !!d.cargo && ORE_KEYS.every((k) => finite(d.cargo[k]) && d.cargo[k] >= 0 && Number.isInteger(d.cargo[k] * 2)) &&
@@ -97,17 +112,29 @@ export function validateSave(s: unknown): s is SaveData {
     Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v))
   );
 }
-function addWorldToolState(maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge'>>>) {
+function addWorldToolState(maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge' | 'structures'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge' | 'structures'>>>) {
   return Object.fromEntries(Object.entries(maps).map(([id, world]) => [id, {
     ...world,
     drops: world.drops ?? [],
     activeCharge: world.activeCharge ?? null,
+    structures: world.structures ?? [],
   }]));
 }
 export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 16) {
+    return migrateSave({ ...(s as Record<string, unknown>), version: 17, escapeSuit: false, pilotEscaping: false });
+  }
+  if (version === 15) {
+    return migrateSave({ ...(s as Record<string, unknown>), version: 16 });
+  }
+  if (version === 14) {
+    const old = s as Record<string, unknown>;
+    const maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, Record<string, unknown>> : {};
+    return migrateSave({ ...old, version: 15, maps: Object.fromEntries(Object.entries(maps).map(([id, state]) => [id, { ...state, structures: state.structures ?? [] }])) });
+  }
   if (version === 13) {
     const old = s as Record<string, unknown>;
     const levels = old.levels && typeof old.levels === 'object' ? old.levels as Record<string, unknown> : {};
@@ -147,7 +174,7 @@ export function migrateSave(s: unknown): SaveData | null {
     return migrateSave({ ...old, version: 6, ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false, ownedSuits: ['hab'], selectedSuit: 'hab' });
   }
   if (version === 4) {
-    const old = s as Omit<SaveData, 'version' | 'charges'> & { version: 4; maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge'>>> };
+    const old = s as Omit<SaveData, 'version' | 'charges'> & { version: 4; maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge' | 'structures'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge' | 'structures'>>> };
     const upgraded = { ...old, version: 5, charges: 0, maps: addWorldToolState(old.maps) };
     return migrateSave(upgraded);
   }
@@ -233,6 +260,8 @@ export class SaveManager {
     p.salvageMagnet = d.salvageMagnet;
     p.stasisModule = d.stasisModule;
     p.returnWinch = d.returnWinch;
+    p.escapeSuit = d.escapeSuit;
+    p.pilotEscaping = d.pilotEscaping;
     p.ownedSuits = [...d.ownedSuits];
     p.selectedSuit = d.selectedSuit;
     p.ownedDecals = [...d.ownedDecals];
