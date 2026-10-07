@@ -13,6 +13,7 @@ import { drawSurfaceTown } from './surface/SurfaceTown';
 import { restoreMapState, snapshotMapState } from './campaign/MapState';
 import { collectCoreRelic, crewArchiveRestored } from './campaign/Records';
 import { RockSwimmer } from './world/RockSwimmer';
+import { CaveAtmosphere } from './world/CaveAtmosphere';
 import { screenToWorld, worldToScreen } from './world/Projection';
 import { canAffordStructure, findBuildSite, nearbyServiceStation, type StructureKind, type UndergroundStructure } from './building/UndergroundStructures';
 type Particle = {
@@ -49,6 +50,7 @@ export class MiningScene extends Phaser.Scene {
   landmarkLabels = new Map<string, Phaser.GameObjects.Text>();
   floating: { text: Phaser.GameObjects.Text; x: number; y: number; life: number }[] = [];
   particles: Particle[] = [];
+  atmosphere = new CaveAtmosphere();
   camX = 0;
   camY = -300;
   tick = 0;
@@ -70,6 +72,7 @@ export class MiningScene extends Phaser.Scene {
     if (event.matches) {
       this.shake = 0;
       this.particles.length = 0;
+      this.atmosphere.clear();
     }
   };
   syncInput(paused: boolean) {
@@ -333,6 +336,8 @@ export class MiningScene extends Phaser.Scene {
         isMuted: () => this.soundFx.muted,
         audioMix: () => ({ ...this.soundFx.mix }),
         setAudioMix: (channel, value) => this.soundFx.setMix(channel, value),
+        atmosphereEnabled: () => this.atmosphere.enabled,
+        setAtmosphereEnabled: (enabled) => this.atmosphere.setEnabled(enabled),
       },
       !!saved,
       this.mapId,
@@ -482,6 +487,9 @@ export class MiningScene extends Phaser.Scene {
           ),
         mapId: this.mapId,
           reducedMotion: this.reducedMotion,
+          atmosphere: { enabled: this.atmosphere.enabled, count: this.atmosphere.motes.length,
+            wakes: this.atmosphere.motes.filter(p => p.wake).length,
+            foreground: this.atmosphere.motes.filter(p => p.foreground).length },
           stationLabels: this.labels.map((label) => ({ visible: label.visible, x: label.x, y: label.y })),
         shipComponents: [...this.progress.shipComponents],
           shipStatus: this.progress.shipComplete ? 'FLIGHT READY' : `${this.progress.shipComponents.length} / 4 SYSTEMS`,
@@ -1013,6 +1021,7 @@ export class MiningScene extends Phaser.Scene {
     this.camY += (goalY - this.camY) * (1 - Math.exp(-6 * dt));
     this.shake = Math.max(0, this.shake - dt * 15);
     this.world.prune(this.pod.y);
+    this.atmosphere.update(this.world, dt, this.atmosphereView(), this.reducedMotion, this.ui.paused);
     for (const particle of this.particles) {
       particle.life -= dt;
       particle.x += particle.vx * dt;
@@ -1042,6 +1051,11 @@ export class MiningScene extends Phaser.Scene {
       this.uiClock = 0;
     }
     this.draw();
+  }
+  atmosphereView() {
+    return { x: this.camX, y: this.camY, width: this.scale.width, height: this.scale.height,
+      podX: this.pod.x, podY: this.pod.y, thrusting: this.pod.thrusting,
+      drilling: !!this.mining.target, aimX: this.drillAimX, aimY: this.drillAimY };
   }
   draw() {
     const g = this.g,
@@ -1384,6 +1398,7 @@ export class MiningScene extends Phaser.Scene {
           g.fillRect(px + 4, py + 34, (T - 8) * this.mining.ratio, 3);
         }
       }
+    if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, false);
     for (const structure of this.structures) {
       if (structure.y < this.camY - 100 || structure.y > this.camY + h + 100 || structure.x < this.camX - 130 || structure.x > this.camX + w + 130) continue;
       const gravity = this.world.gravitySign(structure.y), x = sx(structure.x), deckY = sy(structure.y);
@@ -1641,6 +1656,7 @@ export class MiningScene extends Phaser.Scene {
     g.fillStyle(paint.light);
     g.fillCircle(x + beamX * 13, y + beamY * 5, 2.5 * vehicleScale);
     }
+    if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, true);
     if (this.ui.hasStarted && !this.ui.paused && this.aimTile && this.pod.y > 0) {
       const pointer = this.input.activePointer;
       if (!pointer.leftButtonDown()) {

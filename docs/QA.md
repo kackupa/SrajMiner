@@ -1,5 +1,13 @@
 # QA report — 2026-10-07
 
+## Cave atmosphere — 2026-10-07
+
+Added transient regional dust, foreground flakes, headlamp illumination, and drilling/thruster wakes, capped at 96 particles. Particles occupy explored empty tiles only; no terrain, cargo, physics, or campaign-save fields are changed. The MIX panel includes a persistent device-local toggle. Reduced motion removes the effects immediately, including while paused.
+
+`npm install` completed. All 83 existing system tests and the dedicated atmosphere test pass; the production build passes (the existing large-bundle warning remains). The atmosphere test checks particle limits, open/explored placement, wake emission, immutable excavation/exploration, pause, reduced motion, disabled state, and clearing on map changes.
+
+Isolated headless Chromium keyboard play reached 112–113 m, produced drifting particles and thrust wakes, then returned and docked with full hull and no overlaps. The same session verified toggle persistence across reload, pause, live reduced-motion changes, and the compact 960×560 MIX panel. Synthetic open-cavern fixtures render all four region palettes and the far hemisphere with zero pod overlaps. Screenshots are saved under `output/playwright/atmosphere-*.png`; repeatable checks are `tests/browser-atmosphere.js` and `tests/browser-atmosphere-regions.js` via Playwright CLI. A visible-browser attempt lost focus and was replaced by the isolated background run. Long-session performance on low-end devices and subjective particle density still need human feedback.
+
 ## Underground construction — 2026-10-07
 
 Underground construction adds gravity-aware five-tile decks, a service beacon, automatic defense turrets, and a one-use pilot escape suit. The existing rock swimmers now pursue the miner; turrets intercept them within range and use a reload between shots. System coverage verifies build costs/site limits, one-way catching on both hemispheres, turret intercepts, fuel-independent escape-pack flight without drilling, zero-hull escape-save validation, and migration from earlier saves. All 82 system tests pass and the production build succeeds. An isolated browser could not connect to the local test server in this turn, so the construction modal, escape-suit purchase, crash ejection, and live return route remain unverified in-browser.
@@ -272,3 +280,6 @@ Upgrade tracks now continue after level 5 with linear price increases per purcha
 ## Flight drilling
 
 Mouse aiming and drilling remain active while W/upward thrust is held, so the player can cut rock and steer through the same flight. A focused system regression verifies concurrent thrust and mining, both fuel costs, ore recovery, and no pod/terrain overlap. The briefing and HUD now state that drilling works in flight. An isolated game tab loaded at port 5179, but interactive browser input verification remains outstanding: `@playwright/cli` was not in the local npm cache and registry access was unavailable. The user's active game tab/save was left untouched.
+# Campaign core-story archive smoke check — 2026-10-07
+
+The local game loaded in an isolated Chrome tab at `http://127.0.0.1:5191/`. A fresh campaign opened the Archive and showed all four core records as sealed with generic recovery text; unrecovered story details were not exposed. The completed-record and final-conclusion gates are covered by the 83-system-test suite (`planetary core records reveal one by one and gate the complete campaign conclusion`). I attempted to use a generated import fixture for the recovered browser state, but the Chrome extension refused local file uploads because its “Allow access to file URLs” setting is disabled; I left that browser permission unchanged. The only browser console error observed came from a wallet extension attempting to redefine `window.ethereum`, not from the game. A full core-crossing expedition, recovered-state browser rendering, and the human 15-minute campaign playtest remain outstanding.

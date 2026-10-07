@@ -26,7 +26,7 @@ The art is original procedural pixel-style terrain and equipment. Mining charges
 
 ## Save and scope
 
-The four optional regional navigation hashes unlock named crew voice logs in the archive. Recovering all four reveals the final message and closes the initial Faraday signal mystery; hash recovery reuses the existing milestone save list, so old saves need no migration.
+The four optional regional navigation hashes unlock named crew voice logs in the archive. Recovering all four reveals the final message and closes the initial Faraday signal mystery; hash recovery reuses the existing milestone save list, so old saves need no migration. Each planet's sealed core sample independently reveals a short evidence record, while all four together unlock a route-home conclusion in the same archive. Core records also reuse their existing milestone IDs, so this story reveal needs no save migration.
 
 Version 17 local saves keep campaign progression separate from each map's seed, location, excavation, exploration, ore pickups, armed charge, and built platforms, service beacon, defense turrets, escape-suit ownership, and an active pilot escape. Navigation-hash collection reuses the durable milestone list, so it requires no migration. Grapple cooldown and tether are momentary physics state and do not change save data. Version 1–16 saves migrate without changing their original excavation; older campaigns receive the balanced pilot path, starter scanner, grapple, and an unowned surface winch by default. Players can export JSON saves and import a validated save after reviewing its campaign summary. There is no backend, wallet, token, or blockchain integration. Navigation hashes are fictional, offline collectibles with no monetary value.
 

@@ -1,14 +1,15 @@
-import { CORE, CORE_RELICS, coreSurveyComplete, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, UNDERGROUND_BUILDING, type Upgrade, type ShipComponent, type MapId, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { CORE, CORE_RELICS, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, UNDERGROUND_BUILDING, type Upgrade, type ShipComponent, type MapId, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import { parseSaveFile, type SaveData } from '../save/SaveManager';
 import { Progress, type Cargo } from '../economy/Progress';
 import type { Tile } from '../world/TileWorld';
 import type { TileWorld } from '../world/TileWorld';
 import type { PlayerPod } from '../player/PlayerPod';
 import type { AudioMix } from '../audio/AudioSystem';
-import { campaignMapRecords, crewArchiveRestored } from '../campaign/Records';
+import { campaignMapRecords, coreSurveyProgress, crewArchiveRestored } from '../campaign/Records';
 import { surfaceTownTier } from '../surface/SurfaceStation';
 import { canAffordStructure, type StructureKind, type UndergroundStructure } from '../building/UndergroundStructures';
 import { ESCAPE_SUIT } from '../config';
+import { pauseScreen } from './PauseScreen';
 export const flightWarning = (input: {
   surface: boolean;
   fuelRatio: number;
@@ -87,6 +88,8 @@ export type UIActions = {
   isMuted: () => boolean;
   audioMix: () => AudioMix;
   setAudioMix: (channel: keyof AudioMix, value: number) => void;
+  atmosphereEnabled: () => boolean;
+  setAtmosphereEnabled: (enabled: boolean) => void;
   buildShipComponent: (key: ShipComponent) => boolean;
   travelMap: (id: MapId) => boolean;
   buildStructure: (kind: StructureKind) => boolean;
@@ -100,6 +103,8 @@ export class HUD {
   hasStarted = false;
   paused = true;
   nearSurface = true;
+  currentDepth = 0;
+  docked = false;
   toastTimer = 0;
   displayedMoney = 80;
   lastSale?: { cargo: Cargo; total: number };
@@ -362,6 +367,7 @@ export class HUD {
       title = 'Tune the sound.';
       sub = 'AUDIO / LOCAL SETTINGS';
       content = `<p>Set the soundtrack and game effects to suit your speakers. Your levels are saved on this device.</p><div class="audio-mix-controls"><label for="music-volume"><span><b>MUSIC</b><output id="music-value">${mix.music}%</output></span><input id="music-volume" type="range" min="0" max="100" step="5" value="${mix.music}" /></label><label for="effects-volume"><span><b>EFFECTS</b><output id="effects-value">${mix.effects}%</output></span><input id="effects-volume" type="range" min="0" max="100" step="5" value="${mix.effects}" /></label></div><button id="audio-mute" class="primary">${this.actions.isMuted() ? 'SOUND OFF · TURN ON' : 'SOUND ON · MUTE'} <span>♪</span></button>`;
+      content += `<div class="service-row"><div><b>CAVE ATMOSPHERE</b><small>Drifting dust and thruster wakes. Hidden with reduced motion.</small></div><button id="atmosphere-toggle" aria-label="Cave atmosphere" aria-pressed="${this.actions.atmosphereEnabled()}">${this.actions.atmosphereEnabled() ? 'ON' : 'OFF'}</button></div>`;
     } else if (name === 'sell') {
       title = 'A good day’s haul.';
       sub = 'ORE EXCHANGE / OUTPOST 07';
@@ -407,16 +413,20 @@ export class HUD {
           ? 'A deep scan reached the signal band, but the transmission has not been recovered yet.'
           : 'A transmission older than the outpost may be waiting beyond the known survey depth.';
       const hashCount = NAVIGATION_HASHES.filter((hash) => p.milestones.includes(hash.id)).length;
-      const coreCount = CORE_RELICS.filter((relic) => p.milestones.includes(relic.id)).length;
+      const coreSurvey = coreSurveyProgress(p.milestones);
+      const coreCount = coreSurvey.records.filter((entry) => entry.recovered).length;
       const mapRecords = campaignMapRecords(this.getMapDepths(), p.routeFragments, p.milestones);
       const crewConclusion = crewArchiveRestored(p.milestones)
         ? `<article class="archive-entry found" id="crew-archive-conclusion"><span>CREW ARCHIVE RESTORED · FINAL ENTRY</span><b>${CREW_ARCHIVE_CONCLUSION.title}</b><blockquote class="crew-log"><span>${CREW_ARCHIVE_CONCLUSION.author} · ${CREW_ARCHIVE_CONCLUSION.role}</span>${CREW_ARCHIVE_CONCLUSION.transcript}</blockquote></article>`
         : `<article class="archive-entry" id="crew-archive-conclusion"><span>CREW ARCHIVE INCOMPLETE · ${hashCount} / ${NAVIGATION_HASHES.length}</span><b>UNRESOLVED CREW ARCHIVE</b><p>Recover each regional navigation hash to reconstruct the flight crew's final message.</p></article>`;
-      const coreConclusion = coreSurveyComplete(p.milestones)
-        ? '<article class="archive-entry found" id="core-survey-conclusion"><span>PLANETARY CORE LEDGER COMPLETE · 4 / 4</span><b>FOUR WORLDS, ONE DEEP SIGNAL</b><p>Each planetary core has been sampled and its record is preserved in the archive.</p></article>'
+      const coreConclusion = coreSurvey.conclusion
+        ? `<article class="archive-entry found" id="core-survey-conclusion"><span>PLANETARY CORE LEDGER COMPLETE · ${CORE_RELICS.length} / ${CORE_RELICS.length}</span><b>${coreSurvey.conclusion.title}</b><blockquote class="crew-log">${coreSurvey.conclusion.transcript}</blockquote></article>`
         : `<article class="archive-entry" id="core-survey-conclusion"><span>PLANETARY CORE LEDGER · ${coreCount} / ${CORE_RELICS.length}</span><b>CORE SURVEY INCOMPLETE</b><p>Recover one unique core record from each destination. Every sample pays a one-time archive salvage claim.</p></article>`;
+      const coreRecords = coreSurvey.records.map(({ relic, recovered }) =>
+        `<article class="archive-entry ${recovered ? 'found' : ''}" id="${relic.id}"><span>${recovered ? `RECOVERED · $${relic.bounty} CLAIM PAID` : `${MAPS[relic.mapId].name.toUpperCase()} · CORE SEALED`}</span><b>${relic.name.toUpperCase()}</b><p>${recovered ? relic.record : 'A unique planetary record remains sealed at the core. Recover the sample to decode it.'}</p></article>`,
+      ).join('');
       const regionRecords = `<section class="region-records" aria-label="Regional survey records"><h3>REGIONAL SURVEY RECORDS</h3><div class="region-record-grid">${mapRecords.map((record) => `<article class="archive-entry ${record.visited ? 'found' : ''}" data-map-record="${record.id}"><span>${record.visited ? 'SURVEY RECORDED' : 'NOT VISITED'}</span><b>${record.name.toUpperCase()}</b><p>${record.visited ? `Deepest scan: ${record.deepestMeters.toLocaleString()} m` : 'No depth record yet'}${record.routeTotal ? `<br>${record.routeRecovered} / ${record.routeTotal} route signals` : ''}<br>${record.hashesRecovered} / ${record.hashTotal} archive hash${record.hashTotal === 1 ? '' : 'es'}<br>CORE · ${record.coreRecovered ? 'RECOVERED' : 'SEALED'} · ${record.coreName}</p></article>`).join('')}</div></section>`;
-      content = `<p>Recovered route data: <b>${p.routeFragments.length} / ${ROUTE_FRAGMENTS.length} fragments</b>. Optional navigation hashes: <b>${hashCount} / ${NAVIGATION_HASHES.length}</b> · no cash value. Planetary cores: <b>${coreCount} / ${CORE_RELICS.length}</b>. Deepest scan: <b>${Math.floor(p.maxDepth)} m</b>. Each route signal carries a one-time salvage claim for a long-range ship component.</p>${regionRecords}<div class="archive-list">${coreConclusion}<article class="archive-entry ${p.artifact ? 'found' : ''}" id="deep-signal-record"><span>${deepSignalStatus}</span><b>UNKNOWN DEEP SIGNAL</b><p>${deepSignalDetail}</p></article>${ROUTE_FRAGMENTS.map((fragment) => {
+      content = `<p>Recovered route data: <b>${p.routeFragments.length} / ${ROUTE_FRAGMENTS.length} fragments</b>. Optional navigation hashes: <b>${hashCount} / ${NAVIGATION_HASHES.length}</b> · no cash value. Planetary cores: <b>${coreCount} / ${CORE_RELICS.length}</b>. Deepest scan: <b>${Math.floor(p.maxDepth)} m</b>. Each route signal carries a one-time salvage claim for a long-range ship component.</p>${regionRecords}<div class="archive-list">${coreConclusion}${coreRecords}<article class="archive-entry ${p.artifact ? 'found' : ''}" id="deep-signal-record"><span>${deepSignalStatus}</span><b>UNKNOWN DEEP SIGNAL</b><p>${deepSignalDetail}</p></article>${ROUTE_FRAGMENTS.map((fragment) => {
         const found = p.routeFragments.includes(fragment.id);
         return `<article class="archive-entry ${found ? 'found' : ''}"><span>${found ? 'RECOVERED · CLAIM PAID' : `DEPTH ${fragment.row * 12} M · +$${ROUTE_SURVEY_REWARDS[fragment.id]} CLAIM`}</span><b>${fragment.landmark}</b><p>${fragment.title} — ${found ? fragment.detail : 'A luminous data seam is waiting in this chamber.'}</p></article>`;
       }).join('')}${NAVIGATION_HASHES.map((hash) => {
@@ -475,12 +485,10 @@ export class HUD {
         }).join('')}</div><p class="fine">Profiles change the pod's rendered silhouette only. Collision and drill clearance stay the same.</p>`;
       }
     } else if (name === 'pause') {
-      title = 'Take a breath.';
-      sub = 'EXPEDITION PAUSED';
       const exportControl = this.exportUrl
-        ? `<a id="download-save" class="pause-download" href="${this.exportUrl}" download="${this.exportFilename}">DOWNLOAD SAVE FILE ↓</a>`
-        : '<button id="export-save">EXPORT SAVE</button>';
-      content = `<p>The mine will be here when you get back.</p><button id="resume" class="primary">RESUME EXPEDITION <span>→</span></button><div class="pause-actions"><button id="save">SAVE EXPEDITION</button>${exportControl}<button id="import-save">IMPORT SAVE</button><button id="rescue">EMERGENCY RECOVERY</button><button id="new">NEW EXPEDITION</button></div><p class="fine">Recovery loses your unsold ore. Banked credits, upgrades, and excavated tunnels are kept.</p>`;
+        ? `<a id="download-save" class="pause-download" aria-label="DOWNLOAD SAVE FILE" href="${this.exportUrl}" download="${this.exportFilename}">Download save file <span aria-hidden="true">↓</span></a>`
+        : '<button id="export-save" aria-label="EXPORT SAVE">Export save <span aria-hidden="true">↧</span></button>';
+      content = pauseScreen(p, this.mapId, this.currentDepth, this.docked, exportControl, this.pauseSaveStatus());
     } else if (name === 'import-confirm') {
       const d = this.pendingImport;
       if (!d) { this.modal = 'pause'; this.renderModal(); return; }
@@ -503,7 +511,7 @@ export class HUD {
       content =
         '<p>Your unsold ore was lost. Your banked credits, upgrades, and excavated tunnels are safe. A refueled, repaired pod is waiting at the outpost.</p><button id="resume" class="primary">BACK TO THE SURFACE <span>↑</span></button>';
     }
-    document.querySelector('#modal-layer')!.innerHTML =
+    document.querySelector('#modal-layer')!.innerHTML = name === 'pause' ? content :
       `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><div class="eyebrow">${sub}</div><h2>${title}</h2>${['sell', 'service', 'upgrades'].includes(name) && (name !== 'service' || this.actions.surfaceAccess()) ? `<nav class="outpost-tabs" aria-label="Outpost services">${['sell', 'service', 'upgrades'].map((k) => `<button id="tab-${k}" aria-pressed="${name === k}">${k === 'sell' ? 'Sell ore' : k === 'service' ? 'Service' : 'Upgrades'}</button>`).join('')}</nav>` : ''}${content}<div class="modal-bank">AVAILABLE CREDIT <b>$${p.money.toLocaleString()}</b></div></section>`;
     for (const k of ['sell', 'service', 'upgrades']) this.on(`tab-${k}`, () => this.open(k));
     this.on('style-paint', () => { this.styleSection = 'paint'; this.renderModal(); });
@@ -521,6 +529,11 @@ export class HUD {
     this.on('audio-mute', () => {
       this.updateMuteButton(this.actions.mute());
       this.renderModal();
+    });
+    this.on('atmosphere-toggle', () => {
+      this.actions.setAtmosphereEnabled(!this.actions.atmosphereEnabled());
+      this.renderModal();
+      document.getElementById('atmosphere-toggle')?.focus();
     });
     this.on('service-all', () => {
       this.actions.serviceAll();
@@ -663,10 +676,20 @@ export class HUD {
     document.querySelector('#save-status')!.textContent = ok
       ? 'LOCAL SAVE · JUST SAVED'
       : 'LOCAL SAVE · FAILED';
+    const pauseStatus = document.getElementById('pause-save-state');
+    if (pauseStatus) pauseStatus.textContent = this.pauseSaveStatus();
+  }
+  private pauseSaveStatus() {
+    if (this.saveFailed) return 'Save failed. Export a copy before leaving.';
+    if (!this.savedAt) return this.loaded ? 'Expedition loaded from this device.' : 'Your expedition is stored on this device.';
+    const seconds = Math.max(0, Math.floor((Date.now() - this.savedAt) / 1000));
+    return seconds < 5 ? 'Saved on this device · just now' : `Saved on this device · ${seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m`} ago`;
   }
   update(depth: number, surface: boolean, dt: number, docked = false, returnFuel = 0, descentSpeed = 0, farHemisphere = false, pilotEscaping = false) {
     const p = this.p;
     this.nearSurface = surface;
+    this.currentDepth = depth;
+    this.docked = docked;
     for (const k of ['fuel', 'hull'] as const) {
       const ratio = p[k] / p.max(k);
       document.querySelector(`#${k}-label`)!.textContent =

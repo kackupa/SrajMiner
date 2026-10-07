@@ -25,7 +25,7 @@ npm test
 
 In GitHub Settings → Pages, set Source to **GitHub Actions**. The workflow in
 `.github/workflows/pages.yml` tests, builds, and publishes `dist` on every push to
-`master` (the repository's default branch), or when started manually with
+`main` and `master` (the repository currently defaults to `master`), or when started manually with
 **Run workflow** in the Actions tab. The workflow runs `npm ci`, `npm test`, and
 `npm run build` before deploying. `vite.config.ts` uses `/SrajMiner/` for
 production builds and `/` for local development.
@@ -37,6 +37,8 @@ Deployment must finish successfully before the public link works; local build
 checks do not verify a live GitHub deployment.
 
 ## Play
+
+Explored tunnels contain drifting frost flakes, rust fibers, crystal fragments, or red mineral dust according to the region. The pod's lamp catches the particles; thrust disturbs them and drilling leaves a short dust wake. Sparse larger flakes pass in front of the scene. These cosmetic effects pause with the game and are hidden with the system's reduced-motion preference. Toggle **Cave Atmosphere** in **MIX**; this device preference is separate from campaign saves.
 
 - **A / D or Left / Right:** move; hold into rock to drill sideways.
 - **S / Down:** descend and drill downward.
@@ -57,7 +59,7 @@ At depth, press **B** to spend credits and carried ore on a five-tile one-way pl
 
 The Cryo Shelf's central shaft contains four guaranteed, luminous route-data seams at progressively deeper landmarks. Each seam sits in a growing, oval chamber whose name is logged by the archive when discovered; mining it records the route fragment permanently across reloads and pays a one-time salvage claim matching a ship component. The four claims cover the ship's $2,800 cost, providing a reliable route to region travel even when random ore rolls are poor. Ore sales fund upgrades, services, and optional tools. Upgrade levels can continue beyond level 5 with progressively higher prices and diminishing gains. The scanner starts with a tight four-tile field, grows to full map width, then extends vertical survey depth. After 240 m, glowing rock swimmers phase through the geology and home toward your miner; their glow warns you, and a collision deals 8 hull damage. Build up to three sentry turrets underground ($560, 2 iron, 2 silver, 1 gold each) to automatically intercept swimmers within 440 px. The optional stasis module lets you hover by holding X at a fuel cost. Older Mars saves retain their original depth-based archive. The assembled craft opens the destination board: Cryo Shelf, Hull Graveyard, Prism Fault, and Mars Frontier. Each destination has its own deterministic seed, resource profile, geology colors, and persistent tunnels. Prism Fault has rare, luminous geodes worth three ore units; the wreck hides mint-lit alloy caches and Mars has orange thermal seams, each highlighted as a richer find in its map. Each region also hides one fictional navigation hash, an optional offline archive collectible with no cash or exchange value. Underground telemetry also provides a conservative vertical return-fuel estimate; route detours and steering require extra reserve.
 
-Each region now has a traversable core passage at 3,600 m and a second mineable hemisphere ending at its opposite surface. A different sealed core sample in each world must be drilled out of the crossing route; recording one pays a one-time $600 archive claim. The Archive tracks the four samples and marks the planetary ledger complete after all are recovered. Crossing the core flips the camera and gravity, awards a separate one-time campaign claim, and switches depth and return-fuel estimates to the local crust. Mouse drilling works at any angle, including while flying; on the far hemisphere the screen target is mirrored with the view. Use W to thrust away from the core and mine back toward the far outpost. The save uses the existing world position to restore the hemisphere, and each far outpost has service and sale access. System coverage exercises the core goals and far-crust return; a full browser expedition still needs verification.
+Each region now has a traversable core passage at 3,600 m and a second mineable hemisphere ending at its opposite surface. A different sealed core sample in each world must be drilled out of the crossing route; recording one pays a one-time $600 archive claim and reveals a new piece of the Faraday story in the Archive. All four records unlock the route-home conclusion. Crossing the core flips the camera and gravity, awards a separate one-time campaign claim, and switches depth and return-fuel estimates to the local crust. Mouse drilling works at any angle, including while flying; on the far hemisphere the screen target is mirrored with the view. Use W to thrust away from the core and mine back toward the far outpost. The save uses the existing world position to restore the hemisphere, and each far outpost has service and sale access. System coverage exercises the core goals and far-crust return; a full browser expedition still needs verification.
 
 Fuel exhaustion underground or zero hull triggers recovery: unsold cargo is lost, but your credits, upgrades, and tunnels remain. Emergency recovery in the pause menu prevents a stranded or bankrupt save from becoming unplayable.
 

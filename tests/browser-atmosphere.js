@@ -1,0 +1,62 @@
+// Playwright CLI run-code --filename, in an isolated browser session only.
+async (page) => {
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.bringToFront();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.reload();
+  await page.waitForFunction(() => !!window.__mars);
+  await page.evaluate(() => { localStorage.removeItem('mars-miner.v1'); localStorage.removeItem('mars-miner.atmosphere.v1'); });
+  await page.reload();
+  await page.getByRole('button', { name: /BEGIN EXPEDITION|CONTINUE EXPEDITION/ }).click();
+  await page.waitForFunction(() => !document.querySelector('.modal.intro'));
+  await page.bringToFront();
+  await page.locator('#game canvas').click({ position: { x: 600, y: 350 } });
+  await page.waitForTimeout(200);
+  await page.keyboard.down('s');
+  await page.waitForTimeout(6500);
+  await page.keyboard.up('s');
+  await page.waitForTimeout(400);
+  const descent = await page.evaluate(() => window.__mars);
+  if (!descent.atmosphere.count || descent.overlaps) throw Error(`Descent failure: ${JSON.stringify({depth:descent.depth, atmosphere:descent.atmosphere, overlaps:descent.overlaps, y:descent.y})}`);
+  await page.screenshot({ path: 'output/playwright/atmosphere-descent.png' });
+  await page.keyboard.down('w');
+  await page.waitForTimeout(700);
+  const thrust = await page.evaluate(() => window.__mars);
+  if (!thrust.atmosphere.wakes) throw Error('Thrust did not produce a wake');
+  await page.waitForFunction(() => window.__mars.y < 0, {}, { timeout: 15000 });
+  await page.keyboard.up('w');
+  await page.waitForFunction(() => window.__mars.docked, {}, { timeout: 10000 });
+  const home = await page.evaluate(() => window.__mars);
+  await page.getByRole('button', { name: 'Open audio mixer' }).click();
+  await page.locator('#atmosphere-toggle').click();
+  if (await page.locator('#atmosphere-toggle').getAttribute('aria-pressed') !== 'false') throw Error('Atmosphere toggle did not turn off');
+  await page.reload();
+  await page.waitForFunction(() => !!window.__mars);
+  await page.bringToFront();
+  if ((await page.evaluate(() => window.__mars.atmosphere.enabled))) throw Error('Preference did not persist');
+  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
+  await page.getByRole('button', { name: 'Open audio mixer' }).click();
+  await page.locator('#atmosphere-toggle').click();
+  await page.setViewportSize({ width: 960, height: 560 });
+  await page.locator('#atmosphere-toggle').scrollIntoViewIfNeeded();
+  await page.screenshot({ path: 'output/playwright/atmosphere-settings.png' });
+  const fit = await page.locator('#atmosphere-toggle').boundingBox();
+  if (!fit || fit.y + fit.height > 560) throw Error('Atmosphere control does not fit small viewport');
+  await page.getByRole('button', { name: 'Close panel', exact: true }).click();
+  await page.keyboard.down('s'); await page.waitForTimeout(3500); await page.keyboard.up('s');
+  await page.waitForFunction(() => window.__mars.atmosphere.count > 0);
+  await page.keyboard.press('Escape');
+  const paused = await page.evaluate(() => window.__mars.atmosphere.count);
+  await page.waitForTimeout(400);
+  if ((await page.evaluate(() => window.__mars.atmosphere.count)) !== paused) throw Error('Particles changed while paused');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => window.__mars.reducedMotion && window.__mars.atmosphere.count === 0);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__mars.atmosphere.count > 0);
+  if (errors.length) throw Error(errors.join('\n'));
+  return { descent: { depth: descent.depth, atmosphere: descent.atmosphere }, thrust: thrust.atmosphere,
+    home: { docked: home.docked, overlaps: home.overlaps, hull: home.hull },
+    settingsPersist: true, reducedMotion: true, pause: true, errors };
+}

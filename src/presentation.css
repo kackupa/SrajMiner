@@ -1,0 +1,132 @@
+/* Expedition presentation: quieter chrome, a dedicated pause composition. */
+.topbar { height: 72px; padding: 0 28px; background: #111c21; }
+.brand small { letter-spacing: 1.6px; font-size: 9px; }
+.expedition { font-size: 10px; letter-spacing: .7px; }
+.top-actions { gap: 5px; }
+.top-actions button { background: transparent; font-size: 10px; }
+footer { height: 44px; padding: 0 24px; background: #111c21; }
+#viewport { height: calc(100dvh - 116px); min-height: 0; }
+.telemetry { background: linear-gradient(110deg, #101e25ee, #101e25b5); border: 0; border-left: 2px solid #a4beb15c; box-shadow: none; }
+.telemetry .eyebrow { font-size: 9px; letter-spacing: .5px; margin-bottom: 18px; }
+.mission-tip { border: 0; background: #102028d9; }
+.mission-tip div > span { font-family: 'DM Sans', sans-serif; font-size: 12px; line-height: 1.4; }
+.station-dock { border: 0; border-top: 2px solid #acbba63d; background: #102028ed; box-shadow: none; }
+.station-dock button { background: transparent; border-left: 0; text-align: left; }
+.station-dock button > span { color: #839a9e; }
+
+#modal-layer:has(.pause-screen) {
+  background: linear-gradient(90deg, #091319ed 0%, #091319c9 45%, #09131970 100%);
+  backdrop-filter: none;
+  padding: 24px;
+}
+#viewport:has(.pause-screen) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning) { visibility: hidden; }
+#app:has(.pause-screen) .expedition { opacity: .45; }
+#app:has(.pause-screen) footer .controls { visibility: hidden; }
+#app:has(.pause-screen) footer::before { content: 'EXPEDITION ON HOLD'; color: #9badae; font: 10px 'Space Mono', monospace; letter-spacing: 1px; position: absolute; }
+
+.modal.pause-screen {
+  width: min(1020px, 100%);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  padding: 0;
+  border: 0;
+  background: #111e25;
+  box-shadow: 0 24px 90px #0005;
+  color: #e7ece6;
+}
+.pause-screen .close { z-index: 1; top: 14px; right: 16px; width: 34px; height: 34px; color: #c3ceca; background: transparent; }
+.pause-menu { padding: 34px 42px 30px; }
+.pause-location { display: flex; align-items: center; gap: 10px; font: 11px 'Space Mono', monospace; color: #b9c5c1; }
+.pause-location > span:first-child { color: #e6b979; font-size: 16px; }
+.pause-location-status { padding-left: 10px; border-left: 1px solid #879b994a; color: #91a5a7; font-size: 9px; }
+.pause-screen h2 { font: 600 76px/.9 'Barlow Condensed', sans-serif; letter-spacing: -1.6px; margin: 23px 0 27px; color: #efefe4; }
+.pause-screen h2 em { color: #d5b384; font-style: normal; }
+.pause-screen .pause-resume {
+  border: 0; border-top: 1px solid #99aaa452; border-bottom: 1px solid #99aaa452;
+  background: transparent; color: #ecd8b3; margin: 0 0 10px; padding: 13px 0;
+  text-align: left; font: 500 27px 'Barlow Condensed', sans-serif; letter-spacing: .2px;
+}
+.pause-screen .pause-resume span { font: inherit; }
+.pause-screen .pause-resume span:last-child { font-family: 'DM Sans', sans-serif; font-size: 26px; padding-right: 5px; }
+.pause-screen .pause-resume:hover { background: #d5b384; color: #132027; padding-left: 12px; }
+.pause-file-actions { display: grid; }
+.pause-file-actions > :is(button, a) { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; padding: 10px 0; background: transparent; text-align: left; font: 14px 'DM Sans', sans-serif; letter-spacing: 0; color: #c0ceca; min-height: 36px; }
+.pause-file-actions > :is(button, a):hover { color: #f4dab3; background: #ffffff06; }
+.pause-file-actions > :is(button, a) > span { color: #879c9e; margin-right: 9px; }
+.pause-file-actions .pause-download { color: #edc186; }
+.pause-screen .pause-save-state { color: #8ba7a3; font-size: 11px; line-height: 1.4; margin: 12px 0 18px; }
+.pause-secondary { display: flex; flex-wrap: wrap; gap: 10px 20px; border-top: 1px solid #97a7a329; padding-top: 15px; }
+.pause-secondary button { border: 0; background: transparent; color: #a3b1ae; padding: 0; font: 12px 'DM Sans', sans-serif; letter-spacing: 0; }
+.pause-secondary button:hover { color: #e5b78a; text-decoration: underline; }
+.pause-screen .pause-recovery-note { font-size: 11px; color: #859a9d; margin: 10px 0 0; line-height: 1.5; }
+.pause-keyhint { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #869b9d; margin-top: 22px; }
+.pause-keyhint kbd { font-size: 9px; border-color: #66818159; height: 21px; }
+.pause-rig { padding: 35px 38px 26px; background: radial-gradient(ellipse at 50% 29%, #38505645, transparent 58%), #203038; border-left: 1px solid #b3c2b912; }
+.pause-rig-heading { display: flex; justify-content: space-between; padding-right: 25px; gap: 12px; align-items: baseline; }
+.pause-rig-heading > span { font: 10px 'Space Mono', monospace; letter-spacing: 1.2px; color: #adbbb5; }
+.pause-rig-heading > b { font: 12px 'DM Sans', sans-serif; color: #9cb4b5; }
+.pod-portrait { display: block; width: 100%; height: 265px; margin: 5px auto 0; }
+.pause-readouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 25px; margin: 0 0 23px; }
+.pause-readouts dt { font: 11px 'DM Sans', sans-serif; color: #a0b6b5; }
+.pause-readouts dd { font: 500 30px 'Barlow Condensed', sans-serif; margin: 5px 0 10px; color: #f1e7d2; }
+.pause-readouts dd small { font-size: 16px; color: #a5b9b6; }
+.pause-readouts i { display: block; height: 2px; background: #0d1f27; }
+.pause-readouts i b { display: block; height: 100%; background: #d9b687; }
+.pause-readouts > div:nth-child(2) i b { background: #96c5b9; }
+.pause-objective { border-top: 1px solid #acc0b828; padding-top: 20px; }
+.pause-objective > span { font: 9px 'Space Mono', monospace; color: #9aafaf; letter-spacing: 1px; }
+.pause-objective h3 { font: 500 24px 'Barlow Condensed', sans-serif; color: #e5e8dc; margin: 7px 0 5px; }
+.pause-screen .pause-objective p { font-size: 12px; color: #adc0ba; line-height: 1.5; margin: 0; max-width: 290px; }
+.pause-progress { display: flex; gap: 5px; margin: 15px 0 8px; }
+.pause-progress i { flex: 1; height: 3px; background: #0c1b23; }
+.pause-progress .complete { background: #d1b386; }
+.pause-objective > small { font: 10px 'Space Mono', monospace; color: #98b2ae; }
+.pause-credit { display: flex; align-items: baseline; justify-content: space-between; padding-top: 15px; margin-top: 20px; border-top: 1px solid #acc0b828; }
+.pause-credit > span { font-size: 11px; color: #adbbb5; }
+.pause-credit > b { font: 500 25px 'Barlow Condensed', sans-serif; color: #e0c397; }
+
+@media (max-height: 850px) {
+  .pause-keyhint { display: none; }
+  .pause-menu { padding: 28px 36px; }
+  .pause-screen h2 { font-size: 66px; margin: 17px 0 20px; }
+  .pause-rig { padding: 29px 34px 24px; }
+  .pod-portrait { height: 225px; }
+  .pause-readouts { margin-bottom: 18px; }
+  .pause-objective { padding-top: 16px; }
+}
+@media (max-height: 680px) and (min-width: 721px) {
+  #modal-layer:has(.pause-screen) { padding: 12px 24px; }
+  .pause-menu { padding: 21px 30px; }
+  .pause-screen h2 { font-size: 44px; margin: 11px 0 14px; }
+  .pause-screen .pause-resume { padding: 8px 0; font-size: 23px; margin-bottom: 4px; }
+  .pause-file-actions { grid-template-columns: 1fr 1fr; gap: 0 18px; }
+  .pause-file-actions > :is(button, a) { font-size: 12px; padding: 6px 0; min-height: 30px; }
+  .pause-screen .pause-save-state { margin: 8px 0 10px; }
+  .pause-screen .pause-recovery-note { display: none; }
+  .pause-secondary { padding-top: 10px; }
+  .pause-rig { padding: 22px 28px 18px; }
+  .pod-portrait { height: 130px; }
+  .pause-readouts { margin-bottom: 10px; }
+  .pause-readouts dd { font-size: 25px; margin: 2px 0 6px; }
+  .pause-objective { padding-top: 10px; }
+  .pause-objective h3 { font-size: 21px; }
+  .pause-progress { margin: 9px 0 6px; }
+  .pause-credit { margin-top: 10px; padding-top: 8px; }
+}
+@media (max-width: 1000px) {
+  .topbar { padding: 0 20px; }
+  .expedition { display: none; }
+  footer .controls { font-size: 8px; letter-spacing: 0; gap: 4px; }
+  footer .controls > span { width: 2px; }
+  footer .controls kbd { min-width: 18px; height: 20px; }
+  .pause-location { flex-wrap: wrap; gap: 6px; }
+  .pause-location-status { font-size: 8px; }
+}
+@media (max-width: 720px) {
+  .modal.pause-screen { display: block; width: min(470px, 100%); }
+  .pause-menu { padding: 25px; }
+  .pause-screen h2 { font-size: 55px; }
+  .pause-rig { padding: 24px; }
+  .pod-portrait { height: 190px; }
+  .pause-rig-heading { padding-right: 0; }
+}

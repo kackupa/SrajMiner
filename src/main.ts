@@ -9,6 +9,7 @@ import '@fontsource/space-mono/latin-700.css';
 import Phaser from 'phaser';
 import { MiningScene } from './game/MiningScene';
 import './style.css';
+import './presentation.css';
 document.querySelector('#app')!.innerHTML = '<div id="game"></div>';
 new Phaser.Game({
   type: Phaser.AUTO,

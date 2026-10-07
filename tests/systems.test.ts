@@ -11,7 +11,7 @@ import { getDialogFocusables } from '../src/game/ui/focus';
 import { drawOreSymbol, flightWarning } from '../src/game/ui/HUD';
 import { restoreMapState, snapshotMapState } from '../src/game/campaign/MapState';
 import { atSurface, dockedOnSurface, surfaceTownTier, TOWN_TIER_HEIGHTS } from '../src/game/surface/SurfaceStation';
-import { campaignMapRecords, collectCoreRelic, crewArchiveRestored } from '../src/game/campaign/Records';
+import { campaignMapRecords, collectCoreRelic, coreSurveyProgress, crewArchiveRestored } from '../src/game/campaign/Records';
 import { screenToWorld, worldToScreen } from '../src/game/world/Projection';
 import { canAffordStructure, crossedStructureDeck, findBuildSite, nearbyServiceStation, type UndergroundStructure } from '../src/game/building/UndergroundStructures';
 let passed = 0;
@@ -515,6 +515,23 @@ test('the final crew archive beat unlocks only after every regional hash is reco
   for (let count = 1; count < ids.length; count++) assert.equal(crewArchiveRestored(ids.slice(0, count)), false);
   assert.equal(crewArchiveRestored(ids), true);
   assert.ok(CREW_ARCHIVE_CONCLUSION.transcript.includes('return handshake'));
+});
+test('planetary core records reveal one by one and gate the complete campaign conclusion', () => {
+  const ids = CORE_RELICS.map((relic) => relic.id);
+  const empty = coreSurveyProgress([]);
+  assert.equal(empty.complete, false);
+  assert.equal(empty.conclusion, undefined);
+  assert.ok(empty.records.every((entry) => !entry.recovered));
+  for (let count = 1; count < ids.length; count++) {
+    const progress = coreSurveyProgress(ids.slice(0, count));
+    assert.equal(progress.complete, false);
+    assert.equal(progress.conclusion, undefined);
+    assert.equal(progress.records.filter((entry) => entry.recovered).length, count);
+  }
+  const complete = coreSurveyProgress(ids);
+  assert.equal(complete.complete, true);
+  assert.ok(complete.conclusion?.transcript.includes('return key'));
+  assert.ok(complete.records.every(({ relic }) => relic.record.length > 30));
 });
 test('campaign route supports serviced, physical sorties through all four signal chambers', () => {
   for (const seed of [9090, 1, 2026]) {

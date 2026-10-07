@@ -1,4 +1,4 @@
-import { CORE_RELICS, MAPS, NAVIGATION_HASHES, ROUTE_FRAGMENTS, type CoreRelicId, type MapId } from '../config';
+import { CORE_RELICS, CORE_SURVEY_CONCLUSION, MAPS, NAVIGATION_HASHES, ROUTE_FRAGMENTS, type CoreRelicId, type MapId } from '../config';
 
 export type CampaignMapRecord = {
   id: MapId;
@@ -48,6 +48,17 @@ export function collectCoreRelic(
   progress.milestones.push(id);
   progress.money += relic.bounty;
   return relic;
+}
+
+/** Reveal each core record only after recovery, and the complete finding only when all four are logged. */
+export function coreSurveyProgress(milestones: readonly string[]) {
+  const records = CORE_RELICS.map((relic) => ({ relic, recovered: milestones.includes(relic.id) }));
+  const complete = records.every((entry) => entry.recovered);
+  return {
+    records,
+    complete,
+    conclusion: complete ? CORE_SURVEY_CONCLUSION : undefined,
+  } as const;
 }
 
 /** The four optional regional logs close the crew mystery; their existing milestone IDs are the durable state. */

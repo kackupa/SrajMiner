@@ -1,4 +1,11 @@
 export const WORLD = { tile: 40, width: 48, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
+export const CAVE_ATMOSPHERE = {
+  maxParticles: 96,
+  spawnAttemptsPerSecond: 100,
+  wakePerSecond: 18,
+  lightRadius: 260,
+  colors: { 'cryo-shelf': 0xc8e9ef, 'hull-graveyard': 0xd5ad82, 'prism-fault': 0xcdb6ed, 'mars-frontier': 0xd49776 },
+} as const;
 export const CORE = {
   depthMeters: 3600,
   passageRadius: 5,
@@ -181,11 +188,15 @@ export const MAPS = {
 // cached chunks can be discarded without adding feature state to player saves.
 export type MapId = keyof typeof MAPS;
 export const CORE_RELICS = [
-  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', bounty: 600 },
-  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', bounty: 600 },
-  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', bounty: 600 },
-  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', bounty: 600 },
-] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; bounty: number }[];
+  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the Faraday’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 600 },
+  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 600 },
+  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 600 },
+  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'All four pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call.', bounty: 600 },
+] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
+export const CORE_SURVEY_CONCLUSION = {
+  title: 'A route home, carried through four worlds',
+  transcript: 'The Faraday did not vanish beneath Vesper-9. The crew scattered its return key across these planetary cores, then sent a handshake only their miner could rebuild. The signal has been waiting for the whole route.',
+} as const;
 export type CoreRelicId = (typeof CORE_RELICS)[number]['id'];
 export const coreSurveyComplete = (milestones: readonly string[]) => CORE_RELICS.every((relic) => milestones.includes(relic.id));
 export const REGION_FINDS = {

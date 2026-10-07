@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "tsx tests/systems.test.ts"
+    "test": "tsx tests/systems.test.ts && tsx tests/atmosphere.test.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
