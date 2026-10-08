@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cold Signal · Round Planet Camera Prototype</title>
+<style>
+  :root { color-scheme: dark; --bg:#0c1114; --panel:#111b1f; --line:#263438; --ink:#e6e4d9; --muted:#849496; --amber:#f2b85f; --ice:#67d9e8; }
+  * { box-sizing:border-box }
+  body { margin:0; min-height:100vh; padding:26px; background:radial-gradient(ellipse at 51% 43%,#172328 0,#0c1114 66%); color:var(--ink); font:14px/1.45 'Segoe UI',sans-serif }
+  main { width:min(1480px,100%); margin:auto }
+  header { display:flex; align-items:end; justify-content:space-between; gap:24px; padding:0 2px 18px; border-bottom:1px solid var(--line) }
+  .eyebrow,.micro { color:var(--ice); font:10px/1.4 'Consolas',monospace; letter-spacing:.16em; text-transform:uppercase }
+  h1 { margin:5px 0 2px; font-size:clamp(23px,3vw,36px); line-height:1.08; letter-spacing:-.03em; font-weight:650 }
+  header p { margin:7px 0 0; color:#9eacad; max-width:700px }
+  .keyhint { color:#9eacad; text-align:right; font:11px 'Consolas',monospace; white-space:nowrap }
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:16px; margin-top:16px }
+  .stage,.notes { background:linear-gradient(145deg,#121d21,#0e1619); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:0 22px 80px #0005 }
+  .stage-head { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid #223034 }
+  .stage-head strong { font:11px 'Consolas',monospace; letter-spacing:.1em; color:#d6dfdc }
+  #mode { color:var(--amber); font:10px 'Consolas',monospace; letter-spacing:.12em }
+  canvas { display:block; width:100%; aspect-ratio:1.52; background:#080d10; image-rendering:pixelated }
+  .controls { display:flex; align-items:center; gap:12px; padding:14px 16px 16px; border-top:1px solid #223034 }
+  button { border:1px solid #34464a; border-radius:5px; background:#172328; color:#dce4df; padding:9px 12px; cursor:pointer; font:10px 'Consolas',monospace; letter-spacing:.07em }
+  button:hover,button:focus-visible { border-color:var(--amber); outline:none }
+  input[type=range] { flex:1; accent-color:var(--amber); min-width:70px }
+  .edge-label { color:#9eacad; font:9px 'Consolas',monospace; white-space:nowrap }
+  .notes { padding:18px }
+  .notes h2 { margin:4px 0 7px; font-size:18px }
+  .notes p { margin:0 0 16px; color:#9eacad; font-size:12px }
+  .notes .micro { margin-top:20px }
+  .readout { padding:12px 0; border-top:1px solid #263438 }
+  .readout b { display:block; margin:3px 0; color:#e7e6de; font:12px 'Consolas',monospace }
+  .readout span { color:#98a7a7; font-size:11px }
+  .callout { margin-top:18px; padding:12px; border-left:2px solid var(--amber); background:#1c211f; color:#c8c9bd; font-size:11px }
+  @media(max-width:900px) { body{padding:14px}.layout{grid-template-columns:1fr}.notes{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.notes h2,.notes>p,.callout{grid-column:1/-1}.notes .micro{margin-top:10px} }
+  @media(max-width:560px) { body{padding:9px}.layout{gap:9px;margin-top:9px}.stage-head{padding:10px}.controls{gap:7px;padding:10px}.edge-label{font-size:8px}.controls button{padding:8px 7px;font-size:8px}.keyhint{display:none}.notes{display:block;padding:14px} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div><div class="eyebrow">COLD SIGNAL · CAMERA STUDY 01</div><h1>One planet. One connected mine.</h1><p>Drag the zoom from a practical wraparound map toward a cutaway globe. This isolated prototype does not modify the game.</p></div>
+    <div class="keyhint">SCROLL OR +/- TO ZOOM<br>HOME / END FOR RANGE</div>
+  </header>
+  <div class="layout">
+    <section class="stage" aria-label="Planet camera prototype">
+      <div class="stage-head"><strong>VESPER-9 · PLANETARY SURVEY</strong><span id="mode">WRAPPING MAP</span></div>
+      <canvas id="planet" aria-label="Animated transformation from a rectangular wraparound mine map to a circular planet cutaway"></canvas>
+      <div class="controls"><button id="map">MINING VIEW</button><span class="edge-label">WRAP</span><input id="zoom" type="range" min="0" max="100" value="0" aria-label="Camera zoom"><span class="edge-label">GLOBE</span><button id="orbit">FULL PLANET</button></div>
+    </section>
+    <aside class="notes">
+      <div class="micro">DESIGN INTENT</div><h2 id="title">Readable first, planetary when asked.</h2><p id="description">The mine stays a familiar tile map at close range. The outer edges hint that the surface continues around the world.</p>
+      <div class="micro">WHAT COMES INTO VIEW</div>
+      <div class="readout"><b>01 · SURFACE LOOP</b><span>Settlements connected around the curved crust.</span></div>
+      <div class="readout"><b>02 · CORE PASSAGE</b><span>A dug route that emerges on the far side.</span></div>
+      <div class="readout"><b>03 · YOU ARE HERE</b><span>The marker stays visible through the camera transition.</span></div>
+      <div class="callout">Prototype question: does the continuous bend make “a mine wrapped around a planet” feel obvious without making local steering or drilling harder to read?</div>
+    </aside>
+  </div>
+</main>
+<script>
+(() => {
+  const canvas=document.querySelector('#planet'),ctx=canvas.getContext('2d'),slider=document.querySelector('#zoom');
+  let zoom=0,target=0,seed=173;
+  const cols=44,rows=26;
+  const color=(r,g,b,a=1)=>`rgba(${r},${g},${b},${a})`;
+  function hash(x,y){let n=(x*374761393+y*668265263+seed*1442695041)|0;n=Math.imul(n^(n>>>13),1274126177);return ((n^(n>>>16))>>>0)/4294967295}
+  function resize(){let dpr=Math.min(devicePixelRatio||1,2),rect=canvas.getBoundingClientRect();canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
+  function pathPoint(nx,ny,m,cx,cy,rx,ry){
+    const rad=Math.hypot(nx,ny)||1, edge=Math.max(Math.abs(nx),Math.abs(ny));
+    const scale=edge/rad; // square-to-disc projection; corners land on the rim
+    const dx=nx*(1-m)+nx*scale*m,dy=ny*(1-m)+ny*scale*m;
+    return [cx+dx*rx,cy+dy*ry];
+  }
+  function draw(){
+    const w=canvas.clientWidth,h=canvas.clientHeight;if(!w||!h)return;
+    ctx.clearRect(0,0,w,h);ctx.fillStyle='#080d10';ctx.fillRect(0,0,w,h);
+    const cx=w/2,cy=h/2+5,rx=Math.min(w*.46,h*.46),ry=Math.min(h*.46,w*.32),m=zoom;
+    // Atmosphere and edge frame blend from a rectangular map vignette to a globe rim.
+    ctx.save();
+    // Draw a clean blended backdrop; the terrain itself uses the same map projection per tile.
+    ctx.beginPath();ctx.roundRect(w*.025,h*.04,w*.95,h*.92,18*(1-m));ctx.fillStyle='#142025';ctx.fill();ctx.restore();
+    // Planet atmosphere at overview zoom.
+    if(m>.01){ctx.save();ctx.globalAlpha=m*.42;const g=ctx.createRadialGradient(cx,cy,rx*.65,cx,cy,rx*1.12);g.addColorStop(0,'#5dd3e000');g.addColorStop(.78,'#5dd3e022');g.addColorStop(1,'#5dd3e000');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(cx,cy,rx*1.12,ry*1.12,0,0,Math.PI*2);ctx.fill();ctx.restore()}
+    // The viewport boundary and mineral tiles share one square-to-disc morph.
+    ctx.save();ctx.beginPath();
+    for(let i=0;i<=180;i++){const a=i/180*Math.PI*2,dx=Math.cos(a),dy=Math.sin(a),squareScale=1/Math.max(Math.abs(dx),Math.abs(dy));const scale=squareScale*(1-m)+m;const x=cx+dx*rx*scale,y=cy+dy*ry*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+    ctx.closePath();ctx.clip();
+    // Mineralized tiles transform continuously from a wrap-map rectangle into a disc.
+    for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+      const nx=(x+.5)/cols*2-1,ny=(y+.5)/rows*2-1;
+      const [px,py]=pathPoint(nx,ny,m,cx,cy,rx,ry);
+      const scale=(Math.max(Math.abs(nx),Math.abs(ny))/(Math.hypot(nx,ny)||1));
+      const cellW= w*.95/cols*(1-m)+rx*2/cols*scale*m;
+      const cellH= h*.92/rows*(1-m)+ry*2/rows*scale*m;
+      const depth=Math.abs(ny),band=depth<.18?[93,179,187]:depth<.39?[52,102,111]:depth<.63?[58,71,78]:depth<.82?[132,83,59]:[93,55,47];
+      const noise=hash(x,y),lift=(noise-.5)*36;
+      const core=1-Math.min(1,Math.hypot(nx,ny)*2.5);
+      const rgb=band.map(c=>Math.max(16,Math.min(255,c+lift+core*55)));
+      const ore=hash(x+109,y+37)>.972;
+      // Each tile starts opaque; a previous tile's frost sheen must not dim it.
+      ctx.globalAlpha=1;
+      ctx.fillStyle=ore?(hash(x,y+300)>.5?'#73dbe8':'#f5ad55'):color(...rgb);
+      ctx.fillRect(px-cellW*.48,py-cellH*.47,cellW*.92,cellH*.9);
+      if(noise>.45){ctx.fillStyle='#ffffff';ctx.globalAlpha=.035;ctx.fillRect(px-cellW*.45,py-cellH*.45,cellW*.88,Math.max(1,cellH*.1));ctx.globalAlpha=1}
+      if(ore){ctx.fillStyle='#f8e8b5';ctx.globalAlpha=.8;ctx.beginPath();ctx.arc(px,py,Math.max(1.4,cellW*.09),0,Math.PI*2);ctx.fill();ctx.globalAlpha=1}
+    }
+    ctx.restore();
+    // Globe rim and core glow.
+    if(m>.28){ctx.save();ctx.globalAlpha=(m-.28)/.72;ctx.lineWidth=2;ctx.strokeStyle='#95eaf0';ctx.shadowColor='#53d9e7';ctx.shadowBlur=16;ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.restore()}
+    const coreGlow=ctx.createRadialGradient(cx,cy,2,cx,cy,Math.max(10,Math.min(rx,ry)*.16));coreGlow.addColorStop(0,'#fff4bb');coreGlow.addColorStop(.18,'#ffb44dbb');coreGlow.addColorStop(1,'#ff812000');ctx.fillStyle=coreGlow;ctx.beginPath();ctx.arc(cx,cy,Math.min(rx,ry)*.16,0,Math.PI*2);ctx.fill();
+    // Surface route: wrap arrows close-in; an orbiting dashed loop at full cutaway.
+    ctx.save();ctx.lineWidth=2;ctx.strokeStyle='#f2b85f';ctx.fillStyle='#f2b85f';ctx.setLineDash([5,7]);ctx.globalAlpha=.35+.55*m;
+    if(m<.6){ctx.beginPath();ctx.moveTo(w*.08,h*.12);ctx.lineTo(w*.92,h*.12);ctx.stroke();ctx.setLineDash([]);arrow(w*.08,h*.12,-1,0);arrow(w*.92,h*.12,1,0)}
+    else {ctx.beginPath();ctx.ellipse(cx,cy,rx+10,ry+10,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);arrow(cx-rx-10,cy,0,-1);arrow(cx+rx+10,cy,0,1)}ctx.restore();
+    // Mined tunnel through the core and out the far crust.
+    const top=pathPoint(0,-.97,m,cx,cy,rx,ry),bottom=pathPoint(0,.97,m,cx,cy,rx,ry);
+    ctx.save();ctx.lineCap='round';ctx.strokeStyle='#111719';ctx.lineWidth=Math.max(7,w*.012);ctx.beginPath();ctx.moveTo(...top);ctx.lineTo(cx,cy);ctx.lineTo(...bottom);ctx.stroke();ctx.strokeStyle='#f5b75c';ctx.lineWidth=2;ctx.setLineDash([3,5]);ctx.beginPath();ctx.moveTo(...top);ctx.lineTo(cx,cy);ctx.lineTo(...bottom);ctx.stroke();ctx.restore();
+    // Surface outposts and current miner.
+    const near=top,far=bottom;station(...near,'#ffc56a');station(...far,'#69dce7');
+    const py=cy-ry*.38;ctx.save();ctx.translate(cx,py);ctx.fillStyle='#f1b65e';ctx.strokeStyle='#151b1b';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(-8,-6,16,12,3);ctx.fill();ctx.stroke();ctx.fillStyle='#fff0c5';ctx.fillRect(4,-3,5,4);ctx.restore();
+    // Map edge loop hints and level labels.
+    if(m<.48){label(w*.055,h*.55,'WRAP ↔','#7ddde5');label(w*.81,h*.55,'WRAP ↔','#7ddde5')}
+    label(cx-rx*.88,cy-ry*.77,'NEAR SURFACE', '#bdc8c4');label(cx-rx*.88,cy+ry*.83,'FAR SURFACE','#bdc8c4');label(cx+10,cy+4,'CORE','#ffd17a');
+    function arrow(x,y,dx,dy){ctx.save();ctx.translate(x,y);ctx.rotate(Math.atan2(dy,dx));ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-9,-5);ctx.lineTo(-9,5);ctx.closePath();ctx.fill();ctx.restore()}
+    function station(x,y,c){ctx.save();ctx.fillStyle='#0b1214';ctx.fillRect(x-7,y-7,14,14);ctx.fillStyle=c;ctx.fillRect(x-4,y-4,8,8);ctx.fillStyle='#fff';ctx.fillRect(x-1,y-1,2,2);ctx.restore()}
+    function label(x,y,t,c){ctx.save();ctx.font='9px Consolas,monospace';ctx.fillStyle='#070b0d';ctx.fillText(t,x+1,y+1);ctx.fillStyle=c;ctx.fillText(t,x,y);ctx.restore()}
+    document.querySelector('#mode').textContent=m<.18?'WRAPPING MAP':m>.82?'ORBITAL CUTAWAY':`TRANSITION · ${Math.round(m*100)}%`;
+    document.querySelector('#title').textContent=m<.4?'Readable first, planetary when asked.':m>.75?'See the whole connected world.':'The map becomes a planet.';
+    document.querySelector('#description').textContent=m<.4?'The mine stays a familiar tile map at close range. The outer edges hint that the surface continues around the world.':m>.75?'At overview zoom, the curved crust, opposite settlements, core passage and your position resolve into one spherical cutaway.':'Terrain bends continuously with the camera. Your position, the tunnel and surface route stay anchored as the framing changes.';
+  }
+  function setTarget(v){target=Math.max(0,Math.min(1,v));slider.value=Math.round(target*100)}
+  function animate(){zoom+=(target-zoom)*.09;if(Math.abs(target-zoom)<.001)zoom=target;draw();requestAnimationFrame(animate)}
+  slider.addEventListener('input',()=>setTarget(+slider.value/100));document.querySelector('#map').onclick=()=>setTarget(0);document.querySelector('#orbit').onclick=()=>setTarget(1);
+  canvas.addEventListener('wheel',e=>{e.preventDefault();setTarget(target+(e.deltaY<0?.12:-.12))},{passive:false});
+  addEventListener('keydown',e=>{if(e.key==='+'||e.key==='=')setTarget(target+.1);if(e.key==='-')setTarget(target-.1);if(e.key==='Home')setTarget(0);if(e.key==='End')setTarget(1)});
+  new ResizeObserver(resize).observe(canvas);resize();animate();
+})();
+</script>
+</body>
+</html>

@@ -2,17 +2,18 @@ import assert from 'node:assert/strict';
 import { TileWorld, type Tile } from '../src/game/world/TileWorld';
 import { RockSwimmer } from '../src/game/world/RockSwimmer';
 import { Progress } from '../src/game/economy/Progress';
-import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolume, parseAudioMix } from '../src/game/audio/AudioSystem';
+import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolume, parseAudioMix, startingMusicPhase } from '../src/game/audio/AudioSystem';
 import { MiningSystem, aimedDrillTarget, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from '../src/game/mining/MiningSystem';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
-import { ORE_KEYS, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, CORE_WORLD_Y, FAR_SURFACE_ROW, FAR_SURFACE_Y, PHYSICS, DESCENT_WARNING_SPEED, UPGRADES, UPGRADE_KEYS, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, estimateVerticalReturnFuel, drillWidth, POD_SIZE, podVisualScale } from '../src/game/config';
+import { ORE_KEYS, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, CORE_WORLD_Y, FAR_SURFACE_ROW, FAR_SURFACE_Y, PHYSICS, DESCENT_WARNING_SPEED, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, estimateVerticalReturnFuel, drillWidth, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
 import { drawOreSymbol, flightWarning } from '../src/game/ui/HUD';
 import { restoreMapState, snapshotMapState } from '../src/game/campaign/MapState';
 import { atSurface, dockedOnSurface, surfaceTownTier, TOWN_TIER_HEIGHTS } from '../src/game/surface/SurfaceStation';
 import { campaignMapRecords, collectCoreRelic, coreSurveyProgress, crewArchiveRestored } from '../src/game/campaign/Records';
 import { screenToWorld, worldToScreen } from '../src/game/world/Projection';
+import { planetChartToCartesian, planetCartesianToChart, planetChartVectorToCartesian, wrapPlanetSeam } from '../src/game/world/PlanetChart';
 import { canAffordStructure, crossedStructureDeck, findBuildSite, nearbyServiceStation, type UndergroundStructure } from '../src/game/building/UndergroundStructures';
 let passed = 0;
 function test(name: string, fn: () => void) {
@@ -28,11 +29,62 @@ test('audio mix defaults, clamps and parses saved per-channel levels', () => {
   assert.deepEqual(parseAudioMix('invalid'), DEFAULT_AUDIO_MIX);
   assert.equal(normalizeAudioVolume(Number.NaN), 0);
 });
+test('music begins in the right depth band when an expedition is resumed', () => {
+  assert.equal(startingMusicPhase(0), 'signal');
+  assert.equal(startingMusicPhase(MUSIC_DEPTH.transition - 1), 'signal');
+  assert.equal(startingMusicPhase(MUSIC_DEPTH.transition), 'transition');
+  assert.equal(startingMusicPhase(MUSIC_DEPTH.deepOnLoad - 1), 'transition');
+  assert.equal(startingMusicPhase(MUSIC_DEPTH.deepOnLoad), 'deep');
+});
 test('mouse projection reverses cleanly in either hemisphere', () => {
   for (const inverted of [false, true]) {
     const screen = worldToScreen(1200, 3400, 700, 3150, 960, 720, inverted);
     assert.deepEqual(screenToWorld(screen.x, screen.y, 700, 3150, 960, 720, inverted), { x: 1200, y: 3400 });
   }
+});
+test('planet chart projects a round surface and joins both surfaces through a twisted seam', () => {
+  const width = 942, radius = 300;
+  const samePoint = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    assert.ok(Math.abs(a.x - b.x) < 1e-8);
+    assert.ok(Math.abs(a.y - b.y) < 1e-8);
+  };
+  samePoint(
+    planetChartToCartesian({ u: 0, v: 35 }, width, radius),
+    planetChartToCartesian({ u: width, v: 2 * radius - 35 }, width, radius),
+  );
+  samePoint(
+    planetChartToCartesian({ u: 0, v: 2 * radius }, width, radius),
+    planetChartToCartesian({ u: width, v: 0 }, width, radius),
+  );
+  for (const u of [0, width * 0.13, width / 2, width * 0.91, width])
+    samePoint(planetChartToCartesian({ u, v: radius }, width, radius), { x: 0, y: 0 });
+  for (const strip of [{ u: 140, v: 80 }, { u: 140, v: 540 }, { u: width * 0.8, v: 285 }]) {
+    const cartesian = planetChartToCartesian(strip, width, radius, 40);
+    const roundTrip = planetCartesianToChart(cartesian, width, radius, 40);
+    assert.ok(Math.abs(roundTrip.u - strip.u) < 1e-8);
+    assert.ok(Math.abs(roundTrip.v - strip.v) < 1e-8);
+  }
+  assert.deepEqual(planetCartesianToChart({ x: 0, y: 0 }, width, radius), { u: width / 2, v: radius });
+  assert.throws(() => planetCartesianToChart({ x: 1, y: 1 }, width, 0), RangeError);
+
+  const roundWidth = Math.PI * radius;
+  const tangent = planetChartVectorToCartesian({ u: 0, v: 0 }, { du: 1, dv: 0 }, roundWidth, radius);
+  assert.ok(Math.abs(Math.hypot(tangent.dx, tangent.dy) - 1) < 1e-8);
+  const coreVector = planetChartVectorToCartesian({ u: width * 0.3, v: radius }, { du: 500, dv: 1 }, width, radius);
+  assert.ok(Number.isFinite(coreVector.dx) && Number.isFinite(coreVector.dy));
+
+  const beforeRightSeam = planetChartToCartesian({ u: width + 2.5, v: 40 }, width, radius);
+  const right = wrapPlanetSeam({ u: width + 2.5, v: 40 }, 17, -1, width, radius);
+  assert.deepEqual(right, { u: 2.5, v: 560, dv: -17, aimV: 1, crossings: 1 });
+  samePoint(beforeRightSeam, planetChartToCartesian(right, width, radius));
+  const beforeLeftSeam = planetChartToCartesian({ u: -0.25, v: 35 }, width, radius);
+  const left = wrapPlanetSeam({ u: -0.25, v: 35 }, -5, 0.75, width, radius);
+  assert.deepEqual(left, { u: width - 0.25, v: 565, dv: 5, aimV: -0.75, crossings: -1 });
+  samePoint(beforeLeftSeam, planetChartToCartesian(left, width, radius));
+  assert.deepEqual(wrapPlanetSeam({ u: width * 2 + 3, v: 120 }, 4, -2, width, radius),
+    { u: 3, v: 120, dv: 4, aimV: -2, crossings: 2 });
+  assert.throws(() => planetChartToCartesian({ u: 0, v: 0 }, 0, radius), RangeError);
+  assert.throws(() => wrapPlanetSeam({ u: Number.NaN, v: 0 }, 0, 0, width, radius), RangeError);
 });
 test('route and archive discoveries add distinct beat-aligned music cues that respect mute', () => {
   const audio = new AudioSystem();

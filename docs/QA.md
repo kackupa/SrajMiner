@@ -1,5 +1,11 @@
 # QA report — 2026-10-07
 
+## Expedition pause presentation — 2026-10-08
+
+The pause view now uses a dedicated two-column layout with an original vector elevation of the currently equipped pod, current fuel/hull/cargo, and a progress cue that follows the Faraday campaign stage. Save/export/import/recovery/new-expedition actions retain their previous behavior and confirmation steps. The surrounding header, footer, and HUD chrome are quieter while the game world remains visible behind the pause view. No save schema or gameplay physics changed.
+
+`npm install` and all 83 system tests plus the cave-atmosphere test pass. The Vite production build succeeds outside the local filesystem sandbox; the sandbox itself denies `realpath` on `src/main.ts`. An isolated Chromium session checked 1920×960, 1280×800, 960×560, and 720×580 with no horizontal overflow or clipped controls. It exercised save status, export-link creation, recovery/new-expedition confirmation, resume, a 36 m descent, and safe docking with no terrain overlap or page errors. Screenshots are in ignored `output/playwright/pause-redesign-*.png`. Visual taste and longer play sessions still need player feedback.
+
 ## Cave atmosphere — 2026-10-07
 
 Added transient regional dust, foreground flakes, headlamp illumination, and drilling/thruster wakes, capped at 96 particles. Particles occupy explored empty tiles only; no terrain, cargo, physics, or campaign-save fields are changed. The MIX panel includes a persistent device-local toggle. Reduced motion removes the effects immediately, including while paused.
@@ -283,3 +289,6 @@ Mouse aiming and drilling remain active while W/upward thrust is held, so the pl
 # Campaign core-story archive smoke check — 2026-10-07
 
 The local game loaded in an isolated Chrome tab at `http://127.0.0.1:5191/`. A fresh campaign opened the Archive and showed all four core records as sealed with generic recovery text; unrecovered story details were not exposed. The completed-record and final-conclusion gates are covered by the 83-system-test suite (`planetary core records reveal one by one and gate the complete campaign conclusion`). I attempted to use a generated import fixture for the recovered browser state, but the Chrome extension refused local file uploads because its “Allow access to file URLs” setting is disabled; I left that browser permission unchanged. The only browser console error observed came from a wallet extension attempting to redefine `window.ethereum`, not from the game. A full core-crossing expedition, recovered-state browser rendering, and the human 15-minute campaign playtest remain outstanding.
+## Depth-based soundtrack — 2026-10-08
+
+The three original MP3 sketches are bundled from `music-prototypes/` and play through the existing music bus. Signal Run starts at the surface; a one-time transition begins at 600 m and finishes on Deep Pressure. Returning shallower than 350 m restores Signal Run, while a saved expedition loaded at or beyond 1,300 m begins directly on Deep Pressure. The tracks respect pause, quick mute, and the existing music-volume slider; synthesized effects and landmark cues remain on their existing buses. No save-schema change was needed. An isolated browser context on port 5185 verified decoded playback at surface, a mid-depth save, and a deep save, plus pause/resume and mute/unmute. It also played the full 59-second transition and confirmed the handoff to Deep Pressure, with no browser page errors. A separate production-build smoke check served the site at `/SrajMiner/` and confirmed all three MP3s loaded from that base path and Signal Run played. Repeated descents and subjective mix balance still need a human listening pass.
