@@ -130,7 +130,7 @@ export class MiningScene extends Phaser.Scene {
       this.progress,
       {
         start: () => {
-          this.soundFx.unlock();
+          this.soundFx.unlock(this.depth);
           this.save();
           if (this.saves.warning) this.ui.toast(this.saves.warning);
         },
@@ -501,6 +501,9 @@ export class MiningScene extends Phaser.Scene {
           contextState: this.soundFx.context?.state ?? 'locked',
           musicGain: this.soundFx.musicBus?.gain.value ?? 0,
           effectsGain: this.soundFx.effectsBus?.gain.value ?? 0,
+          phase: this.soundFx.musicPhase ?? 'locked',
+          soundtrack: this.soundFx.musicTracks ? Object.fromEntries(Object.entries(this.soundFx.musicTracks).map(([name, track]) =>
+            [name, { paused: track.element.paused, time: track.element.currentTime, readyState: track.element.readyState, gain: track.gain.gain.value }])) : null,
         },
         maps: Object.fromEntries(Object.entries(this.mapStates).map(([id, map]) => [id, {
           seed: map?.seed,

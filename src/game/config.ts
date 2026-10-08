@@ -6,6 +6,9 @@ export const CAVE_ATMOSPHERE = {
   lightRadius: 260,
   colors: { 'cryo-shelf': 0xc8e9ef, 'hull-graveyard': 0xd5ad82, 'prism-fault': 0xcdb6ed, 'mars-frontier': 0xd49776 },
 } as const;
+// Music follows the current local depth, with a shallower reset point to avoid
+// restarting the transition when the pod moves around its trigger depth.
+export const MUSIC_DEPTH = { transition: 600, returnToSignal: 350, deepOnLoad: 1300 } as const;
 export const CORE = {
   depthMeters: 3600,
   passageRadius: 5,

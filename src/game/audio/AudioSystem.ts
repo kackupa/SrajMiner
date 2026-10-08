@@ -1,4 +1,15 @@
-// Original synthesized effects; no external audio assets or network calls.
+// Original synthesized effects and locally bundled, original music.
+import { MUSIC_DEPTH } from '../config';
+const signalRunUrl = new URL('../../../music-prototypes/signal-run.mp3', import.meta.url).href;
+const descentTransitionUrl = new URL('../../../music-prototypes/descent-transition.mp3', import.meta.url).href;
+const deepPressureUrl = new URL('../../../music-prototypes/deep-pressure.mp3', import.meta.url).href;
+
+export type MusicPhase = 'signal' | 'transition' | 'deep';
+type MusicTrack = { element: HTMLAudioElement; gain: GainNode };
+export function startingMusicPhase(depth: number): MusicPhase {
+  return depth >= MUSIC_DEPTH.deepOnLoad ? 'deep' :
+    depth >= MUSIC_DEPTH.transition ? 'transition' : 'signal';
+}
 export type AudioMix = { music: number; effects: number };
 export const DEFAULT_AUDIO_MIX: AudioMix = { music: 70, effects: 80 };
 export const LANDMARK_CUE_NOTES = {
@@ -33,6 +44,11 @@ export class AudioSystem {
   beat = 0;
   moving = false;
   drilling = false;
+  musicPhase?: MusicPhase;
+  musicTracks?: Record<MusicPhase, MusicTrack>;
+  musicUnavailable = false;
+  paused = false;
+  lastDepth = 0;
   constructor() {
     try {
       this.muted = localStorage.getItem('mars-miner.settings.v1') === 'muted';
@@ -48,6 +64,7 @@ export class AudioSystem {
     } catch {
       // Audio preference is optional if browser storage is unavailable.
     }
+    this.applyMix();
     return this.muted;
   }
   setMix(channel: keyof AudioMix, value: number) {
@@ -62,10 +79,10 @@ export class AudioSystem {
   private applyMix() {
     if (!this.context || !this.musicBus || !this.effectsBus) return;
     const now = this.context.currentTime;
-    this.musicBus.gain.setTargetAtTime(this.muted ? 0 : this.mix.music / 100, now, 0.04);
+    this.musicBus.gain.setTargetAtTime(this.muted || this.paused ? 0 : this.mix.music / 100, now, 0.04);
     this.effectsBus.gain.setTargetAtTime(this.muted ? 0 : this.mix.effects / 100, now, 0.04);
   }
-  unlock() {
+  unlock(depth = 0) {
     if (!this.context) {
       this.context = new AudioContext();
       this.musicBus = this.context.createGain();
@@ -90,6 +107,67 @@ export class AudioSystem {
     }
     this.applyMix();
     void this.context.resume();
+    this.startSoundtrack(depth);
+  }
+  private startSoundtrack(depth: number) {
+    if (!this.context || this.musicTracks || this.musicUnavailable) return;
+    try {
+      const make = (url: string, loop: boolean): MusicTrack => {
+        const element = new Audio(url);
+        element.loop = loop;
+        element.preload = 'auto';
+        const gain = this.context!.createGain();
+        gain.gain.value = 0;
+        this.context!.createMediaElementSource(element).connect(gain).connect(this.musicBus!);
+        return { element, gain };
+      };
+      this.musicTracks = {
+        signal: make(signalRunUrl, true),
+        transition: make(descentTransitionUrl, false),
+        deep: make(deepPressureUrl, true),
+      };
+      this.musicTracks.transition.element.addEventListener('ended', () => {
+        if (this.musicPhase === 'transition')
+          this.changeMusic(this.lastDepth < MUSIC_DEPTH.returnToSignal ? 'signal' : 'deep');
+      });
+      this.changeMusic(startingMusicPhase(depth));
+    } catch {
+      this.musicUnavailable = true;
+      this.musicTracks = undefined;
+    }
+  }
+  private changeMusic(phase: MusicPhase) {
+    if (!this.context || !this.musicTracks || this.musicUnavailable || this.musicPhase === phase) return;
+    if (phase === 'transition') this.musicTracks.transition.element.currentTime = 0;
+    if (phase === 'signal' && this.musicPhase === 'deep') this.musicTracks.signal.element.currentTime = 0;
+    this.musicPhase = phase;
+    const now = this.context.currentTime;
+    for (const [name, track] of Object.entries(this.musicTracks) as [MusicPhase, MusicTrack][]) {
+      track.gain.gain.setTargetAtTime(name === phase ? 0.78 : 0, now, 0.65);
+    }
+    if (!this.paused) {
+      const element = this.musicTracks[phase].element;
+      void element.play().catch(() => this.disableSoundtrack());
+    }
+  }
+  private disableSoundtrack() {
+    this.musicUnavailable = true;
+    const now = this.context?.currentTime ?? 0;
+    for (const track of Object.values(this.musicTracks ?? {})) {
+      track.element.pause();
+      track.gain.gain.cancelScheduledValues(now);
+      track.gain.gain.setValueAtTime(0, now);
+    }
+  }
+  private syncSoundtrackPause(paused: boolean) {
+    if (this.paused === paused) return;
+    this.paused = paused;
+    if (!this.musicTracks || this.musicUnavailable) return;
+    for (const track of Object.values(this.musicTracks)) {
+      if (paused) track.element.pause();
+      else if (track.element.currentTime > 0 || track === this.musicTracks[this.musicPhase!])
+        void track.element.play().catch(() => this.disableSoundtrack());
+    }
   }
   tone(
     frequency: number,
@@ -113,6 +191,12 @@ export class AudioSystem {
   }
   update(thrust: boolean, drill: boolean, depth: number, paused: boolean) {
     if (!this.context) return;
+    this.lastDepth = depth;
+    this.syncSoundtrackPause(paused);
+    if (this.musicTracks && !this.musicUnavailable && !paused) {
+      if (depth < MUSIC_DEPTH.returnToSignal && this.musicPhase !== 'signal') this.changeMusic('signal');
+      else if (depth >= MUSIC_DEPTH.transition && this.musicPhase === 'signal') this.changeMusic('transition');
+    }
     const time = this.context.currentTime;
     this.applyMix();
     this.moving = thrust;
@@ -120,7 +204,7 @@ export class AudioSystem {
     this.engineGain!.gain.setTargetAtTime(thrust && !this.muted && !paused ? 0.018 : 0, time, 0.06);
     this.ambienceGain!.gain.setTargetAtTime(!this.muted && !paused ? 0.008 : 0, time, 0.2);
     this.ambience!.frequency.setTargetAtTime(depth > 0 ? 42 : 65, time, 0.6);
-    if (this.muted || paused) {
+    if (this.muted || paused || (this.musicTracks && !this.musicUnavailable)) {
       this.nextBeat = time + 0.12;
       return;
     }
@@ -171,7 +255,8 @@ export class AudioSystem {
   playLandmarkCue(kind: LandmarkCue) {
     if (!this.context || this.muted) return false;
     // Begin on the next groove beat and let the short melodic hook ring over the drill loop.
-    const start = Math.max(this.context.currentTime + 0.02, this.nextBeat);
+    const start = this.musicTracks && !this.musicUnavailable ?
+      this.context.currentTime + 0.12 : Math.max(this.context.currentTime + 0.02, this.nextBeat);
     LANDMARK_CUE_NOTES[kind].forEach((frequency, index, notes) =>
       this.note(start + index * 0.25, frequency, index === notes.length - 1 ? 0.48 : 0.28, 0.026, 'sine'),
     );
