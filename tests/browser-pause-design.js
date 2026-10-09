@@ -24,6 +24,7 @@ async (sourcePage) => {
   for (const size of [{ width: 1920, height: 960 }, { width: 1280, height: 800 },
     { width: 960, height: 560 }, { width: 720, height: 580 }]) {
     await page.setViewportSize(size);
+    await page.waitForFunction(width => document.querySelector('#game canvas')?.width === width, size.width);
     const result = await page.evaluate(() => {
       const dialog = document.querySelector('.pause-screen');
       const menu = document.querySelector('.pause-menu');
@@ -31,11 +32,15 @@ async (sourcePage) => {
       const controls = [...dialog.querySelectorAll('button, a')].filter(el => el.id !== 'close');
       const rect = dialog.getBoundingClientRect();
       return { width: innerWidth, height: innerHeight, rect: rect.toJSON(),
+        viewport: document.querySelector('#viewport').getBoundingClientRect().toJSON(),
+        canvas: document.querySelector('#game canvas').getBoundingClientRect().toJSON(),
         scrollHeight: dialog.scrollHeight, clientHeight: dialog.clientHeight,
         maxControlBottom: Math.max(...controls.map(el => el.getBoundingClientRect().bottom)),
         creditBottom: credit.getBoundingClientRect().bottom,
         menuHeight: menu.getBoundingClientRect().height,
-        horizontalOverflow: document.documentElement.scrollWidth > innerWidth };
+        horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
+        overflowers: [...document.querySelectorAll('body *')].map(el => ({ selector: el.id ? `#${el.id}` : el.className?.toString().split(' ')[0] || el.tagName.toLowerCase(), right: el.getBoundingClientRect().right }))
+          .filter(el => el.right > innerWidth + 0.5).slice(0, 12) };
     });
     if (result.horizontalOverflow || result.rect.left < 0 || result.rect.right > size.width ||
       (size.width > 800 && (result.maxControlBottom > size.height || result.creditBottom > size.height)))

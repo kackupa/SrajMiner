@@ -36,8 +36,9 @@ async (page) => {
   await page.waitForFunction(() => !window.__mars.reducedMotion);
 
   await page.getByRole('button', { name: 'EXPORT SAVE' }).click();
-  const exported = await page.getByRole('dialog').innerText();
-  if (!exported.includes('DOWNLOAD SAVE FILE')) throw Error('Save export link not rendered');
+  const downloadLink = page.locator('#download-save');
+  if (!(await downloadLink.isVisible()) || await downloadLink.getAttribute('aria-label') !== 'DOWNLOAD SAVE FILE')
+    throw Error('Save export link is missing or has no accessible label');
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.locator('#download-save').click(),
@@ -49,7 +50,7 @@ async (page) => {
   const chunks = [];
   for await (const chunk of stream) chunks.push(chunk);
   const exportedSave = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-  if (exportedSave.version !== 12 || exportedSave.activeMap !== 'cryo-shelf' || !exportedSave.maps['cryo-shelf'])
+  if (exportedSave.version !== 20 || exportedSave.activeMap !== 'cryo-shelf' || !exportedSave.maps['cryo-shelf'])
     throw Error('Downloaded JSON does not contain a valid campaign save');
   await page.getByRole('button', { name: 'IMPORT SAVE' }).click();
   const saved = await page.evaluate(() => localStorage.getItem('mars-miner.v1'));

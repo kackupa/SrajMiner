@@ -21,7 +21,7 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 }
 #viewport:has(.pause-screen) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning) { visibility: hidden; }
 #app:has(.pause-screen) .expedition { opacity: .45; }
-#app:has(.pause-screen) footer .controls { visibility: hidden; }
+#app:has(.pause-screen) footer .controls { display: none; }
 #viewport:has(.pause-screen) #toast { visibility: hidden; }
 #app:has(.pause-screen) footer::before { content: 'EXPEDITION ON HOLD'; color: #9badae; font: 10px 'Space Mono', monospace; letter-spacing: 1px; position: absolute; }
 
