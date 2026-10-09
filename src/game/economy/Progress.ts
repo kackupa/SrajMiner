@@ -32,6 +32,7 @@ export const emptyCargo = (): Cargo => ({ copper: 0, iron: 0, silver: 0, gold: 0
 export class Progress {
   money = 80;
   levels: Levels = { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 };
+  grappleOwned = false;
   fuel = 140;
   hull = 100;
   cargo = emptyCargo();
@@ -208,6 +209,7 @@ export class Progress {
     const old = this.max(key);
     this.money -= cost;
     this.levels[key]++;
+    if (key === 'grapple') this.grappleOwned = true;
     if (key === 'fuel') this.fuel += this.max(key) - old;
     if (key === 'hull') this.hull += this.max(key) - old;
     return true;

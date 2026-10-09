@@ -15,6 +15,11 @@ body {
   margin: 0;
   overflow: hidden;
 }
+#viewport.orbital-overview-active .mission-tip,
+#viewport.orbital-overview-active .station-dock {
+  visibility: hidden;
+  pointer-events: none;
+}
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -272,6 +277,28 @@ kbd {
   background: #ffffff0b;
   margin-top: 8px;
 }
+.laser-thermal {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #ffffff18;
+}
+.laser-thermal > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: #f4d28e;
+  font: 9px 'Space Mono', monospace;
+}
+.laser-thermal .meter {
+  height: 3px;
+  margin-top: 5px;
+}
+.laser-thermal .meter i {
+  background: #71e6d0;
+  transition: width 90ms linear;
+}
+.laser-thermal.venting > div:first-child { color: #ffbc80; }
+.laser-thermal.venting .meter i { background: #ff9e6e; }
 .meter i {
   height: 100%;
   display: block;
@@ -550,6 +577,9 @@ kbd {
   opacity: 1;
   transform: translate(-50%, 0);
 }
+#viewport:has(.mission-tip:not(.hidden)) #toast {
+  top: 124px;
+}
 #low-warning {
   position: absolute;
   bottom: 35px;
@@ -763,6 +793,21 @@ kbd {
   margin: 7px 0;
   color: #b9c6ae;
 }
+.upgrade-readout,
+.upgrade-next-readout {
+  display: block;
+  font:
+    8px 'Space Mono',
+    monospace;
+  letter-spacing: 0.35px;
+  line-height: 1.5;
+}
+.upgrade-readout {
+  color: #a8d7c1;
+}
+.upgrade-next-readout {
+  color: #85988b;
+}
 .upgrade-row button {
   padding: 12px 6px;
   color: var(--amber);
@@ -896,6 +941,126 @@ kbd {
   margin-top: 19px;
   letter-spacing: 0.6px;
 }
+.intro-with-atlas {
+  width: min(680px, 100%);
+  padding: 23px 31px 18px;
+}
+.intro-with-atlas .intro-symbol { display: none; }
+.intro-with-atlas h1 {
+  font-size: 52px;
+  margin: 8px 0 5px;
+}
+.intro-with-atlas > p { margin: 7px 0; }
+.intro-atlas {
+  margin: 15px 0 10px;
+  padding: 10px 14px 11px;
+  border: 1px solid #a8c4b020;
+  background: radial-gradient(ellipse at 50% 48%, #294348 0, #172628 64%, #142022 100%);
+  text-align: left;
+}
+.atlas-heading,
+.atlas-goal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font: 7px 'Space Mono', monospace;
+  letter-spacing: .7px;
+  color: #a8c5b7;
+}
+.atlas-heading b { color: #708f83; font-weight: 400; }
+.atlas-chart {
+  position: relative;
+  height: 137px;
+  overflow: hidden;
+}
+.atlas-orbits {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #9ec6b42d;
+  stroke-width: 1;
+}
+.atlas-orbits path { stroke-dasharray: 2 7; opacity: .8; }
+.atlas-sun {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
+  color: #f3c981;
+  text-shadow: 0 0 15px #f3c98199;
+  font-size: 20px;
+}
+.atlas-world {
+  position: absolute;
+  left: var(--world-x); top: var(--world-y);
+  transform: translate(-50%,-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 86px;
+  padding: 5px 4px;
+  border: 1px solid transparent;
+  background: #101b20cc;
+  color: #9aafa5;
+  font: 7px 'Space Mono', monospace;
+  letter-spacing: .3px;
+  line-height: 1.25;
+  cursor: pointer;
+  z-index: 1;
+}
+.atlas-world:hover,
+.atlas-world:focus-visible { border-color: color-mix(in srgb, var(--world-color) 70%, transparent); outline: none; }
+.atlas-world.selected {
+  color: #e7e4d3;
+  border-color: #9be5dc77;
+  box-shadow: 0 0 17px #9be5dc22;
+}
+.atlas-world small { color: var(--world-color); font-size: 6px; }
+.atlas-world.locked { opacity: .76; }
+.world-disc {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--world-color) 80%, white);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--world-color) 90%, white) 0 8%, var(--world-color) 34%, #182329 76%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--world-color) 40%, transparent);
+}
+.world-disc.mars { background: radial-gradient(circle at 35% 30%, #f2bd91 0 8%, #b96d55 38%, #492f38 78%); }
+.world-disc.hull { background: radial-gradient(circle at 35% 30%, #e1ead8 0 8%, #788e83 38%, #293a3a 78%); }
+.world-disc.prism { background: radial-gradient(circle at 35% 30%, #f0d5ff 0 8%, #8e72c4 38%, #302d56 78%); }
+.atlas-preview {
+  border-top: 1px solid #b5c7b51c;
+  padding: 8px 0 6px;
+}
+.atlas-preview b {
+  display: block;
+  color: #d6d5c4;
+  font: 7px 'Space Mono', monospace;
+  letter-spacing: .6px;
+}
+.atlas-preview p {
+  margin: 4px 0 0;
+  color: #90a99d;
+  font: 9px/1.5 'Space Mono', monospace;
+}
+.atlas-goal {
+  border-top: 1px solid #b5c7b51c;
+  padding-top: 8px;
+  color: #e5c58f;
+  font-size: 7px;
+}
+.atlas-goal i { color: #7d9b8e; font-style: normal; white-space: nowrap; }
+.atlas-goal span { text-align: right; }
+.atlas-goal b { color: #90d9c4; padding: 0 3px; }
+.intro-with-atlas .intro-loop { margin: 11px 0 8px; }
+.intro-with-atlas .briefing { font-size: 9px; line-height: 1.55; }
+.intro-with-atlas .intro-controls { margin: 11px 0 7px; }
+.intro-with-atlas .intro-risk { margin: 7px 0; }
+.intro-with-atlas .intro-note { margin-top: 11px; }
 @media (max-width: 1000px) {
   .expedition {
     display: none;
@@ -942,6 +1107,9 @@ kbd {
   .location-label,
   .dock-label {
     display: none;
+  }
+  #viewport:has(.mission-tip:not(.hidden)) #toast {
+    top: 18px;
   }
   .station-dock {
     bottom: 16px;
@@ -1272,6 +1440,7 @@ kbd {
   height: 100%;
   background: var(--amber);
 }
+.drill-target.laser-venting .cut-meter i { background: #ff9e6e; }
 .ore-warning {
   border-color: #f29c7b;
 }
@@ -1533,6 +1702,14 @@ kbd {
     display: none;
   }
 }
+@media (max-height: 650px) {
+  .intro-with-atlas { padding: 14px 20px 12px; }
+  .intro-with-atlas h1 { font-size: 42px; margin: 4px 0; }
+  .intro-with-atlas > p { margin: 5px 0; }
+  .intro-with-atlas .intro-atlas { margin: 8px 0 6px; padding: 8px 10px; }
+  .intro-with-atlas .atlas-chart { height: 92px; }
+  .intro-with-atlas #launch { margin-top: 8px; padding: 12px 16px; }
+}
 @media (max-width: 650px) {
   .archive-list {
     grid-template-columns: 1fr;
@@ -1550,6 +1727,10 @@ kbd {
   .upgrade-row p {
     font-size: 9px;
   }
+  .upgrade-readout,
+  .upgrade-next-readout {
+    font-size: 7px;
+  }
 }
 @media (max-height: 750px) {
   .upgrade-row {
@@ -1558,6 +1739,10 @@ kbd {
   .upgrade-row p {
     line-height: 1.4;
     margin: 4px 0;
+  }
+  .upgrade-readout,
+  .upgrade-next-readout {
+    font-size: 7px;
   }
   .level-pips {
     margin-top: 5px;

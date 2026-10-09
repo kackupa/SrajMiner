@@ -5,7 +5,7 @@ async (page) => {
   await page.goto(baseURL);
   await page.waitForFunction(() => !!window.__mars);
   const briefing = await page.locator('.modal.intro').innerText();
-  for (const cue of ['STEER', 'DESCEND / DRILL', 'THRUST UP', 'SELL AT SURFACE', 'EXPLORED MAP', 'PAUSE', 'ORE FILLS CARGO', 'RETURN-FUEL ESTIMATE']) {
+  for (const cue of ['STEER', 'DESCEND / DRILL', 'THRUST UP', 'SELL / SERVICE', 'BUILD AT DEPTH', 'EXPLORED MAP', 'PAUSE', 'ORE FILLS CARGO', 'RETURN-FUEL ESTIMATE']) {
     if (!briefing.includes(cue)) throw Error(`Missing first-run instruction: ${cue}`);
   }
 
@@ -30,5 +30,5 @@ async (page) => {
       throw Error('Begin/continue action is outside the briefing panel');
     await page.screenshot({ path: `output/playwright/onboarding-${viewport.width}x${viewport.height}.png` });
   }
-  return { controls: briefing.match(/STEER|DESCEND \/ DRILL|THRUST UP|SELL AT SURFACE|EXPLORED MAP|PAUSE/g), viewports: 3 };
+  return { controls: briefing.match(/STEER|DESCEND \/ DRILL|THRUST UP|SELL \/ SERVICE|BUILD AT DEPTH|EXPLORED MAP|PAUSE/g), viewports: 3 };
 }

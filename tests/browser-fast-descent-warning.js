@@ -7,25 +7,27 @@ async (page) => {
   await page.waitForFunction(() => !!window.__mars);
   await page.getByRole('button', { name: /BEGIN EXPEDITION|CONTINUE EXPEDITION/ }).click();
 
+  let warningState;
   await page.keyboard.down('s');
   try {
     await page.waitForFunction(
-      () => document.querySelector('#low-warning')?.textContent === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT',
+      () => document.querySelector('#low-warning')?.textContent === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' && window.__mars?.vy >= 168,
       null,
       { timeout: 5000 },
     );
+    warningState = await page.evaluate(() => ({
+      warning: document.querySelector('#low-warning')?.textContent,
+      vy: window.__mars?.vy,
+      fallCue: window.__mars?.fallCue,
+      hull: window.__mars?.hull,
+      fuel: window.__mars?.fuel,
+    }));
+    await page.screenshot({ path: 'output/playwright/fast-descent-warning.png' });
   } finally {
     await page.keyboard.up('s');
   }
-  const warningState = await page.evaluate(() => ({
-    warning: document.querySelector('#low-warning')?.textContent,
-    vy: window.__mars?.vy,
-    hull: window.__mars?.hull,
-    fuel: window.__mars?.fuel,
-  }));
-  if (warningState.warning !== 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || warningState.vy < 168)
+  if (warningState.warning !== 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || warningState.vy < 168 || warningState.fallCue <= 0)
     throw Error(`Fast descent cue did not match the live speed: ${JSON.stringify(warningState)}`);
-  await page.screenshot({ path: 'output/playwright/fast-descent-warning.png' });
 
   await page.keyboard.down('w');
   try {
@@ -40,10 +42,11 @@ async (page) => {
   const brakedState = await page.evaluate(() => ({
     warning: document.querySelector('#low-warning')?.textContent,
     vy: window.__mars?.vy,
+    fallCue: window.__mars?.fallCue,
     hull: window.__mars?.hull,
     fuel: window.__mars?.fuel,
   }));
-  if (brakedState.warning === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || brakedState.hull <= 0)
+  if (brakedState.warning === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || brakedState.hull <= 0 || brakedState.fallCue !== 0)
     throw Error(`Braking did not clear the warning safely: ${JSON.stringify(brakedState)}`);
   await page.screenshot({ path: 'output/playwright/fast-descent-braked.png' });
   return { warningState, brakedState };

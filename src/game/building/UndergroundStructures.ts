@@ -17,8 +17,8 @@ export function findBuildSite(
   kind: StructureKind,
   existing: readonly UndergroundStructure[],
 ): { x: number; y: number } | undefined {
-  const localDepth = depthAtWorldY(y);
-  if (localDepth < UNDERGROUND_BUILDING.minimumDepthMeters || localDepth > 3400) return undefined;
+  const localDepth = depthAtWorldY(y, world.planetChart);
+  if (localDepth < UNDERGROUND_BUILDING.minimumDepthMeters || localDepth > world.coreDepthMeters - 200) return undefined;
   const centerX = Math.floor(x / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
   const deckY = Math.round((y + gravitySign * WORLD.tile * 2) / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
   const row = Math.floor(deckY / WORLD.tile), tileX = Math.floor(centerX / WORLD.tile);

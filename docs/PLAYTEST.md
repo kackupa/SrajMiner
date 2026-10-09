@@ -10,9 +10,13 @@ Notice when a valuable vein or regional find appears: did you recognize what it 
 
 Listen with your usual volume and equipment. Note whether drilling and movement make a coherent groove, whether effects mask the music or vice versa, and whether anything becomes repetitive or irritating. Check whether the pod's equipped cosmetic is visible during ordinary play and whether the map helps you choose a route.
 
+If you have the Laser Miner, hold the drill through a few blocks, then release it to cool. Notice whether the heat meter is easy to spot, the vent pause feels fair, and the cut resumes cleanly afterward.
+
 If convenient, try a different pilot path while docked. Note whether its benefit is clear, whether it changes the next trip's decisions, and whether the workshop explains any cargo restriction before you select it.
 
-After the landing-gated grapple change is installed in the build you are testing, check three situations without changing your save: drop onto a safe ledge, fall through a long open shaft with a reachable anchor, then approach a hard floor fast enough to risk impact. The hook should stay off for the first two and catch before the damaging impact in the third, leaving time to brake. If an obstructed anchor is nearby, note whether it is ignored. Do not use these expectations to judge the current playable build, whose grapple still triggers on fast falls.
+If you reach the core, note whether you can coast through in both directions, understand when gravity has reversed, and return to the home outpost after crossing. The automated round-trip uses a prepared shaft; your normal route will also tell us how the drilling and fuel cost feel.
+
+Check three grapple situations without changing your save: drop onto a safe ledge, fall through a long open shaft with a reachable anchor, then approach a hard floor fast enough to risk impact. The hook should stay off for the first two and catch before the damaging impact in the third, leaving time to brake. If an obstructed anchor is nearby, note whether it is ignored. The hook is a paid upgrade, so install it only if you already own it or want to spend the credits.
 
 ## Share these notes
 
@@ -28,6 +32,7 @@ Any damage, lost cargo, or confusing warning?
 Most exciting find or moment:
 Most frustrating or slow moment:
 Charge / magnet feel (if used):
+Laser Miner heat / vent feel (if installed):
 Map, ore markers, and cosmetics:
 Pilot path used; did it change your route or haul?
 Music/effects: too quiet, balanced, or too loud? Repetitive?

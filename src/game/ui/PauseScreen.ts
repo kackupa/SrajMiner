@@ -7,7 +7,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
   exportControl: string, saveStatus: string) {
   const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
   const objective = p.routeFragments.length < 4
-    ? { title: 'Trace the lost signal', text: 'Recover navigation fragments in the Cryo Shelf.', done: p.routeFragments.length, total: 4, unit: 'signals recovered' }
+    ? { title: 'Trace the lost signal', text: 'Recover the four glowing route signals in the Cryo Shelf. Each one funds a ship system.', done: p.routeFragments.length, total: 4, unit: 'signals recovered' }
     : !p.shipComplete
       ? { title: 'Bring the Faraday home', text: 'Assemble the launch craft at the Hab 07 shipyard.', done: p.shipComponents.length, total: 4, unit: 'systems installed' }
       : cores < 4

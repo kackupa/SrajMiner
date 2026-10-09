@@ -1,8 +1,10 @@
-import { atSurface, surfaceTownTier, TOWN_TIER_HEIGHTS } from '../surface/SurfaceStation';
-import { WORLD, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
+import { atSurface, surfaceTownTier, MAX_TOWN_ALTITUDE } from '../surface/SurfaceStation';
+import { WORLD, CORE, CORE_CROSSING_CLEARANCE, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { crossedStructureDeck, type UndergroundStructure } from '../building/UndergroundStructures';
 import { Progress } from '../economy/Progress';
+import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, wrapPlanetSeam } from '../world/PlanetChart';
+import { planetCameraFrameAngle, screenDirectionToWorld } from '../world/Projection';
 export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; escapePack?: boolean };
 export type GrappleAnchor = { x: number; y: number };
 export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach: number, gravitySign = 1): GrappleAnchor | undefined {
@@ -10,9 +12,12 @@ export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach:
   let best: GrappleAnchor | undefined, bestDistance = Infinity;
   const firstY = gravitySign > 0 ? Math.max(0, ty - cells) : ty + 1,
     lastY = gravitySign > 0 ? ty - 1 : ty + cells;
-  for (let gy = firstY; gy <= lastY; gy++) for (let gx = Math.max(0, tx - cells); gx <= Math.min(WORLD.width - 1, tx + cells); gx++) {
+  const firstX = world.planetChart ? tx - cells : Math.max(0, tx - cells),
+    lastX = world.planetChart ? tx + cells : Math.min(world.widthTiles - 1, tx + cells);
+  for (let gy = firstY; gy <= lastY; gy++) for (let gx = firstX; gx <= lastX; gx++) {
     if (world.get(gx, gy).type === 'empty') continue;
-    const ax = gx * WORLD.tile + WORLD.tile / 2, ay = (gy + 1) * WORLD.tile + 2;
+    const ax = gx * WORLD.tile + WORLD.tile / 2,
+      ay = gravitySign > 0 ? (gy + 1) * WORLD.tile + 2 : gy * WORLD.tile - 2;
     const dx = ax - x, dy = ay - y, distance = Math.hypot(dx, dy);
     if (dy * gravitySign > -AUTO_GRAPPLE.minRise || distance > reach || distance >= bestDistance) continue;
     let clear = true;
@@ -25,6 +30,64 @@ export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach:
   }
   return best;
 }
+
+function polarCellOverlapsPod(
+  world: TileWorld,
+  tileX: number,
+  tileY: number,
+  podX: number,
+  podY: number,
+  cameraRotation: number,
+) {
+  const chart = world.planetChart!;
+  const rotate = (point: { x: number; y: number }) => ({
+    x: point.x * Math.cos(cameraRotation) - point.y * Math.sin(cameraRotation),
+    y: point.x * Math.sin(cameraRotation) + point.y * Math.cos(cameraRotation),
+  });
+  const corners = planetChartCellCorners({ x: tileX, y: tileY }, chart.columns, chart.radiusRows, WORLD.tile),
+    center = rotate(planetChartToCartesian({ u: podX / WORLD.tile, v: podY / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile)),
+    polygon = [corners.topLeft, corners.topRight, corners.bottomRight, corners.bottomLeft].map(rotate);
+  const axes = [{ x: 1, y: 0 }, { x: 0, y: 1 }];
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length], dx = b.x - a.x, dy = b.y - a.y;
+    axes.push({ x: -dy, y: dx });
+  }
+  for (const axis of axes) {
+    const length = Math.hypot(axis.x, axis.y) || 1, nx = axis.x / length, ny = axis.y / length,
+      tileProjection = polygon.map((point) => point.x * nx + point.y * ny),
+      podCenter = center.x * nx + center.y * ny,
+      podRadius = Math.abs(nx) * P.halfWidth + Math.abs(ny) * P.halfHeight;
+    if (Math.max(...tileProjection) < podCenter - podRadius || Math.min(...tileProjection) > podCenter + podRadius) return false;
+  }
+  return true;
+}
+
+function chartTilesUnderPod(world: TileWorld, x: number, y: number, cameraRotation: number) {
+  const chart = world.planetChart!;
+  const corners = [
+    { x: -P.halfWidth, y: -P.halfHeight }, { x: P.halfWidth, y: -P.halfHeight },
+    { x: P.halfWidth, y: P.halfHeight }, { x: -P.halfWidth, y: P.halfHeight },
+  ].map((offset) => {
+    const wx = x + offset.x * Math.cos(cameraRotation) + offset.y * Math.sin(cameraRotation),
+      wy = y - offset.x * Math.sin(cameraRotation) + offset.y * Math.cos(cameraRotation),
+      polar = planetChartToCartesian({ u: wx / WORLD.tile, v: wy / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile);
+    return planetCartesianToChart(polar, chart.columns, chart.radiusRows, WORLD.tile);
+  });
+  const us = corners.map((point) => point.u), vs = corners.map((point) => point.v), minU = Math.min(...us), maxU = Math.max(...us),
+    spansSeam = maxU - minU > chart.columns / 2,
+    minX = spansSeam ? 0 : Math.floor(minU) - 2,
+    maxX = spansSeam ? chart.columns - 1 : Math.ceil(maxU) + 1,
+    minY = Math.max(-1, Math.floor(Math.min(...vs)) - 2),
+    maxY = Math.min(chart.radiusRows * 2, Math.ceil(Math.max(...vs)) + 1),
+    tiles: Tile[] = [];
+  for (let ty = minY; ty <= maxY; ty++) for (let tx = minX; tx <= maxX; tx++) {
+    const tile = world.get(tx, ty);
+    if (tile.type !== 'empty' && polarCellOverlapsPod(world, tx, ty, x, y, cameraRotation) &&
+        !tiles.some((other) => other.x === tile.x && other.y === tile.y)) tiles.push(tile);
+  }
+  return tiles;
+}
+
 export class PlayerPod {
   x = WORLD.spawnX;
   y = WORLD.spawnY;
@@ -35,6 +98,7 @@ export class PlayerPod {
   stasisActive = false;
   reeling = false;
   grappleAnchor?: GrappleAnchor;
+  planetSeamCrossings = 0;
   structures: readonly UndergroundStructure[] = [];
   private grappleHang = 0;
   private grappleCooldown = 0;
@@ -56,7 +120,10 @@ export class PlayerPod {
     this.vx = 0;
     this.vy = 0;
   }
-  overlaps(x: number, y: number) {
+  overlaps(x: number, y: number, cameraRotation?: number) {
+    if (this.world.planetChart) return chartTilesUnderPod(
+      this.world, x, y, cameraRotation ?? planetCameraFrameAngle(x / WORLD.tile, y / WORLD.tile, this.world.planetChart) ?? 0,
+    );
     const hits: Tile[] = [];
     for (
       let ty = Math.floor((y - P.halfHeight + 0.00001) / WORLD.tile);
@@ -75,14 +142,62 @@ export class PlayerPod {
     if (dropThrough || x < 430 || x > 1540 || Math.abs(toY - fromY) < 0.00001) return undefined;
     const tier = surfaceTownTier(this.progress.shipComponents, this.progress.milestones.filter((id) => id.startsWith('core-')));
     for (let level = 0; level <= tier; level++) {
-      const deckY = surfaceYAt(fromY) - gravitySign * (132 + level * 94);
+    const deckY = surfaceYAt(fromY, this.world.planetChart) - gravitySign * (132 + level * 94);
       const fromFeet = fromY + gravitySign * P.halfHeight;
       const toFeet = toY + gravitySign * P.halfHeight;
       if ((fromFeet - deckY) * gravitySign <= 0 && (toFeet - deckY) * gravitySign >= 0) return deckY - gravitySign * P.halfHeight;
     }
     return undefined;
   }
-  update(dt: number, input: Controls, onImpact: (damage: number) => void): Tile | undefined {
+  private predictsDamagingImpact(input: Controls, cameraRotation: number) {
+    let x = this.x, y = this.y, vx = this.vx, vy = this.vy;
+    const engine = this.progress.max('engine');
+    const dir = Number(input.right) - Number(input.left);
+    const speedMultiplier = input.escapePack ? ESCAPE_SUIT.speedMultiplier : 1;
+    const maxRise = P.rise * engine * speedMultiplier;
+    const step = AUTO_GRAPPLE.predictionStepSeconds;
+    for (let elapsed = 0; elapsed < AUTO_GRAPPLE.impactWindowSeconds; elapsed += step) {
+      const gravitySign = this.world.gravitySign(y);
+      vx += dir * P.acceleration * engine * speedMultiplier * step;
+      if (!dir) vx *= Math.exp(-10 * step);
+      vx = Math.max(-P.horizontal * engine * speedMultiplier, Math.min(P.horizontal * engine * speedMultiplier, vx));
+      const nextX = x + vx * step;
+      if (this.overlaps(nextX, y, cameraRotation).length) vx = 0;
+      else x = nextX;
+
+      vy += gravitySign * (P.gravity + (input.down ? 110 : 0)) * step;
+      vy = gravitySign > 0 ? Math.max(-maxRise, Math.min(P.fall, vy)) : Math.max(-P.fall, Math.min(maxRise, vy));
+      const nextY = y + vy * step;
+      const townLanding = this.townPlatformCrossing(x, y, nextY, gravitySign, !!input.down);
+      const structureLanding = crossedStructureDeck(this.structures, x, y, nextY, gravitySign, P.halfHeight, !!input.down);
+      const surfaceY = surfaceYAt(y, this.world.planetChart), dockY = surfaceY - gravitySign * 22;
+      const movingOutward = vy * -gravitySign > 0;
+      const crossesDock = movingOutward && (gravitySign > 0
+        ? y >= dockY && nextY <= dockY
+        : y <= dockY && nextY >= dockY);
+      if (townLanding !== undefined || structureLanding !== undefined || crossesDock) return false;
+
+      const hitsY = this.overlaps(x, nextY, cameraRotation);
+      if (hitsY.length && vy * gravitySign > 0) return Math.abs(vy) > P.safeImpact;
+      if (hitsY.length) vy = 0;
+      else y = nextY;
+    }
+    return false;
+  }
+  private wrapPlanetPosition() {
+    const chart = this.world.planetChart;
+    if (!chart) return;
+    const seam = wrapPlanetSeam(
+      { u: this.x / WORLD.tile, v: this.y / WORLD.tile }, this.vy / WORLD.tile, 0, chart.columns, chart.radiusRows,
+    );
+    if (!seam.crossings) return;
+    this.x = seam.u * WORLD.tile;
+    this.y = seam.v * WORLD.tile;
+    this.vy = seam.dv * WORLD.tile;
+    this.planetSeamCrossings += seam.crossings;
+  }
+  update(dt: number, input: Controls, onImpact: (damage: number) => void, cameraRotation = 0): Tile | undefined {
+    this.planetSeamCrossings = 0;
     const gravitySign = this.world.gravitySign(this.y),
       p = this.progress,
       engine = p.max('engine'),
@@ -110,28 +225,50 @@ export class PlayerPod {
         return;
       }
     }
-    const dir = Number(input.right) - Number(input.left);
+    const screenDir = Number(input.right) - Number(input.left),
+      cartesianMove = screenDirectionToWorld(screenDir, 0, cameraRotation),
+      cartesianThrust = screenDirectionToWorld(0, -1, cameraRotation),
+      chart = this.world.planetChart,
+      moveAxis = chart ? planetCartesianVectorToWorld(
+        { u: this.x / WORLD.tile, v: this.y / WORLD.tile }, cartesianMove, chart.columns, chart.radiusRows, WORLD.tile,
+      ) : cartesianMove;
+    const thrustAxis = chart ? planetCartesianVectorToWorld(
+        { u: this.x / WORLD.tile, v: this.y / WORLD.tile }, cartesianThrust, chart.columns, chart.radiusRows, WORLD.tile,
+      ) : cartesianThrust;
+    const dir = moveAxis.x, sideAcceleration = moveAxis.y;
     const escapePack = !!input.escapePack;
     this.stasisActive = requestStasis;
     this.reeling = requestWinch;
     this.thrusting = (input.up || requestWinch) && (p.fuel > 0 || escapePack) && !this.stasisActive;
-    if (dir) this.facing = dir;
+    if (screenDir) this.facing = screenDir;
     // Center a vertical cut gently, so landing near a grid edge does not drill two shafts.
-    if (input.down && !dir && this.vy * gravitySign >= 0) {
+    if (input.down && !screenDir && this.vy * gravitySign >= 0) {
       const center = Math.floor(this.x / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
       const aligned = this.x + Math.max(-70 * dt, Math.min(70 * dt, center - this.x));
-      if (!this.overlaps(aligned, this.y).length) this.x = aligned;
+      if (!this.overlaps(aligned, this.y, cameraRotation).length) this.x = aligned;
     }
     const escapeSpeed = escapePack ? ESCAPE_SUIT.speedMultiplier : 1;
     const escapeThrust = escapePack ? ESCAPE_SUIT.thrustMultiplier : 1;
     this.vx += dir * P.acceleration * engine * escapeSpeed * dt;
-    if (!dir) this.vx *= Math.exp(-10 * dt);
+    this.vy += sideAcceleration * P.acceleration * engine * escapeSpeed * dt;
+    if (!screenDir) this.vx *= Math.exp(-10 * dt);
     this.vx = Math.max(-P.horizontal * engine * escapeSpeed, Math.min(P.horizontal * engine * escapeSpeed, this.vx));
     if (this.stasisActive) this.vy = 0;
-    else this.vy += gravitySign * (P.gravity + (input.down ? 110 : 0) - (this.thrusting ? P.thrust * engine * escapeThrust * (this.reeling ? RETURN_WINCH.pullMultiplier : 1) : 0)) * dt;
-    const maxRise = P.rise * engine * escapeSpeed * (this.reeling ? RETURN_WINCH.pullMultiplier : 1);
-    this.vy = gravitySign > 0 ? Math.max(-maxRise, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxRise, this.vy));
-    if (this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !requestWinch && !this.stasisActive) {
+    else {
+      const thrust = this.thrusting ? P.thrust * engine * escapeThrust * (this.reeling ? RETURN_WINCH.pullMultiplier : 1) : 0;
+      this.vx += thrustAxis.x * thrust * dt;
+      this.vy += (gravitySign * (P.gravity + (input.down ? 110 : 0)) + thrustAxis.y * thrust) * dt;
+      this.vx = Math.max(-P.horizontal * engine * escapeSpeed, Math.min(P.horizontal * engine * escapeSpeed, this.vx));
+    }
+    const maxRise = P.rise * engine * escapeSpeed * (this.reeling ? RETURN_WINCH.pullMultiplier : 1),
+      // Preserve the pod's ballistic speed through the gravity center. Without
+      // this passage-only allowance, the far-side climb cap clips a falling
+      // pod from 430 px/s to 185 px/s as soon as gravity reverses, before it
+      // can clear the passage and complete the camera turn.
+      coreTransit = !!this.world.planetChart && Math.abs(this.y - this.world.coreWorldY) <= CORE_CROSSING_CLEARANCE,
+      maxOutward = coreTransit ? Math.max(maxRise, P.fall) : maxRise;
+    this.vy = gravitySign > 0 ? Math.max(-maxOutward, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxOutward, this.vy));
+    if (p.grappleOwned && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
       const anchor = findGrappleAnchor(this.world, this.x, this.y, value(p.levels, 'grapple'), gravitySign);
       if (anchor) {
         this.grappleAnchor = anchor;
@@ -150,7 +287,7 @@ export class PlayerPod {
     const steps = Math.max(1, Math.ceil((Math.max(Math.abs(this.vx), Math.abs(this.vy)) * dt) / 7));
     for (let i = 0; i < steps; i++) {
       const nx = this.x + (this.vx * dt) / steps,
-        hitsX = this.overlaps(nx, this.y);
+        hitsX = this.overlaps(nx, this.y, cameraRotation);
       if (hitsX.length) {
         if (dir && Math.sign(this.vx) === dir) target = hitsX.find((t) => t.type !== 'boundary');
         if (Math.abs(this.vx) > P.safeImpact)
@@ -161,16 +298,24 @@ export class PlayerPod {
             : Math.max(...hitsX.map((t) => (t.x + 1) * WORLD.tile)) + P.halfWidth;
         this.vx = 0;
       } else this.x = nx;
+      this.wrapPlanetPosition();
       const stepGravity = this.world.gravitySign(this.y),
         ny = this.y + (this.vy * dt) / steps,
-        hitsY = this.overlaps(this.x, ny);
+        coreCenterX = WORLD.homeColumn,
+        coreCenterY = Math.round(this.world.coreWorldY / WORLD.tile),
+        inCorePassage = (x: number, y: number) => {
+          const tileX = Math.floor(x / WORLD.tile), tileY = Math.floor(y / WORLD.tile);
+          return (tileX - coreCenterX) ** 2 + (tileY - coreCenterY) ** 2 <= CORE.passageRadius ** 2;
+        },
+        insideCorePassage = inCorePassage(this.x, this.y),
+        hitsY = this.overlaps(this.x, ny, cameraRotation);
       const platformY = this.townPlatformCrossing(this.x, this.y, ny, stepGravity, input.down);
       const builtDeckY = crossedStructureDeck(this.structures, this.x, this.y, ny, stepGravity, P.halfHeight, input.down);
-      const surfaceY = surfaceYAt(this.y), dockY = surfaceY - stepGravity * 22,
+      const surfaceY = surfaceYAt(this.y, this.world.planetChart), dockY = surfaceY - stepGravity * 22,
         movingOutward = this.vy * -stepGravity > 0,
         crossesDock = stepGravity > 0 ? this.y >= dockY && ny <= dockY : this.y <= dockY && ny >= dockY;
       if (
-        crossesDock && movingOutward && atSurface(this.x, dockY) &&
+        crossesDock && movingOutward && atSurface(this.x, dockY, this.world.planetChart) &&
         (this.reeling || !input.up && !input.down)
       ) {
         this.y = dockY;
@@ -182,7 +327,7 @@ export class PlayerPod {
       }
       const movingInward = this.vy * stepGravity > 0,
         crossesSurfaceFromOutside = stepGravity > 0 ? this.y <= dockY && ny >= dockY : this.y >= dockY && ny <= dockY;
-      if (crossesSurfaceFromOutside && movingInward && !input.up && !input.down && atSurface(this.x, dockY)) {
+      if (crossesSurfaceFromOutside && movingInward && !input.up && !input.down && atSurface(this.x, dockY, this.world.planetChart)) {
         this.y = dockY;
         if (!input.left && !input.right) this.vx = 0;
         this.vy = 0;
@@ -191,7 +336,10 @@ export class PlayerPod {
         this.reeling = false;
         return;
       }
-      const landingY = platformY ?? builtDeckY;
+      const crossedCoreThroughPassage =
+        insideCorePassage && inCorePassage(this.x, ny) &&
+        (this.y < this.world.coreWorldY && ny >= this.world.coreWorldY || this.y > this.world.coreWorldY && ny <= this.world.coreWorldY);
+      const landingY = crossedCoreThroughPassage ? undefined : platformY ?? builtDeckY;
       if (landingY !== undefined && this.vy * stepGravity > 0) {
         if (Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
         this.y = landingY;
@@ -209,9 +357,10 @@ export class PlayerPod {
           : stepGravity > 0 ? bottom + P.halfHeight : top - P.halfHeight;
         this.vy = 0;
       } else this.y = ny;
-      this.x = Math.max(P.halfWidth, Math.min(WORLD.width * WORLD.tile - P.halfWidth, this.x));
-      if (this.y < -TOWN_TIER_HEIGHTS[4] - 100) {
-        this.y = -TOWN_TIER_HEIGHTS[4] - 100;
+      if (!this.world.planetChart)
+        this.x = Math.max(P.halfWidth, Math.min(this.world.widthTiles * WORLD.tile - P.halfWidth, this.x));
+      if (this.y < -MAX_TOWN_ALTITUDE) {
+        this.y = -MAX_TOWN_ALTITUDE;
         this.vy = 0;
       }
     }

@@ -1,4 +1,4 @@
-export const WORLD = { tile: 40, width: 48, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
+export const WORLD = { tile: 40, width: 48, homeColumn: 24, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
 export const CAVE_ATMOSPHERE = {
   maxParticles: 96,
   spawnAttemptsPerSecond: 100,
@@ -9,18 +9,35 @@ export const CAVE_ATMOSPHERE = {
 // Music follows the current local depth, with a shallower reset point to avoid
 // restarting the transition when the pod moves around its trigger depth.
 export const MUSIC_DEPTH = { transition: 600, returnToSignal: 350, deepOnLoad: 1300 } as const;
+import type { PlanetChartSize } from './world/PlanetChart';
+
 export const CORE = {
   depthMeters: 3600,
   passageRadius: 5,
+  physicalPassageRadius: 72,
   firstCrossingReward: 2200,
 };
 export const CORE_WORLD_Y = CORE.depthMeters / WORLD.meters * WORLD.tile;
+export const CORE_CROSSING_CLEARANCE = CORE.passageRadius * WORLD.tile;
 export const FAR_SURFACE_Y = CORE_WORLD_Y * 2;
 export const FAR_SURFACE_ROW = FAR_SURFACE_Y / WORLD.tile;
-export const gravityDirectionAt = (y: number) => y < CORE_WORLD_Y ? 1 : -1;
-export const surfaceYAt = (y: number) => y < CORE_WORLD_Y ? 0 : FAR_SURFACE_Y;
-export const surfaceDockYAt = (y: number) => y < CORE_WORLD_Y ? WORLD.spawnY : FAR_SURFACE_Y - WORLD.spawnY;
-export const depthAtWorldY = (y: number) => Math.max(0, Math.floor(((y < CORE_WORLD_Y ? y : FAR_SURFACE_Y - y) + 16) / WORLD.tile * WORLD.meters));
+export const LEGACY_PLANET_CHART = { radiusRows: FAR_SURFACE_ROW / 2, columns: Math.round(Math.PI * FAR_SURFACE_ROW / 2) } as const;
+export const PLANET_CHART = { radiusRows: 150, columns: Math.round(Math.PI * 150) } as const;
+export const coreWorldYFor = (chart?: PlanetChartSize) => chart ? chart.radiusRows * WORLD.tile : CORE_WORLD_Y;
+export const farSurfaceRowFor = (chart?: PlanetChartSize) => chart ? chart.radiusRows * 2 : FAR_SURFACE_ROW;
+export const farSurfaceYFor = (chart?: PlanetChartSize) => farSurfaceRowFor(chart) * WORLD.tile;
+export const coreDepthMetersFor = (chart?: PlanetChartSize) => chart ? chart.radiusRows * WORLD.meters : CORE.depthMeters;
+export const gravityDirectionAt = (y: number, chart?: PlanetChartSize) => y < coreWorldYFor(chart) ? 1 : -1;
+export const farHemisphereAfterCoreExit = (currentlyFar: boolean, y: number, chart?: PlanetChartSize) => {
+  const coreY = coreWorldYFor(chart);
+  return currentlyFar ? y > coreY - CORE_CROSSING_CLEARANCE : y >= coreY + CORE_CROSSING_CLEARANCE;
+};
+export const surfaceYAt = (y: number, chart?: PlanetChartSize) => y < coreWorldYFor(chart) ? 0 : farSurfaceYFor(chart);
+export const surfaceDockYAt = (y: number, chart?: PlanetChartSize) => y < coreWorldYFor(chart) ? WORLD.spawnY : farSurfaceYFor(chart) - WORLD.spawnY;
+export const depthAtWorldY = (y: number, chart?: PlanetChartSize) => {
+  const coreY = coreWorldYFor(chart), farY = farSurfaceYFor(chart);
+  return Math.max(0, Math.floor(((y < coreY ? y : farY - y) + 16) / WORLD.tile * WORLD.meters));
+};
 export const PHYSICS = {
   gravity: 430,
   acceleration: 650,
@@ -43,9 +60,17 @@ export const UNDERGROUND_BUILDING = {
 } as const;
 // Warn early enough to brake before reaching the damaging landing threshold.
 export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.6;
+export const FALL_CAMERA_LOOKAHEAD = 96;
+export const fallMotionCueIntensity = (vy: number, gravitySign: number) =>
+  Math.max(0, Math.min(1, (vy * gravitySign - DESCENT_WARNING_SPEED) / (PHYSICS.safeImpact - DESCENT_WARNING_SPEED)));
+export const fallCameraLookAhead = (vy: number, gravitySign: number) => {
+  const descentSpeed = vy * gravitySign;
+  return FALL_CAMERA_LOOKAHEAD * Math.max(0, Math.min(1,
+    (descentSpeed - DESCENT_WARNING_SPEED) / (PHYSICS.fall - DESCENT_WARNING_SPEED)));
+};
 export const FUEL = { moving: 0.55, thrust: 1.25, drilling: 1.4 };
-export const estimateVerticalReturnFuel = (podY: number, engine: number) => {
-  const vertical = Math.abs(podY - surfaceDockYAt(podY));
+export const estimateVerticalReturnFuel = (podY: number, engine: number, chart?: PlanetChartSize) => {
+  const vertical = Math.abs(podY - surfaceDockYAt(podY, chart));
   if (!vertical) return 0;
   const conservativeRise = PHYSICS.rise * engine * 0.55;
   return Math.ceil((vertical / Math.max(1, conservativeRise)) * FUEL.thrust * 1.45 + 2);
@@ -213,7 +238,7 @@ export const stratumAt = (depth: number, mapId: MapId) => {
 export const UPGRADES = {
   drill: {
     name: 'Drill',
-    description: 'Cut through harder ground and widen each pass at higher levels.',
+    description: 'Cut faster, extend the drill beam, and widen each pass at higher levels.',
     values: [1, 1.5, 2.2, 3.1, 4.3],
     costs: [140, 360, 850, 1800],
     unit: '× cutting speed',
@@ -301,6 +326,22 @@ export function upgradeCost(key: Upgrade, level: number) {
 }
 export const value = (levels: Levels, key: Upgrade) => upgradeValue(key, levels[key]);
 export const drillWidth = (level: number) => level <= 5 ? [1, 1, 2, 3, 4][Math.max(0, level - 1)] : Math.min(WORLD.width, 4 + Math.floor(Math.log2(level - 4)));
+export const drillReachTiles = (level: number) => level <= 5
+  ? [1.45, 2.1, 2.4, 2.8, 3.3][Math.max(0, level - 1)]
+  : 3.3 + Math.log2(level - 4) * 0.35;
+export const drillPreviewDimensions = (level: number) => ({
+  length: Math.max(14, WORLD.tile * drillReachTiles(level) - 10),
+  halfWidth: WORLD.tile * drillWidth(level) / 2,
+});
+export const drillVisualTier = (level: number) => Math.max(1, Math.min(5, Math.floor(level)));
+export const DRILL_TIERS = [
+  { name: 'Field Bit', module: 'CONTACT BIT' },
+  { name: 'Extended Auger', module: 'AUGER RAILS' },
+  { name: 'Resonance Lance', module: 'RESONANCE COIL' },
+  { name: 'Survey Bore', module: 'STABILIZER FRAME' },
+  { name: 'Laser Miner', module: 'LASER EMITTER' },
+] as const;
+export const LASER_THERMAL = { heatSeconds: 4.5, ventSeconds: 1.15, coolPerSecond: 0.42 } as const;
 export const POD_SIZE = { drillPerLevel: 0.04, cargoPerLevel: 0.055, maxScale: 1.38 };
 export const podVisualScale = (drillLevel: number, cargoLevel: number) =>
   Math.min(POD_SIZE.maxScale, 1 + (Math.max(1, drillLevel) - 1) * POD_SIZE.drillPerLevel +
@@ -312,7 +353,9 @@ export const SALVAGE_MAGNET = { cost: 420, radius: 190, acceleration: 620, maxSp
 export const STASIS_MODULE = { cost: 760, fuelPerSecond: 1.8 };
 export const ESCAPE_SUIT = { cost: 780, thrustMultiplier: 1.45, speedMultiplier: 1.25 } as const;
 export const RETURN_WINCH = { cost: 880, pullMultiplier: 1.7, fuelMultiplier: 1.5 };
-export const AUTO_GRAPPLE = { fallSpeed: 205, minRise: 26, hangSeconds: 0.85, cooldownSeconds: [7, 6, 5, 4, 3] };
+export const estimateWinchReturnFuel = (standardReturnEstimate: number) =>
+  Math.ceil(Math.max(0, standardReturnEstimate) * RETURN_WINCH.fuelMultiplier / RETURN_WINCH.pullMultiplier);
+export const AUTO_GRAPPLE = { fallSpeed: 205, impactWindowSeconds: 1.5, predictionStepSeconds: 1 / 30, minRise: 26, hangSeconds: 0.85, cooldownSeconds: [7, 6, 5, 4, 3] };
 export const ROCK_SWIMMER = {
   firstDepth: 240,
   firstArrivalSeconds: 11,
@@ -390,6 +433,12 @@ export const SHIP_COMPONENTS = {
   'life-support': { name: 'Habitat core', description: 'Keeps the ship and its destination workshop running.', cost: 680 },
 } as const;
 export type ShipComponent = keyof typeof SHIP_COMPONENTS;
+export const ROUTE_SHIP_COMPONENTS: Record<RouteFragmentId, ShipComponent> = {
+  'fragment-1': 'frame',
+  'fragment-2': 'propulsion',
+  'fragment-3': 'navigation',
+  'fragment-4': 'life-support',
+};
 // Route-data claims form a predictable campaign path to the matching long-range ship parts.
 export const ROUTE_SURVEY_REWARDS: Record<RouteFragmentId, number> = {
   'fragment-1': SHIP_COMPONENTS.frame.cost,

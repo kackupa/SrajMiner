@@ -1,20 +1,23 @@
 import Phaser from 'phaser';
-import { CORE, CORE_WORLD_Y, FAR_SURFACE_ROW, FAR_SURFACE_Y, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, depthAtWorldY, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillWidth, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { CORE, PLANET_CHART, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
 import { Progress } from './economy/Progress';
-import { MiningSystem, aimedDrillTarget, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
+import { MiningSystem, aimedDrillTarget, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
+import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
 import { AudioSystem } from './audio/AudioSystem';
 import { HUD } from './ui/HUD';
 import { getDialogFocusables } from './ui/focus';
 import { STATIONS, TOWN_TIER_HEIGHTS, atSurface, dockedOnSurface, surfaceGroundY, surfaceTownTier } from './surface/SurfaceStation';
-import { drawSurfaceTown } from './surface/SurfaceTown';
+import { drawPlanetSurfaceOutpost, drawSurfaceTown } from './surface/SurfaceTown';
 import { restoreMapState, snapshotMapState } from './campaign/MapState';
 import { collectCoreRelic, crewArchiveRestored } from './campaign/Records';
 import { RockSwimmer } from './world/RockSwimmer';
 import { CaveAtmosphere } from './world/CaveAtmosphere';
-import { screenToWorld, worldToScreen } from './world/Projection';
+import { cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, orbitalOverviewMinZoom, planetCameraFrameAngle } from './world/Projection';
+import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartLocalOffset, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetTile } from './world/PlanetChart';
+import type { PlanetChartSize } from './world/PlanetChart';
 import { canAffordStructure, findBuildSite, nearbyServiceStation, type StructureKind, type UndergroundStructure } from './building/UndergroundStructures';
 type Particle = {
   x: number;
@@ -24,10 +27,14 @@ type Particle = {
   life: number;
   color: number;
   size: number;
+  kind?: DrillParticleKind;
+  rotation?: number;
+  rotationSpeed?: number;
 };
 export class MiningScene extends Phaser.Scene {
   world!: TileWorld;
   mapId: MapId = 'cryo-shelf';
+  campaignChart: PlanetChartSize = PLANET_CHART;
   campaignSeed = 0;
   mapStates: Partial<Record<MapId, WorldSave>> = {};
   structures: UndergroundStructure[] = [];
@@ -39,20 +46,37 @@ export class MiningScene extends Phaser.Scene {
   aimTile?: Tile;
   drillAimX = 0;
   drillAimY = 1;
+  drillRecoil = 0;
+  laserThermal: LaserThermalState = { heat: 0, vent: 0 };
   rockSwimmer!: RockSwimmer;
   saves = new SaveManager();
   soundFx = new AudioSystem();
   ui!: HUD;
   g!: Phaser.GameObjects.Graphics;
+  orbitG!: Phaser.GameObjects.Graphics;
   keys!: Record<string, Phaser.Input.Keyboard.Key>;
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
+  cameraFlipLabel!: Phaser.GameObjects.Text;
+  orbitalLabel!: Phaser.GameObjects.Text;
   landmarkLabels = new Map<string, Phaser.GameObjects.Text>();
   floating: { text: Phaser.GameObjects.Text; x: number; y: number; life: number }[] = [];
   particles: Particle[] = [];
   atmosphere = new CaveAtmosphere();
   camX = 0;
   camY = -300;
+  cameraFlip = 0;
+  cameraFlipStart = 0;
+  cameraFlipTarget = 0;
+  cameraFlipElapsed = 0;
+  planetFrameRotation = 0;
+  cameraTurnLabelRemaining = 0;
+  cameraLookAhead = 0;
+  cameraZoom = 1;
+  cameraZoomTarget = 1;
+  orbitalOverviewActive = false;
+  hemisphereFar = false;
+  readonly cameraFlipDuration = 1.15;
   tick = 0;
   saveClock = 0;
   uiClock = 0;
@@ -73,6 +97,7 @@ export class MiningScene extends Phaser.Scene {
       this.shake = 0;
       this.particles.length = 0;
       this.atmosphere.clear();
+      this.cameraZoom = this.cameraZoomTarget;
     }
   };
   syncInput(paused: boolean) {
@@ -88,7 +113,103 @@ export class MiningScene extends Phaser.Scene {
     return -Math.max(baseView, Math.min(TOWN_TIER_HEIGHTS[tier] + 90, this.scale.height * 0.9));
   }
   get farHemisphere() {
-    return !!this.pod && this.pod.y >= CORE_WORLD_Y;
+    return this.hemisphereFar;
+  }
+
+  get viewRotation() {
+    return this.world?.planetChart ? this.planetFrameRotation : this.cameraFlip * Math.PI;
+  }
+
+  get minimumCameraZoom() {
+    const chart = this.world?.planetChart;
+    return chart
+      ? orbitalOverviewMinZoom(this.scale.width, this.scale.height, chart.radiusRows * WORLD.tile)
+      : 0.018;
+  }
+
+  updatePlanetCameraFrame(dt: number) {
+    const chart = this.world.planetChart;
+    if (!chart) return;
+    const target = planetCameraFrameAngle(this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, chart);
+    this.cameraTurnLabelRemaining = Math.max(0, this.cameraTurnLabelRemaining - dt);
+    if (target === undefined) return;
+    if (this.reducedMotion) {
+      this.planetFrameRotation = target;
+      return;
+    }
+    const delta = cameraAngleDelta(this.planetFrameRotation, target),
+      maxStep = Math.PI * dt / this.cameraFlipDuration;
+    this.planetFrameRotation += Math.max(-maxStep, Math.min(maxStep, delta));
+  }
+
+  flipCameraForHemisphere(far: boolean) {
+    if (this.reducedMotion) {
+      this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = far ? 1 : 0;
+      this.cameraFlipElapsed = this.cameraFlipDuration;
+      return;
+    }
+    this.cameraFlipStart = this.cameraFlip;
+    this.cameraFlipTarget = far ? 1 : 0;
+    this.cameraFlipElapsed = 0;
+  }
+
+  updateCameraFlip(dt: number) {
+    if (this.cameraFlip === this.cameraFlipTarget) return;
+    this.cameraFlipElapsed = Math.min(this.cameraFlipDuration, this.cameraFlipElapsed + dt);
+    const progress = this.cameraFlipElapsed / this.cameraFlipDuration;
+    const eased = progress * progress * (3 - 2 * progress);
+    this.cameraFlip = Phaser.Math.Linear(this.cameraFlipStart, this.cameraFlipTarget, eased);
+    if (this.cameraFlipElapsed >= this.cameraFlipDuration) this.cameraFlip = this.cameraFlipTarget;
+  }
+
+  worldPointToScreen(x: number, y: number, width: number, height: number) {
+    return cameraZoomPoint(this.worldPointToLocal(x, y, width, height), width, height, this.cameraZoom);
+  }
+
+  worldPointToLocal(x: number, y: number, width: number, height: number) {
+    const angle = this.viewRotation, cos = Math.cos(angle), sin = Math.sin(angle);
+    const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
+    let dx = x - this.pod.x, dy = y - cameraY;
+    if (this.world.planetChart) {
+      const chart = this.world.planetChart, size = WORLD.tile;
+      const point = planetChartToCartesian({ u: x / size, v: y / size }, chart.columns, chart.radiusRows, size);
+      const camera = this.planetCameraFocus();
+      dx = point.x - camera.x; dy = point.y - camera.y;
+    }
+    return {
+      x: width / 2 + dx * cos - dy * sin,
+      y: height / 2 + dx * sin + dy * cos,
+    };
+  }
+
+  planetCameraFocus() {
+    const chart = this.world.planetChart;
+    if (!chart) return { x: this.pod.x, y: cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation) };
+    const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
+    const pod = planetChartToCartesian(
+      { u: this.pod.x / WORLD.tile, v: cameraY / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile,
+    );
+    const orbit = Phaser.Math.SmoothStep(Phaser.Math.Clamp((0.36 - this.cameraZoom) / 0.14, 0, 1), 0, 1);
+    return { x: pod.x * (1 - orbit), y: pod.y * (1 - orbit) };
+  }
+
+  screenPointToWorld(x: number, y: number, width: number, height: number) {
+    const angle = -this.viewRotation, cos = Math.cos(angle), sin = Math.sin(angle);
+    const unzoomed = cameraUnzoomPoint({ x, y }, width, height, this.cameraZoom);
+    const dx = unzoomed.x - width / 2, dy = unzoomed.y - height / 2;
+    if (this.world.planetChart) {
+      const angle = -this.viewRotation, cos = Math.cos(angle), sin = Math.sin(angle);
+      const camera = this.planetCameraFocus();
+      const chartPoint = planetCartesianToChart({
+        x: camera.x + dx * cos - dy * sin,
+        y: camera.y + dx * sin + dy * cos,
+      }, this.world.planetChart.columns, this.world.planetChart.radiusRows, WORLD.tile);
+      return { x: chartPoint.u * WORLD.tile, y: chartPoint.v * WORLD.tile };
+    }
+    return {
+      x: this.pod.x + dx * cos - dy * sin,
+      y: cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation) + dx * sin + dy * cos,
+    };
   }
 
   constructor() {
@@ -107,9 +228,10 @@ export class MiningScene extends Phaser.Scene {
     this.progress.pilotEscaping = saved?.pilotEscaping ?? false;
     this.mapId = saved?.activeMap ?? 'cryo-shelf';
     this.mapStates = saved?.maps ?? {};
+    this.campaignChart = saved?.planetChart ?? PLANET_CHART;
     this.campaignSeed = saved?.campaignSeed ?? crypto.getRandomValues(new Uint32Array(1))[0];
     const savedMapState = this.mapStates[this.mapId];
-    const mapState = restoreMapState(savedMapState, this.mapId, this.seedForMap(this.mapId));
+    const mapState = restoreMapState(savedMapState, this.mapId, this.seedForMap(this.mapId), this.campaignChart);
     this.structures = mapState.structures;
     this.oreDrops = mapState.drops;
     this.activeCharge = mapState.activeCharge;
@@ -120,10 +242,19 @@ export class MiningScene extends Phaser.Scene {
     if (savedMapState) {
       this.pod.x = savedMapState.x;
       this.pod.y = savedMapState.y;
-      this.pod.docked = dockedOnSurface(savedMapState.x, savedMapState.y);
-      if (this.pod.docked) this.pod.y = savedMapState.y < CORE_WORLD_Y ? WORLD.spawnY : FAR_SURFACE_Y + 22;
-      if (this.pod.overlaps(savedMapState.x, savedMapState.y).length) this.pod.reset();
+      this.pod.docked = dockedOnSurface(savedMapState.x, savedMapState.y, this.world.planetChart);
+      if (this.pod.docked) this.pod.y = savedMapState.y < this.world.coreWorldY ? WORLD.spawnY : this.world.farSurfaceY + 22;
+      const restoredFrame = this.world.planetChart
+        ? planetCameraFrameAngle(savedMapState.x / WORLD.tile, savedMapState.y / WORLD.tile, this.world.planetChart) ?? 0
+        : 0;
+      if (this.pod.overlaps(savedMapState.x, savedMapState.y, restoredFrame).length) this.pod.reset();
     }
+    this.hemisphereFar = this.pod.y >= this.world.coreWorldY;
+    this.cameraFlip = this.hemisphereFar ? 1 : 0;
+    this.cameraFlipStart = this.cameraFlipTarget = this.cameraFlip;
+    this.planetFrameRotation = this.world.planetChart
+      ? planetCameraFrameAngle(this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, this.world.planetChart) ?? (this.hemisphereFar ? Math.PI : 0)
+      : this.cameraFlip * Math.PI;
     this.wasSurface = this.surface;
     this.mining = new MiningSystem(this.world, this.progress);
     this.ui = new HUD(
@@ -310,6 +441,7 @@ export class MiningScene extends Phaser.Scene {
         buildStructure: (kind: StructureKind) => this.buildUndergroundStructure(kind),
         structures: () => this.structures,
         surfaceAccess: () => this.surface,
+        serviceAccess: () => this.canService,
         travelMap: (id: MapId) => this.travelToMap(id),
         exportSave: () => this.save(),
         importSave: (data: SaveData) => {
@@ -352,11 +484,17 @@ export class MiningScene extends Phaser.Scene {
     document.querySelector('#game')!.appendChild(this.game.canvas);
     const resize = () => {
       const el = document.querySelector('#viewport')!;
+      const previousWidth = this.scale.width, previousHeight = this.scale.height,
+        radius = this.world.planetChart ? this.world.planetChart.radiusRows * WORLD.tile : 0,
+        wasFullyZoomedOut = radius > 0 && previousWidth > 0 && previousHeight > 0 &&
+          this.cameraZoomTarget <= orbitalOverviewMinZoom(previousWidth, previousHeight, radius) + 0.00001;
       this.scale.resize(el.clientWidth, el.clientHeight);
+      if (wasFullyZoomedOut) this.cameraZoomTarget = this.minimumCameraZoom;
     };
     resize();
     window.addEventListener('resize', resize);
     this.g = this.add.graphics();
+    this.orbitG = this.add.graphics().setDepth(1);
     this.input.mouse?.disableContextMenu();
     this.keys = this.input.keyboard!.addKeys(
       'W,A,S,D,M,B,UP,LEFT,DOWN,RIGHT,SPACE,ESC,E,X,R',
@@ -435,6 +573,23 @@ export class MiningScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '9px', color: '#d9f5df',
       backgroundColor: '#142023dd', padding: { x: 6, y: 4 }, align: 'center',
     }).setOrigin(0.5).setVisible(false);
+    this.orbitalLabel = this.add.text(0, 0, 'ORBITAL CUTAWAY  ·  WHEEL TO RETURN', {
+      fontFamily: 'monospace', fontSize: '10px', color: '#d9f5df',
+      backgroundColor: '#142023dd', padding: { x: 9, y: 6 }, align: 'center',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setVisible(false);
+    this.cameraFlipLabel = this.add.text(0, 0, 'CAMERA FLIP  ·  UP STAYS UP', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#d9f5df',
+      backgroundColor: '#142023dd', padding: { x: 9, y: 6 }, align: 'center',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setVisible(false);
+    this.input.on('wheel', (
+      _pointer: Phaser.Input.Pointer,
+      _currentlyOver: Phaser.GameObjects.GameObject[],
+      _deltaX: number,
+      deltaY: number,
+    ) => {
+      if (!this.ui.hasStarted || this.ui.paused || this.ui.modal) return;
+      this.cameraZoomTarget = Phaser.Math.Clamp(this.cameraZoomTarget * Math.exp(-deltaY * 0.001), this.minimumCameraZoom, 1.8);
+    });
     this.landmarkLabels = new Map(ROUTE_FRAGMENTS.map((fragment) => [
       fragment.id,
       this.add.text(0, 0, fragment.landmark.toUpperCase(), {
@@ -453,7 +608,7 @@ export class MiningScene extends Phaser.Scene {
         ),
     );
     this.revealAroundPod();
-    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy, this.farHemisphere);
+    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy, this.farHemisphere, false, this.world.coreDepthMeters);
     if (import.meta.env.DEV)
       Object.defineProperty(window, '__mars', {
         configurable: true,
@@ -462,6 +617,7 @@ export class MiningScene extends Phaser.Scene {
           y: this.pod.y,
           vx: this.pod.vx,
           vy: this.pod.vy,
+          fallCue: fallMotionCueIntensity(this.pod.vy, this.world.gravitySign(this.pod.y)),
           depth: this.depth,
           farHemisphere: this.farHemisphere,
           gravitySign: this.world.gravitySign(this.pod.y),
@@ -477,11 +633,16 @@ export class MiningScene extends Phaser.Scene {
           reeling: this.pod.reeling,
           grappleAnchor: this.pod.grappleAnchor ? { ...this.pod.grappleAnchor } : null,
           rockSwimmer: this.rockSwimmer.active ? { ...this.rockSwimmer.active } : null,
-          scannerRadius: Math.min(WORLD.width, this.progress.max('scanner') + SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus),
+          scannerRadius: Math.min(this.world.widthTiles, this.progress.max('scanner') + SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus),
           cargoCapacity: this.progress.max('cargo'),
           surveyedCells: this.world.discovered.size,
           podScale: podVisualScale(this.progress.levels.drill, this.progress.levels.cargo),
           camera: { x: this.camX, y: this.camY },
+          cameraRotation: this.viewRotation,
+          cameraTurnLabelRemaining: this.cameraTurnLabelRemaining,
+          cameraZoom: this.cameraZoom,
+          winchCableConnected: !!this.surfaceWinchCable(),
+          winchCablePointCount: this.surfaceWinchCable()?.points.length ?? 0,
           snapshot: () => new Promise<string>((resolve) =>
             this.game.renderer.snapshot((image) => resolve(image instanceof HTMLImageElement ? image.src : '')),
           ),
@@ -513,6 +674,10 @@ export class MiningScene extends Phaser.Scene {
           activeCharge: !!map?.activeCharge,
         }])),
           destroyed: [...this.world.destroyed],
+          drillTarget: this.mining.target ? { x: this.mining.target.x, y: this.mining.target.y } : null,
+          drillProgress: this.mining.ratio,
+          laserHeat: this.laserThermal.heat,
+          laserVent: this.laserThermal.vent,
           chunks: this.world.chunks.size,
           seed: this.world.seed,
           paused: this.ui.paused,
@@ -522,10 +687,10 @@ export class MiningScene extends Phaser.Scene {
       });
   }
   get depth() {
-    return depthAtWorldY(this.pod.y);
+    return depthAtWorldY(this.pod.y, this.world.planetChart);
   }
   get surface() {
-    return atSurface(this.pod.x, this.pod.y);
+    return atSurface(this.pod.x, this.pod.y, this.world.planetChart);
   }
   get canService() {
     return this.surface || !!nearbyServiceStation(this.structures, this.pod.x, this.pod.y);
@@ -545,7 +710,17 @@ export class MiningScene extends Phaser.Scene {
     return true;
   }
   estimateReturnFuel() {
-    return estimateVerticalReturnFuel(this.pod.y, this.progress.max('engine'));
+    return estimateVerticalReturnFuel(this.pod.y, this.progress.max('engine'), this.world.planetChart);
+  }
+
+  surfaceWinchCable() {
+    if (!this.progress.returnWinch || this.pod.y <= WORLD.spawnY) return undefined;
+    const gravity = this.world.gravitySign(this.pod.y), surface = surfaceYAt(this.pod.y, this.world.planetChart),
+      anchorY = surface - gravity * 34,
+      start = { x: this.pod.x, y: this.pod.y - gravity * 10 },
+      end = { x: this.pod.x, y: anchorY };
+    if (!hasClearMagnetPath(this.world, this.pod.x, this.pod.y, end.x, end.y)) return undefined;
+    return { points: [start, end] };
   }
   seedForMap(id: MapId) {
     const index = Object.keys(MAPS).indexOf(id) + 1;
@@ -554,7 +729,7 @@ export class MiningScene extends Phaser.Scene {
   revealAroundPod() {
     const tx = Math.floor(this.pod.x / WORLD.tile), ty = Math.floor(this.pod.y / WORLD.tile);
     const bonus = SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus;
-    const radius = Math.min(WORLD.width, this.progress.max('scanner') + bonus);
+    const radius = Math.min(this.world.widthTiles, this.progress.max('scanner') + bonus);
     if (this.lastRevealWorld === this.world && this.lastRevealX === tx && this.lastRevealY === ty && this.lastRevealRadius === radius) return;
     this.lastRevealWorld = this.world;
     this.lastRevealX = tx;
@@ -575,7 +750,7 @@ export class MiningScene extends Phaser.Scene {
     if (!unlocked) return false;
     this.rememberCurrentMap();
     this.mapId = id;
-    const state = restoreMapState(this.mapStates[id], id, this.seedForMap(id));
+    const state = restoreMapState(this.mapStates[id], id, this.seedForMap(id), this.campaignChart);
     this.structures = state.structures;
     this.world = state.world;
     this.rockSwimmer = new RockSwimmer(this.world.seed, id);
@@ -584,6 +759,9 @@ export class MiningScene extends Phaser.Scene {
     this.pod.world = this.world;
     this.pod.structures = this.structures;
     this.pod.reset();
+    this.hemisphereFar = false;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.cameraFlipElapsed = 0;
     this.mining.world = this.world;
     this.mining.target = undefined;
     this.mining.elapsed = this.mining.ratio = 0;
@@ -605,7 +783,8 @@ export class MiningScene extends Phaser.Scene {
     const p = this.progress;
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 17,
+      version: 20,
+      planetChart: { ...this.campaignChart },
       campaignSeed: this.campaignSeed,
       activeMap: this.mapId,
       maps: this.mapStates,
@@ -634,6 +813,7 @@ export class MiningScene extends Phaser.Scene {
       returnWinch: p.returnWinch,
       escapeSuit: p.escapeSuit,
       pilotEscaping: p.pilotEscaping,
+      grappleOwned: p.grappleOwned,
     };
     const ok = this.saves.write(data);
     this.ui.saved(ok);
@@ -644,6 +824,9 @@ export class MiningScene extends Phaser.Scene {
     this.progress.pilotEscaping = false;
     this.progress.rescue();
     this.pod.reset();
+    this.hemisphereFar = false;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.cameraFlipElapsed = 0;
     this.mining.target = undefined;
     this.mining.ratio = 0;
     this.camY = this.surfaceCameraY;
@@ -675,6 +858,9 @@ export class MiningScene extends Phaser.Scene {
     this.progress.pilotEscaping = false;
     this.progress.rescue();
     this.pod.reset();
+    this.hemisphereFar = false;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.cameraFlipElapsed = 0;
     this.camY = this.surfaceCameraY;
     this.wasSurface = this.surface;
     this.ui.toast(atBeacon ? 'BEACON REACHED · RESCUE CREW DISPATCHED · ORE LOST' : 'SURFACE REACHED · PILOT SAFE · MINER AND ORE LOST');
@@ -693,6 +879,49 @@ export class MiningScene extends Phaser.Scene {
         color,
         size: 2 + Math.random() * 3,
       });
+  }
+  drillBurst(tile: Tile) {
+    if (this.reducedMotion) return;
+    const profile = drillImpactProfile(tile, this.mapId),
+      drillTier = drillVisualTier(this.progress.levels.drill),
+      x = tile.x * WORLD.tile + WORLD.tile / 2,
+      y = tile.y * WORLD.tile + WORLD.tile / 2,
+      aim = Math.atan2(y - this.pod.y, x - this.pod.x) + Math.PI;
+    this.drillRecoil = Math.max(this.drillRecoil, tile.type === 'hard' ? 1 : 0.62);
+    for (let i = 0; i < profile.count; i++) {
+      const angle = aim + (Math.random() - 0.5) * 2.5,
+        speed = 42 + Math.random() * (profile.kind === 'dust' ? 48 : 105);
+      this.particles.push({
+        x: x + (Math.random() - 0.5) * 5, y: y + (Math.random() - 0.5) * 5,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        life: 0.22 + Math.random() * (profile.kind === 'dust' ? 0.28 : 0.34),
+        color: i % 3 === 0 ? profile.accent : profile.color,
+        size: profile.kind === 'dust' ? 2 + Math.random() * 3 : 2 + Math.random() * 2.5,
+        kind: profile.kind, rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 13,
+      });
+    }
+    if (profile.valuable) {
+      for (let i = 0; i < 3; i++) this.particles.push({
+        x, y, vx: (Math.random() - 0.5) * 42, vy: -22 - Math.random() * 35,
+        life: 0.2 + Math.random() * 0.12, color: 0xffefb2, size: 3 + Math.random() * 2,
+        kind: 'glint', rotation: Math.random() * Math.PI,
+      });
+    }
+    if (drillTier >= 3) this.particles.push({
+      x, y, vx: 0, vy: 0, life: 0.3,
+      color: drillTier === 3 ? 0x91f5e2 : drillTier === 4 ? 0xa2dff5 : 0xffdf91,
+      size: 3, kind: 'ring',
+    });
+    if (drillTier === 5) for (let i = 0; i < 3; i++) {
+      const angle = aim + (i - 1) * 0.34;
+      this.particles.push({
+        x, y, vx: Math.cos(angle) * (88 + i * 8), vy: Math.sin(angle) * (88 + i * 8),
+        life: 0.24, color: i === 1 ? 0xffe8ab : 0x9cf3e2, size: 2.5,
+        kind: 'spark', rotation: angle, rotationSpeed: 0,
+      });
+    }
+    if (this.particles.length > 300) this.particles.splice(0, this.particles.length - 300);
   }
   float(label: string, x: number, y: number, color = '#f0d0a0') {
     const text = this.add
@@ -725,7 +954,7 @@ export class MiningScene extends Phaser.Scene {
   }
   broken(tile: Tile, collected: number, oreDropped = false, silent = false) {
     this.shake = this.reducedMotion ? 0 : 2;
-    this.burst(tile.x * 40 + 20, tile.y * 40 + 20, tile.ore ? ORES[tile.ore].color : tile.tint);
+    this.drillBurst(tile);
     if (!silent) {
       if (tile.type === 'hard') this.soundFx.tone(56, 0.18, 'sawtooth', 0.075, 22);
       else this.soundFx.tone(80, 0.12, 'triangle', 0.06, 30);
@@ -787,6 +1016,10 @@ export class MiningScene extends Phaser.Scene {
     return true;
   }
   deployCharge() {
+    if (this.world.planetChart && this.cameraZoom <= 0.22) {
+      this.ui.toast('Zoom in to the planet surface before deploying a charge.');
+      return;
+    }
     if (this.surface) {
       this.ui.toast('Mining charges only arm below the surface.');
       return;
@@ -837,7 +1070,7 @@ export class MiningScene extends Phaser.Scene {
     for (const drop of this.oreDrops) {
       if (this.progress.salvageMagnet) applySalvageMagnet(this.world, drop, this.pod.x, this.pod.y, dt);
       updateOreDropPhysics(this.world, drop, dt, this.world.gravitySign(drop.y));
-      if (podWithinPickupReach(this.pod.x, this.pod.y, drop.x, drop.y)) {
+      if (podWithinPickupReach(this.pod.x, this.pod.y, drop.x, drop.y, this.world)) {
         const gained = collectOreDrop(this.progress, drop);
         if (gained > 0) {
           collectedAny = true;
@@ -861,8 +1094,9 @@ export class MiningScene extends Phaser.Scene {
     const dt = Math.min(delta / 1000, 0.05);
     this.tick += dt;
     if (!this.ui.paused) {
-      const previousFarSide = this.farHemisphere;
+      const previousFarSide = this.farHemisphere, previousPodY = this.pod.y;
       const k = this.keys,
+        winchRoute = k.R.isDown ? this.surfaceWinchCable() : undefined,
         input: Controls = {
           left: k.A.isDown || k.LEFT.isDown,
           right: k.D.isDown || k.RIGHT.isDown,
@@ -872,6 +1106,7 @@ export class MiningScene extends Phaser.Scene {
           reel: k.R.isDown,
           escapePack: this.progress.pilotEscaping,
         };
+      const wasGrappled = !!this.pod.grappleAnchor, wasDocked = this.pod.docked;
       const target = this.pod.update(dt, input, (damage) => {
         if (this.progress.pilotEscaping || this.progress.hull <= 0) return;
         this.progress.hull = Math.max(0, this.progress.hull - damage);
@@ -882,10 +1117,28 @@ export class MiningScene extends Phaser.Scene {
         }
         this.soundFx.tone(55, 0.22, 'sawtooth', 0.07, 20);
         this.float(`−${Math.ceil(damage)} HULL`, this.pod.x, this.pod.y - 25, '#ff927d');
-      });
+      }, this.viewRotation);
+      if (!wasDocked && this.pod.docked && input.reel && this.progress.returnWinch) {
+        this.soundFx.tone(520, 0.18, 'sine', 0.05, 780);
+        this.soundFx.tone(780, 0.14, 'sine', 0.035, 980);
+        this.ui.toast('SURFACE WINCH · DOCKING CLAMP ENGAGED');
+        this.float('WINCH RETURN COMPLETE', this.pod.x, this.pod.y - 34, '#9ce4cf');
+      }
+      if (!wasGrappled && this.pod.grappleAnchor) {
+        this.soundFx.tone(620, 0.14, 'sine', 0.045, 1040);
+        this.ui.toast('SAFETY GRAPPLE CAUGHT · HOLD W TO RELEASE');
+      }
+      const crossedPlanetSeam = this.pod.planetSeamCrossings !== 0;
+      if (Math.abs(this.pod.planetSeamCrossings) % 2 === 1) this.drillAimY *= -1;
+      const crossedCoreCenter = crossedPlanetCore(previousPodY, this.pod.y, this.world.coreWorldY, this.pod.planetSeamCrossings);
+      if (this.world.planetChart && crossedCoreCenter) this.cameraTurnLabelRemaining = this.cameraFlipDuration;
+      this.hemisphereFar = farHemisphereAfterCoreExit(this.hemisphereFar, this.pod.y, this.world.planetChart);
       if (!this.progress.pilotEscaping && this.progress.hull <= 0 && this.progress.escapeSuit) this.beginPilotEscape();
       if (previousFarSide !== this.farHemisphere) {
-        if (this.farHemisphere && !this.progress.milestones.includes('core-crossing')) {
+        if (!this.world.planetChart) this.flipCameraForHemisphere(this.farHemisphere);
+        if (crossedPlanetSeam) {
+          this.ui.toast(this.farHemisphere ? 'SURFACE LOOP · FAR SIDE · KEEP EXPLORING' : 'SURFACE LOOP · HOME SIDE · KEEP EXPLORING');
+        } else if (this.farHemisphere && !this.progress.milestones.includes('core-crossing')) {
           this.progress.milestones.push('core-crossing');
           this.progress.money += CORE.firstCrossingReward;
           this.ui.toast(`CORE CROSSED · GRAVITY REVERSED · +$${CORE.firstCrossingReward} FARADAY CLAIM · HOLD W TO CLIMB TOWARD THE FAR CRUST`);
@@ -895,14 +1148,18 @@ export class MiningScene extends Phaser.Scene {
         } else this.ui.toast(this.farHemisphere ? 'FAR HEMISPHERE · GRAVITY PULLS TOWARD THE CORE · W THRUSTS OUTWARD' : 'CORE CROSSED AGAIN · HOMEWARD HEMISPHERE · GRAVITY FLIPPED');
         this.save();
       }
+      const lookAheadTarget = fallCameraLookAhead(this.pod.vy, this.world.gravitySign(this.pod.y));
+      this.cameraLookAhead += (lookAheadTarget - this.cameraLookAhead) * (1 - Math.exp(-5 * dt));
       const pointer = this.input.activePointer;
-      const mouseDrilling = !this.progress.pilotEscaping && pointer.leftButtonDown() && this.ui.hasStarted && !this.ui.modal && !this.pod.docked && this.pod.y > 0;
-      const aimWorld = screenToWorld(pointer.x, pointer.y, this.camX, this.camY, this.scale.width, this.scale.height, this.farHemisphere),
+      const orbitalView = !!this.world.planetChart && this.cameraZoom <= 0.22;
+      const mouseDrilling = !orbitalView && !this.progress.pilotEscaping && pointer.leftButtonDown() && this.ui.hasStarted && !this.ui.modal && !this.pod.docked && this.pod.y > 0;
+      const aimWorld = this.screenPointToWorld(pointer.x, pointer.y, this.scale.width, this.scale.height),
         aimWorldX = aimWorld.x,
         aimWorldY = aimWorld.y;
-      this.aimTile = this.progress.pilotEscaping ? undefined : aimedDrillTarget(
+      this.aimTile = this.progress.pilotEscaping || orbitalView ? undefined : aimedDrillTarget(
         this.world, this.pod.x, this.pod.y,
         aimWorldX, aimWorldY,
+        WORLD.tile * drillReachTiles(this.progress.levels.drill),
       );
       const previewingMouseAim = !!this.aimTile && !input.down && !input.left && !input.right && !input.up;
       const directionTarget = mouseDrilling || previewingMouseAim ? this.aimTile : target ?? this.mining.target;
@@ -938,21 +1195,28 @@ export class MiningScene extends Phaser.Scene {
         this.save();
       }
       this.updateOreDrops(dt);
-      const horizontalCut = input.down || !input.left && !input.right;
-      const drillTarget = mouseDrilling ? this.aimTile : target;
+      let drillTarget = orbitalView ? undefined : mouseDrilling ? this.aimTile : target;
+      const laserTier = drillVisualTier(this.progress.levels.drill) === 5;
+      let laserVenting = false;
+      if (laserTier) {
+        const venting = this.laserThermal.vent > 0;
+        const drillHeld = (mouseDrilling || input.down) && !this.ui.paused && !this.ui.modal;
+        this.laserThermal = advanceLaserThermal(this.laserThermal, dt, !!drillTarget && !venting && drillHeld, drillHeld);
+        laserVenting = venting || this.laserThermal.vent > 0;
+      } else this.laserThermal = { heat: 0, vent: 0 };
       const drillVectorX = aimWorldX - this.pod.x;
       const drillVectorY = aimWorldY - this.pod.y;
       const mouseOrientation = mouseDrilling
         ? { x: drillVectorX, y: drillVectorY }
         : input.down ? 'vertical' as const : input.left || input.right ? 'horizontal' as const : 'vertical' as const;
-      const protectedTiles = new Set(this.pod.overlaps(this.pod.x, this.pod.y).map((cell) => keyOf(cell.x, cell.y)));
-      if (!this.progress.pilotEscaping) this.mining.update(dt, drillTarget, (tile, collected, dropped) => {
+      const protectedTiles = new Set(this.pod.overlaps(this.pod.x, this.pod.y, this.viewRotation).map((cell) => keyOf(cell.x, cell.y)));
+      if (!this.progress.pilotEscaping && !laserVenting) this.mining.update(dt, drillTarget, (tile, collected, dropped) => {
         if (dropped > 0 && this.spawnOreDrop(tile, dropped)) this.save();
         this.broken(tile, collected, dropped > 0);
         this.recordFragment(tile);
         this.recordNavigationHash(tile);
         this.recordCoreRelic(tile);
-      }, mouseDrilling ? mouseOrientation : horizontalCut ? 'horizontal' : 'vertical', protectedTiles);
+      }, mouseDrilling ? mouseOrientation : directionalDrillOrientation(input), protectedTiles);
       this.updateCharge(dt);
       this.progress.maxDepth = Math.max(this.progress.maxDepth, this.depth);
       let newMilestone = false;
@@ -971,6 +1235,9 @@ export class MiningScene extends Phaser.Scene {
       if (!this.progress.pilotEscaping && this.progress.fuel <= 0 && this.pod.y < 0) {
         this.progress.rescue();
         this.pod.reset();
+        this.hemisphereFar = false;
+        this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+        this.cameraFlipElapsed = 0;
         this.ui.toast('Outpost recovery: fresh fuel, cargo forfeited.');
         this.save();
       }
@@ -1009,7 +1276,7 @@ export class MiningScene extends Phaser.Scene {
     );
     const goalX = Math.max(
         -100,
-        Math.min(WORLD.width * 40 - this.scale.width + 100, this.pod.x - this.scale.width / 2),
+        Math.min(this.world.widthTiles * WORLD.tile - this.scale.width + 100, this.pod.x - this.scale.width / 2),
       ),
       goalY = Math.max(
         this.surfaceCameraY,
@@ -1020,25 +1287,33 @@ export class MiningScene extends Phaser.Scene {
             Phaser.Math.Clamp(this.pod.y / 400, 0, 1),
           ),
       );
+    if (this.world.planetChart) this.updatePlanetCameraFrame(dt);
+    else this.updateCameraFlip(dt);
+      this.cameraZoomTarget = Math.max(this.cameraZoomTarget, this.minimumCameraZoom);
+      this.cameraZoom = this.reducedMotion
+        ? this.cameraZoomTarget
+        : this.cameraZoom + (this.cameraZoomTarget - this.cameraZoom) * (1 - Math.exp(-7 * dt));
     this.camX += (goalX - this.camX) * (1 - Math.exp(-6 * dt));
     this.camY += (goalY - this.camY) * (1 - Math.exp(-6 * dt));
+    this.drillRecoil *= Math.exp(-18 * dt);
     this.shake = Math.max(0, this.shake - dt * 15);
-    this.world.prune(this.pod.y);
+    this.world.prune(this.pod.y, this.pod.x);
     this.atmosphere.update(this.world, dt, this.atmosphereView(), this.reducedMotion, this.ui.paused);
     for (const particle of this.particles) {
       particle.life -= dt;
-      particle.x += particle.vx * dt;
-      particle.y += particle.vy * dt;
-      particle.vy += this.world.gravitySign(particle.y) * 200 * dt;
+      if (particle.kind !== 'ring') {
+        particle.x += particle.vx * dt;
+        particle.y += particle.vy * dt;
+        particle.vy += this.world.gravitySign(particle.y) * 200 * dt;
+      }
+      particle.rotation = (particle.rotation ?? 0) + (particle.rotationSpeed ?? 0) * dt;
     }
     this.particles = this.particles.filter((p) => p.life > 0);
     for (const f of this.floating) {
       f.life -= dt;
       f.y -= 20 * dt;
-      f.text.setPosition(
-        this.farHemisphere ? this.scale.width - (f.x - this.camX) : f.x - this.camX,
-        this.farHemisphere ? this.scale.height - (f.y - this.camY) : f.y - this.camY,
-      ).setAlpha(Math.min(1, f.life * 2));
+      const fp = this.worldPointToScreen(f.x, f.y, this.scale.width, this.scale.height);
+      f.text.setPosition(fp.x, fp.y).setAlpha(Math.min(1, f.life * 2));
       if (f.life <= 0) f.text.destroy();
     }
     this.floating = this.floating.filter((f) => f.life > 0);
@@ -1046,36 +1321,202 @@ export class MiningScene extends Phaser.Scene {
       active: this.mining.cargoOverflow,
       units: this.mining.warningUnits,
       space: this.mining.warningSpace,
-    });
+    }, this.laserThermal.vent > 0);
     this.uiClock += dt;
     if (this.uiClock > 0.08) {
-      this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), this.pod.vy, this.farHemisphere, this.progress.pilotEscaping);
+      this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), this.pod.vy, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
+        this.progress.returnWinch, this.pod.reeling, !!this.surfaceWinchCable(), this.laserThermal.heat, this.laserThermal.vent,
+        drillVisualTier(this.progress.levels.drill) === 5);
       this.ui.drawMap(this.world, this.pod);
       this.uiClock = 0;
     }
     this.draw();
   }
   atmosphereView() {
-    return { x: this.camX, y: this.camY, width: this.scale.width, height: this.scale.height,
+    const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
+    return { x: this.pod.x - this.scale.width / 2, y: cameraY - this.scale.height / 2, width: this.scale.width, height: this.scale.height,
       podX: this.pod.x, podY: this.pod.y, thrusting: this.pod.thrusting,
       drilling: !!this.mining.target, aimX: this.drillAimX, aimY: this.drillAimY };
+  }
+  drawOrbitalOverview(alpha: number) {
+    const g = this.orbitG, chart = this.world.planetChart, w = this.scale.width, h = this.scale.height;
+    g.clear().setAlpha(alpha);
+    if (!chart) return;
+    g.fillStyle(0x071015);
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 95; i++) {
+      const x = random(this.world.seed, i, 641) * w, y = random(this.world.seed, i, 642) * h;
+      g.fillStyle(0xb2ded5, 0.12 + random(this.world.seed, i, 643) * 0.24);
+      g.fillCircle(x, y, 0.7 + random(this.world.seed, i, 644) * 1.1);
+    }
+    const center = this.worldPointToScreen(chart.columns / 2 * WORLD.tile, chart.radiusRows * WORLD.tile, w, h);
+    const radius = chart.radiusRows * WORLD.tile * this.cameraZoom;
+    if (radius < 2) return;
+    const surface = MAPS[this.mapId].surface;
+    g.fillStyle(surface.ground, 0.95);
+    g.fillCircle(center.x, center.y, radius);
+    g.fillStyle(surface.mountains[0], 0.98);
+    g.fillCircle(center.x, center.y, radius * 0.84);
+    g.fillStyle(surface.sky[2], 0.98);
+    g.fillCircle(center.x, center.y, radius * 0.66);
+    g.fillStyle(MAPS[this.mapId].palette[2], 0.98);
+    g.fillCircle(center.x, center.y, radius * 0.47);
+    g.fillStyle(MAPS[this.mapId].palette[3], 0.98);
+    g.fillCircle(center.x, center.y, radius * 0.27);
+    g.fillStyle(0x172a32, 1);
+    g.fillCircle(center.x, center.y, Math.max(5, radius * 0.105));
+    g.lineStyle(Math.max(1, radius * 0.006), 0xc4e3d5, 0.92);
+    g.strokeCircle(center.x, center.y, radius);
+    const surfacePoint = (u: number, v: number) => this.worldPointToScreen(u * WORLD.tile, v * WORLD.tile, w, h);
+    const halves = [0, chart.radiusRows * 2];
+    for (const row of halves) {
+      let previous: { x: number; y: number } | undefined;
+      for (let step = 0; step <= 48; step++) {
+        const current = surfacePoint(chart.columns * step / 48, row);
+        if (previous) {
+          g.lineStyle(Math.max(1, radius * 0.004), 0x9fcbbb, 0.6);
+          g.lineBetween(previous.x, previous.y, current.x, current.y);
+        }
+        previous = current;
+      }
+    }
+    for (let line = 0; line < 24; line++) {
+      const u = chart.columns * line / 24;
+      for (const row of [0, chart.radiusRows * 2]) {
+        const endpoint = surfacePoint(u, row);
+        g.lineStyle(1, 0xa7c7bb, 0.16);
+        g.lineBetween(center.x, center.y, endpoint.x, endpoint.y);
+      }
+    }
+    const destroyedStride = Math.max(1, Math.ceil(this.world.destroyed.size / 3600));
+    let index = 0;
+    for (const key of this.world.destroyed) {
+      if (index++ % destroyedStride) continue;
+      const [tileX, tileY] = key.split(',').map(Number);
+      if (!Number.isFinite(tileX) || !Number.isFinite(tileY)) continue;
+      const point = surfacePoint(tileX + 0.5, tileY + 0.5);
+      if (point.x < 0 || point.x > w || point.y < 0 || point.y > h) continue;
+      g.fillStyle(0xc2e7d9, 0.82);
+      g.fillCircle(point.x, point.y, Math.max(0.8, WORLD.tile * this.cameraZoom * 0.3));
+    }
+    const discoveryStride = Math.max(1, Math.ceil(this.world.discovered.size / 900));
+    index = 0;
+    for (const key of this.world.discovered) {
+      if (index++ % discoveryStride) continue;
+      if (this.world.destroyed.has(key)) continue;
+      const [tileX, tileY] = key.split(',').map(Number), tile = this.world.generate(tileX, tileY);
+      if (!tile.ore && !tile.signalHashId && !tile.coreRelicId && !tile.geode && !tile.regionFind) continue;
+      const point = surfacePoint(tileX + 0.5, tileY + 0.5);
+      if (point.x < 0 || point.x > w || point.y < 0 || point.y > h) continue;
+      const color = tile.signalHashId ? 0x91f5e2 : tile.coreRelicId ? 0xffd78b : tile.geode ? 0xd1b9ff : tile.regionFind ? 0xa6ffe3 : ORES[tile.ore!].color;
+      g.fillStyle(color, 0.95);
+      g.fillCircle(point.x, point.y, Math.max(1.1, WORLD.tile * this.cameraZoom * (tile.geode || tile.regionFind || tile.coreRelicId ? 0.38 : 0.24)));
+    }
+    for (const row of [0, chart.radiusRows * 2]) {
+      const hab = surfacePoint(WORLD.homeColumn + 0.5, row);
+      g.fillStyle(0xf2c782, 0.25);
+      g.fillCircle(hab.x, hab.y, Math.max(6, radius * 0.055));
+      g.fillStyle(0xffe2a8, 1);
+      g.fillCircle(hab.x, hab.y, Math.max(2, radius * 0.018));
+    }
+    const coreRelicPoint = surfacePoint(WORLD.homeColumn + 0.5, chart.radiusRows);
+    g.lineStyle(2, 0xf3cf8b, 0.95);
+    g.strokeCircle(coreRelicPoint.x, coreRelicPoint.y, Math.max(6, radius * 0.045));
+    g.fillStyle(0xffd48a, 1);
+    g.fillCircle(coreRelicPoint.x, coreRelicPoint.y, Math.max(2, radius * 0.018));
+    for (const structure of this.structures) {
+      const point = surfacePoint(structure.x / WORLD.tile, structure.y / WORLD.tile);
+      g.fillStyle(structure.kind === 'service' ? 0x8be1cf : structure.kind === 'turret' ? 0xf0b779 : 0xd5e3db, 0.95);
+      g.fillRect(point.x - 2, point.y - 2, 4, 4);
+    }
+    const pod = this.worldPointToScreen(this.pod.x, this.pod.y, w, h);
+    g.fillStyle(0xffdc95, 0.28);
+    g.fillCircle(pod.x, pod.y, Math.max(10, radius * 0.06));
+    g.fillStyle(0xffe0a0, 1);
+    g.fillTriangle(pod.x, pod.y - 7, pod.x - 5, pod.y + 5, pod.x + 5, pod.y + 5);
   }
   draw() {
     const g = this.g,
       w = this.scale.width,
       h = this.scale.height,
       T = WORLD.tile,
-      inverted = this.farHemisphere,
-      viewSign = inverted ? -1 : 1,
+      inverted = this.cameraFlip > 0.5,
+      angle = this.viewRotation,
+      cos = Math.cos(angle),
+      sin = Math.sin(angle),
+      viewSign = 1,
+      cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, angle),
       surfaceStyle = MAPS[this.mapId].surface;
-    const sx = (x: number) =>
-        Math.round(worldToScreen(x, this.pod.y, this.camX, this.camY, w, h, inverted).x) + (this.reducedMotion ? 0 : (Math.random() - 0.5) * this.shake),
-      sy = (y: number) => Math.round(worldToScreen(this.pod.x, y, this.camX, this.camY, w, h, inverted).y);
+    const orbitBlend = this.world.planetChart
+      ? Phaser.Math.SmoothStep(Phaser.Math.Clamp((0.36 - this.cameraZoom) / 0.14, 0, 1), 0, 1)
+      : 0;
+    const orbitalView = !!this.world.planetChart && this.cameraZoom <= 0.22;
+    if (this.orbitalOverviewActive !== orbitalView) {
+      this.orbitalOverviewActive = orbitalView;
+      this.ui.setOrbitalOverview(orbitalView);
+    }
+    g.setScale(this.cameraZoom).setPosition(w * (1 - this.cameraZoom) / 2, h * (1 - this.cameraZoom) / 2);
+    g.setAlpha(1 - orbitBlend);
+    this.orbitG.clear().setAlpha(orbitBlend);
+    this.orbitalLabel.setPosition(w / 2, h - 58).setVisible(orbitBlend > 0.25);
+    const legacyFlipping = !this.world.planetChart && Math.abs(this.cameraFlipTarget - this.cameraFlipStart) > 0.001 && this.cameraFlipElapsed < this.cameraFlipDuration;
+    const flipping = this.world.planetChart ? this.cameraTurnLabelRemaining > 0 : legacyFlipping;
+    this.cameraFlipLabel.setPosition(w / 2, 34)
+      .setAlpha(this.world.planetChart
+        ? Math.min(1, (this.cameraFlipDuration - this.cameraTurnLabelRemaining) * 5, this.cameraTurnLabelRemaining * 2)
+        : Math.min(1, this.cameraFlipElapsed * 5, (this.cameraFlipDuration - this.cameraFlipElapsed) * 2))
+      .setVisible(flipping);
+    const project = (x: number, y: number) => {
+      const point = this.worldPointToLocal(x, y, w, h);
+      return {
+        x: Math.round(point.x) + (this.reducedMotion ? 0 : (Math.random() - 0.5) * this.shake),
+        y: Math.round(point.y),
+      };
+    };
+    const localProject = (x: number, y: number, tangent: number, outward: number) => {
+      if (!this.world.planetChart) return project(x + tangent, y - outward);
+      const chart = this.world.planetChart;
+      const point = planetChartLocalOffset(
+        { u: x / T, v: y / T }, tangent, outward, chart.columns, chart.radiusRows, T,
+      );
+      return project(point.u * T, point.v * T);
+    };
+    const screenProject = (x: number, y: number) => cameraZoomPoint(project(x, y), w, h, this.cameraZoom);
+    const isOnScreen = (x: number, y: number, padding = 0) => {
+      const point = screenProject(x, y);
+      return point.x >= -padding && point.x <= w + padding && point.y >= -padding && point.y <= h + padding;
+    };
+    const sx = (x: number) => project(x, this.pod.y).x,
+      sy = (y: number) => project(this.pod.x, y).y;
     g.clear();
     g.fillStyle(0x131b20);
     g.fillRect(0, 0, w, h);
-    const ground = sy(surfaceGroundY(this.pod.y));
-    if (ground > 0) {
+    if (orbitalView) {
+      this.drawOrbitalOverview(1);
+      this.labels.forEach((label) => label.setVisible(false));
+      this.shipStatusLabel.setVisible(false);
+      return;
+    }
+    if (orbitBlend > 0) this.drawOrbitalOverview(orbitBlend);
+    const ground = sy(surfaceGroundY(this.pod.y, this.world.planetChart));
+    if (ground > 0 && this.world.planetChart) {
+      const [skyTL, skyTR, skyBL, skyBR] = surfaceStyle.sky;
+      g.fillGradientStyle(skyTL, skyTR, skyBL, skyBR);
+      g.fillRect(0, 0, w, h);
+      const farSurface = this.pod.y >= this.world.coreWorldY;
+      const surfaceRow = farSurface ? this.world.farSurfaceRow : 0;
+      for (let i = 0; i < STATIONS.length; i++) {
+        const station = STATIONS[i], label = this.labels[i];
+        const point = screenProject(station.x, (surfaceRow + (farSurface ? 110 : -110)) * T);
+        label.setVisible(h >= 500).setPosition(point.x, point.y);
+      }
+      const shipLabel = screenProject(700, (surfaceRow + (farSurface ? 157 : -157)) * T);
+      this.shipStatusLabel
+        .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `FARADAY · ${this.progress.shipComponents.length} / 4 SYSTEMS`)
+        .setPosition(shipLabel.x, shipLabel.y)
+        .setVisible(h >= 400);
+    }
+    if (ground > 0 && !this.world.planetChart) {
       const [skyTL, skyTR, skyBL, skyBR] = surfaceStyle.sky;
       g.fillGradientStyle(skyTL, skyTR, skyBL, skyBR);
       g.fillRect(0, 0, w, Math.min(h, ground));
@@ -1147,7 +1588,8 @@ export class MiningScene extends Phaser.Scene {
         g.fillRect(x + ww / 2 - 9, y - 103, 3, 39);
         g.fillStyle(s.color, 0.8);
         g.fillRect(x + ww / 2 - 9, y - 101, 21, 10);
-        this.labels[i].setVisible(h >= 500).setPosition(x, y - 103);
+        const labelPoint = cameraZoomPoint({ x, y: y - 103 }, w, h, this.cameraZoom);
+        this.labels[i].setVisible(h >= 500).setPosition(labelPoint.x, labelPoint.y);
       }
       const ax = sx(490);
       g.lineStyle(3, 0x38413e);
@@ -1191,42 +1633,75 @@ export class MiningScene extends Phaser.Scene {
         g.fillStyle(0x9bd5be, 0.9);
         g.fillRect(shipX - 4, ground - 73, 8, 5);
       }
+      const shipLabel = cameraZoomPoint({ x: Phaser.Math.Clamp(shipX + 145, 350, w - 110), y: ground - 151 }, w, h, this.cameraZoom);
       this.shipStatusLabel
         .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `FARADAY · ${installed.length} / 4 SYSTEMS`)
-        .setPosition(Phaser.Math.Clamp(shipX + 145, 350, w - 110), ground - 151)
+        .setPosition(shipLabel.x, shipLabel.y)
         .setVisible(h >= 400);
     } else {
       this.labels.forEach((l) => l.setVisible(false));
       this.shipStatusLabel.setVisible(false);
     }
-    const left = Math.max(0, Math.floor(this.camX / T)),
-      right = Math.min(WORLD.width - 1, Math.ceil((this.camX + w) / T)),
-      top = Math.max(0, Math.floor(this.camY / T)),
-      bottom = Math.ceil((this.camY + h) / T);
+    let left: number, right: number, top: number, bottom: number;
+    if (this.world.planetChart) {
+      const span = Math.ceil(Math.max(w, h) / (2 * this.cameraZoom * T)) + 4,
+        centerX = Math.floor(this.pod.x / T), centerY = Math.floor(this.pod.y / T);
+      left = centerX - span; right = centerX + span;
+      top = Math.max(0, centerY - span); bottom = Math.min(this.world.farSurfaceRow - 1, centerY + span);
+    } else {
+      const corners = [project(0, 0), project(this.world.widthTiles * T, 0), project(0, this.world.farSurfaceY), project(this.world.widthTiles * T, this.world.farSurfaceY)];
+      const worldBounds = corners.map((point) => {
+        const unzoomed = cameraUnzoomPoint(point, w, h, this.cameraZoom);
+        return {
+          x: this.pod.x + (unzoomed.x - w / 2) * cos + (unzoomed.y - h / 2) * sin,
+          y: cameraY - (unzoomed.x - w / 2) * sin + (unzoomed.y - h / 2) * cos,
+        };
+      });
+      left = Math.max(0, Math.floor(Math.min(...worldBounds.map((point) => point.x)) / T));
+      right = Math.min(this.world.widthTiles - 1, Math.ceil(Math.max(...worldBounds.map((point) => point.x)) / T));
+      top = Math.max(0, Math.floor(Math.min(...worldBounds.map((point) => point.y)) / T));
+      bottom = Math.ceil(Math.max(...worldBounds.map((point) => point.y)) / T);
+    }
+    const podPolar = this.world.planetChart
+        ? planetChartToCartesian({ u: this.pod.x / T, v: this.pod.y / T }, this.world.planetChart.columns, this.world.planetChart.radiusRows, T)
+        : { x: this.pod.x, y: this.pod.y },
+      aimPolar = this.world.planetChart
+        ? planetChartVectorToCartesian({ u: this.pod.x / T, v: this.pod.y / T }, { du: this.drillAimX / T, dv: this.drillAimY / T }, this.world.planetChart.columns, this.world.planetChart.radiusRows, T)
+        : { dx: this.drillAimX, dy: this.drillAimY };
     for (let y = top; y <= bottom; y++)
       for (let x = left; x <= right; x++) {
-        const px = sx(inverted ? (x + 1) * T : x * T),
-          py = sy(inverted ? (y + 1) * T : y * T),
+      const topLeft = project(x * T, y * T),
+          topRight = project((x + 1) * T, y * T),
+          bottomRight = project((x + 1) * T, (y + 1) * T),
+          bottomLeft = project(x * T, (y + 1) * T),
+          px = Math.min(topLeft.x, topRight.x, bottomRight.x, bottomLeft.x),
+          py = Math.min(topLeft.y, topRight.y, bottomRight.y, bottomLeft.y),
+          tileWidth = Math.max(1, Math.max(topLeft.x, topRight.x, bottomRight.x, bottomLeft.x) - px),
+          tileHeight = Math.max(1, Math.max(topLeft.y, topRight.y, bottomRight.y, bottomLeft.y) - py),
           tile = this.world.get(x, y),
-          seen = this.world.discovered.has(keyOf(x, y));
+          tileKey = keyOf(tile.x, tile.y),
+          seen = this.world.discovered.has(tileKey);
         const tileCenterX = x * T + 20, tileCenterY = y * T + 20,
-          dx = tileCenterX - this.pod.x, dy = tileCenterY - this.pod.y,
+          tilePolar = this.world.planetChart
+            ? planetChartToCartesian({ u: tileCenterX / T, v: tileCenterY / T }, this.world.planetChart.columns, this.world.planetChart.radiusRows, T)
+            : { x: tileCenterX, y: tileCenterY },
+          dx = tilePolar.x - podPolar.x, dy = tilePolar.y - podPolar.y,
           distance = Math.hypot(dx / T, dy / T),
-          facingDot = distance > 0.01 ? (dx * this.drillAimX + dy * this.drillAimY) / Math.hypot(dx, dy) : 1,
-          inLampCone = facingDot > 0.32 && Math.abs(dx * this.drillAimY - dy * this.drillAimX) / Math.max(1, Math.hypot(dx, dy)) < 0.72,
-          beamDistance = Math.max(0, dx * this.drillAimX + dy * this.drillAimY),
+          facingDot = distance > 0.01 ? (dx * aimPolar.dx + dy * aimPolar.dy) / Math.max(1, Math.hypot(dx, dy) * Math.hypot(aimPolar.dx, aimPolar.dy)) : 1,
+          inLampCone = facingDot > 0.32 && Math.abs(dx * aimPolar.dy - dy * aimPolar.dx) / Math.max(1, Math.hypot(dx, dy) * Math.hypot(aimPolar.dx, aimPolar.dy)) < 0.72,
+          beamDistance = Math.max(0, (dx * aimPolar.dx + dy * aimPolar.dy) / Math.max(0.001, Math.hypot(aimPolar.dx, aimPolar.dy))),
           lamp = Math.max(0, 1 - distance / Math.max(1, this.pod.scannerRadius * 1.25)),
           light = Math.max(0.12, inLampCone ? Math.max(lamp, 1 - beamDistance / (this.pod.scannerRadius * T * 1.5)) : lamp * 0.58);
         if (!seen) {
           g.fillStyle(y < 3 ? 0x3e302e : 0x182023);
-          g.fillRect(px, py, T, T);
+          g.fillPoints([topLeft, topRight, bottomRight, bottomLeft], true);
           g.lineStyle(1, 0x8c6857, 0.05);
-          g.strokeRect(px, py, T, T);
+          g.strokePoints([topLeft, topRight, bottomRight, bottomLeft, topLeft], false, false);
           continue;
         }
         if (tile.type === 'empty') {
       g.fillStyle(tile.tint, tile.landmarkId && !this.reducedMotion ? 0.14 + (Math.sin(this.tick * 2 + x) + 1) * 0.035 : 0.16);
-          g.fillRect(px, py, T, T);
+          g.fillPoints([topLeft, topRight, bottomRight, bottomLeft], true);
           if (tile.landmarkId) {
             const chamber = ROUTE_FRAGMENTS.find((entry) => entry.id === tile.landmarkId)!;
             const inChamber = (nx: number, ny: number) => this.world.get(nx, ny).landmarkId === tile.landmarkId;
@@ -1240,7 +1715,8 @@ export class MiningScene extends Phaser.Scene {
             const labelY = sy((chamber.row - chamber.chamber.halfHeight - 0.45) * T),
               screenA = sy((chamber.row - chamber.chamber.halfHeight) * T),
               screenB = sy((chamber.row + chamber.chamber.halfHeight + 1) * T);
-            label.setPosition(sx(chamber.x * T + T / 2), labelY)
+            const labelPoint = cameraZoomPoint({ x: sx(chamber.x * T + T / 2), y: labelY }, w, h, this.cameraZoom);
+            label.setPosition(labelPoint.x, labelPoint.y)
               .setVisible(seen && Math.min(screenA, screenB) < h + T && Math.max(screenA, screenB) > -T);
           }
           g.fillStyle(0xcdb296, 0.1 * light);
@@ -1248,7 +1724,7 @@ export class MiningScene extends Phaser.Scene {
           continue;
         }
         g.fillStyle(tile.tint);
-        g.fillRect(px, py, T, T);
+        g.fillPoints([topLeft, topRight, bottomRight, bottomLeft], true);
         g.fillStyle(0xefd0a0, 0.09);
         g.fillRect(px + 1, py + 1, T - 2, 2);
         g.fillStyle(0x0f181d, 0.3);
@@ -1291,9 +1767,9 @@ export class MiningScene extends Phaser.Scene {
           const silhouette = ORE_SILHOUETTES[tile.ore];
           const markerAlpha = 0.42 + light * 0.58;
           for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-            const neighborKey = keyOf(nx, ny);
+            const neighborTile = this.world.get(nx, ny), neighborKey = keyOf(neighborTile.x, neighborTile.y);
             if (!this.world.discovered.has(neighborKey) || this.world.destroyed.has(neighborKey)) continue;
-            const neighbor = this.world.get(nx, ny);
+            const neighbor = neighborTile;
             if (neighbor.ore !== tile.ore) continue;
             g.lineStyle(2, color, 0.18 + light * 0.16);
             g.lineBetween(px + 20, py + 20, sx(nx * T + 20), sy(ny * T + 20));
@@ -1401,9 +1877,73 @@ export class MiningScene extends Phaser.Scene {
           g.fillRect(px + 4, py + 34, (T - 8) * this.mining.ratio, 3);
         }
       }
-    if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, false);
+    if (ground > 0 && this.world.planetChart) {
+      const surfaceRow = this.pod.y >= this.world.coreWorldY ? this.world.farSurfaceRow : 0;
+      const coreRecords = this.progress.milestones.filter((id) => CORE_RELICS.some((relic) => relic.id === id));
+      drawPlanetSurfaceOutpost(
+        g,
+        (x, y) => project(x, y),
+        surfaceRow,
+        surfaceTownTier(this.progress.shipComponents, coreRecords),
+        this.tick,
+        this.reducedMotion,
+      );
+    }
+    if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), (x) => project(x, this.pod.y).x, (y) => project(this.pod.x, y).y, false);
     for (const structure of this.structures) {
-      if (structure.y < this.camY - 100 || structure.y > this.camY + h + 100 || structure.x < this.camX - 130 || structure.x > this.camX + w + 130) continue;
+      if (!isOnScreen(structure.x, structure.y, 150)) continue;
+      if (this.world.planetChart) {
+        const pointAt = (tangent: number, outward: number) => localProject(structure.x, structure.y, tangent, outward);
+        const polygon = (points: { tangent: number; outward: number }[]) =>
+          g.fillPoints(points.map(({ tangent, outward }) => pointAt(tangent, outward)), true);
+        const rectangle = (tangent: number, outward: number, width: number, height: number, color: number, alpha = 1) => {
+          g.fillStyle(color, alpha);
+          polygon([
+            { tangent: tangent - width / 2, outward }, { tangent: tangent + width / 2, outward },
+            { tangent: tangent + width / 2, outward: outward + height }, { tangent: tangent - width / 2, outward: outward + height },
+          ]);
+        };
+        const ring = (tangent: number, outward: number, radius: number, color: number, alpha: number, lineWidth = 1) => {
+          const points = Array.from({ length: 49 }, (_, index) => {
+            const angle = Math.PI * 2 * index / 48;
+            return pointAt(tangent + Math.cos(angle) * radius, outward + Math.sin(angle) * radius);
+          });
+          g.lineStyle(lineWidth, color, alpha);
+          g.strokePoints(points, true);
+        };
+        const deckTop = [], deckBottom = [];
+        for (let index = 0; index <= 16; index++) {
+          const tangent = -100 + index * 12.5;
+          deckTop.push(pointAt(tangent, 5));
+          deckBottom.push(pointAt(tangent, 0));
+        }
+        g.fillStyle(0x131a1b, 0.94);
+        g.fillPoints([...deckTop, ...deckBottom.reverse()], true);
+        g.lineStyle(2, structure.kind === 'service' ? 0x8be1cf : structure.kind === 'turret' ? 0xf0b779 : 0x9faeb5, 0.9);
+        g.lineBetween(deckTop[0].x, deckTop[0].y, deckTop.at(-1)!.x, deckTop.at(-1)!.y);
+        for (let bolt = -84; bolt <= 84; bolt += 24) {
+          const point = pointAt(bolt, 2);
+          g.fillStyle(0x9faeb5, 0.9);
+          g.fillCircle(point.x, point.y, 1.5);
+        }
+        if (structure.kind === 'service') {
+          rectangle(0, 6, 46, 50, 0x263532);
+          rectangle(0, 12, 34, 35, 0x52675f);
+          rectangle(0, 39, 24, 3, 0xf1c37b);
+          const beacon = pointAt(0, 58);
+          g.fillStyle(0x8be1cf, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 4) * 0.2);
+          g.fillCircle(beacon.x, beacon.y, 5);
+          ring(0, 58, this.reducedMotion ? 11 : 11 + Math.sin(this.tick * 4) * 2, 0x8be1cf, 0.65, 2);
+        } else if (structure.kind === 'turret') {
+          rectangle(0, 4, 30, 24, 0x3d3931);
+          rectangle(0, 22, 6, 13, 0xf0b779);
+          const muzzle = pointAt(0, 29);
+          g.fillStyle(0xf0b779);
+          g.fillCircle(muzzle.x, muzzle.y, 5);
+          ring(0, 17, UNDERGROUND_BUILDING.turret.range, 0xf0b779, 0.12);
+        }
+        continue;
+      }
       const gravity = this.world.gravitySign(structure.y), x = sx(structure.x), deckY = sy(structure.y);
       const deckA = sx(structure.x - 100), deckB = sx(structure.x + 100), deckLeft = Math.min(deckA, deckB), deckWidth = Math.abs(deckB - deckA);
       g.fillStyle(0x131a1b, 0.9);
@@ -1435,7 +1975,7 @@ export class MiningScene extends Phaser.Scene {
       }
     }
     for (const drop of this.oreDrops) {
-      if (drop.x < this.camX - 24 || drop.x > this.camX + w + 24 || drop.y < this.camY - 24 || drop.y > this.camY + h + 24) continue;
+      if (!isOnScreen(drop.x, drop.y, 24)) continue;
       const x = sx(drop.x), y = sy(drop.y), color = ORES[drop.ore].color;
       g.fillStyle(color, 0.2);
       g.fillCircle(x, y, 11);
@@ -1453,7 +1993,7 @@ export class MiningScene extends Phaser.Scene {
     const swimmer = this.rockSwimmer.active;
     if (swimmer) {
       const tileDistance = Math.hypot((swimmer.x - this.pod.x) / T, (swimmer.y - this.pod.y) / T);
-      if (tileDistance <= this.pod.scannerRadius * 1.25 && swimmer.x > this.camX - T && swimmer.x < this.camX + w + T && swimmer.y > this.camY - T && swimmer.y < this.camY + h + T) {
+      if (tileDistance <= this.pod.scannerRadius * 1.25 && isOnScreen(swimmer.x, swimmer.y, T)) {
         const sxw = sx(swimmer.x), syw = sy(swimmer.y), angle = Math.atan2(swimmer.vy, swimmer.vx);
         const ux = Math.cos(angle), uy = Math.sin(angle), pulse = this.reducedMotion ? 1 : 0.8 + Math.sin(this.tick * 7 + swimmer.phase) * 0.2;
         const color = tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
@@ -1495,9 +2035,9 @@ export class MiningScene extends Phaser.Scene {
     g.lineStyle(1, 0xc8a078, 0.2);
     for (let y = Math.ceil(top / 5) * 5; y <= bottom; y += 5) {
       g.lineBetween(sx(0), sy(y * T), sx(18), sy(y * T));
-      g.lineBetween(sx(WORLD.width * T - 18), sy(y * T), sx(WORLD.width * T), sy(y * T));
+      g.lineBetween(sx(this.world.widthTiles * T - 18), sy(y * T), sx(this.world.widthTiles * T), sy(y * T));
     }
-    const coreScreenY = sy(CORE_WORLD_Y);
+    const coreScreenY = sy(this.world.coreWorldY);
     if (coreScreenY > -160 && coreScreenY < h + 160) {
       const pulse = 1 + (this.reducedMotion ? 0 : 0.04 * Math.sin(this.tick * 2.5));
       g.lineStyle(3, 0x92e3c8, 0.65);
@@ -1516,6 +2056,43 @@ export class MiningScene extends Phaser.Scene {
       vehicleScale = podVisualScale(this.progress.levels.drill, this.progress.levels.cargo),
       px = (offset: number) => x + offset * vehicleScale * viewSign,
       py = (offset: number) => y + offset * vehicleScale * viewSign;
+    const winchCable = this.surfaceWinchCable();
+    if (winchCable) {
+      const cablePoints = winchCable.points.map((point) => project(point.x, point.y)),
+        anchor = cablePoints[cablePoints.length - 1]!,
+        reeling = this.pod.reeling && !this.ui.paused;
+      g.lineStyle(5, 0x111b1c, 0.96);
+      for (let i = 1; i < cablePoints.length; i++)
+        g.lineBetween(cablePoints[i - 1]!.x, cablePoints[i - 1]!.y, cablePoints[i]!.x, cablePoints[i]!.y);
+      g.lineStyle(reeling ? 2.4 : 1.5, reeling ? 0x8de8d3 : 0xa8b8ad, reeling ? 0.96 : 0.7);
+      for (let i = 1; i < cablePoints.length; i++)
+        g.lineBetween(cablePoints[i - 1]!.x, cablePoints[i - 1]!.y, cablePoints[i]!.x, cablePoints[i]!.y);
+      g.fillStyle(0x172526, 1);
+      g.fillCircle(anchor.x, anchor.y, 5);
+      g.lineStyle(1.5, reeling ? 0x8de8d3 : 0xf0c887, 0.95);
+      g.strokeCircle(anchor.x, anchor.y, 4);
+      if (reeling) {
+        const segments = cablePoints.slice(1).map((point, index) => ({
+          from: cablePoints[index]!, to: point,
+          length: Phaser.Math.Distance.Between(cablePoints[index]!.x, cablePoints[index]!.y, point.x, point.y),
+        })), totalLength = segments.reduce((sum, segment) => sum + segment.length, 0);
+        let remaining = Math.max(0, totalLength - (this.tick * 110) % Math.max(1, totalLength)),
+          beadX = cablePoints[0]!.x, beadY = cablePoints[0]!.y;
+        for (const segment of segments) {
+          if (remaining <= segment.length) {
+            const t = segment.length > 0 ? remaining / segment.length : 0;
+            beadX = Phaser.Math.Linear(segment.from.x, segment.to.x, t);
+            beadY = Phaser.Math.Linear(segment.from.y, segment.to.y, t);
+            break;
+          }
+          remaining -= segment.length;
+        }
+        g.fillStyle(0xb7fff0, 0.95);
+        g.fillCircle(beadX, beadY, 2.2);
+        g.lineStyle(1.4, 0xb7fff0, 0.6);
+        g.strokeCircle(beadX, beadY, 5);
+      }
+    }
     if (!this.progress.pilotEscaping && this.pod.grappleAnchor) {
       const ax = sx(this.pod.grappleAnchor.x), ay = sy(this.pod.grappleAnchor.y);
       g.lineStyle(4, 0x101b1c, 0.9);
@@ -1568,16 +2145,37 @@ export class MiningScene extends Phaser.Scene {
       g.lineStyle(2, 0x9ce4cf, 0.8);
       g.strokeCircle(x, y, 17);
     } else {
-    const beamX = this.drillAimX * viewSign, beamY = this.drillAimY * viewSign;
+    const beamLength = Math.hypot(aimPolar.dx, aimPolar.dy) || 1,
+      beamX = (aimPolar.dx * cos - aimPolar.dy * sin) / beamLength,
+      beamY = (aimPolar.dx * sin + aimPolar.dy * cos) / beamLength;
+    const drillLevel = this.progress.levels.drill;
     const beamStartX = x + beamX * 12, beamStartY = y + beamY * 4;
-    const beamEndX = x + beamX * 115, beamEndY = y + beamY * 115;
-    const beamHalfWidth = 34 + drillWidth(this.progress.levels.drill) * 3;
-    g.fillStyle(0xf5dba0, 0.09);
+    const preview = drillPreviewDimensions(drillLevel);
+    const beamEndX = x + beamX * preview.length, beamEndY = y + beamY * preview.length;
+    const chart = this.world.planetChart,
+      cutPreviewTile = this.aimTile ?? this.mining.target,
+      localAim = chart ? planetCartesianVectorToWorld(
+        { u: this.pod.x / T, v: this.pod.y / T }, { x: aimPolar.dx, y: aimPolar.dy }, chart.columns, chart.radiusRows, T,
+      ) : { x: aimPolar.dx, y: aimPolar.dy },
+      radialAim = Math.abs(localAim.y) >= Math.abs(localAim.x),
+      tangentCellWidth = chart && cutPreviewTile
+        ? WORLD.tile * Math.abs(chart.radiusRows - (cutPreviewTile.y + 0.5)) * Math.PI / chart.columns
+        : WORLD.tile,
+      clearancePreview = chart && radialAim && tangentCellWidth > 0
+        ? this.mining.effectiveWidth * tangentCellWidth / 2
+        : 0,
+      beamHalfWidth = Math.max(preview.halfWidth, clearancePreview);
+    g.fillStyle(0xf5dba0, 0.13);
     g.fillTriangle(
       beamStartX, beamStartY,
       beamEndX - beamY * beamHalfWidth, beamEndY + beamX * beamHalfWidth,
       beamEndX + beamY * beamHalfWidth, beamEndY - beamX * beamHalfWidth,
     );
+    g.lineStyle(1, 0xf5dba0, 0.3);
+    g.lineBetween(beamStartX, beamStartY, beamEndX - beamY * beamHalfWidth, beamEndY + beamX * beamHalfWidth);
+    g.lineBetween(beamStartX, beamStartY, beamEndX + beamY * beamHalfWidth, beamEndY - beamX * beamHalfWidth);
+    g.lineBetween(beamEndX - beamY * beamHalfWidth, beamEndY + beamX * beamHalfWidth,
+      beamEndX + beamY * beamHalfWidth, beamEndY - beamX * beamHalfWidth);
     g.fillStyle(0x121d22);
     g.fillRect(px(-18), py(-9), 36 * vehicleScale, 23 * vehicleScale);
     g.fillStyle(0x6c7c78);
@@ -1642,11 +2240,6 @@ export class MiningScene extends Phaser.Scene {
     g.fillRect(px(-7), py(-5), 5 * vehicleScale, 4 * vehicleScale);
     g.fillStyle(0x715b40);
     g.fillRect(px(-8), py(6), 16 * vehicleScale, 3 * vehicleScale);
-    g.fillStyle(0xb1bdb2);
-    const sideways =
-      this.mining.target && Math.abs(this.mining.target.x * 40 + 20 - this.pod.x) > 20;
-    if (sideways) g.fillTriangle(px(f * 16), py(-7), px(f * 16), py(7), px(f * 27), py(0));
-    else g.fillTriangle(px(-8), py(14), px(8), py(14), px(0), py(22));
     if (this.pod.docked) {
       g.lineStyle(2, 0x95c9b6, 0.9);
       g.lineBetween(px(-26), py(21), px(26), py(21));
@@ -1658,6 +2251,119 @@ export class MiningScene extends Phaser.Scene {
     g.lineBetween(px(-3), py(19), px(2), py(19));
     g.fillStyle(paint.light);
     g.fillCircle(x + beamX * 13, y + beamY * 5, 2.5 * vehicleScale);
+    const drillTier = drillVisualTier(this.progress.levels.drill),
+      drillColors = [0xe4c286, 0x9bcfb4, 0x73e1ce, 0x9bd8f0, 0xffd27f],
+      drillColor = drillColors[drillTier - 1]!,
+      drillBaseX = x + beamX * 11,
+      drillBaseY = y + beamY * 11,
+      drillActive = !!this.mining.target && !this.ui.paused,
+      cutProgress = drillActive ? Phaser.Math.Clamp(this.mining.ratio, 0, 1) : 0,
+      drillStroke = drillActive && !this.reducedMotion ? 2 + (Math.sin(this.tick * 26) + 1) * 1.5 + cutProgress * 3.5 : cutProgress * 3,
+      drillLength = Math.max(4, [10, 15, 21, 29, 38][drillTier - 1]! * vehicleScale + drillStroke - this.drillRecoil * 8 * vehicleScale),
+      drillTipX = drillBaseX + beamX * drillLength,
+      drillTipY = drillBaseY + beamY * drillLength,
+      drillPerpX = -beamY,
+      drillPerpY = beamX,
+      drillSpread = (2 + drillTier * 0.75) * vehicleScale,
+      drillPulse = drillActive && !this.reducedMotion ? 0.8 + Math.sin(this.tick * 18) * 0.2 : 1;
+    // Earned drill hardware pivots toward the actual 360-degree aim vector;
+    // the chassis stays upright while the camera turns around the miner.
+    g.lineStyle(4.5 * vehicleScale, 0x18272a, 1);
+    g.lineBetween(drillBaseX, drillBaseY, drillTipX, drillTipY);
+    g.lineStyle(2.2 * vehicleScale, drillColor, 0.95 * drillPulse);
+    g.lineBetween(drillBaseX, drillBaseY, drillTipX, drillTipY);
+    g.fillStyle(0x263d3d, 1);
+    g.fillCircle(drillBaseX, drillBaseY, (3 + drillTier * 0.35) * vehicleScale);
+    if (drillTier >= 2) {
+      const railStartX = drillBaseX + beamX * 4 * vehicleScale,
+        railStartY = drillBaseY + beamY * 4 * vehicleScale,
+        railMidX = drillBaseX + beamX * drillLength * 0.66,
+        railMidY = drillBaseY + beamY * drillLength * 0.66;
+      g.lineStyle((drillTier >= 4 ? 2.4 : 1.6) * vehicleScale, drillTier >= 4 ? 0x425c5b : drillColor, drillPulse);
+      for (const side of [-1, 1]) {
+        g.lineBetween(railStartX + drillPerpX * drillSpread * side, railStartY + drillPerpY * drillSpread * side,
+          railMidX + drillPerpX * drillSpread * side, railMidY + drillPerpY * drillSpread * side);
+      }
+      g.lineStyle(1.5 * vehicleScale, drillColor, drillPulse);
+      g.lineBetween(railMidX + drillPerpX * drillSpread, railMidY + drillPerpY * drillSpread,
+        railMidX - drillPerpX * drillSpread, railMidY - drillPerpY * drillSpread);
+    }
+    if (drillTier === 2) {
+      // Short diagonal teeth turn the extended rails into a readable auger.
+      g.lineStyle(1.5 * vehicleScale, 0xe1d5aa, 0.95 * drillPulse);
+      for (const fraction of [0.34, 0.62]) {
+        const cx = drillBaseX + beamX * drillLength * fraction,
+          cy = drillBaseY + beamY * drillLength * fraction,
+          tooth = drillSpread * 1.3;
+        g.lineBetween(cx - beamX * 2 * vehicleScale - drillPerpX * tooth,
+          cy - beamY * 2 * vehicleScale - drillPerpY * tooth,
+          cx + beamX * 2 * vehicleScale + drillPerpX * tooth,
+          cy + beamY * 2 * vehicleScale + drillPerpY * tooth);
+      }
+    }
+    if (drillTier >= 3) {
+      g.lineStyle(1.5 * vehicleScale, 0xd5f4d3, 0.92 * drillPulse);
+      g.strokeCircle(drillBaseX, drillBaseY, (5 + (drillTier - 3) * 1.4) * vehicleScale);
+    }
+    if (drillTier === 3) {
+      // Twin resonance nodes sit along the lance and pulse with the cutting cycle.
+      for (const fraction of [0.38, 0.72]) {
+        const cx = drillBaseX + beamX * drillLength * fraction,
+          cy = drillBaseY + beamY * drillLength * fraction;
+        g.fillStyle(0x183b3c, 0.95);
+        g.fillCircle(cx, cy, 3.2 * vehicleScale);
+        g.lineStyle(1.5 * vehicleScale, 0xc5fff0, 0.88 * drillPulse);
+        g.strokeCircle(cx, cy, 3.5 * vehicleScale);
+      }
+    }
+    if (drillTier >= 4) {
+      const finX = drillBaseX + beamX * 5 * vehicleScale,
+        finY = drillBaseY + beamY * 5 * vehicleScale;
+      g.lineStyle(2 * vehicleScale, 0xa6c3b4, 0.9);
+      for (const side of [-1, 1]) {
+        g.lineBetween(finX, finY, finX + drillPerpX * drillSpread * 2.3 * side,
+          finY + drillPerpY * drillSpread * 2.3 * side);
+      }
+    }
+    if (drillTier === 5) {
+      g.lineStyle(2.6 * vehicleScale, 0xffecad, drillPulse);
+      g.lineBetween(drillBaseX, drillBaseY, drillTipX, drillTipY);
+      g.fillStyle(0xffe9aa, 0.3 * drillPulse);
+      g.fillCircle(drillTipX, drillTipY, 5 * vehicleScale * drillPulse);
+      const heatX = drillBaseX + beamX * 4 * vehicleScale,
+        heatY = drillBaseY + beamY * 4 * vehicleScale;
+      g.lineStyle(2 * vehicleScale, 0xffd27f, 0.86 * drillPulse);
+      for (const side of [-1, 1]) {
+        const finX = heatX + drillPerpX * drillSpread * 1.65 * side,
+          finY = heatY + drillPerpY * drillSpread * 1.65 * side;
+        g.lineBetween(heatX, heatY, finX, finY);
+        g.lineBetween(finX, finY, finX - beamX * 4 * vehicleScale, finY - beamY * 4 * vehicleScale);
+      }
+      if (drillActive && this.mining.target) {
+        const target = this.mining.target,
+          hit = project(target.x * T + T / 2, target.y * T + T / 2),
+          pulse = drillPulse * (0.88 + cutProgress * 0.12);
+        // A dark edge keeps the earned laser legible against every planet palette.
+        g.lineStyle(11 * vehicleScale, 0x102529, 0.96);
+        g.lineBetween(drillTipX, drillTipY, hit.x, hit.y);
+        g.lineStyle(6 * vehicleScale, 0x75e8d2, 0.62 * pulse);
+        g.lineBetween(drillTipX, drillTipY, hit.x, hit.y);
+        g.lineStyle(2.6 * vehicleScale, 0xe0fff2, pulse);
+        g.lineBetween(drillTipX, drillTipY, hit.x, hit.y);
+        g.fillStyle(0x73e8d3, 0.34 * pulse);
+        g.fillCircle(hit.x, hit.y, 17 * pulse);
+        g.lineStyle(2 * vehicleScale, 0xffe3a0, 0.98 * pulse);
+        g.strokeCircle(hit.x, hit.y, 8 + cutProgress * 4);
+      }
+    }
+    g.fillStyle(drillColor, 1);
+    g.fillTriangle(
+      drillTipX + beamX * 4 * vehicleScale, drillTipY + beamY * 4 * vehicleScale,
+      drillTipX - beamX * 2 * vehicleScale + drillPerpX * drillSpread,
+      drillTipY - beamY * 2 * vehicleScale + drillPerpY * drillSpread,
+      drillTipX - beamX * 2 * vehicleScale - drillPerpX * drillSpread,
+      drillTipY - beamY * 2 * vehicleScale - drillPerpY * drillSpread,
+    );
     }
     if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, true);
     if (this.ui.hasStarted && !this.ui.paused && this.aimTile && this.pod.y > 0) {
@@ -1671,7 +2377,9 @@ export class MiningScene extends Phaser.Scene {
       }
     }
     if (!this.reducedMotion && this.mining.target && !this.ui.paused && Math.random() < 0.6) {
-      const targetDx = this.mining.target.x * T + T / 2 - this.pod.x;
+      const target = this.mining.target,
+        profile = drillImpactProfile(target, this.mapId),
+        targetDx = target.x * T + T / 2 - this.pod.x;
       const sideways = Math.abs(targetDx) > 20;
       const direction = sideways ? Math.sign(targetDx) || f : 0;
       this.particles.push({
@@ -1680,13 +2388,60 @@ export class MiningScene extends Phaser.Scene {
         vx: sideways ? direction * (45 + Math.random() * 70) : (Math.random() - 0.5) * 90,
         vy: sideways ? (Math.random() - 0.5) * 60 : -20 - Math.random() * 60,
         life: 0.2,
-        color: this.mining.target.type === 'hard' ? 0xcbbcd1 : 0xffd383,
+        color: profile.color,
         size: 2,
+        kind: profile.kind,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 8,
       });
     }
     for (const p of this.particles) {
-      g.fillStyle(p.color, Math.min(1, p.life * 2));
-      g.fillRect(sx(p.x), sy(p.y), p.size, p.size);
+      const screen = screenProject(p.x, p.y), alpha = Math.min(1, p.life * 2), size = p.size,
+        rotation = p.rotation ?? 0,
+        dx = Math.cos(rotation) * size, dy = Math.sin(rotation) * size;
+      g.fillStyle(p.color, alpha);
+      if (p.kind === 'dust') {
+        g.fillCircle(screen.x, screen.y, size * 0.55);
+      } else if (p.kind === 'spark') {
+        g.lineStyle(Math.max(1, size * 0.45), p.color, alpha);
+        g.lineBetween(screen.x - dx, screen.y - dy, screen.x + dx * 1.5, screen.y + dy * 1.5);
+      } else if (p.kind === 'glint') {
+        g.lineStyle(Math.max(1, size * 0.3), p.color, alpha);
+        g.lineBetween(screen.x - dx * 1.8, screen.y - dy * 1.8, screen.x + dx * 1.8, screen.y + dy * 1.8);
+        g.lineBetween(screen.x + dy * 1.8, screen.y - dx * 1.8, screen.x - dy * 1.8, screen.y + dx * 1.8);
+      } else if (p.kind === 'frost') {
+        g.fillPoints([
+          { x: screen.x + dx, y: screen.y + dy }, { x: screen.x - dy * 0.55, y: screen.y + dx * 0.55 },
+          { x: screen.x - dx, y: screen.y - dy }, { x: screen.x + dy * 0.55, y: screen.y - dx * 0.55 },
+        ], true);
+      } else if (p.kind === 'chip' || p.kind === 'shard') {
+        const tip = p.kind === 'shard' ? 1.8 : 1.3;
+        g.fillPoints([
+          { x: screen.x + dx * tip, y: screen.y + dy * tip },
+          { x: screen.x - dx + dy * 0.65, y: screen.y - dy - dx * 0.65 },
+          { x: screen.x - dx - dy * 0.65, y: screen.y - dy + dx * 0.65 },
+        ], true);
+      } else if (p.kind === 'ring') {
+        const radius = size + (0.3 - p.life) * 42;
+        g.lineStyle(Math.max(1, 1.5 * alpha), p.color, alpha);
+        g.strokeCircle(screen.x, screen.y, radius);
+      } else {
+        g.fillRect(screen.x - size / 2, screen.y - size / 2, size, size);
+      }
+    }
+    const fallSpeed = this.pod.vy * this.world.gravitySign(this.pod.y),
+      fallCue = fallMotionCueIntensity(this.pod.vy, this.world.gravitySign(this.pod.y));
+    if (!this.reducedMotion && !this.ui.paused && fallCue > 0) {
+      const flow = this.tick * (90 + fallSpeed * 0.32), span = h + 70;
+      g.lineStyle(1 + fallCue * 0.6, 0x9ce4cf, 0.22 + fallCue * 0.18);
+      for (let i = 0; i < 8; i++) {
+        const lane = Math.floor(i / 2), side = i % 2 === 0 ? 0.24 : 0.76,
+          x = w * side + (random(71, lane, i) - 0.5) * w * 0.08,
+          y = ((lane * 117 - flow) % span + span) % span - 35,
+          from = cameraUnzoomPoint({ x, y }, w, h, this.cameraZoom),
+          to = cameraUnzoomPoint({ x, y: y - (12 + fallCue * 20) }, w, h, this.cameraZoom);
+        g.lineBetween(from.x, from.y, to.x, to.y);
+      }
     }
     if (ground > 0)
       for (let i = 0; i < 18; i++) {

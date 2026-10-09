@@ -3,26 +3,49 @@ async (page) => {
   const baseURL = new URL(page.url()).origin;
   await page.evaluate(() => localStorage.clear());
   await page.goto('about:blank'); await page.goto(baseURL); await page.waitForFunction(() => !!window.__mars);
-  const seed = 77124;
+  const seed = 77124, chart = { columns: 471, radiusRows: 150 };
   const save = {
-    version: 10, campaignSeed: seed, activeMap: 'cryo-shelf',
-    maps: { 'cryo-shelf': { seed, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null } },
-    money: 80, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1 }, fuel: 140, hull: 100,
+    version: 20, planetChart: chart, campaignSeed: seed, activeMap: 'cryo-shelf',
+    maps: { 'cryo-shelf': { seed, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], planetChart: chart } },
+    money: 80, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 }, fuel: 140, hull: 100,
     cargo: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 }, maxDepth: 0, artifact: false,
     milestones: [], shipComponents: [], routeFragments: [], charges: 0,
     ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false,
     ownedSuits: ['hab'], selectedSuit: 'hab', ownedDecals: ['standard'], selectedDecal: 'standard',
-    ownedProfiles: ['standard'], selectedProfile: 'standard',
+    ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced',
+    stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: false,
   };
   await page.evaluate(data => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
   await page.reload(); await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
   const trips = [];
-  for (const [index, fragment] of ['fragment-1', 'fragment-2', 'fragment-3', 'fragment-4'].entries()) {
+  const descendSafelyTo = async (fragment) => {
+    const deadline = Date.now() + 180000;
     await page.keyboard.down('s');
+    while (Date.now() < deadline) {
+      const state = await page.evaluate(() => window.__mars);
+      if (state.routeFragments.includes(fragment)) return state;
+      if (state.hull <= 0 || state.fuel <= 0) break;
+      if (state.vy > 150) {
+        await page.keyboard.up('s');
+        await page.keyboard.down('w');
+        await page.waitForFunction(() => window.__mars && window.__mars.vy < 100, null, { timeout: 5000 });
+        await page.keyboard.up('w');
+        await page.keyboard.down('s');
+      } else await page.waitForTimeout(75);
+    }
+    throw Error(`Could not reach ${fragment} using warning-led braking: ${JSON.stringify(await page.evaluate(() => window.__mars))}`);
+  };
+  for (const [index, fragment] of ['fragment-1', 'fragment-2', 'fragment-3', 'fragment-4'].entries()) {
     try {
-      await page.waitForFunction(id => window.__mars?.routeFragments.includes(id), fragment, { timeout: 150000 });
-    } finally { await page.keyboard.up('s'); }
+      await descendSafelyTo(fragment);
+    } catch (error) {
+      const state = await page.evaluate(() => window.__mars),
+        summary = { x: state.x, y: state.y, depth: state.depth, fuel: state.fuel, hull: state.hull,
+          cargo: state.cargo, overlaps: state.overlaps, destroyed: state.destroyed.length, routeFragments: state.routeFragments };
+      await page.screenshot({ path: `output/playwright/campaign-route-blocked-${fragment}.png` });
+      throw Error(`Could not reach ${fragment} in compact campaign: ${JSON.stringify(summary)}; ${error}`);
+    } finally { await page.keyboard.up('s'); await page.keyboard.up('w'); }
     const mined = await page.evaluate(() => window.__mars);
     if (mined.overlaps || mined.hull <= 0 || mined.fuel <= 0) throw Error(`Unsafe after ${fragment}: ${JSON.stringify(mined)}`);
     trips.push({ fragment, depth: mined.depth, fuelAtFind: mined.fuel, hullAtFind: mined.hull, money: mined.money });
@@ -43,6 +66,16 @@ async (page) => {
     const service = page.locator('#service-all');
     if (await service.isEnabled()) await service.click();
     await page.locator('#close').click();
+    // Spend the early signal/ore earnings on the tools that make the deep vault reachable.
+    if (index === 2) {
+      await page.locator('#open-upgrades').click();
+      for (const upgrade of ['fuel', 'fuel', 'drill']) {
+        const button = page.locator(`#buy-${upgrade}`);
+        if (!(await button.isEnabled())) throw Error(`Campaign could not afford the ${upgrade} upgrade before the Faraday vault: ${JSON.stringify(await page.evaluate(() => window.__mars))}`);
+        await button.click();
+      }
+      await page.locator('#close').click();
+    }
     const ready = await page.evaluate(() => window.__mars);
     if (ready.fuel < 120 || ready.hull < 85) throw Error(`Could not safely service before next descent: ${JSON.stringify(ready)}`);
     trips[index].returnFuel = ready.fuel;

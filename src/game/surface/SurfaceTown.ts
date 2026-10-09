@@ -1,4 +1,128 @@
-import { TOWN_TIER_HEIGHTS } from './SurfaceStation';
+import { STATIONS, TOWN_TIER_HEIGHTS } from './SurfaceStation';
+import { WORLD } from '../config';
+
+/** Draw the Hab and service buildings in tangent/radial coordinates on a globe. */
+export function drawPlanetSurfaceOutpost(
+  g: Phaser.GameObjects.Graphics,
+  project: (x: number, y: number) => { x: number; y: number },
+  surfaceRow: number,
+  tier: number,
+  tick: number,
+  reducedMotion: boolean,
+) {
+  const far = surfaceRow > 0;
+  // Surface elevations and x positions are already world pixels; only the
+  // chart's surface row is in tiles. Scale that row once, then add elevation.
+  const surfaceWorldY = surfaceRow * WORLD.tile;
+  const at = (worldX: number, height: number) => project(worldX, surfaceWorldY + (far ? height : -height));
+  const poly = (points: { x: number; height: number }[]) => g.fillPoints(
+    points.map(({ x, height }) => at(x, height)), true,
+  );
+  const line = (x1: number, h1: number, x2: number, h2: number) => {
+    const a = at(x1, h1), b = at(x2, h2);
+    g.lineBetween(a.x, a.y, b.x, b.y);
+  };
+  const box = (x: number, width: number, bottom: number, height: number, color: number, alpha = 1) => {
+    g.fillStyle(color, alpha);
+    poly([
+      { x: x - width / 2, height: bottom }, { x: x + width / 2, height: bottom },
+      { x: x + width / 2, height: bottom + height }, { x: x - width / 2, height: bottom + height },
+    ]);
+  };
+  const arcBand = (left: number, right: number, bottom: number, height: number, color: number, alpha = 1) => {
+    const points: { x: number; height: number }[] = [];
+    const segments = Math.max(2, Math.ceil((right - left) / 28));
+    for (let i = 0; i <= segments; i++) points.push({ x: left + (right - left) * i / segments, height: bottom });
+    for (let i = segments; i >= 0; i--) points.push({ x: left + (right - left) * i / segments, height: bottom + height });
+    g.fillStyle(color, alpha);
+    poly(points);
+  };
+  const warm = 0xe8ba79, mint = 0x8be1cf, metal = 0x344443, edge = 0x83958a;
+
+  // A curved bed of regolith ties the buildings to the visible polar surface.
+  arcBand(400, 1580, 0, 9, 0x273631, 0.96);
+  g.lineStyle(2, 0x9c8061, 0.9);
+  line(400, 1, 1580, 1);
+
+  // Service huts and the ship frame use curved corners, so their feet track the globe.
+  for (const station of STATIONS) {
+    const color = station.color;
+    box(station.x, station.width + 18, 8, 59, 0x352e2c);
+    box(station.x, station.width, 8, 50, 0x39413e);
+    box(station.x, station.width - 10, 52, 5, 0x69736a);
+    box(station.x, station.width - 22, 16, 34, 0x202e30);
+    box(station.x, station.width - 32, 47, 3, color, 0.92);
+    for (let window = -2; window <= 2; window++) {
+      const wx = station.x + window * 17, p = at(wx, 34);
+      g.fillStyle(window === 0 ? 0xf3d29a : color, window === 0 ? 0.85 : 0.42);
+      g.fillRect(p.x - 4, p.y - 5, 8, 10);
+    }
+  }
+
+  // Launch frame remains a distinct campaign objective at either surface.
+  const shipX = 555;
+  g.lineStyle(2, 0x9aab9a, 0.7);
+  line(shipX - 43, 9, shipX - 43, 47);
+  line(shipX + 43, 9, shipX + 43, 47);
+  line(shipX - 43, 47, shipX + 43, 47);
+  if (tier > 0) {
+    g.fillStyle(0x98a79a, 0.95);
+    poly([{ x: shipX, height: 150 }, { x: shipX + 15, height: 124 }, { x: shipX + 12, height: 22 },
+      { x: shipX - 12, height: 22 }, { x: shipX - 15, height: 124 }]);
+    box(shipX, 18, 63, 20, 0x203239);
+  } else {
+    g.lineStyle(3, 0x38413e, 1);
+    line(490, 8, 490, 138); line(468, 8, 490, 98); line(512, 8, 490, 98);
+    g.lineStyle(2, 0xabac91, 1);
+    const mast = at(490, 138);
+    g.strokeCircle(mast.x, mast.y, 15);
+    line(469, 117, 511, 159);
+  }
+
+  // Tiered walkways are made from short chords; their projected ends follow the arc.
+  const deckXs = [430, 1540];
+  for (let level = 0; level <= tier; level++) {
+    const height = 132 + level * 94;
+    arcBand(deckXs[0], deckXs[1], height, 8, level === tier && tier >= 3 ? mint : metal, 0.98);
+    g.lineStyle(2, edge, 0.8);
+    line(deckXs[0], height + 12, deckXs[1], height + 12);
+    for (const tower of deckXs) {
+      g.lineStyle(4, metal, 0.98);
+      line(tower - 25, 8, tower - 25, height + 8);
+      line(tower + 25, 8, tower + 25, height + 8);
+      g.lineStyle(2, edge, 0.78);
+      for (let rung = 28; rung < height; rung += 28) line(tower - 25, rung, tower + 25, rung);
+    }
+    for (let post = deckXs[0] + 28; post < deckXs[1]; post += 62) {
+      const p = at(post, height + 17);
+      g.fillStyle((Math.floor(post / 62) + level) % 3 ? mint : warm, 0.86);
+      g.fillCircle(p.x, p.y, 2.1);
+    }
+  }
+  if (tier >= 1) {
+    box(720, 92, 140, 48, 0x465650);
+    box(1260, 92, 140, 48, 0x465650);
+    g.lineStyle(4, 0x334340, 1);
+    for (const tower of deckXs) line(tower - 25, 8, tower - 25, TOWN_TIER_HEIGHTS[tier]);
+  }
+  if (tier >= 2) {
+    g.lineStyle(2, warm, 0.84);
+    line(780, 244, 1430, 244);
+    box(1090, 54, 244, 18, 0x263330);
+    box(1090, 34, 249, 4, 0x8be1cf);
+  }
+  if (tier >= 3) {
+    g.lineStyle(3, metal, 1);
+    line(980, 414, 980, 540);
+    g.lineStyle(2, mint, 0.9);
+    line(946, 433, 1014, 433);
+    const beacon = at(980, 540);
+    g.fillStyle(mint, reducedMotion ? 0.85 : 0.65 + Math.sin(tick * 2.5) * 0.18);
+    g.fillCircle(beacon.x, beacon.y, 7);
+    g.lineStyle(2, mint, 0.7);
+    g.strokeCircle(beacon.x, beacon.y, reducedMotion ? 15 : 15 + Math.sin(tick * 2.5) * 2);
+  }
+}
 
 /** Draws the original, modular Hab 07 skyline as campaign records are recovered. */
 export function drawSurfaceTown(

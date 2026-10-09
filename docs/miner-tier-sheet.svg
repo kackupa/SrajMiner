@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 940" role="img" aria-labelledby="title desc">
+  <title id="title">Cold Signal miner visual progression concept</title>
+  <desc id="desc">Five original top-down miner silhouettes, from a compact Field Bit to a heat-finned Laser Miner, with the pilot and chassis retained as the drill hardware grows.</desc>
+  <defs>
+    <linearGradient id="back" x2="0" y2="1"><stop stop-color="#17242a"/><stop offset="1" stop-color="#0b1217"/></linearGradient>
+    <linearGradient id="hull" x2="0" y2="1"><stop stop-color="#d5b27b"/><stop offset="1" stop-color="#81745d"/></linearGradient>
+    <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#b4eee0"/><stop offset="1" stop-color="#3d7774"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#789087" stroke-opacity=".08"/></pattern>
+    <g id="chassis" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-30 20v30m60-30v30" stroke="#87978b" stroke-width="5"/>
+      <path d="M-28 41h56" stroke="#ddb879" stroke-width="3"/>
+      <rect x="-30" y="-20" width="11" height="39" rx="4" fill="#324448" stroke="#617672"/>
+      <rect x="19" y="-20" width="11" height="39" rx="4" fill="#324448" stroke="#617672"/>
+      <rect x="-23" y="-31" width="46" height="67" rx="10" fill="#111d20" stroke="#9aab9a" stroke-width="2"/>
+      <path d="M-15-25h30l7 9v36h-44v-36z" fill="url(#hull)" stroke="#e0c998" stroke-width="2"/>
+      <path d="M-11-15h22q5 0 5 5v14h-32V-10q0-5 5-5z" fill="url(#glass)" stroke="#75cdb9" stroke-width="1.5"/>
+      <path d="M-2-11h4v11H-2z" fill="#f1d39a" stroke="none"/><circle cx="0" cy="-8" r="2.5" fill="#e8ba79" stroke="none"/>
+      <path d="M-19 19h38" stroke="#3b544e" stroke-width="2"/><circle cx="-18" cy="-22" r="2" fill="#ffe0a0" stroke="none"/><circle cx="18" cy="-22" r="2" fill="#8be1cf" stroke="none"/>
+    </g>
+    <g id="pilot"><circle cx="0" cy="0" r="8" fill="#bf8261" stroke="#ead3ad" stroke-width="1.5"/><path d="M-5-2q5-6 10 0v3h-10z" fill="#163239" stroke="#8be1cf" stroke-width="1"/></g>
+  </defs>
+  <rect width="1600" height="940" fill="url(#back)"/><rect width="1600" height="940" fill="url(#grid)"/>
+  <text x="54" y="68" fill="#f0d5a6" font-family="monospace" font-size="16" letter-spacing="5">COLD SIGNAL / FIELD HARDWARE STUDY</text>
+  <text x="54" y="125" fill="#edf3e8" font-family="Arial,sans-serif" font-size="42" font-weight="700">A miner that tells its own story</text>
+  <text x="55" y="161" fill="#9eafa8" font-family="monospace" font-size="14" letter-spacing="1">DRILL HARDWARE GROWS · CABIN, PILOT AND COLLISION FOOTPRINT STAY FAMILIAR</text>
+  <g fill="#9eafa8" font-family="monospace" font-size="12" letter-spacing="1">
+    <text x="55" y="202">01 / CONTACT</text><text x="369" y="202">02 / REACH</text><text x="683" y="202">03 / RESONANCE</text><text x="997" y="202">04 / STABILITY</text><text x="1311" y="202">05 / ENERGY</text>
+  </g>
+  <g fill="#10191e" stroke="#52665f" stroke-width="1">
+    <rect x="42" y="220" width="294" height="475" rx="8"/><rect x="356" y="220" width="294" height="475" rx="8"/><rect x="670" y="220" width="294" height="475" rx="8"/><rect x="984" y="220" width="294" height="475" rx="8"/><rect x="1298" y="220" width="260" height="475" rx="8"/>
+  </g>
+  <g stroke="#45605b" stroke-width="1" stroke-dasharray="3 8" opacity=".55">
+    <path d="M189 270V655M503 270V655M817 270V655M1131 270V655M1428 270V655"/>
+  </g>
+  <!-- Tier 1: short contact bit. -->
+  <g transform="translate(189 440)">
+    <use href="#chassis"/><use href="#pilot" transform="translate(0 15)"/>
+    <path d="M20 0h24" stroke="#243238" stroke-width="8" stroke-linecap="round"/><path d="M20 0h24" stroke="#e4c286" stroke-width="3"/><path d="M43-6l10 6-10 6z" fill="#efcf8e" stroke="#fff0bd" stroke-width="1"/>
+    <circle cx="52" cy="0" r="9" fill="#e8ba79" opacity=".12"/>
+  </g>
+  <!-- Tier 2: extended twin rails and auger teeth. -->
+  <g transform="translate(503 440)">
+    <use href="#chassis"/><use href="#pilot" transform="translate(0 15)"/>
+    <path d="M20-6h69M20 6h69" stroke="#243238" stroke-width="6" stroke-linecap="round"/><path d="M20-6h69M20 6h69" stroke="#9bcfb4" stroke-width="2"/>
+    <path d="M48-10l6 8m7-8 6 8m7-8 6 8m7-8 6 8" stroke="#e5d8ad" stroke-width="2"/><path d="M88-10l13 10-13 10z" fill="#9bcfb4" stroke="#def2d6" stroke-width="1"/>
+  </g>
+  <!-- Tier 3: resonance collar and restrained pulse. -->
+  <g transform="translate(817 440)">
+    <use href="#chassis"/><use href="#pilot" transform="translate(0 15)"/>
+    <path d="M20 0h89" stroke="#243238" stroke-width="9" stroke-linecap="round"/><path d="M20 0h89" stroke="#73e1ce" stroke-width="2.5"/><rect x="48" y="-13" width="22" height="26" rx="6" fill="#254346" stroke="#73e1ce" stroke-width="2"/><path d="M54-9q9 9 0 18m10-18q-9 9 0 18" fill="none" stroke="#b3fff0" stroke-width="1.5"/><path d="M109-10l15 10-15 10z" fill="#73e1ce" stroke="#d2fff7" stroke-width="1"/>
+    <circle cx="131" cy="0" r="21" fill="none" stroke="#73e1ce" stroke-opacity=".35" stroke-width="2"/><circle cx="131" cy="0" r="31" fill="none" stroke="#73e1ce" stroke-opacity=".16" stroke-width="2"/>
+  </g>
+  <!-- Tier 4: stabilization arms hold a precise long bore. -->
+  <g transform="translate(1131 440)">
+    <use href="#chassis"/><use href="#pilot" transform="translate(0 15)"/>
+    <path d="M20 0h99" stroke="#243238" stroke-width="10" stroke-linecap="round"/><path d="M20 0h99" stroke="#9bd8f0" stroke-width="2.5"/><path d="M23-10l22-16 17 2m-39 34 22 16 17-2" fill="none" stroke="#718b83" stroke-width="4"/><path d="M28-7l17 7-17 7m23-20 13 13-13 13" fill="none" stroke="#9bd8f0" stroke-width="1.5"/><path d="M119-11l17 11-17 11z" fill="#9bd8f0" stroke="#d9f3fc" stroke-width="1"/>
+  </g>
+  <!-- Tier 5: emitter fins and bright channel. -->
+  <g transform="translate(1428 440)">
+    <use href="#chassis"/><use href="#pilot" transform="translate(0 15)"/>
+    <path d="M20 0h82" stroke="#243238" stroke-width="11" stroke-linecap="round"/><path d="M20 0h82" stroke="#ffd27f" stroke-width="2.5"/><rect x="44" y="-13" width="29" height="26" rx="5" fill="#293d39" stroke="#ffd27f" stroke-width="2"/><path d="M49-9v-8m8 8v-12m8 12v-8m-16 37v-8m8 8V20m8 8v-8" stroke="#d6aa67" stroke-width="3"/><path d="M102-12l16 12-16 12z" fill="#8be1cf" stroke="#ddfff5" stroke-width="1.5" filter="url(#glow)"/><path d="M119 0h20" stroke="#8be1cf" stroke-width="5" stroke-opacity=".75" filter="url(#glow)"/><path d="M119-5h18m-18 10h18" stroke="#d7fff6" stroke-width="1.2" opacity=".8"/>
+  </g>
+  <g font-family="monospace" text-anchor="middle">
+    <g fill="#f0d5a6" font-size="18" font-weight="bold"><text x="189" y="540">FIELD BIT</text><text x="503" y="540">EXTENDED AUGER</text><text x="817" y="540">RESONANCE LANCE</text><text x="1131" y="540">SURVEY BORE</text><text x="1428" y="540">LASER MINER</text></g>
+    <g fill="#9eafa8" font-size="12"><text x="189" y="566">CONTACT CUTTER</text><text x="503" y="566">LONGER REACH / TEETH</text><text x="817" y="566">PULSED IMPACT</text><text x="1131" y="566">BRACED CUTTING</text><text x="1428" y="566">HEAT / VENT RHYTHM</text></g>
+  </g>
+  <path d="M54 735H1546" stroke="#496158"/>
+  <g font-family="monospace">
+    <text x="56" y="781" fill="#8be1cf" font-size="13" letter-spacing="2">KEEP</text>
+    <text x="56" y="813" fill="#e5ede5" font-size="16">Same cabin silhouette · visible pilot · pivoting drill · compact collider</text>
+    <text x="56" y="846" fill="#9eafa8" font-size="13">Earned tiers change hardware and cut behavior. Paint, suit, decal and profile remain player choice.</text>
+    <text x="1040" y="781" fill="#e8ba79" font-size="13" letter-spacing="2">NEXT REVIEW</text>
+    <text x="1040" y="813" fill="#e5ede5" font-size="15">Check aim, scale, landing and readability</text>
+    <text x="1040" y="840" fill="#9eafa8" font-size="13">before replacing the current vector pod.</text>
+  </g>
+  <text x="1544" y="913" fill="#647972" font-family="monospace" font-size="11" text-anchor="end" letter-spacing="1">ORIGINAL CONCEPT · NOT IN-GAME ART</text>
+</svg>

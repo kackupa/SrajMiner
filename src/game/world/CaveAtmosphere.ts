@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { CAVE_ATMOSPHERE, FAR_SURFACE_Y, WORLD } from '../config';
+import { CAVE_ATMOSPHERE, WORLD } from '../config';
 import { TileWorld, keyOf } from './TileWorld';
 
 type Mote = {
@@ -38,7 +38,7 @@ export class CaveAtmosphere {
 
   private open(world: TileWorld, x: number, y: number) {
     const tx = Math.floor(x / WORLD.tile), ty = Math.floor(y / WORLD.tile);
-    return y > 0 && y < FAR_SURFACE_Y && world.discovered.has(keyOf(tx, ty)) && !world.solid(tx, ty);
+    return y > 0 && y < world.farSurfaceY && world.discovered.has(keyOf(tx, ty)) && !world.solid(tx, ty);
   }
 
   update(world: TileWorld, dt: number, view: AtmosphereView, reducedMotion: boolean, paused: boolean) {

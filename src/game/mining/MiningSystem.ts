@@ -1,6 +1,10 @@
-import { CHARGE, FUEL, PHYSICS, SALVAGE_MAGNET, WORLD, drillWidth, type Ore } from '../config';
+import { CHARGE, CORE, FUEL, PHYSICS, SALVAGE_MAGNET, WORLD, drillReachTiles, drillWidth, type Ore } from '../config';
 import { Progress } from '../economy/Progress';
 import { TileWorld, type Tile } from '../world/TileWorld';
+import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetWorldX } from '../world/PlanetChart';
+export function directionalDrillOrientation(input: { left: boolean; right: boolean; down: boolean }): 'horizontal' | 'vertical' {
+  return input.left || input.right ? 'horizontal' : 'vertical';
+}
 export function chargeTargets(world: TileWorld, centerX: number, centerY: number, radius: number) {
   const targets: Tile[] = [];
   for (let dy = -radius; dy <= radius; dy++)
@@ -17,7 +21,7 @@ export function aimedDrillTarget(
   podY: number,
   aimX: number,
   aimY: number,
-  maxDistance = WORLD.tile * 1.8,
+  maxDistance = WORLD.tile * drillReachTiles(1),
 ) {
   const dx = aimX - podX, dy = aimY - podY, length = Math.hypot(dx, dy);
   if (length < 1) return undefined;
@@ -38,12 +42,31 @@ export function collectOreDrop(progress: Progress, drop: { ore: Ore; units: numb
   if (collected > 0) drop.units = Math.round((drop.units - collected) * 2) / 2;
   return collected;
 }
-export function podWithinPickupReach(podX: number, podY: number, dropX: number, dropY: number) {
+function planetPoint(world: TileWorld, x: number, y: number) {
+  const chart = world.planetChart!;
+  return planetChartToCartesian({ u: x / WORLD.tile, v: y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile);
+}
+export function podWithinPickupReach(podX: number, podY: number, dropX: number, dropY: number, world?: TileWorld) {
+  if (world?.planetChart) {
+    const pod = planetPoint(world, podX, podY), drop = planetPoint(world, dropX, dropY);
+    return Math.hypot(drop.x - pod.x, drop.y - pod.y) <= CHARGE.pickupRadius + Math.hypot(PHYSICS.halfWidth, PHYSICS.halfHeight);
+  }
   const dx = Math.max(0, Math.abs(dropX - podX) - PHYSICS.halfWidth),
     dy = Math.max(0, Math.abs(dropY - podY) - PHYSICS.halfHeight);
   return Math.hypot(dx, dy) <= CHARGE.pickupRadius;
 }
 export function hasClearMagnetPath(world: TileWorld, fromX: number, fromY: number, toX: number, toY: number) {
+  if (world.planetChart) {
+    const from = planetPoint(world, fromX, fromY), to = planetPoint(world, toX, toY),
+      dx = to.x - from.x, dy = to.y - from.y,
+      steps = Math.ceil(Math.hypot(dx, dy) / (WORLD.tile * 0.3));
+    for (let i = 1; i < steps; i++) {
+      const chart = world.planetChart,
+        point = planetCartesianToChart({ x: from.x + dx * i / steps, y: from.y + dy * i / steps }, chart.columns, chart.radiusRows, WORLD.tile);
+      if (world.solid(Math.floor(point.u), Math.floor(point.v))) return false;
+    }
+    return true;
+  }
   const dx = toX - fromX, dy = toY - fromY;
   const steps = Math.ceil(Math.hypot(dx, dy) / (WORLD.tile * 0.3));
   for (let i = 1; i < steps; i++) {
@@ -60,14 +83,40 @@ export function applySalvageMagnet(
   podY: number,
   dt: number,
 ) {
-  const dx = podX - drop.x, dy = podY - drop.y, distance = Math.hypot(dx, dy);
-  if (distance > SALVAGE_MAGNET.radius || distance < 1 || !hasClearMagnetPath(world, drop.x, drop.y, podX, podY)) return false;
-  drop.vx += dx / distance * SALVAGE_MAGNET.acceleration * dt;
-  drop.vy += dy / distance * SALVAGE_MAGNET.acceleration * dt;
-  const speed = Math.hypot(drop.vx, drop.vy);
+  const chart = world.planetChart,
+    from = chart ? planetPoint(world, drop.x, drop.y) : undefined,
+    to = chart ? planetPoint(world, podX, podY) : undefined,
+    dx = to && from ? to.x - from.x : podX - drop.x,
+    dy = to && from ? to.y - from.y : podY - drop.y,
+    distance = Math.hypot(dx, dy);
+  if (distance > SALVAGE_MAGNET.radius || distance < 0.001 || !hasClearMagnetPath(world, drop.x, drop.y, podX, podY)) return false;
+  if (chart && from) {
+    const acceleration = planetCartesianVectorToWorld({ u: drop.x / WORLD.tile, v: drop.y / WORLD.tile }, {
+      x: dx / distance * SALVAGE_MAGNET.acceleration * dt,
+      y: dy / distance * SALVAGE_MAGNET.acceleration * dt,
+    }, chart.columns, chart.radiusRows, WORLD.tile);
+    drop.vx += acceleration.x;
+    drop.vy += acceleration.y;
+  } else {
+    drop.vx += dx / distance * SALVAGE_MAGNET.acceleration * dt;
+    drop.vy += dy / distance * SALVAGE_MAGNET.acceleration * dt;
+  }
+  const physicalVelocity = chart
+      ? planetChartVectorToCartesian({ u: drop.x / WORLD.tile, v: drop.y / WORLD.tile }, { du: drop.vx / WORLD.tile, dv: drop.vy / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile)
+      : { dx: drop.vx, dy: drop.vy },
+    speed = Math.hypot(physicalVelocity.dx, physicalVelocity.dy);
   if (speed > SALVAGE_MAGNET.maxSpeed) {
-    drop.vx *= SALVAGE_MAGNET.maxSpeed / speed;
-    drop.vy *= SALVAGE_MAGNET.maxSpeed / speed;
+    const scale = SALVAGE_MAGNET.maxSpeed / speed;
+    if (chart) {
+      const velocity = planetCartesianVectorToWorld({ u: drop.x / WORLD.tile, v: drop.y / WORLD.tile }, {
+        x: physicalVelocity.dx * scale, y: physicalVelocity.dy * scale,
+      }, chart.columns, chart.radiusRows, WORLD.tile);
+      drop.vx = velocity.x;
+      drop.vy = velocity.y;
+    } else {
+      drop.vx *= scale;
+      drop.vy *= scale;
+    }
   }
   return true;
 }
@@ -80,13 +129,18 @@ export function updateOreDropPhysics(
   drop.vy = Math.max(-220, Math.min(220, drop.vy + gravitySign * 185 * dt));
   const nextX = drop.x + drop.vx * dt,
     nextY = drop.y + drop.vy * dt,
-    solidX = Math.floor(nextX / WORLD.tile),
-    solidY = Math.floor((nextY + gravitySign * 5) / WORLD.tile);
+    seam = world.planetChart
+      ? wrapPlanetWorldX(nextX, nextY, drop.vx, drop.vy, 0, 0, world.widthTiles * WORLD.tile, world.farSurfaceY)
+      : { x: nextX, y: nextY, vx: drop.vx, vy: drop.vy },
+    nextGravity = world.gravitySign(seam.y),
+    solidX = Math.floor(seam.x / WORLD.tile),
+    solidY = Math.floor((seam.y + nextGravity * 5) / WORLD.tile);
   if (!world.solid(solidX, solidY)) {
-    drop.x = nextX;
-    drop.y = nextY;
+    drop.x = seam.x;
+    drop.y = seam.y;
+    drop.vy = seam.vy;
   } else {
-    drop.vy = drop.vy * gravitySign > 16 ? -drop.vy * 0.2 : 0;
+    drop.vy = seam.vy * nextGravity > 16 ? -seam.vy * 0.2 : 0;
     drop.vx *= -0.35;
   }
   drop.vx *= Math.max(0, 1 - dt * 1.8);
@@ -108,6 +162,7 @@ export class MiningSystem {
   target?: Tile;
   elapsed = 0;
   ratio = 0;
+  effectiveWidth = 1;
   warningRemaining = 0;
   cargoOverflow = false;
   warningUnits = 0;
@@ -127,11 +182,22 @@ export class MiningSystem {
       this.affected = [];
       this.elapsed = 0;
       this.ratio = 0;
+      this.effectiveWidth = drillWidth(this.progress.levels.drill);
       return;
     }
     if (this.target?.x !== tile.x || this.target?.y !== tile.y) this.elapsed = 0;
     this.target = tile;
-    const width = drillWidth(this.progress.levels.drill);
+    const chart = this.world.planetChart,
+      radialAim = typeof orientation === 'string' ? orientation === 'vertical' : Math.abs(orientation.y) >= Math.abs(orientation.x),
+      radiusRowsAtTarget = chart ? Math.abs(chart.radiusRows - (tile.y + 0.5)) : Infinity,
+      tangentCellWidth = chart ? Math.max(0.1, WORLD.tile * radiusRowsAtTarget * Math.PI / chart.columns) : WORLD.tile,
+      physicalClearanceWidth = chart && radialAim && radiusRowsAtTarget * WORLD.tile > CORE.physicalPassageRadius
+        ? Math.ceil((2 * PHYSICS.halfWidth + 4) / tangentCellWidth)
+        : 1,
+      upgradeWidth = drillWidth(this.progress.levels.drill),
+      width = Math.max(upgradeWidth, physicalClearanceWidth),
+      fuelWidth = Math.max(1, upgradeWidth / physicalClearanceWidth);
+    this.effectiveWidth = width;
     const spanStart = -Math.floor((width - 1) / 2);
     this.affected = Array.from({ length: width }, (_, index) => {
       const offset = spanStart + index;
@@ -148,7 +214,10 @@ export class MiningSystem {
     this.cargoOverflow = units > 0 && units > this.warningSpace;
     // Overflow is recoverable: keep cutting and leave any uncollected yield in the mine.
     this.warningRemaining = 0;
-    this.progress.fuel = Math.max(0, this.progress.fuel - dt * FUEL.drilling * width);
+    // Angular cells physically shrink toward the core. The extra adjacent cells
+    // are mandatory hull clearance, not a free multi-drill upgrade, so only
+    // charge additional fuel when the purchased tier exceeds that baseline.
+    this.progress.fuel = Math.max(0, this.progress.fuel - dt * FUEL.drilling * fuelWidth);
     this.ratio = Math.min(1, this.elapsed / this.progress.drillTime(tile.hardness));
     if (this.ratio >= 1) {
       for (const target of this.affected) {
@@ -160,6 +229,7 @@ export class MiningSystem {
       this.affected = [];
       this.elapsed = 0;
       this.ratio = 0;
+      this.effectiveWidth = drillWidth(this.progress.levels.drill);
       this.cargoOverflow = false;
       this.warningUnits = 0;
     }
