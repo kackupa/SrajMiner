@@ -20,6 +20,10 @@ An isolated Chrome view at 1280×800 loaded a version-26 Cryo Shelf save with al
 
 An isolated 1280×800 Chrome run used the mouse wheel in both directions. Zoom-out settled the local view at 0.62× before beginning the orbital handoff; the transition completed at 0.62× globe zoom. Zoom-in completed the reverse handoff before local zoom resumed at 1.06×. Captures: `output/playwright/globe-zoom-handoff.png` and `output/playwright/globe-zoom-return.png`. This confirms runtime transition ordering and scale; subjective readability and speed still need player feedback.
 
+## Low-fuel stranded recovery — 2026-10-10
+
+An isolated Chrome run started a version-26 campaign at the Cryo Shelf surface with 0.02 L fuel and 2 copper. Holding S drilled to 82 m and exhausted the tank; the miner remained there with full hull, cargo, and credits, and the explicit recovery control appeared. Only after clicking recovery did the miner return to the surface with 140 L and lose the unsold cargo. No automatic surface teleport occurred in this scenario. The original blocked-movement report still needs an ordinary player run; curved collision and obstruction-drilling have system coverage.
+
 ## Grapple toggle and release — 2026-10-10
 
 Press **G** to toggle automatic catches on or off. Turning the grapple off immediately releases an active tether; **W** retains its existing behavior of releasing and thrusting away. The HUD shows the G hint only after the grapple is installed, and the catch toast confirms each toggle. Toggle state is session-only and starts enabled when the purchased grapple is available. System coverage verifies that disabling it suppresses automatic catches and that manual release resumes gravity without thrust or fuel cost. An isolated Chrome run verified the installed control hint and both G toggle states without touching the player tab.
