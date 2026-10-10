@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CORE, CORE_FUEL, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
+import { loadGrappleEnabled, saveGrappleEnabled } from './player/GrapplePreference';
 import { Progress, emptyCargo, type Cargo } from './economy/Progress';
 import { tradeRouteEdges } from './economy/TradeNetwork';
 import { transferWarehouseOre, type WarehouseDirection } from './economy/Warehouse';
@@ -78,7 +79,7 @@ export class MiningScene extends Phaser.Scene {
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
   mothershipBoarded = false;
-  private grappleEnabled = true;
+  private grappleEnabled = loadGrappleEnabled();
   private grappleKeyWasDown = false;
   buildPlacementLabel!: Phaser.GameObjects.Text;
   cameraFlipLabel!: Phaser.GameObjects.Text;
@@ -1657,6 +1658,7 @@ export class MiningScene extends Phaser.Scene {
       this.grappleKeyWasDown = grappleKeyDown;
       if (grappleKeyPressed && this.progress.grappleOwned && !this.mothershipBoarded) {
         this.grappleEnabled = !this.grappleEnabled;
+        saveGrappleEnabled(this.grappleEnabled);
         this.ui.setGrappleEnabled(this.grappleEnabled);
         this.ui.toast(this.grappleEnabled ? 'SAFETY GRAPPLE ON · G TO DISABLE' : 'SAFETY GRAPPLE OFF · G TO ENABLE');
       }

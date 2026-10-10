@@ -547,3 +547,7 @@ Charted globes now hold the miner above the crust at every longitude, including 
 ## Stackable surface walls — 2026-10-10
 
 During perimeter-wall placement, Left/Right moves along the crust and Up/Down selects the wall layer. Elevated pieces require a supporting wall directly below, adjacent walls still join into continuous runs, and overlapping the same layer is blocked. Outward home-side layers persist with the current version-24 save format; no migration is needed. `npm test` passes 158 system tests plus cave-atmosphere coverage, and the production build passes with the existing large-bundle advisory. Isolated Chromium placed a base wall and a second wall at the same longitude one layer outward; both persisted. Screenshot: `output/playwright/wall-stack-placement.png`.
+
+## Grapple preference persistence — 2026-10-10
+
+Pressing G toggles the purchased automatic safety grapple; switching it off releases an active tether, and W still releases while thrusting. The on/off preference now persists in a separate device setting across scene reloads, leaving the version-26 campaign save unchanged. System coverage verifies default-on behavior, both saved states, and safe fallback when browser storage is unavailable. `npm test` passes 164 system tests plus cave-atmosphere coverage, and `npm run build` passes. Vite reports its existing large-JavaScript-chunk advisory. Browser key-input playtest remains useful for confirming the control feels discoverable.

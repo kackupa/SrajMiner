@@ -14,6 +14,7 @@ import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolum
 import { MiningSystem, aimedDrillTarget, effectiveDrillReach, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from '../src/game/mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile } from '../src/game/mining/DrillEffects';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
+import { loadGrappleEnabled, saveGrappleEnabled } from '../src/game/player/GrapplePreference';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
 import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_FUEL, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
@@ -1561,6 +1562,36 @@ test('disabled grapple cannot catch a fall', () => {
   pod.vy = 250;
   pod.update(1 / 60, { ...idle, grappleEnabled: false }, () => {});
   assert.equal(pod.grappleAnchor, undefined, 'turning the safety hook off suppresses automatic catches');
+});
+test('grapple toggle preference persists locally and tolerates unavailable storage', () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const values = new Map<string, string>();
+  try {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    });
+    assert.equal(loadGrappleEnabled(), true, 'the default safety setting remains enabled');
+    saveGrappleEnabled(false);
+    assert.equal(loadGrappleEnabled(), false, 'a disabled preference survives scene recreation');
+    saveGrappleEnabled(true);
+    assert.equal(loadGrappleEnabled(), true, 'the player can restore automatic catches');
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: () => { throw Error('denied'); },
+        setItem: () => { throw Error('quota'); },
+      },
+    });
+    assert.equal(loadGrappleEnabled(), true, 'storage failure falls back to the safe default');
+    assert.doesNotThrow(() => saveGrappleEnabled(false), 'in-session toggling remains available');
+  } finally {
+    if (previous) Object.defineProperty(globalThis, 'localStorage', previous);
+    else delete (globalThis as any).localStorage;
+  }
 });
 test('automatic grapple waits for a damaging landing inside its short lookahead', () => {
   const world = new TileWorld(193), pod = new PlayerPod(world, new Progress());
