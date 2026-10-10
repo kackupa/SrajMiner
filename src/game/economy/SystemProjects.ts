@@ -53,12 +53,53 @@ export const CARGO_TUG_PROJECT = {
   stages: readonly { milestone: string; mapId: MapId; ore: Ore; units: number; label: string }[];
 };
 
+export const SURVEY_ARRAY_PROJECT = {
+  id: 'project-survey-array',
+  completionMilestone: 'project-survey-array-online',
+  scannerRadiusBonus: 2,
+  stages: [
+    { milestone: 'project-survey-cryo', mapId: 'cryo-shelf', ore: 'silver', units: 2, label: 'TUNE THE ICE-SHELF RECEIVER' },
+    { milestone: 'project-survey-cinder', mapId: 'cinder-vale', ore: 'gold', units: 3, label: 'CALIBRATE THE DEEP-RANGE DISH' },
+    { milestone: 'project-survey-vesper', mapId: 'vesper-9', ore: 'diamond', units: 2, label: 'LOCK THE FARADAY ARRAY' },
+  ],
+} as const satisfies {
+  id: string;
+  completionMilestone: string;
+  scannerRadiusBonus: number;
+  stages: readonly { milestone: string; mapId: MapId; ore: Ore; units: number; label: string }[];
+};
+
 export const SYSTEM_PROJECT_MILESTONES = [
   ...VESPER_RELAY_PROJECT.stages.map((stage) => stage.milestone),
   VESPER_RELAY_PROJECT.completionMilestone,
   ...CARGO_TUG_PROJECT.stages.map((stage) => stage.milestone),
   CARGO_TUG_PROJECT.completionMilestone,
+  ...SURVEY_ARRAY_PROJECT.stages.map((stage) => stage.milestone),
+  SURVEY_ARRAY_PROJECT.completionMilestone,
 ];
+
+export function surveyArrayProgress(milestones: readonly string[]) {
+  const completedStages = SURVEY_ARRAY_PROJECT.stages.filter((stage) => milestones.includes(stage.milestone)).length,
+    complete = milestones.includes(SURVEY_ARRAY_PROJECT.completionMilestone);
+  return { completedStages, totalStages: SURVEY_ARRAY_PROJECT.stages.length, complete,
+    next: complete ? undefined : SURVEY_ARRAY_PROJECT.stages.find((stage) => !milestones.includes(stage.milestone)) };
+}
+
+/** A contribution consumes only the requested stock from the current planet's warehouse. */
+export function contributeSurveyArray(milestones: string[], mapId: MapId, warehouse: Cargo) {
+  const project = surveyArrayProgress(milestones), stage = project.next;
+  if (!stage || stage.mapId !== mapId || warehouse[stage.ore] < stage.units) return { contributed: false, completed: false, stage };
+  warehouse[stage.ore] -= stage.units;
+  milestones.push(stage.milestone);
+  const completed = surveyArrayProgress(milestones).completedStages === SURVEY_ARRAY_PROJECT.stages.length;
+  if (completed) milestones.push(SURVEY_ARRAY_PROJECT.completionMilestone);
+  return { contributed: true, completed, stage };
+}
+
+export function surveyScannerRadius(baseRadius: number, specializationBonus: number, milestones: readonly string[], width: number) {
+  const projectBonus = milestones.includes(SURVEY_ARRAY_PROJECT.completionMilestone) ? SURVEY_ARRAY_PROJECT.scannerRadiusBonus : 0;
+  return Math.min(width, baseRadius + specializationBonus + projectBonus);
+}
 
 export function cargoTugProgress(milestones: readonly string[]) {
   const completedStages = CARGO_TUG_PROJECT.stages.filter((stage) => milestones.includes(stage.milestone)).length,

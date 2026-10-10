@@ -9,18 +9,21 @@ import { emptyCargo } from '../src/game/economy/Progress';
 import { transferWarehouseOre } from '../src/game/economy/Warehouse';
 import { buildSaleReceipt } from '../src/game/economy/Sale';
 import { PLANET_SURFACE_LANDMARKS, surfaceLandmarks } from '../src/game/surface/PlanetScenery';
-import { cargoTugProgress, contributeCargoTug, contributeVesperRelay, remoteWarehouseAccess, vesperRelayProgress, CARGO_TUG_PROJECT, VESPER_RELAY_PROJECT, SYSTEM_PROJECT_MILESTONES } from '../src/game/economy/SystemProjects';
+import { cargoTugProgress, contributeCargoTug, contributeSurveyArray, contributeVesperRelay, remoteWarehouseAccess, surveyArrayProgress, surveyScannerRadius, vesperRelayProgress, CARGO_TUG_PROJECT, SURVEY_ARRAY_PROJECT, VESPER_RELAY_PROJECT, SYSTEM_PROJECT_MILESTONES } from '../src/game/economy/SystemProjects';
 import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolume, parseAudioMix, startingMusicPhase } from '../src/game/audio/AudioSystem';
 import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from '../src/game/mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile } from '../src/game/mining/DrillEffects';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
-import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
+import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
 import { tradeRouteEdges, VESPER_SYSTEM_POSITIONS } from '../src/game/economy/TradeNetwork';
 import { MARKET_CONTRACTS, advanceMarketDemand, contractReady, marketDemand, marketDemandBonus } from '../src/game/economy/MarketContracts';
 import { campaignObjective, drawOreSymbol, flightWarning } from '../src/game/ui/HUD';
 import { restoreMapState, snapshotMapState } from '../src/game/campaign/MapState';
+import { emergencyRecoveryDock } from '../src/game/campaign/Recovery';
+import { isInOrbit, orbitAltitude, orbitalParkingY } from '../src/game/campaign/Orbit';
+import { findSurfaceWinchRoute } from '../src/game/campaign/WinchRoute';
 import { atSurface, dockedOnSurface, onPlanetSurface, surfaceTownTier, TOWN_TIER_HEIGHTS, MAX_TOWN_ALTITUDE } from '../src/game/surface/SurfaceStation';
 import { campaignMapRecords, collectCoreRelic, coreSurveyProgress, crewArchiveRestored } from '../src/game/campaign/Records';
 import { advanceOrbitalTransition, cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, GLOBE_HANDOFF_ZOOM, orbitalOverviewMinZoom, planetCameraFrameAngle, screenDirectionToWorld, screenToWorld, worldDirectionToScreen, worldToScreen } from '../src/game/world/Projection';
@@ -170,6 +173,27 @@ test('Cargo Tug project funds remote warehouse access through ordered local dona
     'remote access requires a built warehouse at that destination');
   assert.ok(SYSTEM_PROJECT_MILESTONES.includes(CARGO_TUG_PROJECT.completionMilestone), 'the version-24 milestone list persists completion');
 });
+test('Long-Range Survey Array expands scanner reach through ordered warehouse donations', () => {
+  const milestones: string[] = [], cryoStock = { ...emptyCargo(), silver: 2 }, cinderStock = { ...emptyCargo(), gold: 3 },
+    vesperStock = { ...emptyCargo(), diamond: 2 };
+  assert.equal(contributeSurveyArray(milestones, 'cinder-vale', cinderStock).contributed, false,
+    'a later-world donation cannot skip the route');
+  assert.equal(contributeSurveyArray(milestones, 'cryo-shelf', { ...emptyCargo(), silver: 1 }).contributed, false,
+    'insufficient stored ore cannot advance the array');
+  assert.equal(contributeSurveyArray(milestones, 'cryo-shelf', cryoStock).contributed, true);
+  assert.equal(cryoStock.silver, 0);
+  assert.equal(surveyArrayProgress(milestones).next?.mapId, 'cinder-vale');
+  assert.equal(contributeSurveyArray(milestones, 'cinder-vale', cinderStock).contributed, true);
+  assert.equal(surveyArrayProgress(milestones).next?.mapId, 'vesper-9');
+  assert.equal(contributeSurveyArray(milestones, 'vesper-9', vesperStock).completed, true);
+  assert.equal(vesperStock.diamond, 0);
+  assert.equal(surveyArrayProgress(milestones).complete, true);
+  assert.equal(surveyScannerRadius(8, 1, [], 64), 9, 'the array has no effect before completion');
+  assert.equal(surveyScannerRadius(8, 1, milestones, 64), 11, 'completion adds two tiles beyond upgrade and path bonuses');
+  assert.equal(surveyScannerRadius(63, 1, milestones, 64), 64, 'scanner reach respects each world’s width');
+  assert.ok(SYSTEM_PROJECT_MILESTONES.includes(SURVEY_ARRAY_PROJECT.completionMilestone),
+    'the project persists in the existing version-24 milestone field');
+});
 test('planet warehouses transfer selected half-unit ore without exceeding miner capacity', () => {
   const cargo = { ...emptyCargo(), copper: 2.5, iron: 1 }, warehouse = { ...emptyCargo(), copper: 4.5 };
   const stored = transferWarehouseOre(cargo, warehouse, 'copper', 'store', 1.5, 6);
@@ -237,17 +261,20 @@ test('planetary buy orders pay once only at their local Trading Post and persist
   assert.equal(p.claimMarketContract('cryo-shelf', true), 0, 'a claimed stage cannot pay again');
   assert.equal(p.claimMarketContract('prism-fault', true), 0, 'contracts remain planet-specific');
 });
-test('campaign objective tracks route signals, ship assembly, core records and emergency rescue', () => {
+test('campaign objective tracks ship-part collection, core records and emergency rescue', () => {
   const p = new Progress();
   let objective = campaignObjective(p, 'cryo-shelf');
   assert.match(objective.title, /0\/4/);
   assert.match(objective.body, /THERMAL OBSERVATORY · 96 M/);
-  p.routeFragments = ROUTE_FRAGMENTS.map((fragment) => fragment.id);
+  assert.match(objective.body, /Drill the glowing ship part\. It installs automatically/);
+  for (const fragment of ROUTE_FRAGMENTS) p.collectRouteFragment(fragment.id);
   objective = campaignObjective(p, 'cryo-shelf');
-  assert.match(objective.title, /ASSEMBLE THE FARADAY · 0\/4 SYSTEMS/);
-  p.shipComponents = Object.keys(SHIP_COMPONENTS);
-  objective = campaignObjective(p, 'cryo-shelf');
-  assert.match(objective.title, /PLANET CORE RECORD · CRYO SHELF/);
+  assert.equal(p.shipComplete, true);
+  assert.match(objective.title, /INTERPLANETARY MINER · FARADAY READY/);
+  assert.match(objective.body, /Hold W.*orbit.*WORLDS.*travel between planets/i);
+  objective = campaignObjective(p, 'cryo-shelf', 0, false, true);
+  assert.match(objective.title, /FARADAY IN ORBIT/);
+  assert.match(objective.body, /WORLDS.*S TO DESCEND/i);
   p.milestones.push(CORE_RELICS.find((relic) => relic.mapId === 'cryo-shelf')!.id);
   objective = campaignObjective(p, 'cryo-shelf');
   assert.match(objective.title, /FARADAY CORE LEDGER · 1\/6/);
@@ -399,7 +426,7 @@ test('polar core chamber has physical clearance and the miner collides with curv
     row = 75, column = WORLD.homeColumn + 1;
   world.get(column, row).type = 'hard';
   for (const x of [WORLD.homeColumn, column]) world.break(x, row);
-  pod.x = (WORLD.homeColumn + 0.5) * WORLD.tile;
+  pod.x = (WORLD.homeColumn + 0.9) * WORLD.tile;
   pod.y = (row + 0.5) * WORLD.tile;
   assert.equal(pod.overlaps(pod.x, pod.y).some((tile) => tile.x === column && tile.y === row), false,
     'a cleared cell leaves enough curved tangent clearance at this radius');
@@ -415,7 +442,7 @@ test('polar core chamber has physical clearance and the miner collides with curv
   assert.ok(Math.abs(140 - mining.progress.fuel - FUEL.drilling * 0.001) < 1e-9,
     'mandatory angular clearance does not multiply the starter drill fuel cost');
 });
-test('horizontal collision inset lets the miner clear small block lips while preserving full block collisions', () => {
+test('wide side clearance lets the miner glide over block lips while solid rock remains drillable', () => {
   const world = new TileWorld(734, [], [], 'cryo-shelf'), pod = new PlayerPod(world, new Progress()),
     tileX = 8, tileY = 20, edgeX = tileX * WORLD.tile;
   for (let x = tileX - 1; x <= tileX; x++) world.get(x, tileY).type = 'empty';
@@ -427,10 +454,25 @@ test('horizontal collision inset lets the miner clear small block lips while pre
   pod.update(0.05, { ...idle, right: true }, () => {});
   assert.ok(pod.x > startX + 1, 'horizontal steering advances past a barely protruding block edge');
   assert.equal(pod.overlaps(pod.x, pod.y).length, 0, 'the relaxed side clearance still prevents a collision state');
-  assert.equal(pod.overlaps(edgeX - PHYSICS.halfWidth + PHYSICS.horizontalCollisionInset - 1, centerY).length, 0,
-    'the three-pixel inset clears a shallow visual overlap at a block corner');
-  assert.ok(pod.overlaps(edgeX - PHYSICS.halfWidth + PHYSICS.horizontalCollisionInset + 2, centerY).length,
-    'deeper overlap still blocks the miner');
+  assert.equal(pod.overlaps(edgeX - (PHYSICS.halfWidth - PHYSICS.horizontalCollisionInset) - 1, centerY).length, 0,
+    'the narrow physical hull clears the visible pod shell at a block corner');
+  assert.ok(pod.overlaps(edgeX - (PHYSICS.halfWidth - PHYSICS.horizontalCollisionInset) + 2, centerY).length,
+    'deep overlap with solid terrain still blocks the miner');
+});
+test('A and D turn a side collision into an automatic drill target', () => {
+  const world = new TileWorld(735, []), progress = new Progress(), pod = new PlayerPod(world, progress), mining = new MiningSystem(world, progress),
+    tileX = 10, tileY = 20, edgeX = tileX * WORLD.tile, centerY = (tileY + 0.5) * WORLD.tile;
+  for (let y = tileY - 1; y <= tileY + 1; y++) for (let x = tileX - 2; x < tileX; x++) world.break(x, y);
+  world.get(tileX, tileY).type = 'hard';
+  pod.x = edgeX - (PHYSICS.halfWidth - PHYSICS.horizontalCollisionInset) - 1;
+  pod.y = centerY;
+  pod.vx = 70;
+  pod.docked = false;
+  const target = pod.update(1 / 60, { ...idle, right: true }, () => {});
+  assert.equal(target?.x, tileX, 'steering into the rock supplies the blocking tile to mining');
+  mining.update(1 / 60, target, () => {}, 'horizontal');
+  assert.equal(mining.target?.x, tileX, 'the collision begins a side drill without mouse input');
+  assert.ok(mining.elapsed > 0, 'the drill advances while the player keeps steering');
 });
 test('polar wall contact stops at the last clear position instead of snapping to chart tile indices', () => {
   const world = new TileWorld(719, [], [], 'cryo-shelf', STARTER_PLANET_CHART), progress = new Progress(), pod = new PlayerPod(world, progress);
@@ -460,6 +502,42 @@ test('polar wall contact stops at the last clear position instead of snapping to
   assert.ok(Math.abs(pod.x - fixture!.x) < 7, 'the swept collision keeps the miner beside its last clear position');
   assert.ok(Math.abs(pod.x - fixture!.snapX) > 20, 'the response never snaps to a false rectangular chart bound');
   assert.equal(pod.overlaps(pod.x, pod.y, frame).length, 0, 'the miner remains outside the curved wall');
+});
+test('globe wall contact exposes the blocking cell to the drill and lets the miner pass after cutting', () => {
+  const world = new TileWorld(721, [], [], 'cryo-shelf', STARTER_PLANET_CHART), progress = new Progress(),
+    pod = new PlayerPod(world, progress), mining = new MiningSystem(world, progress);
+  let fixture: { x: number; y: number; frame: number; direction: number } | undefined;
+  for (let ty = 3; ty < 18 && !fixture; ty++) for (let tx = 15; tx < 35 && !fixture; tx++) {
+    const rock = world.get(tx, ty);
+    if (rock.type === 'boundary') continue;
+    rock.type = 'rock';
+    for (let y = 340; y <= 500 && !fixture; y += 4) for (let x = 900; x <= 1060 && !fixture; x += 4) {
+      const frame = planetCameraFrameAngle(x / WORLD.tile, y / WORLD.tile, STARTER_PLANET_CHART) ?? 0,
+        direction = planetCartesianVectorToWorld({ u: x / WORLD.tile, v: y / WORLD.tile },
+          screenDirectionToWorld(1, 0, frame), STARTER_PLANET_CHART.columns, STARTER_PLANET_CHART.radiusRows, WORLD.tile),
+        step = Math.sign(direction.x) || 1;
+      if (pod.overlaps(x, y, frame).length) continue;
+      if (pod.overlaps(x + step * 5, y + direction.y * 5, frame).length) fixture = { x, y, frame, direction: step };
+    }
+    if (!fixture) rock.type = 'empty';
+  }
+  assert.ok(fixture, 'fixture exposes an isolated curved wall beside a clear pod position');
+  pod.x = fixture!.x;
+  pod.y = fixture!.y;
+  pod.vx = fixture!.direction * 165;
+  pod.vy = 0;
+  pod.docked = false;
+  const blockedX = pod.x,
+    target = pod.update(0.05, { ...idle, right: true }, () => {}, fixture!.frame);
+  assert.ok(target && target.type !== 'boundary', 'steering into the wall returns the blocking cell as a drill target');
+  assert.ok(Math.abs(pod.x - blockedX) < 7, 'the pod stays at its last clear point until the cut opens the route');
+  const protectedTiles = drillProtection(pod.overlaps(pod.x, pod.y, fixture!.frame), target);
+  mining.update(10, target, () => {}, 'horizontal', protectedTiles);
+  assert.equal(target && world.get(target.x, target.y).type, 'empty', 'cutting the returned obstruction opens it');
+  pod.vx = 60;
+  pod.update(0.05, { ...idle, right: true }, () => {}, fixture!.frame);
+  assert.ok(pod.x > blockedX + 1, 'the miner advances after the obstruction has been cleared');
+  assert.equal(pod.overlaps(pod.x, pod.y, fixture!.frame).length, 0, 'clearing the obstruction preserves collision safety');
 });
 test('local structure offsets follow planetary tangent and outward normals on both hemispheres', () => {
   const columns = PLANET_CHART.columns, radius = PLANET_CHART.radiusRows, u = columns / 2, tile = WORLD.tile;
@@ -1194,11 +1272,12 @@ test('mining a route fragment records it once and persists its excavation', () =
   });
   assert.equal(collected, 1);
   assert.deepEqual(p.routeFragments, ['fragment-1']);
-  assert.equal(p.money, 80 + ROUTE_SURVEY_REWARDS['fragment-1']);
+  assert.deepEqual(p.shipComponents, ['frame'], 'the first glowing route signal is the ship frame');
+  assert.equal(p.money, 80 + ROUTE_PART_RECOVERY_BONUS, 'recovery bonus is paid once');
   const restored = new TileWorld(77, [...w.destroyed], [], 'cryo-shelf');
   assert.equal(restored.get(24, 8).fragmentId, undefined);
   assert.equal(p.collectRouteFragment('fragment-1'), false);
-  assert.equal(p.money, 80 + ROUTE_SURVEY_REWARDS['fragment-1']);
+  assert.equal(p.money, 80 + ROUTE_PART_RECOVERY_BONUS, 'finding the same excavated signal cannot pay twice');
 });
 test('optional navigation hashes are guaranteed map-specific tiles and survive in existing save milestones', () => {
   const progress = new Progress();
@@ -1491,9 +1570,7 @@ test('campaign route supports serviced, physical sorties through all four signal
         serviceCredits,
       });
     }
-    const shipCost = Object.values(SHIP_COMPONENTS).reduce((sum, component) => sum + component.cost, 0);
-    assert.ok(progress.money >= shipCost, `seed ${seed}: ore hauls plus route claims should fund ship (money=$${progress.money}, ship=$${shipCost})`);
-    for (const key of Object.keys(SHIP_COMPONENTS) as (keyof typeof SHIP_COMPONENTS)[]) assert.equal(progress.buyShipComponent(key), true);
+    assert.equal(progress.shipComponents.length, Object.keys(SHIP_COMPONENTS).length, `seed ${seed}: each signal installs its ship part`);
     assert.equal(progress.shipComplete, true, `seed ${seed}: all guaranteed chambers should unlock region travel`);
     console.log('[campaign-balance-sample]', JSON.stringify({ seed, sorties, shipComplete: progress.shipComplete, postShipCredits: progress.money }));
   }
@@ -1524,9 +1601,6 @@ test('campaign return safety under delayed warning response', () => {
         if (!progress.serviceAll()) break;
       }
       const allSignals = ROUTE_FRAGMENTS.every((entry) => progress.routeFragments.includes(entry.id));
-      if (allSignals) {
-        for (const key of Object.keys(SHIP_COMPONENTS) as (keyof typeof SHIP_COMPONENTS)[]) progress.buyShipComponent(key);
-      }
       outcomes.push({ seed, hull: Math.round(progress.hull * 10) / 10, survives: progress.hull > 0, fuel: Math.round(progress.fuel * 10) / 10, allSignals, shipReady: progress.shipComplete });
     }
     console.log('[campaign-reaction-sweep]', JSON.stringify({ delayMs, outcomes }));
@@ -1567,29 +1641,21 @@ test('the opening signal can be drilled and returned from across varied campaign
     }
     assert.equal(pod.docked, true, `seed ${seed}: pod returns to Hab 07`);
     assert.ok(progress.hull > 0, `seed ${seed}: pod survives the opening sortie`);
-    assert.equal(progress.money, 80 + ROUTE_SURVEY_REWARDS['fragment-1'], `seed ${seed}: signal claim is paid exactly once`);
+    assert.equal(progress.money, 80 + ROUTE_PART_RECOVERY_BONUS, `seed ${seed}: first-part recovery bonus is paid once`);
+    assert.deepEqual(progress.shipComponents, ['frame'], `seed ${seed}: the first signal installs the frame immediately`);
     assert.ok(progress.fuel < fuelAtSignal, `seed ${seed}: the trip has a measurable return cost`);
   }
 });
-test('guaranteed route contracts fund every long-range ship component exactly once', () => {
+test('each guaranteed route signal installs its matching ship part once without credits', () => {
   const p = new Progress();
   const openingBalance = p.money;
   for (const fragment of ROUTE_FRAGMENTS) {
-    const before = p.money;
-    assert.equal(ROUTE_SURVEY_REWARDS[fragment.id], SHIP_COMPONENTS[ROUTE_SHIP_COMPONENTS[fragment.id]].cost,
-      `${fragment.landmark} claim matches its corresponding ship component`);
     assert.equal(p.collectRouteFragment(fragment.id), true);
-    assert.equal(p.money - before, ROUTE_SURVEY_REWARDS[fragment.id]);
+    assert.ok(p.shipComponents.includes(ROUTE_SHIP_COMPONENTS[fragment.id]), `${fragment.landmark} installs its matching part`);
     assert.equal(p.collectRouteFragment(fragment.id), false);
-    assert.equal(p.money - before, ROUTE_SURVEY_REWARDS[fragment.id]);
   }
-  const shipCost = Object.values(SHIP_COMPONENTS).reduce((sum, component) => sum + component.cost, 0);
-  const contractTotal = Object.values(ROUTE_SURVEY_REWARDS).reduce((sum, amount) => sum + amount, 0);
-  assert.equal(contractTotal, shipCost);
-  assert.equal(p.money - openingBalance, shipCost);
-  for (const key of Object.keys(SHIP_COMPONENTS) as (keyof typeof SHIP_COMPONENTS)[]) {
-    assert.equal(p.buyShipComponent(key), true);
-  }
+  assert.equal(p.money, openingBalance + ROUTE_FRAGMENTS.length * ROUTE_PART_RECOVERY_BONUS, 'each part grants the same small gear bonus');
+  assert.equal(p.shipComponents.length, 4);
   assert.equal(p.shipComplete, true);
 });
 test('all five ores obey depth bands and form adjacent veins', () => {
@@ -2011,6 +2077,26 @@ test('shard manta finishes its charge when the telegraph timer expires inside a 
   assert.equal(manta.update(0.08, 500, 1100, 500), false);
   assert.ok(manta.active!.x > 800, 'the remaining frame time moves the manta immediately after the warning ends');
 });
+test('Hull Graveyard scrapper armor rewards flanking with mouse-aimed drill attacks', () => {
+  assert.equal(swimmerKindForEncounter(2, 'hull-graveyard'), 'hull-scrapper');
+  assert.equal(swimmerKindForEncounter(2, 'cryo-shelf'), 'shard-manta', 'other worlds keep their own charge threat');
+  const world = new TileWorld(947, [], [], 'hull-graveyard'), scrapper = new RockSwimmer(947, 'hull-graveyard');
+  for (let x = 24; x <= 27; x++) world.break(x, 12);
+  world.break(26, 11);
+  scrapper.active = { kind: 'hull-scrapper', mode: 'hunt', x: 1040, y: 500, vx: -HULL_SCRAPPER.huntSpeed, vy: 0,
+    life: 10, phase: 0, health: HULL_SCRAPPER.drillHitsToDefeat, drillCooldown: 0, hitFlash: 0 };
+  assert.equal(scrapper.hitByDrill(world, 980, 500, 1, 0, 80), false, 'the armored nose deflects a head-on beam');
+  assert.equal(scrapper.active?.health, HULL_SCRAPPER.drillHitsToDefeat, 'blocked attacks do not consume health');
+  assert.ok((scrapper.active?.armorBlockedFlash ?? 0) > 0, 'a deflection has a readable state for the renderer');
+  scrapper.active!.drillCooldown = 0;
+  assert.equal(scrapper.hitByDrill(world, 1040, 460, 0, 1, 80), false, 'a perpendicular side shot penetrates');
+  assert.equal(scrapper.active?.health, 2);
+  scrapper.active!.drillCooldown = 0;
+  assert.equal(scrapper.hitByDrill(world, 1100, 500, -1, 0, 80), false, 'a rear shot also penetrates');
+  scrapper.active!.drillCooldown = 0;
+  assert.equal(scrapper.hitByDrill(world, 1040, 460, 0, 1, 80), true, 'three clear side/rear hits drive the scrapper off');
+  assert.equal(scrapper.active, undefined);
+});
 test('stasis module cancels gravity in flight at a fuel cost and releases cleanly', () => {
   const world = new TileWorld(65), p = new Progress(), pod = new PlayerPod(world, p);
   for (let row = 0; row < 20; row++) world.break(24, row);
@@ -2090,15 +2176,83 @@ test('surface winch boosts an open-shaft return, costs more fuel, and catches th
   locked.update(1 / 60, { ...idle, reel: true }, () => {});
   assert.equal(locked.reeling, false, 'R has no effect before buying the module');
 });
-test('ship components are credit-funded, persistent, and cannot be bought twice', () => {
-  const p = new Progress();
-  p.money = 10000;
-  for (const [key, component] of Object.entries(SHIP_COMPONENTS)) {
-    const before = p.money;
-    assert.equal(p.buyShipComponent(key as keyof typeof SHIP_COMPONENTS), true);
-    assert.equal(p.money, before - component.cost);
-    assert.equal(p.buyShipComponent(key as keyof typeof SHIP_COMPONENTS), false);
+test('surface winch routes around mined tunnel bends and refuses a blocked surface exit', () => {
+  const world = new TileWorld(909), startX = WORLD.spawnX, startY = 600;
+  for (let y = 0; y < 22; y++) world.break(24, y);
+  world.destroyed.delete('24,10');
+  for (let y = 9; y <= 11; y++) world.break(23, y);
+  const route = findSurfaceWinchRoute(world, startX, startY);
+  assert.ok(route && route.length > 8, 'the pathfinder finds a multi-turn return through the mined bypass');
+  assert.ok(route!.some((point) => point.x < startX), 'the cable follows the lateral tunnel around the obstruction');
+  assert.equal(route![0]!.x, startX);
+  assert.equal(route![0]!.y, startY);
+  for (const point of route!.slice(1, -1))
+    assert.equal(world.get(Math.floor(point.x / WORLD.tile), Math.floor(point.y / WORLD.tile)).type, 'empty', 'every cable waypoint stays inside mined air');
+  const p = new Progress(), pod = new PlayerPod(world, p);
+  p.returnWinch = true;
+  p.fuel = 100;
+  pod.x = startX;
+  pod.y = startY;
+  pod.docked = false;
+  let damage = 0;
+  for (let i = 0; i < 120 * 12 && !pod.docked; i++) {
+    const nextRoute = findSurfaceWinchRoute(world, pod.x, pod.y);
+    pod.update(1 / 120, { ...idle, reel: !!nextRoute, winchTarget: nextRoute?.[1] }, (amount) => { damage += amount; });
   }
+  assert.equal(pod.docked, true, 'following successive waypoints carries the miner around the bend and back to Hab 07');
+  assert.ok(p.fuel < 100, 'the curved return spends winch fuel');
+  assert.equal(damage, 0, 'a pod-clear mined route returns without collision damage');
+
+  const blocked = new TileWorld(910);
+  for (let y = 1; y < 22; y++) blocked.break(24, y);
+  assert.equal(findSurfaceWinchRoute(blocked, startX, startY), undefined, 'R has no route until the surface crust is actually opened');
+});
+test('powered winch thrust follows a curved route waypoint instead of forcing screen-up', () => {
+  const world = new TileWorld(911), progress = new Progress(), pod = new PlayerPod(world, progress);
+  for (let x = 23; x <= 25; x++) for (let y = 12; y <= 17; y++) world.break(x, y);
+  progress.returnWinch = true;
+  pod.x = WORLD.spawnX;
+  pod.y = 600;
+  pod.docked = false;
+  pod.update(0.1, { ...idle, reel: true, winchTarget: { x: pod.x - WORLD.tile, y: pod.y - WORLD.tile } }, () => {});
+  assert.ok(pod.vx < 0, 'the winch pulls sideways toward a bend in the cable route');
+  assert.ok(pod.vy < 43, "the winch's radial component also accelerates toward the next waypoint against gravity");
+});
+test('surface winch follows a globe-relative tunnel to either planetary crust', () => {
+  const returnFrom = (seed: number, y: number, firstRow: number, lastRow: number) => {
+    const world = new TileWorld(seed, [], [], 'cryo-shelf', STARTER_PLANET_CHART), progress = new Progress(), pod = new PlayerPod(world, progress);
+    for (let row = firstRow; row <= lastRow; row++) world.break(24, row);
+    progress.returnWinch = true;
+    pod.x = WORLD.spawnX;
+    pod.y = y;
+    pod.docked = false;
+    let damage = 0;
+    for (let i = 0; i < 120 * 12 && !pod.docked; i++) {
+      const route = findSurfaceWinchRoute(world, pod.x, pod.y),
+        frame = planetCameraFrameAngle(pod.x / WORLD.tile, pod.y / WORLD.tile, STARTER_PLANET_CHART) ?? 0;
+      pod.update(1 / 120, { ...idle, reel: !!route, winchTarget: route?.[1] }, (amount) => { damage += amount; }, frame);
+    }
+    return { pod, damage };
+  };
+  const home = returnFrom(912, 600, 0, 21), far = returnFrom(913, 2500, 40, 79);
+  assert.equal(home.pod.docked, true, 'the home-side cable returns to the home-side surface dock');
+  assert.equal(home.damage, 0);
+  assert.equal(far.pod.docked, true, 'the cable reverses its radial route and returns to the far-side dock');
+  assert.equal(far.damage, 0);
+});
+test('surface winch plans around built underground service decks and cabins', () => {
+  const world = new TileWorld(914), service = { id: 'service:980:400', kind: 'service' as const, x: 980, y: 400 };
+  for (let y = 0; y < 22; y++) world.break(24, y);
+  for (let y = 7; y <= 13; y++) for (let x = 21; x <= 23; x++) world.break(x, y);
+  const route = findSurfaceWinchRoute(world, WORLD.spawnX, 600, [service]);
+  assert.ok(route, 'an open bypass keeps a service beacon from blocking extraction');
+  assert.ok(route!.some((point) => point.x <= 21.5 * WORLD.tile), 'the winch routes outside the beacon deck and cabin footprint');
+});
+test('recovered ship parts complete the Faraday without a purchase', () => {
+  const p = new Progress();
+  p.money = 250;
+  for (const fragment of ROUTE_FRAGMENTS) assert.equal(p.collectRouteFragment(fragment.id), true);
+  assert.equal(p.money, 250 + ROUTE_FRAGMENTS.length * ROUTE_PART_RECOVERY_BONUS);
   assert.equal(p.shipComplete, true);
 });
 test('charge packs spend credits once and provide three usable charges', () => {
@@ -2269,6 +2423,73 @@ test('recovery loses cargo but keeps credits and upgrades', () => {
   assert.equal(p.fuel, 140);
   assert.equal(p.hull, 100);
 });
+test('emergency recovery lands at the current longitude on the nearest crust', () => {
+  const home = emergencyRecoveryDock(1234, 480, STARTER_PLANET_CHART),
+    far = emergencyRecoveryDock(2048, STARTER_PLANET_CHART.radiusRows * WORLD.tile + 120, STARTER_PLANET_CHART),
+    legacy = emergencyRecoveryDock(900, 12000);
+  assert.deepEqual(home, { x: 1234, y: WORLD.spawnY, far: false }, 'home-side rescue keeps the longitude');
+  assert.deepEqual(far, { x: 2048, y: STARTER_PLANET_CHART.radiusRows * WORLD.tile * 2 - WORLD.spawnY, far: true },
+    'far-side rescue lands at that hemisphere instead of resetting to the home dock');
+  assert.deepEqual(legacy, { x: 900, y: WORLD.spawnY, far: false }, 'legacy rectangular worlds still recover to their home surface');
+});
+test('Faraday orbit uses the existing saved chart position and parks outside the starter globe', () => {
+  const altitude = orbitAltitude(STARTER_PLANET_CHART);
+  assert.ok(altitude > MAX_TOWN_ALTITUDE, 'orbit clears the tallest surface town tier');
+  assert.equal(isInOrbit(-altitude, STARTER_PLANET_CHART), true);
+  assert.equal(isInOrbit(-altitude + 1, STARTER_PLANET_CHART), false);
+  assert.equal(isInOrbit(-altitude), false, 'legacy rectangular saves never enter globe orbit');
+  assert.equal(orbitalParkingY(-altitude - 100, STARTER_PLANET_CHART), -altitude);
+  assert.equal(orbitalParkingY(-altitude + 50, STARTER_PLANET_CHART), -altitude + 50);
+  const farOrbit = STARTER_PLANET_CHART.radiusRows * WORLD.tile * 2 + altitude;
+  assert.equal(isInOrbit(farOrbit, STARTER_PLANET_CHART), true, 'the opposite crust has its own orbital approach');
+  assert.equal(orbitalParkingY(farOrbit + 100, STARTER_PLANET_CHART), farOrbit);
+});
+test('assembled Faraday can thrust past the town cap into orbit', () => {
+  const world = new TileWorld(771, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
+    progress = new Progress();
+  progress.shipComponents = Object.keys(SHIP_COMPONENTS);
+  const pod = new PlayerPod(world, progress);
+  pod.docked = false;
+  for (let step = 0; step < 500 && pod.y > -orbitAltitude(STARTER_PLANET_CHART); step++)
+    pod.update(0.05, { ...idle, up: true }, () => {});
+  assert.ok(pod.y <= -orbitAltitude(STARTER_PLANET_CHART), 'W thrust reaches orbit beyond the buildable town skyline');
+  assert.ok(progress.fuel > 0, 'the starter tank can complete a direct launch');
+});
+test('assembled Faraday can leave orbit from the far hemisphere too', () => {
+  const world = new TileWorld(772, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
+    progress = new Progress();
+  progress.shipComponents = Object.keys(SHIP_COMPONENTS);
+  const pod = new PlayerPod(world, progress), altitude = orbitAltitude(STARTER_PLANET_CHART),
+    farOrbit = STARTER_PLANET_CHART.radiusRows * WORLD.tile * 2 + altitude;
+  pod.docked = false;
+  pod.y = farOrbit;
+  for (let step = 0; step < 20; step++) pod.update(0.05, { ...idle, up: true }, () => {}, Math.PI);
+  assert.ok(pod.y > farOrbit, 'local-up thrust leaves the far-side orbit boundary');
+  assert.ok(isInOrbit(pod.y, STARTER_PLANET_CHART), 'orbital world selection remains available during departure');
+});
+test('W brakes an S-driven return from orbit before a hard landing', () => {
+  const chart = LEGACY_PLANET_CHART,
+    world = new TileWorld(773, [], [], 'cryo-shelf', chart),
+    progress = new Progress();
+  progress.shipComponents = Object.keys(SHIP_COMPONENTS);
+  const pod = new PlayerPod(world, progress), altitude = orbitAltitude(chart), dt = 1 / 120;
+  pod.docked = false;
+  let damage = 0;
+  const step = (input: Controls) => {
+    const rotation = planetCameraFrameAngle(pod.x / WORLD.tile, pod.y / WORLD.tile, chart) ?? 0;
+    pod.update(dt, { ...idle, ...input }, (amount) => { damage += amount; }, rotation);
+  };
+  for (let i = 0; i < 120 * 90 && !isInOrbit(pod.y, chart); i++) step({ up: true });
+  assert.ok(isInOrbit(pod.y, chart), 'W reaches the legacy-size orbit from the saved surface spawn');
+  pod.y = orbitalParkingY(pod.y, chart);
+  pod.vy = 0;
+  for (let i = 0; i < 120 * 4 && isInOrbit(pod.y, chart); i++) step({ down: true });
+  assert.equal(isInOrbit(pod.y, chart), false, 'S leaves parking orbit and begins local approach');
+  for (let i = 0; i < 120 * 12; i++) step({ up: true });
+  assert.equal(damage, 0, 'screen-up thrust brakes the descent without terrain impact');
+  assert.equal(progress.hull, 100);
+  assert.ok(pod.y < -altitude, 'braking carries the pod back out to a stable orbit');
+});
 test('down drilling breaks tiles, collects ore, spends fuel, and allows a return', () => {
   const w = new TileWorld(42),
     p = new Progress(),
@@ -2326,6 +2547,7 @@ test('fast-descent warning gives the player a braking window before damaging spe
   assert.equal(flightWarning({ ...state, descentSpeed: DESCENT_WARNING_SPEED - 1 }), '');
   assert.equal(flightWarning({ ...state, descentSpeed: DESCENT_WARNING_SPEED }), 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT');
   assert.equal(flightWarning({ ...state, descentSpeed: 0 }), '');
+  assert.equal(flightWarning({ ...state, descentSpeed: 400, inOrbit: true }), '', 'orbit parking must not show a landing warning');
   assert.equal(flightWarning({ ...state, descentSpeed: 400, fuelRatio: 0.2 }), 'LOW FUEL — RETURN TO SURFACE');
   assert.equal(flightWarning({ ...state, descentSpeed: 400, hullRatio: 0.2 }), 'LOW HULL — THRUST TO BRAKE. RETURN FOR REPAIRS');
   assert.equal(flightWarning({ ...state, surface: true, descentSpeed: 400 }), '');
@@ -2416,6 +2638,11 @@ test('every purchased upgrade grows pod artwork without enlarging tunnel collisi
   assert.ok(podVisualScale({ ...levels[0]!, cargo: 5 }) > 1.2, 'cargo alone makes the machine visibly larger');
   assert.ok(podVisualScale({ ...levels[0]!, fuel: 5, hull: 5, engine: 5, scanner: 5, grapple: 5 }) > 1.25,
     'the other upgrade tracks contribute to overall machine scale');
+  const rebuiltSizes = [0, 1, 2, 3, 4].map((parts) => podVisualScale(levels[0]!, parts));
+  assert.equal(rebuiltSizes[0], 1);
+  assert.ok(rebuiltSizes.every((size, i) => i === 0 || size > rebuiltSizes[i - 1]),
+    'each recovered Faraday component visibly expands the miner');
+  assert.equal(rebuiltSizes.at(-1), 1 + POD_SIZE.shipPartBonus * 4);
   assert.equal(PHYSICS.halfWidth, 13);
   assert.equal(PHYSICS.halfHeight, 16);
   assert.ok(PHYSICS.halfWidth * 2 < WORLD.tile, 'the unscaled collider remains narrower than one terrain tile');
@@ -2509,6 +2736,11 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
     stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: p.grappleOwned,
   } satisfies SaveData;
   assert.equal(validateSave(chartSave), true, 'three-digit tile columns and associated drops/charges/builds fit the compact chart');
+  const orbitalSave = { ...chartSave, maps: { 'mars-frontier': { ...chartMap, x: WORLD.spawnX, y: -orbitAltitude(PLANET_CHART), warehouse: emptyCargo() } } };
+  assert.equal(validateSave(orbitalSave), true, 'orbit position persists in the version-24 map snapshot without a save migration');
+  const legacyOrbitSave = { ...chartSave, planetChart: LEGACY_PLANET_CHART,
+    maps: { 'mars-frontier': { ...chartMap, x: WORLD.spawnX, y: -orbitAltitude(LEGACY_PLANET_CHART), warehouse: emptyCargo(), planetChart: LEGACY_PLANET_CHART } } };
+  assert.equal(validateSave(legacyOrbitSave), true, 'legacy-size planets accept saved orbit positions using their own chart radius');
   assert.equal(validateSave({ ...chartSave, milestones: ['demand-cryo-shelf-1'] }), true,
     'rotating market demand persists in the existing milestone field');
   assert.equal(validateSave({ ...chartSave, milestones: ['demand-unknown-1'] }), false,
@@ -2617,8 +2849,10 @@ test('versioned save validation and reconstruction', () => {
   assert.ok(validateSave(d));
   assert.ok(validateSave({ ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, y: -524 } } }),
     'the home-side sky deck remains saveable above the old surface-only limit');
-  assert.equal(validateSave({ ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, y: -MAX_TOWN_ALTITUDE - 1 } } }), false,
-    'save validation still rejects positions beyond the pod altitude clamp');
+  assert.ok(validateSave({ ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, y: -orbitAltitude(PLANET_CHART) } } }),
+    'flight-ready chart saves can persist the miner in orbit');
+  assert.equal(validateSave({ ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, y: -LEGACY_PLANET_CHART.radiusRows * WORLD.tile - MAX_TOWN_ALTITUDE - 1 } } }), false,
+    'save validation still rejects positions outside the supported orbit altitude');
   const migratedV12 = migrateSave({ ...d, version: 12, returnWinch: undefined });
   assert.ok(migratedV12);
   assert.equal(migratedV12.version, 24);
@@ -2687,6 +2921,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(p.fuel, 110);
   assert.equal(p.count, 0.5);
   assert.deepEqual(p.routeFragments, ['fragment-1']);
+  assert.deepEqual(p.shipComponents, ['frame'], 'older saves install parts for signals already recovered');
   assert.equal(p.charges, 2);
   assert.deepEqual(p.ownedPaints, ['hab', 'polar']);
   assert.equal(p.selectedPaint, 'polar');

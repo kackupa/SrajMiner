@@ -5,7 +5,7 @@ import { crossedStructureDeck, type UndergroundStructure } from '../building/Und
 import { Progress } from '../economy/Progress';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, wrapPlanetSeam } from '../world/PlanetChart';
 import { planetCameraFrameAngle, screenDirectionToWorld } from '../world/Projection';
-export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; escapePack?: boolean };
+export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean };
 export type GrappleAnchor = { x: number; y: number };
 export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach: number, gravitySign = 1): GrappleAnchor | undefined {
     const tx = Math.floor(x / WORLD.tile), ty = Math.floor(y / WORLD.tile), cells = Math.ceil(reach / WORLD.tile);
@@ -31,6 +31,14 @@ export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach:
   return best;
 }
 
+function horizontalInsetAt(y: number, chart?: { radiusRows: number }) {
+  if (!chart) return P.horizontalCollisionInset;
+  const radiusFraction = Math.abs(chart.radiusRows - y / WORLD.tile) / chart.radiusRows;
+  // Preserve the wider collision needed in the cramped core passage. Near the
+  // outer globe, let the visible pod shell skim past small curved tile lips.
+  return radiusFraction < 0.65 ? Math.min(3, P.horizontalCollisionInset) : P.horizontalCollisionInset;
+}
+
 function polarCellOverlapsPod(
   world: TileWorld,
   tileX: number,
@@ -40,6 +48,7 @@ function polarCellOverlapsPod(
   cameraRotation: number,
 ) {
   const chart = world.planetChart!;
+  const halfWidth = P.halfWidth - horizontalInsetAt(podY, chart);
   const rotate = (point: { x: number; y: number }) => ({
     x: point.x * Math.cos(cameraRotation) - point.y * Math.sin(cameraRotation),
     y: point.x * Math.sin(cameraRotation) + point.y * Math.cos(cameraRotation),
@@ -56,7 +65,7 @@ function polarCellOverlapsPod(
     const length = Math.hypot(axis.x, axis.y) || 1, nx = axis.x / length, ny = axis.y / length,
       tileProjection = polygon.map((point) => point.x * nx + point.y * ny),
       podCenter = center.x * nx + center.y * ny,
-      podRadius = Math.abs(nx) * (P.halfWidth - P.horizontalCollisionInset) + Math.abs(ny) * P.halfHeight;
+      podRadius = Math.abs(nx) * halfWidth + Math.abs(ny) * P.halfHeight;
     if (Math.max(...tileProjection) < podCenter - podRadius || Math.min(...tileProjection) > podCenter + podRadius) return false;
   }
   return true;
@@ -64,9 +73,10 @@ function polarCellOverlapsPod(
 
 function chartTilesUnderPod(world: TileWorld, x: number, y: number, cameraRotation: number) {
   const chart = world.planetChart!;
+  const halfWidth = P.halfWidth - horizontalInsetAt(y, chart);
   const corners = [
-    { x: -(P.halfWidth - P.horizontalCollisionInset), y: -P.halfHeight }, { x: P.halfWidth - P.horizontalCollisionInset, y: -P.halfHeight },
-    { x: P.halfWidth - P.horizontalCollisionInset, y: P.halfHeight }, { x: -(P.halfWidth - P.horizontalCollisionInset), y: P.halfHeight },
+    { x: -halfWidth, y: -P.halfHeight }, { x: halfWidth, y: -P.halfHeight },
+    { x: halfWidth, y: P.halfHeight }, { x: -halfWidth, y: P.halfHeight },
   ].map((offset) => {
     const wx = x + offset.x * Math.cos(cameraRotation) + offset.y * Math.sin(cameraRotation),
       wy = y - offset.x * Math.sin(cameraRotation) + offset.y * Math.cos(cameraRotation),
@@ -232,9 +242,24 @@ export class PlayerPod {
       moveAxis = chart ? planetCartesianVectorToWorld(
         { u: this.x / WORLD.tile, v: this.y / WORLD.tile }, cartesianMove, chart.columns, chart.radiusRows, WORLD.tile,
       ) : cartesianMove;
-    const thrustAxis = chart ? planetCartesianVectorToWorld(
+    let thrustAxis = chart ? planetCartesianVectorToWorld(
         { u: this.x / WORLD.tile, v: this.y / WORLD.tile }, cartesianThrust, chart.columns, chart.radiusRows, WORLD.tile,
       ) : cartesianThrust;
+    if (requestWinch && input.winchTarget) {
+      const current = chart
+          ? planetChartToCartesian({ u: this.x / WORLD.tile, v: this.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile)
+          : { x: this.x, y: this.y },
+        target = chart
+          ? planetChartToCartesian({ u: input.winchTarget.x / WORLD.tile, v: input.winchTarget.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile)
+          : input.winchTarget,
+        dx = target.x - current.x, dy = target.y - current.y, length = Math.hypot(dx, dy);
+      if (length > 1) {
+        const cartesianPull = { x: dx / length, y: dy / length };
+        thrustAxis = chart
+          ? planetCartesianVectorToWorld({ u: this.x / WORLD.tile, v: this.y / WORLD.tile }, cartesianPull, chart.columns, chart.radiusRows, WORLD.tile)
+          : cartesianPull;
+      }
+    }
     const dir = moveAxis.x, sideAcceleration = moveAxis.y;
     const escapePack = !!input.escapePack;
     this.stasisActive = requestStasis;
@@ -289,7 +314,10 @@ export class PlayerPod {
       const nx = this.x + (this.vx * dt) / steps,
         hitsX = this.overlaps(nx, this.y, cameraRotation);
       if (hitsX.length) {
-        if (dir && Math.sign(this.vx) === dir) target = hitsX.find((t) => t.type !== 'boundary');
+        // Steering into any solid side contact means the player is trying to
+        // pass it. Offer that obstruction to the drill, including on the globe
+        // where tangent motion can map mostly onto chart Y rather than X.
+        if (screenDir) target = hitsX.find((t) => t.type !== 'boundary');
         if (Math.abs(this.vx) > P.safeImpact)
           onImpact((Math.abs(this.vx) - P.safeImpact) * P.damageScale);
         // A charted globe's tile indices are angular/radial coordinates, not
@@ -365,7 +393,7 @@ export class PlayerPod {
       } else this.y = ny;
       if (!this.world.planetChart)
         this.x = Math.max(P.halfWidth, Math.min(this.world.widthTiles * WORLD.tile - P.halfWidth, this.x));
-      if (this.y < -MAX_TOWN_ALTITUDE) {
+      if (!this.world.planetChart && this.y < -MAX_TOWN_ALTITUDE) {
         this.y = -MAX_TOWN_ALTITUDE;
         this.vy = 0;
       }

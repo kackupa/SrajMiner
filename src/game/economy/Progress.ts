@@ -17,12 +17,12 @@ import {
   POD_PROFILES,
   SPECIALIZATIONS,
   ROUTE_FRAGMENTS,
-  ROUTE_SURVEY_REWARDS,
+  ROUTE_SHIP_COMPONENTS,
+  ROUTE_PART_RECOVERY_BONUS,
   value,
   type Levels,
   type Ore,
   type Upgrade,
-  type ShipComponent,
   type PodPaint,
   type PilotSuit,
   type PodDecal,
@@ -158,14 +158,9 @@ export class Progress {
     const fragment = ROUTE_FRAGMENTS.find((entry) => entry.id === id);
     if (!fragment || this.routeFragments.includes(id)) return false;
     this.routeFragments.push(id);
-    this.money += ROUTE_SURVEY_REWARDS[fragment.id];
-    return true;
-  }
-  buyShipComponent(key: ShipComponent) {
-    const component = SHIP_COMPONENTS[key];
-    if (this.shipComponents.includes(key) || this.money < component.cost) return false;
-    this.money -= component.cost;
-    this.shipComponents.push(key);
+    const component = ROUTE_SHIP_COMPONENTS[fragment.id];
+    if (!this.shipComponents.includes(component)) this.shipComponents.push(component);
+    this.money += ROUTE_PART_RECOVERY_BONUS;
     return true;
   }
   get shipComplete() {

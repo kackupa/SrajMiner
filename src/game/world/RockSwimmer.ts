@@ -1,11 +1,11 @@
-import { ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
+import { HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
 import { planetCartesianToChart, planetChartToCartesian, planetChartVectorToCartesian } from './PlanetChart';
 
 export type RockSwimmerState = {
-  kind?: 'rock-swimmer' | 'shard-manta';
+  kind?: 'rock-swimmer' | 'shard-manta' | 'hull-scrapper';
   mode?: 'hunt' | 'windup' | 'charge' | 'recover';
   x: number;
   y: number;
@@ -20,10 +20,12 @@ export type RockSwimmerState = {
   chargeX?: number;
   chargeY?: number;
   warningPlayed?: boolean;
+  armorBlockedFlash?: number;
 };
 
-export function swimmerKindForEncounter(encounter: number): RockSwimmerState['kind'] {
-  return Math.floor(encounter) % 3 === 2 ? 'shard-manta' : 'rock-swimmer';
+export function swimmerKindForEncounter(encounter: number, mapId: MapId = 'cryo-shelf'): RockSwimmerState['kind'] {
+  if (Math.floor(encounter) % 3 !== 2) return 'rock-swimmer';
+  return mapId === 'hull-graveyard' ? 'hull-scrapper' : 'shard-manta';
 }
 
 /** A cave predator that phases through rock, pressures the pod, and can be deterred by turrets. */
@@ -46,8 +48,8 @@ export class RockSwimmer {
       if (this.wait > 0) return false;
       const n = this.encounter++;
       const angle = random(this.seed, n, this.mapId.length, 141) * Math.PI * 2;
-      const kind = swimmerKindForEncounter(n)!,
-        distance = kind === 'shard-manta'
+      const kind = swimmerKindForEncounter(n, this.mapId)!,
+        distance = kind !== 'rock-swimmer'
           ? 115 + random(this.seed, n, this.mapId.length, 142) * 48
           : 125 + random(this.seed, n, this.mapId.length, 142) * 90;
       this.active = {
@@ -60,7 +62,8 @@ export class RockSwimmer {
         vy: Math.sin(angle + 1.6) * ROCK_SWIMMER.speed * 0.62,
         life: ROCK_SWIMMER.swimSeconds,
         phase: random(this.seed, n, this.mapId.length, 143) * Math.PI * 2,
-        health: kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
+        health: kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat
+          : kind === 'hull-scrapper' ? HULL_SCRAPPER.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
         drillCooldown: 0,
         hitFlash: 0,
       };
@@ -74,6 +77,7 @@ export class RockSwimmer {
     swimmer.life -= dt;
     swimmer.drillCooldown = Math.max(0, swimmer.drillCooldown - dt);
     swimmer.hitFlash = Math.max(0, swimmer.hitFlash - dt);
+    swimmer.armorBlockedFlash = Math.max(0, (swimmer.armorBlockedFlash ?? 0) - dt);
     const dx = podX - swimmer.x, dy = podY - swimmer.y;
     const distance = Math.hypot(dx, dy);
     for (const turret of structures) {
@@ -138,16 +142,18 @@ export class RockSwimmer {
         swimmer.vy += dy / distance * 18 * dt;
       }
       const speed = Math.hypot(swimmer.vx, swimmer.vy);
-      if (speed > ROCK_SWIMMER.speed) {
-        swimmer.vx *= ROCK_SWIMMER.speed / speed;
-        swimmer.vy *= ROCK_SWIMMER.speed / speed;
+      const speedCap = swimmer.kind === 'hull-scrapper' ? HULL_SCRAPPER.huntSpeed : ROCK_SWIMMER.speed;
+      if (speed > speedCap) {
+        swimmer.vx *= speedCap / speed;
+        swimmer.vy *= speedCap / speed;
       }
       swimmer.x += swimmer.vx * dt;
       swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 8 * dt;
     }
 
     const collisionDistance = Math.hypot(podX - swimmer.x, podY - swimmer.y),
-      contactRadius = swimmer.kind === 'shard-manta' ? SHARD_MANTA.contactRadius : ROCK_SWIMMER.contactRadius;
+      contactRadius = swimmer.kind === 'shard-manta' ? SHARD_MANTA.contactRadius
+        : swimmer.kind === 'hull-scrapper' ? HULL_SCRAPPER.contactRadius : ROCK_SWIMMER.contactRadius;
     if (collisionDistance <= contactRadius) {
       this.active = undefined;
       this.wait = ROCK_SWIMMER.repeatSeconds;
@@ -184,6 +190,21 @@ export class RockSwimmer {
           ? planetCartesianToChart(point, chart.columns, chart.radiusRows, WORLD.tile)
           : { u: point.x / WORLD.tile, v: point.y / WORLD.tile };
       if (world.solid(Math.floor(cell.u), Math.floor(cell.v))) return false;
+    }
+    if (swimmer.kind === 'hull-scrapper') {
+      const facing = chart
+          ? planetChartVectorToCartesian(
+            { u: swimmer.x / WORLD.tile, v: swimmer.y / WORLD.tile },
+            { du: swimmer.vx / WORLD.tile, dv: swimmer.vy / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile,
+          )
+          : { dx: swimmer.vx, dy: swimmer.vy },
+        facingLength = Math.hypot(facing.dx, facing.dy), targetLength = Math.hypot(dx, dy),
+        facingPlayerDot = facingLength && targetLength ? (facing.dx * -dx + facing.dy * -dy) / (facingLength * targetLength) : 0;
+      if (facingPlayerDot > HULL_SCRAPPER.armorFrontDot) {
+        swimmer.armorBlockedFlash = 0.24;
+        swimmer.drillCooldown = ROCK_SWIMMER.drillHitCooldownSeconds;
+        return false;
+      }
     }
     swimmer.health--;
     swimmer.drillCooldown = ROCK_SWIMMER.drillHitCooldownSeconds;

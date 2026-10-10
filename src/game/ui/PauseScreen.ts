@@ -6,13 +6,11 @@ import { podPortrait } from './PodPortrait';
 export function pauseScreen(p: Progress, map: MapId, depth: number, docked: boolean,
   exportControl: string, saveStatus: string) {
   const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
-  const objective = p.routeFragments.length < 4
-    ? { title: 'Trace the lost signal', text: 'Recover the four glowing route signals in the Cryo Shelf. Each one funds a ship system.', done: p.routeFragments.length, total: 4, unit: 'signals recovered' }
-    : !p.shipComplete
-      ? { title: 'Bring the Faraday home', text: 'Assemble the launch craft at the Hab 07 shipyard.', done: p.shipComponents.length, total: 4, unit: 'systems installed' }
-      : cores < 4
-        ? { title: 'Reach the planetary cores', text: 'Recover a sealed core record from each destination.', done: cores, total: 4, unit: 'core records' }
-        : { title: 'The planetary ledger is complete', text: 'Keep exploring. There are still tunnels to make your own.', done: 4, total: 4, unit: 'core records' };
+  const objective = !p.shipComplete
+    ? { title: 'Find the four ship parts', text: 'Drill the glowing parts in the Cryo Shelf. Each installs automatically.', done: p.shipComponents.length, total: 4, unit: 'parts recovered' }
+    : cores < 4
+      ? { title: 'Reach the planetary cores', text: 'Recover a sealed core record from each destination.', done: cores, total: 4, unit: 'core records' }
+      : { title: 'The planetary ledger is complete', text: 'Keep exploring. There are still tunnels to make your own.', done: 4, total: 4, unit: 'core records' };
   const readout = (name: string, value: string, ratio: number) => `<div><dt>${name}</dt><dd>${value}</dd><i aria-hidden="true"><b style="width:${Math.max(0, Math.min(100, ratio * 100))}%"></b></i></div>`;
   return `<section class="modal pause-screen" role="dialog" aria-modal="true" aria-label="EXPEDITION PAUSED">
     <button class="close" id="close" aria-label="Close panel">×</button>
@@ -27,7 +25,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
       </div>
       <p class="pause-save-state" id="pause-save-state" role="status">${saveStatus}</p>
       <div class="pause-secondary"><button id="rescue">Emergency recovery</button><button id="new">New expedition</button></div>
-      <p class="pause-recovery-note">Recovery forfeits unsold ore. Your credits and tunnels stay.</p>
+      <p class="pause-recovery-note">Recovery lands near your current longitude and planet side. Unsold ore is forfeited; credits and tunnels stay.</p>
       <div class="pause-keyhint"><kbd>ESC</kbd> Return to the expedition</div>
     </div>
     <aside class="pause-rig" aria-label="Expedition status">

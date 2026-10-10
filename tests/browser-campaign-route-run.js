@@ -66,7 +66,7 @@ async (page) => {
     const service = page.locator('#service-all');
     if (await service.isEnabled()) await service.click();
     await page.locator('#close').click();
-    // Spend the early signal/ore earnings on the tools that make the deep vault reachable.
+    // Recovery bonuses and ore sales fund the tools that make the deep vault reachable.
     if (index === 2) {
       await page.locator('#open-upgrades').click();
       for (const upgrade of ['fuel', 'fuel', 'drill']) {
@@ -86,14 +86,13 @@ async (page) => {
   const campaignSave = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
   if (archiveBefore.routeFragments.length !== 4 || !campaignSave.artifact)
     throw Error(`All route signals and deep transmission should be recovered: ${JSON.stringify({ state: archiveBefore, artifact: campaignSave.artifact })}`);
-  await page.locator('#open-shipyard').click();
-  for (const id of ['frame', 'propulsion', 'navigation', 'life-support']) {
-    const button = page.locator(`#ship-${id}`);
-    if (!(await button.isEnabled())) throw Error(`Claim-funded campaign could not afford ${id}: ${JSON.stringify(await page.evaluate(() => window.__mars))}`);
-    await button.click();
-  }
-  await page.locator('#close').click();
-  await page.locator('#open-destinations').click();
+  const ready = await page.evaluate(() => window.__mars);
+  if (ready.shipStatus !== 'FLIGHT READY' || ready.shipComponents.length !== 4)
+    throw Error(`Finding the four parts should assemble the Faraday automatically: ${JSON.stringify(ready)}`);
+  await page.keyboard.down('w');
+  await page.waitForFunction(() => window.__mars?.orbitalOverviewActive, {}, { timeout: 30000 });
+  await page.keyboard.up('w');
+  await page.locator('#orbit-worlds').click();
   for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault']) {
     const button = page.locator(`#map-${id}`);
     if (await button.isDisabled()) throw Error(`Campaign ship did not unlock ${id}`);
@@ -101,7 +100,7 @@ async (page) => {
   await page.locator('#map-hull-graveyard').click();
   const traveled = await page.evaluate(() => window.__mars);
   if (traveled.mapId !== 'hull-graveyard' || traveled.routeFragments.length !== 4 || traveled.money < 0)
-    throw Error(`Shipyard travel failed: ${JSON.stringify(traveled)}`);
+    throw Error(`Travel after automatic ship assembly failed: ${JSON.stringify(traveled)}`);
   await page.reload(); await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
   const restored = await page.evaluate(() => window.__mars);
   if (restored.mapId !== 'hull-graveyard' || restored.routeFragments.length !== 4 || restored.shipComponents.length !== 4)

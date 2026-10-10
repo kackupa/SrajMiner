@@ -26,6 +26,49 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 #viewport:has(.pause-screen) #toast { visibility: hidden; }
 #app:has(.pause-screen) footer::before { content: 'EXPEDITION ON HOLD'; color: #9badae; font: 10px 'Space Mono', monospace; letter-spacing: 1px; position: absolute; left: 24px; }
 
+/* Opening title is a dedicated full-screen view, without the in-game HUD. */
+#app:has(.intro) { height: 100dvh; }
+#app:has(.intro) > .topbar,
+#app:has(.intro) > footer { display: none; }
+#app:has(.intro) #viewport { height: 100dvh; min-height: 100dvh; }
+#viewport:has(.intro) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #toast) { visibility: hidden; }
+#modal-layer:has(.intro) { position: fixed; inset: 0; padding: clamp(24px, 7vw, 100px); background: radial-gradient(ellipse at 50% 43%, #18343bdf 0, #0b171deF 55%, #081116f5 100%); backdrop-filter: none; }
+.modal.intro { width: min(100%, 1100px); height: 100%; max-height: none; overflow: auto; display: grid; place-items: center; padding: clamp(24px, 5vw, 72px); border: 0; background: transparent; box-shadow: none; }
+.intro-screen { width: min(760px, 100%); margin: auto; text-align: center; }
+.intro-title-screen .eyebrow { color: #9ab2a8; font: 10px 'Space Mono', monospace; letter-spacing: 2px; }
+.intro-title-screen .intro-symbol { margin: 34px 0 10px; color: #edc186; font-size: 30px; }
+.intro-title-screen h1 { max-width: 800px; margin: 0 auto 20px; font: 600 clamp(60px, 9vw, 112px)/.88 'Barlow Condensed', sans-serif; letter-spacing: -1px; }
+.intro-title-screen > p { margin: 0 0 40px; font: 16px/1.6 'DM Sans', sans-serif; color: #a8bab1; }
+.intro-title-screen #launch { width: min(560px, 100%); min-height: 78px; margin: 0 auto; padding: 22px 28px; text-align: left; font-size: 20px; }
+.intro-secondary { display: flex; justify-content: center; gap: 28px; margin-top: 24px; }
+.intro-secondary button, .intro-back { padding: 8px 0; border: 0; background: transparent; color: #9eb4aa; font: 11px 'Space Mono', monospace; letter-spacing: .5px; }
+.intro-secondary button:hover, .intro-back:hover { color: #edc186; }
+.intro-detail-screen { width: min(780px, 100%); text-align: left; }
+.intro-detail-heading { display: flex; align-items: center; gap: 24px; }
+.intro-detail-heading .eyebrow { color: #9ab2a8; font: 9px 'Space Mono', monospace; letter-spacing: 1.2px; }
+.intro-detail-screen h2 { margin: 22px 0 6px; color: #ece8d9; font: 500 42px 'Barlow Condensed', sans-serif; }
+.intro-detail-screen > p { color: #9fb1a8; line-height: 1.6; }
+.intro-detail-screen .intro-atlas { margin: 24px 0 18px; }
+.intro-detail-actions { display: flex; justify-content: center; margin-top: 26px; }
+.intro-detail-actions #launch { width: min(560px, 100%); min-height: 64px; text-align: left; }
+.intro-detail-screen .intro-controls { max-width: 620px; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 30px auto; }
+.intro-detail-screen .intro-controls > div { font-size: 10px; gap: 8px; }
+.intro-detail-screen .intro-controls kbd { min-width: 28px; height: 25px; font-size: 9px; }
+.intro-detail-screen .intro-risk, .intro-detail-screen .intro-note { text-align: center; }
+@media (max-width: 650px) {
+  #modal-layer:has(.intro) { padding: 18px; }
+  .modal.intro { padding: 20px 4px; }
+  .intro-title-screen .intro-symbol { margin-top: 20px; }
+  .intro-title-screen h1 { font-size: clamp(56px, 15vw, 78px); }
+  .intro-title-screen > p { margin-bottom: 30px; font-size: 14px; }
+  .intro-title-screen #launch { min-height: 66px; }
+  .intro-detail-screen h2 { font-size: 34px; }
+  .intro-detail-screen .intro-controls { gap: 10px; }
+  .intro-detail-screen .intro-controls > div { font-size: 8px; }
+  .intro-atlas { padding: 8px; }
+  .atlas-world { min-width: 68px; font-size: 6px; }
+}
+
 .modal.pause-screen {
   width: min(1020px, 100%);
   display: grid;
@@ -147,6 +190,24 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
   box-shadow: 0 14px 46px #0006;
   white-space: normal;
 }
+.orbit-worlds-button {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid #9ce4cf77;
+  background: #102128ee;
+  color: #d9f5df;
+  box-shadow: 0 10px 34px #0007;
+  font: 600 10px 'Space Mono', monospace;
+  letter-spacing: .8px;
+}
+.orbit-worlds-button span { color: #edc186; font-size: 15px; }
 .dock-label {
   min-width: 0;
   padding: 6px 9px 10px;
@@ -226,6 +287,86 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 .intro-help .intro-controls { margin-top: 12px; }
 .intro-help .intro-note { line-height: 1.6; }
 .modal.pause-screen { overflow: auto; }
+
+/* Outpost trade, service, and upgrade screens use the full viewport so their
+   longer option lists read as focused workspaces rather than cramped dialogs. */
+#app:has(.outpost-tabs) { height: 100dvh; }
+#app:has(.outpost-tabs) > .topbar,
+#app:has(.outpost-tabs) > footer { display: none; }
+#app:has(.outpost-tabs) #viewport { height: 100dvh; min-height: 100dvh; }
+#viewport:has(.outpost-tabs) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #toast) { visibility: hidden; }
+#modal-layer:has(.outpost-tabs) {
+  position: fixed;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  background: radial-gradient(ellipse at 50% 0%, #1a3238 0%, #101d22 52%, #0b1419 100%);
+  backdrop-filter: none;
+}
+.modal:has(.outpost-tabs) {
+  width: 100%;
+  height: 100dvh;
+  max-height: none;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.modal:has(.outpost-tabs) .modal-head,
+.modal:has(.outpost-tabs) .modal-body,
+.modal:has(.outpost-tabs) .modal-bank {
+  width: min(1040px, calc(100% - 64px));
+  margin-inline: auto;
+}
+.modal:has(.outpost-tabs) .modal-head {
+  padding: clamp(30px, 6vh, 60px) 56px 22px 0;
+}
+.modal:has(.outpost-tabs) .modal-head h2 { font-size: clamp(38px, 5vw, 58px); }
+.modal:has(.outpost-tabs) .modal-body {
+  width: min(1040px, calc(100% - 64px));
+  padding: 12px 8px 30px 0;
+  margin-right: max(32px, calc((100vw - 1040px) / 2));
+  scrollbar-gutter: stable;
+}
+.modal:has(.outpost-tabs) .outpost-tabs {
+  position: sticky;
+  top: -12px;
+  z-index: 1;
+  gap: 8px;
+  padding: 10px 0 16px;
+  margin: 0;
+  background: linear-gradient(#132329 82%, transparent);
+}
+.modal:has(.outpost-tabs) .outpost-tabs button { min-height: 46px; font-size: 12px; }
+.modal:has(.outpost-tabs) .modal-bank {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0;
+  padding: 15px 0 max(18px, env(safe-area-inset-bottom));
+  border-top: 1px solid #aabdb123;
+}
+.modal:has(.outpost-tabs) .close {
+  position: fixed;
+  top: 22px;
+  right: 24px;
+}
+
+@media (max-width: 650px) {
+  .modal:has(.outpost-tabs) .modal-head,
+  .modal:has(.outpost-tabs) .modal-body,
+  .modal:has(.outpost-tabs) .modal-bank { width: calc(100% - 32px); }
+  .modal:has(.outpost-tabs) .modal-head { padding: 26px 46px 16px 0; }
+  .modal:has(.outpost-tabs) .modal-head h2 { font-size: 36px; }
+  .modal:has(.outpost-tabs) .modal-body { margin-right: 16px; padding-bottom: 18px; }
+  .modal:has(.outpost-tabs) .outpost-tabs { gap: 5px; }
+  .modal:has(.outpost-tabs) .outpost-tabs button { min-height: 42px; padding: 8px 5px; font-size: 10px; }
+  .modal:has(.outpost-tabs) .close { top: 17px; right: 16px; }
+}
 
 @media (max-width: 650px) {
   .station-dock { width: min(300px, calc(100vw - 20px)); min-width: 0; right: 10px; bottom: 12px; }

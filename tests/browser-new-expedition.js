@@ -20,7 +20,7 @@ async (page) => {
   await cryo.click();
   if (await cryo.getAttribute('aria-pressed') !== 'true') throw Error('Starting world preview should return to Cryo Shelf');
   const goal = await atlas.locator('.atlas-goal').innerText();
-  if (!goal.includes('RECOVER 4 SIGNALS') || !goal.includes('BUILD THE FARADAY') || !goal.includes('LOG 5 CORES') || !goal.includes('FIND VESPER-9'))
+  if (!goal.includes('FIND 4 SHIP PARTS') || !goal.includes('TRAVEL THE SYSTEM') || !goal.includes('LOG 5 CORES') || !goal.includes('FIND VESPER-9'))
     throw Error(`Opening map should explain the campaign goal: ${goal}`);
   const cinder = atlas.getByRole('button', { name: /CINDER VALE.*SHIP REQUIRED/ });
   await cinder.click();
@@ -49,14 +49,14 @@ async (page) => {
     throw Error(`New expedition should start a clean Cryo campaign after preview: ${JSON.stringify(fresh)}`);
   await page.locator('#open-shipyard').click();
   const shipyard = await page.locator('#modal-layer').innerText();
-  if (!shipyard.includes('share one balance') || !shipyard.includes('spent on services and upgrades'))
-    throw Error(`Shipyard should explain the shared, spendable credit balance: ${shipyard}`);
+  if (!shipyard.includes('installs automatically') || !shipyard.includes('shipyard purchase needed') || !shipyard.includes('$200 for gear'))
+    throw Error(`Shipyard should explain automatic, free part installation: ${shipyard}`);
   for (const landmark of ['THERMAL OBSERVATORY', 'BASALT ENGINE HALL', 'ARK SIGNAL GALLERY', 'FARADAY BEACON VAULT']) {
-    if (!shipyard.includes(landmark)) throw Error(`Shipyard should map a route claim to ${landmark}: ${shipyard}`);
+    if (!shipyard.includes(landmark)) throw Error(`Ship parts list should point to ${landmark}: ${shipyard}`);
   }
-  if ((shipyard.match(/SIGNAL CLAIM ·/g) ?? []).length !== 4)
-    throw Error(`Fresh shipyard should show four unclaimed signal sources: ${shipyard}`);
-  await page.screenshot({ path: 'output/playwright/shipyard-route-claims.png' });
+  if ((shipyard.match(/FIND PART/g) ?? []).length !== 4)
+    throw Error(`Fresh ship parts list should show four locations to find: ${shipyard}`);
+  await page.screenshot({ path: 'output/playwright/shipyard-parts-list.png' });
   return { seed: fresh.seed, money: fresh.money, docked: fresh.docked, tiles: fresh.destroyed.length,
-    atlasWorlds, goal, compactIntro: introBounds, compactLaunch: launchBounds, shipyardClaims: 4 };
+    atlasWorlds, goal, compactIntro: introBounds, compactLaunch: launchBounds, shipPartsToFind: 4 };
 }

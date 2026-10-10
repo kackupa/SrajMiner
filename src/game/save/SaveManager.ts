@@ -1,6 +1,6 @@
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
-import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, CORE_RELICS, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 import { MARKET_CONTRACT_IDS, MARKET_DEMAND_IDS } from '../economy/MarketContracts';
 import { SYSTEM_PROJECT_MILESTONES } from '../economy/SystemProjects';
@@ -89,8 +89,10 @@ export function validateSave(s: unknown): s is SaveData {
     Number.isInteger(d.campaignSeed) &&
     Object.hasOwn(MAPS, d.activeMap) &&
     !!d.maps && Object.hasOwn(d.maps, d.activeMap) && Object.entries(d.maps).every(([id, m]) => {
+      const chart = m?.planetChart ?? d.planetChart;
+      const maxOrbitSaveAltitude = (chart?.radiusRows ?? PLANET_CHART.radiusRows) * WORLD.tile + MAX_TOWN_ALTITUDE;
       if (!Object.hasOwn(MAPS, id) || !m || !Number.isInteger(m.seed) || m.planetChart && !chartIsSupported(m.planetChart) || !finite(m.x) || m.x < 13 ||
-        m.x > mapColumns(m, d.planetChart) * WORLD.tile - 13 || !finite(m.y) || m.y < -MAX_TOWN_ALTITUDE || m.y > 1e7 ||
+        m.x > mapColumns(m, d.planetChart) * WORLD.tile - 13 || !finite(m.y) || m.y < -maxOrbitSaveAltitude || m.y > 1e7 ||
         !finite(m.maxDepth) || m.maxDepth < 0 || ![m.destroyed, m.discovered].every((a) =>
           Array.isArray(a) && a.length <= 500000 && a.every((v) => typeof v === 'string' && validTileKey(v, m.planetChart ?? d.planetChart))) ||
         !Array.isArray(m.drops) || m.drops.length > 500000 || !validCharge(m.activeCharge, mapColumns(m, d.planetChart)) ||
@@ -313,8 +315,13 @@ export class SaveManager {
     p.maxDepth = d.maxDepth;
     p.artifact = d.artifact;
     p.milestones = [...d.milestones];
-    p.shipComponents = [...d.shipComponents];
     p.routeFragments = [...d.routeFragments];
+    // Older saves paid credits for parts after finding each signal. Keep their
+    // progress while making every recovered signal an installed part now.
+    p.shipComponents = [...new Set([
+      ...d.shipComponents,
+      ...d.routeFragments.map((id) => ROUTE_SHIP_COMPONENTS[id as keyof typeof ROUTE_SHIP_COMPONENTS]),
+    ])];
     p.charges = d.charges;
     p.salvageMagnet = d.salvageMagnet;
     p.stasisModule = d.stasisModule;

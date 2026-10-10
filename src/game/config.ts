@@ -53,8 +53,8 @@ export const PHYSICS = {
   damageScale: 0.2,
   halfWidth: 13,
   halfHeight: 16,
-  /** Small horizontal collision inset keeps exposed block corners from snagging the miner. */
-  horizontalCollisionInset: 3,
+  /** A narrow physical hull lets the visible pod glide past jagged and curved tile corners. */
+  horizontalCollisionInset: 8,
 };
 export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 180,
@@ -420,14 +420,15 @@ export const DRILL_TIERS = [
 export const LASER_THERMAL = { heatSeconds: 4.5, ventSeconds: 1.15, coolPerSecond: 0.42 } as const;
 export const POD_SIZE = {
   drillPerLevel: 0.05, cargoPerLevel: 0.06, fuelPerLevel: 0.02, hullPerLevel: 0.02,
-  enginePerLevel: 0.02, scannerPerLevel: 0.015, grapplePerLevel: 0.015, maxScale: 1.72,
+  enginePerLevel: 0.02, scannerPerLevel: 0.015, grapplePerLevel: 0.015, shipPartBonus: 0.035, maxScale: 1.84,
 } as const;
-export const podVisualScale = (levels: Pick<Levels, 'drill' | 'cargo' | 'fuel' | 'hull' | 'engine' | 'scanner' | 'grapple'>) => {
+export const podVisualScale = (levels: Pick<Levels, 'drill' | 'cargo' | 'fuel' | 'hull' | 'engine' | 'scanner' | 'grapple'>, shipParts = 0) => {
   const tierGrowth = (key: keyof typeof POD_SIZE, level: number) => Math.max(0, level - 1) * POD_SIZE[key];
   return Math.min(POD_SIZE.maxScale, 1 + tierGrowth('drillPerLevel', levels.drill) +
     tierGrowth('cargoPerLevel', levels.cargo) + tierGrowth('fuelPerLevel', levels.fuel) +
     tierGrowth('hullPerLevel', levels.hull) + tierGrowth('enginePerLevel', levels.engine) +
-    tierGrowth('scannerPerLevel', levels.scanner) + tierGrowth('grapplePerLevel', levels.grapple));
+    tierGrowth('scannerPerLevel', levels.scanner) + tierGrowth('grapplePerLevel', levels.grapple) +
+    Math.max(0, Math.min(Object.keys(SHIP_COMPONENTS).length, Math.floor(shipParts))) * POD_SIZE.shipPartBonus);
 };
 export const SERVICE = { fuelPrice: 0.3, hullPrice: 0.45 };
 
@@ -462,6 +463,13 @@ export const SHARD_MANTA = {
   chargeSeconds: 0.62,
   recoverSeconds: 1.05,
   contactRadius: 29,
+} as const;
+export const HULL_SCRAPPER = {
+  hullDamage: 8,
+  drillHitsToDefeat: 3,
+  huntSpeed: 31,
+  contactRadius: 31,
+  armorFrontDot: 0.45,
 } as const;
 export const POD_PAINTS = {
   hab: { name: 'Hab Standard', description: 'The hard-wearing outpost finish.', cost: 0, hull: 0xeac781, trim: 0xffdfa0, light: 0xfff0bc },
@@ -524,10 +532,10 @@ export const CREW_ARCHIVE_CONCLUSION = {
 export type NavigationHashId = (typeof NAVIGATION_HASHES)[number]['id'];
 export type RouteFragmentId = (typeof ROUTE_FRAGMENTS)[number]['id'];
 export const SHIP_COMPONENTS = {
-  frame: { name: 'Launch frame', description: 'A reinforced cradle for the inter-map craft.', cost: 420 },
-  propulsion: { name: 'Ion propulsion', description: 'The thrust package for leaving this world.', cost: 720 },
-  navigation: { name: 'Route computer', description: 'Reconstructs coordinates from recovered signal data.', cost: 980 },
-  'life-support': { name: 'Habitat core', description: 'Keeps the ship and its destination workshop running.', cost: 680 },
+  frame: { name: 'Ship frame', description: 'The craft’s reinforced outer structure.' },
+  propulsion: { name: 'Engine', description: 'The engine that carries the craft between worlds.' },
+  navigation: { name: 'Navigation unit', description: 'The unit that charts routes between planets.' },
+  'life-support': { name: 'Life-support unit', description: 'The system that keeps the craft and crew alive.' },
 } as const;
 export type ShipComponent = keyof typeof SHIP_COMPONENTS;
 export const ROUTE_SHIP_COMPONENTS: Record<RouteFragmentId, ShipComponent> = {
@@ -536,10 +544,4 @@ export const ROUTE_SHIP_COMPONENTS: Record<RouteFragmentId, ShipComponent> = {
   'fragment-3': 'navigation',
   'fragment-4': 'life-support',
 };
-// Route-data claims form a predictable campaign path to the matching long-range ship parts.
-export const ROUTE_SURVEY_REWARDS: Record<RouteFragmentId, number> = {
-  'fragment-1': SHIP_COMPONENTS.frame.cost,
-  'fragment-2': SHIP_COMPONENTS.propulsion.cost,
-  'fragment-3': SHIP_COMPONENTS.navigation.cost,
-  'fragment-4': SHIP_COMPONENTS['life-support'].cost,
-};
+export const ROUTE_PART_RECOVERY_BONUS = 200;

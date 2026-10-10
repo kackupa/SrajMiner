@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
 import { Progress, emptyCargo, type Cargo } from './economy/Progress';
@@ -7,17 +7,20 @@ import { tradeRouteEdges } from './economy/TradeNetwork';
 import { transferWarehouseOre, type WarehouseDirection } from './economy/Warehouse';
 import { buildSaleReceipt } from './economy/Sale';
 import { advanceMarketDemand } from './economy/MarketContracts';
-import { contributeCargoTug, contributeVesperRelay, CARGO_TUG_PROJECT, remoteWarehouseAccess, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
+import { contributeCargoTug, contributeSurveyArray, contributeVesperRelay, CARGO_TUG_PROJECT, remoteWarehouseAccess, SURVEY_ARRAY_PROJECT, surveyScannerRadius, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
 import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
 import { AudioSystem } from './audio/AudioSystem';
 import { HUD } from './ui/HUD';
 import { getDialogFocusables } from './ui/focus';
-import { STATIONS, TOWN_TIER_HEIGHTS, atSurface, dockedOnSurface, onPlanetSurface, surfaceGroundY, surfaceTownTier } from './surface/SurfaceStation';
+import { STATIONS, TOWN_TIER_HEIGHTS, MAX_TOWN_ALTITUDE, atSurface, dockedOnSurface, onPlanetSurface, surfaceGroundY, surfaceTownTier } from './surface/SurfaceStation';
 import { drawPlanetSurfaceOutpost, drawSurfaceTown } from './surface/SurfaceTown';
 import { drawSurfaceLandmarks, surfaceLandmarkColor, surfaceLandmarks, type SurfaceLandmark } from './surface/PlanetScenery';
 import { restoreMapState, snapshotMapState } from './campaign/MapState';
+import { emergencyRecoveryDock } from './campaign/Recovery';
+import { isInOrbit, orbitAltitude, orbitalParkingY } from './campaign/Orbit';
+import { findSurfaceWinchRoute, type WinchPoint } from './campaign/WinchRoute';
 import { collectCoreRelic, crewArchiveRestored } from './campaign/Records';
 import { RockSwimmer } from './world/RockSwimmer';
 import { SurfaceRaid } from './world/SurfaceRaid';
@@ -44,6 +47,7 @@ export class MiningScene extends Phaser.Scene {
   campaignChart: PlanetChartSize = STARTER_PLANET_CHART;
   failureReason: 'fuel' | 'hull' | 'impact' = 'impact';
   stranded = false;
+  private winchRouteCache?: { world: TileWorld; x: number; y: number; destroyed: number; structureCount: number; route?: WinchPoint[] };
   private pendingPositionNotice = false;
   private pendingPositionWarning = false;
   campaignSeed = 0;
@@ -422,7 +426,7 @@ export class MiningScene extends Phaser.Scene {
           const ok = this.progress.buyReturnWinch();
           if (ok) {
             this.soundFx.reward();
-            this.ui.toast('Surface winch installed. Hold R in an open shaft to reel upward faster; watch your fuel.');
+            this.ui.toast('Surface winch installed. Hold R on a clear tunnel route to reel to the surface yard; watch your fuel.');
             this.save();
           }
           return ok;
@@ -492,25 +496,13 @@ export class MiningScene extends Phaser.Scene {
           }
           return ok;
         },
-        buildShipComponent: (key: ShipComponent) => {
-          if (!this.surface) return false;
-          const wasComplete = this.progress.shipComplete;
-          const ok = this.progress.buyShipComponent(key);
-          if (ok) {
-            this.soundFx.reward();
-            this.ui.toast(!wasComplete && this.progress.shipComplete
-              ? 'FARADAY ASSEMBLED · UPGRADE MILESTONE UNLOCKED: LEVEL 6+'
-              : `${key.toUpperCase()} installed at the shipyard.`);
-            this.save();
-          }
-          return ok;
-        },
         buildStructure: (kind: StructureKind) => this.buildUndergroundStructure(kind),
         warehouseStock: (mapId) => ({ ...(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.warehouse ?? emptyCargo() : this.warehouseCargo) }),
         warehouseMaps: () => this.warehouseMaps(),
         transferWarehouse: (ore, direction, units, mapId) => this.transferWarehouse(ore, direction, units, mapId),
         contributeSystemProject: () => this.contributeSystemProject(),
         contributeCargoTug: () => this.contributeCargoTug(),
+        contributeSurveyArray: () => this.contributeSurveyArray(),
         atWarehouse: () => !!this.nearbyWarehouse,
         placementActive: () => !!this.surfacePlacement,
         structures: () => this.structures,
@@ -564,6 +556,12 @@ export class MiningScene extends Phaser.Scene {
       },
     );
     this.ui.setMap(this.mapId);
+    this.ui.setInOrbit(this.inOrbit);
+    if (this.inOrbit) {
+      this.globeViewRequested = true;
+      this.cameraZoom = this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
+      this.orbitalTransition = 1;
+    }
     if (this.pendingPositionNotice) {
       this.ui.toast(this.pendingPositionWarning
         ? 'SAVE POSITION IS BLOCKED · USE PAUSE → EMERGENCY RECOVERY TO MOVE THE POD'
@@ -745,7 +743,7 @@ export class MiningScene extends Phaser.Scene {
         ),
     );
     this.revealAroundPod();
-    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy, this.farHemisphere, false, this.world.coreDepthMeters,
+    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy * this.world.gravitySign(this.pod.y), this.farHemisphere, false, this.world.coreDepthMeters,
       false, false, false, 0, 0, false, this.planetSurface);
     if (import.meta.env.DEV)
       Object.defineProperty(window, '__mars', {
@@ -756,6 +754,7 @@ export class MiningScene extends Phaser.Scene {
           vx: this.pod.vx,
           vy: this.pod.vy,
           fallCue: fallMotionCueIntensity(this.pod.vy, this.world.gravitySign(this.pod.y)),
+          descentSpeed: this.pod.vy * this.world.gravitySign(this.pod.y),
           depth: this.depth,
           farHemisphere: this.farHemisphere,
           gravitySign: this.world.gravitySign(this.pod.y),
@@ -771,10 +770,10 @@ export class MiningScene extends Phaser.Scene {
           reeling: this.pod.reeling,
           grappleAnchor: this.pod.grappleAnchor ? { ...this.pod.grappleAnchor } : null,
           rockSwimmer: this.rockSwimmer.active ? { ...this.rockSwimmer.active } : null,
-          scannerRadius: Math.min(this.world.widthTiles, this.progress.max('scanner') + SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus),
+          scannerRadius: surveyScannerRadius(this.progress.max('scanner'), SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus, this.progress.milestones, this.world.widthTiles),
           cargoCapacity: this.progress.max('cargo'),
           surveyedCells: this.world.discovered.size,
-          podScale: podVisualScale(this.progress.levels),
+          podScale: podVisualScale(this.progress.levels, this.progress.shipComponents.length),
           camera: { x: this.camX, y: this.camY },
           cameraRotation: this.viewRotation,
           cameraTurnLabelRemaining: this.cameraTurnLabelRemaining,
@@ -782,6 +781,7 @@ export class MiningScene extends Phaser.Scene {
           cameraZoomTarget: this.cameraZoomTarget,
           orbitalTransition: this.orbitalTransition,
           orbitalOverviewActive: this.orbitalOverviewActive,
+          inOrbit: this.inOrbit,
           winchCableConnected: !!this.surfaceWinchCable(),
           winchCablePointCount: this.surfaceWinchCable()?.points.length ?? 0,
           snapshot: () => new Promise<string>((resolve) =>
@@ -794,7 +794,7 @@ export class MiningScene extends Phaser.Scene {
             foreground: this.atmosphere.motes.filter(p => p.foreground).length },
           stationLabels: this.labels.map((label) => ({ visible: label.visible, x: label.x, y: label.y })),
         shipComponents: [...this.progress.shipComponents],
-          shipStatus: this.progress.shipComplete ? 'FLIGHT READY' : `${this.progress.shipComponents.length} / 4 SYSTEMS`,
+          shipStatus: this.progress.shipComplete ? 'FLIGHT READY' : `${this.progress.shipComponents.length} / 4 PARTS`,
           shipStatusLabel: { x: this.shipStatusLabel.x, y: this.shipStatusLabel.y, visible: this.shipStatusLabel.visible, text: this.shipStatusLabel.text },
         routeFragments: [...this.progress.routeFragments],
         audio: {
@@ -836,6 +836,9 @@ export class MiningScene extends Phaser.Scene {
   }
   get planetSurface() {
     return onPlanetSurface(this.pod.x, this.pod.y, this.world.planetChart);
+  }
+  get inOrbit() {
+    return isInOrbit(this.pod.y, this.world.planetChart);
   }
   get sellAccess() {
     return this.surface || this.planetSurface && !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post');
@@ -922,6 +925,26 @@ export class MiningScene extends Phaser.Scene {
     this.ui.toast(result.completed
       ? `CARGO TUG ONLINE · +$${CARGO_TUG_PROJECT.rewardCredits} · REMOTE WAREHOUSE ACCESS UNLOCKED.`
       : `${MAPS[stage.mapId].name.toUpperCase()} CARGO TUG WORK COMPLETE · ${stage.units} ${stage.ore.toUpperCase()} COMMITTED.`);
+    return true;
+  }
+  contributeSurveyArray() {
+    if (!this.nearbyWarehouse) return false;
+    const oldWarehouse = { ...this.warehouseCargo }, oldMilestones = [...this.progress.milestones], oldMoney = this.progress.money,
+      result = contributeSurveyArray(this.progress.milestones, this.mapId, this.warehouseCargo);
+    if (!result.contributed) return false;
+    if (!this.save()) {
+      this.warehouseCargo = oldWarehouse;
+      this.progress.milestones = oldMilestones;
+      this.progress.money = oldMoney;
+      this.rememberCurrentMap();
+      this.ui.toast('PROJECT SAVE FAILED · MATERIALS RESTORED.');
+      return false;
+    }
+    const stage = result.stage!;
+    this.soundFx.reward();
+    this.ui.toast(result.completed
+      ? `LONG-RANGE SURVEY ARRAY ONLINE · SCANNER REACH +${SURVEY_ARRAY_PROJECT.scannerRadiusBonus} TILES.`
+      : `${MAPS[stage.mapId].name.toUpperCase()} SURVEY ARRAY WORK COMPLETE · ${stage.units} ${stage.ore.toUpperCase()} COMMITTED.`);
     return true;
   }
   tradePostMaps() {
@@ -1086,17 +1109,32 @@ export class MiningScene extends Phaser.Scene {
     return true;
   }
   estimateReturnFuel() {
-    return estimateVerticalReturnFuel(this.pod.y, this.progress.max('engine'), this.world.planetChart);
+    const estimate = estimateVerticalReturnFuel(this.pod.y, this.progress.max('engine'), this.world.planetChart),
+      route = this.progress.returnWinch ? this.surfaceWinchCable() : undefined;
+    if (!route) return estimate;
+    const chart = this.world.planetChart, points = route.points.map((point) => chart
+      ? planetChartToCartesian({ u: point.x / WORLD.tile, v: point.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile)
+      : point);
+    let routeLength = 0;
+    for (let i = 1; i < points.length; i++) routeLength += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.y - points[i - 1]!.y);
+    const conservativeRise = Math.max(1, PHYSICS.rise * this.progress.max('engine') * 0.55),
+      routeEstimate = Math.ceil(routeLength / conservativeRise * FUEL.thrust * 1.45 + 2);
+    return Math.max(estimate, routeEstimate);
   }
 
   surfaceWinchCable() {
     if (!this.progress.returnWinch || this.pod.y <= WORLD.spawnY) return undefined;
-    const gravity = this.world.gravitySign(this.pod.y), surface = surfaceYAt(this.pod.y, this.world.planetChart),
-      anchorY = surface - gravity * 34,
-      start = { x: this.pod.x, y: this.pod.y - gravity * 10 },
-      end = { x: this.pod.x, y: anchorY };
-    if (!hasClearMagnetPath(this.world, this.pod.x, this.pod.y, end.x, end.y)) return undefined;
-    return { points: [start, end] };
+    const x = Math.floor(this.pod.x / WORLD.tile), y = Math.floor(this.pod.y / WORLD.tile), destroyed = this.world.destroyed.size,
+      structureCount = this.structures.length;
+    if (this.winchRouteCache?.world !== this.world || this.winchRouteCache.x !== x || this.winchRouteCache.y !== y ||
+        this.winchRouteCache.destroyed !== destroyed || this.winchRouteCache.structureCount !== structureCount) {
+      this.winchRouteCache = { world: this.world, x, y, destroyed, structureCount,
+        route: findSurfaceWinchRoute(this.world, this.pod.x, this.pod.y, this.structures) };
+    }
+    const route = this.winchRouteCache.route;
+    if (!route) return undefined;
+    route[0] = { x: this.pod.x, y: this.pod.y - this.world.gravitySign(this.pod.y) * 10 };
+    return { points: route };
   }
   seedForMap(id: MapId) {
     const index = Object.keys(MAPS).indexOf(id) + 1;
@@ -1104,14 +1142,16 @@ export class MiningScene extends Phaser.Scene {
   }
   revealAroundPod() {
     const tx = Math.floor(this.pod.x / WORLD.tile), ty = Math.floor(this.pod.y / WORLD.tile);
-    const bonus = SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus;
-    const radius = Math.min(this.world.widthTiles, this.progress.max('scanner') + bonus);
+    const bonus = SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus,
+      baseRadius = this.progress.max('scanner'),
+      radius = surveyScannerRadius(baseRadius, bonus, this.progress.milestones, this.world.widthTiles),
+      projectBonus = radius - Math.min(this.world.widthTiles, baseRadius + bonus);
     if (this.lastRevealWorld === this.world && this.lastRevealX === tx && this.lastRevealY === ty && this.lastRevealRadius === radius) return;
     this.lastRevealWorld = this.world;
     this.lastRevealX = tx;
     this.lastRevealY = ty;
     this.lastRevealRadius = radius;
-    this.world.reveal(this.pod.x, this.pod.y, bonus, this.progress.max('scanner'));
+    this.world.reveal(this.pod.x, this.pod.y, bonus + projectBonus, baseRadius);
     this.pod.scannerRadius = radius;
   }
   rememberCurrentMap() {
@@ -1141,7 +1181,10 @@ export class MiningScene extends Phaser.Scene {
     return undefined;
   }
   travelToMap(id: MapId) {
-    if (!this.surface || id === this.mapId) return false;
+    if (!this.inOrbit || id === this.mapId) {
+      if (!this.inOrbit && id !== this.mapId) this.ui.toast('HOLD W TO CLIMB ABOVE THE GLOBE · WORLDS OPEN IN ORBIT');
+      return false;
+    }
     const unlocked = id === 'cryo-shelf' || id === this.mapId || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
     if (!unlocked) return false;
     this.rememberCurrentMap();
@@ -1173,6 +1216,7 @@ export class MiningScene extends Phaser.Scene {
     this.camY = this.surfaceCameraY;
     this.revealAroundPod();
     this.ui.setMap(id);
+    this.ui.setInOrbit(false);
     this.ui.toast(`Destination reached · ${MAPS[id].name.toUpperCase()}`);
     this.save();
     return true;
@@ -1235,16 +1279,25 @@ export class MiningScene extends Phaser.Scene {
       this.save();
       return;
     }
+    const recoveryDock = emergencyRecoveryDock(this.pod.x, this.pod.y, this.world.planetChart);
     this.progress.pilotEscaping = false;
     this.progress.rescue();
     this.pod.reset();
+    this.pod.x = recoveryDock.x;
+    this.pod.y = recoveryDock.y;
     this.stranded = false;
-    this.hemisphereFar = false;
-    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.hemisphereFar = recoveryDock.far;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = recoveryDock.far ? 1 : 0;
     this.cameraFlipElapsed = 0;
     this.mining.target = undefined;
     this.mining.ratio = 0;
+    this.planetFrameRotation = this.world.planetChart
+      ? planetCameraFrameAngle(this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, this.world.planetChart) ?? (recoveryDock.far ? Math.PI : 0)
+      : 0;
+    this.cameraTurnLabelRemaining = 0;
+    this.camX = this.pod.x - this.scale.width / 2;
     this.camY = this.surfaceCameraY;
+    this.wasSurface = this.surface;
     this.failureReason = recovery ? 'impact' : reason;
     this.ui.open('failure');
     this.ui.toast(
@@ -1403,12 +1456,14 @@ export class MiningScene extends Phaser.Scene {
   recordFragment(tile: Tile, persist = true) {
     if (!tile.fragmentId || !this.progress.collectRouteFragment(tile.fragmentId)) return false;
     const fragment = ROUTE_FRAGMENTS.find((entry) => entry.id === tile.fragmentId)!;
-    const claim = ROUTE_SURVEY_REWARDS[fragment.id];
+    const component = SHIP_COMPONENTS[ROUTE_SHIP_COMPONENTS[fragment.id]];
     this.progress.milestones.push(fragment.milestoneId);
     this.soundFx.playLandmarkCue('route');
     this.soundFx.reward();
-    this.ui.toast(`ROUTE DATA RECOVERED · +$${claim} FARADAY SALVAGE CLAIM`);
-    this.float(`+$${claim} CLAIM`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, '#9ae8d8');
+    this.ui.toast(this.progress.shipComplete
+      ? `FARADAY ASSEMBLED · WORLDS UNLOCKED · +$${ROUTE_PART_RECOVERY_BONUS}`
+      : `${component.name.toUpperCase()} FOUND · ${this.progress.shipComponents.length}/4 · +$${ROUTE_PART_RECOVERY_BONUS}`);
+    this.float(`PART FOUND · +$${ROUTE_PART_RECOVERY_BONUS}`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, '#9ae8d8');
     if (persist) this.save();
     return true;
   }
@@ -1538,11 +1593,16 @@ export class MiningScene extends Phaser.Scene {
           down: k.S.isDown || k.DOWN.isDown,
           up: k.W.isDown || k.UP.isDown || k.SPACE.isDown,
           stasis: k.X.isDown,
-          reel: k.R.isDown,
+          reel: k.R.isDown && !!winchRoute,
+          winchTarget: winchRoute?.points[1],
           escapePack: this.progress.pilotEscaping,
         };
       const wasGrappled = !!this.pod.grappleAnchor, wasDocked = this.pod.docked;
-      const target = this.stranded || this.surfacePlacement ? undefined : this.pod.update(dt, input, (damage) => {
+      const previousOrbit = this.inOrbit;
+      const orbitalControls = previousOrbit && (input.left || input.right || input.down || input.up);
+      // Thrust is still available in orbit so players can leave from either hemisphere.
+      const flightInput = input;
+      const target = this.stranded || this.surfacePlacement || previousOrbit && !orbitalControls ? undefined : this.pod.update(dt, flightInput, (damage) => {
         if (this.progress.pilotEscaping || this.progress.hull <= 0) return;
         this.progress.hull = Math.max(0, this.progress.hull - damage);
         this.shake = 5;
@@ -1553,6 +1613,39 @@ export class MiningScene extends Phaser.Scene {
         this.soundFx.tone(55, 0.22, 'sawtooth', 0.07, 20);
         this.float(`−${Math.ceil(damage)} HULL`, this.pod.x, this.pod.y - 25, '#ff927d');
       }, this.viewRotation);
+      if (this.world.planetChart) {
+        if (this.progress.shipComplete) {
+          if (this.inOrbit && !input.down && !input.up) {
+            this.pod.y = orbitalParkingY(this.pod.y, this.world.planetChart);
+            this.pod.vy = 0;
+          }
+        } else if (this.pod.y < -MAX_TOWN_ALTITUDE) {
+          this.pod.y = -MAX_TOWN_ALTITUDE;
+          this.pod.vy = 0;
+          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('FIND THE FOUR GLOWING SHIP PARTS TO UNLOCK FLIGHT');
+        }
+      }
+      const enteredOrbit = !previousOrbit && this.inOrbit;
+      if (enteredOrbit) {
+        this.pod.vy = 0;
+        this.pod.vx = 0;
+        this.pod.thrusting = false;
+        this.pod.reeling = false;
+        this.pod.stasisActive = false;
+        this.pod.docked = false;
+        this.globeViewRequested = true;
+        this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
+        this.ui.setInOrbit(true);
+        this.ui.toast('ORBIT ACHIEVED · OPEN WORLDS TO CHOOSE YOUR NEXT PLANET');
+        this.soundFx.tone(520, 0.3, 'sine', 0.05, 1040);
+        this.save();
+      }
+      if (previousOrbit && !this.inOrbit) {
+        this.globeViewRequested = false;
+        this.cameraZoomTarget = 1;
+        this.ui.setInOrbit(false);
+        this.ui.toast('PLANET APPROACH · HOLD W TO BRAKE FOR A SAFE LANDING');
+      }
       if (!wasDocked && this.pod.docked && input.reel && this.progress.returnWinch) {
         this.soundFx.tone(520, 0.18, 'sine', 0.05, 780);
         this.soundFx.tone(780, 0.14, 'sine', 0.035, 980);
@@ -1632,14 +1725,18 @@ export class MiningScene extends Phaser.Scene {
           this.fail();
           return;
         }
-        const enemyDamage = incomingSwimmerKind === 'shard-manta' ? SHARD_MANTA.hullDamage : ROCK_SWIMMER.hullDamage;
+        const enemyDamage = incomingSwimmerKind === 'shard-manta' ? SHARD_MANTA.hullDamage
+          : incomingSwimmerKind === 'hull-scrapper' ? HULL_SCRAPPER.hullDamage : ROCK_SWIMMER.hullDamage;
         this.progress.hull = Math.max(0, this.progress.hull - enemyDamage);
         this.shake = this.reducedMotion ? 0 : 4;
-        const enemyName = incomingSwimmerKind === 'shard-manta' ? 'SHARD MANTA' : 'ROCK SWIMMER';
-        this.float(`−${enemyDamage} HULL · ${enemyName}`, this.pod.x, this.pod.y - 29, incomingSwimmerKind === 'shard-manta' ? '#e9a0ed' : '#8fe5d5');
+        const enemyName = incomingSwimmerKind === 'shard-manta' ? 'SHARD MANTA'
+          : incomingSwimmerKind === 'hull-scrapper' ? 'HULL SCRAPPER' : 'ROCK SWIMMER';
+        this.float(`−${enemyDamage} HULL · ${enemyName}`, this.pod.x, this.pod.y - 29, incomingSwimmerKind === 'shard-manta' ? '#e9a0ed' : incomingSwimmerKind === 'hull-scrapper' ? '#e2b483' : '#8fe5d5');
         this.ui.toast(incomingSwimmerKind === 'shard-manta'
           ? 'SHARD MANTA HIT · DODGE ITS WIND-UP OR DRILL IT BEFORE THE CHARGE.'
-          : 'ROCK SWIMMER COLLISION · Steer clear when its glow approaches.');
+          : incomingSwimmerKind === 'hull-scrapper'
+            ? 'HULL SCRAPPER HIT · ITS PLATED FRONT RESISTS THE DRILL. FLANK IT.'
+            : 'ROCK SWIMMER COLLISION · Steer clear when its glow approaches.');
         this.soundFx.tone(160, 0.16, 'sine', 0.04, 80);
         this.save();
       }
@@ -1666,14 +1763,17 @@ export class MiningScene extends Phaser.Scene {
         this.save();
       }
       const swimmerPosition = this.rockSwimmer.active ? { x: this.rockSwimmer.active.x, y: this.rockSwimmer.active.y } : undefined,
-        swimmerName = this.rockSwimmer.active?.kind === 'shard-manta' ? 'SHARD MANTA' : 'ROCK SWIMMER';
+        swimmerName = this.rockSwimmer.active?.kind === 'shard-manta' ? 'SHARD MANTA'
+          : this.rockSwimmer.active?.kind === 'hull-scrapper' ? 'HULL SCRAPPER' : 'ROCK SWIMMER';
       const enemyBeamHeld = mouseDrilling || input.down || input.left || input.right;
       const swimmerHealthBefore = this.rockSwimmer.active?.health;
+      const armorFlashBefore = this.rockSwimmer.active?.armorBlockedFlash ?? 0;
       const swimmerDefeated = enemyBeamHeld && this.rockSwimmer.hitByDrill(
         this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
         WORLD.tile * drillReachTiles(this.progress.levels.drill),
       );
       const swimmerHealthAfter = this.rockSwimmer.active?.health;
+      const armorFlashAfter = this.rockSwimmer.active?.armorBlockedFlash ?? 0;
       if (swimmerDefeated) {
         this.burst(swimmerPosition?.x ?? this.pod.x, swimmerPosition?.y ?? this.pod.y, 0x9ce4cf, 10);
         this.ui.toast(`${swimmerName} DRIVEN OFF · DRILL EFFECTIVE`);
@@ -1684,6 +1784,11 @@ export class MiningScene extends Phaser.Scene {
           swimmerPosition?.x ?? this.pod.x, (swimmerPosition?.y ?? this.pod.y) - 26, swimmerName === 'SHARD MANTA' ? '#e9a0ed' : '#8fe5d5');
         this.ui.toast(`${swimmerName} HIT · ${swimmerHealthAfter} MORE DRILL ${swimmerHealthAfter === 1 ? 'HIT' : 'HITS'} TO DRIVE OFF`);
         this.soundFx.tone(410, 0.08, 'triangle', 0.025, 250);
+      } else if (armorFlashAfter > armorFlashBefore && swimmerName === 'HULL SCRAPPER') {
+        this.burst(swimmerPosition?.x ?? this.pod.x, swimmerPosition?.y ?? this.pod.y, 0xe2b483, 4);
+        this.float('ARMOR DEFLECTED · FLANK IT', swimmerPosition?.x ?? this.pod.x, (swimmerPosition?.y ?? this.pod.y) - 26, '#e2b483');
+        this.ui.toast('HULL SCRAPPER ARMOR DEFLECTED THE DRILL · AIM FOR ITS SIDE OR REAR.');
+        this.soundFx.tone(260, 0.1, 'square', 0.025, 170);
       }
       const raiderPosition = this.surfaceRaid.active ? { x: this.surfaceRaid.active.x, y: this.surfaceRaid.active.y } : undefined;
       if (enemyBeamHeld && this.surfaceRaid.hitByDrill(
@@ -1783,7 +1888,7 @@ export class MiningScene extends Phaser.Scene {
     if (this.world.planetChart) this.updatePlanetCameraFrame(dt);
     else this.updateCameraFlip(dt);
       const localZoomFloor = this.world.planetChart ? GLOBE_HANDOFF_ZOOM : this.minimumCameraZoom,
-        zoomToGlobe = !!this.world.planetChart && this.globeViewRequested,
+        zoomToGlobe = !!this.world.planetChart && (this.globeViewRequested || this.inOrbit),
         atHandoffZoom = Math.abs(this.cameraZoom - GLOBE_HANDOFF_ZOOM) <= 0.0005;
       this.cameraZoomTarget = Math.max(this.cameraZoomTarget, localZoomFloor);
       if (this.reducedMotion) {
@@ -1828,7 +1933,8 @@ export class MiningScene extends Phaser.Scene {
     }, this.laserThermal.vent > 0);
     this.uiClock += dt;
     if (this.uiClock > 0.08) {
-      this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), this.pod.vy, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
+      const descentSpeed = this.pod.vy * this.world.gravitySign(this.pod.y);
+      this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), descentSpeed, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
         this.progress.returnWinch, this.pod.reeling, !!this.surfaceWinchCable(), this.laserThermal.heat, this.laserThermal.vent,
         drillVisualTier(this.progress.levels.drill) === 5, this.planetSurface);
       this.ui.drawMap(this.world, this.pod);
@@ -1975,6 +2081,8 @@ export class MiningScene extends Phaser.Scene {
     g.setAlpha(1 - orbitBlend);
     this.orbitG.clear().setAlpha(orbitBlend);
     this.orbitalLabel.setPosition(w / 2, h - 58).setVisible(orbitBlend > 0.25);
+    if (this.inOrbit) this.orbitalLabel.setText('ORBIT PARKING  ·  WORLDS TO DEPART  ·  S TO DESCEND');
+    else this.orbitalLabel.setText('ORBITAL CUTAWAY  ·  WHEEL TO RETURN');
     const legacyFlipping = !this.world.planetChart && Math.abs(this.cameraFlipTarget - this.cameraFlipStart) > 0.001 && this.cameraFlipElapsed < this.cameraFlipDuration;
     const flipping = this.world.planetChart ? this.cameraTurnLabelRemaining > 0 : legacyFlipping;
     this.cameraFlipLabel.setPosition(w / 2, 34)
@@ -2029,7 +2137,7 @@ export class MiningScene extends Phaser.Scene {
       }
       const shipLabel = screenProject(700, (surfaceRow + (farSurface ? 157 : -157)) * T);
       this.shipStatusLabel
-        .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `FARADAY · ${this.progress.shipComponents.length} / 4 SYSTEMS`)
+        .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `SHIP PARTS · ${this.progress.shipComponents.length} / 4`)
         .setPosition(shipLabel.x, shipLabel.y)
         .setVisible(h >= 400);
     }
@@ -2152,7 +2260,7 @@ export class MiningScene extends Phaser.Scene {
       }
       const shipLabel = cameraZoomPoint({ x: Phaser.Math.Clamp(shipX + 145, 350, w - 110), y: ground - 151 }, w, h, this.cameraZoom);
       this.shipStatusLabel
-        .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `FARADAY · ${installed.length} / 4 SYSTEMS`)
+        .setText(this.progress.shipComplete ? 'FARADAY · FLIGHT READY' : `SHIP PARTS · ${installed.length} / 4`)
         .setPosition(shipLabel.x, shipLabel.y)
         .setVisible(h >= 400);
     } else {
@@ -2368,16 +2476,42 @@ export class MiningScene extends Phaser.Scene {
         }
         if (tile.fragmentId) {
           const recovered = this.progress.routeFragments.includes(tile.fragmentId);
+          const component = ROUTE_SHIP_COMPONENTS[tile.fragmentId];
           g.fillStyle(0x8ef1df, 0.17);
           g.fillCircle(px + 20, py + 20, this.reducedMotion ? 16 : 16 + Math.sin(this.tick * 3) * 2);
-          g.fillStyle(recovered ? 0x45645e : 0xb1fff0);
-          g.fillPoints([
-            { x: px + 20, y: py + 7 }, { x: px + 29, y: py + 20 },
-            { x: px + 20, y: py + 33 }, { x: px + 11, y: py + 20 },
-          ], true);
-          g.fillStyle(0x18373a);
-          g.fillRect(px + 18, py + 15, 4, 10);
-          g.fillRect(px + 15, py + 18, 10, 4);
+          const partColor = recovered ? 0x45645e : 0xb1fff0;
+          g.fillStyle(partColor);
+          g.lineStyle(2, partColor, 0.95);
+          if (component === 'frame') {
+            g.strokeRect(px + 10, py + 12, 20, 16);
+            g.strokeRect(px + 15, py + 16, 10, 8);
+            g.fillRect(px + 18, py + 9, 4, 4);
+            g.fillRect(px + 18, py + 27, 4, 4);
+          } else if (component === 'propulsion') {
+            g.fillPoints([
+              { x: px + 20, y: py + 9 }, { x: px + 27, y: py + 20 },
+              { x: px + 24, y: py + 20 }, { x: px + 24, y: py + 28 },
+              { x: px + 16, y: py + 28 }, { x: px + 16, y: py + 20 },
+              { x: px + 13, y: py + 20 },
+            ], true);
+            g.fillStyle(0x18373a);
+            g.fillCircle(px + 20, py + 19, 2.5);
+            g.fillStyle(partColor);
+            g.fillPoints([{ x: px + 17, y: py + 29 }, { x: px + 20, y: py + 35 }, { x: px + 23, y: py + 29 }], true);
+          } else if (component === 'navigation') {
+            g.fillPoints([
+              { x: px + 20, y: py + 9 }, { x: px + 25, y: py + 20 },
+              { x: px + 20, y: py + 31 }, { x: px + 15, y: py + 20 },
+            ], true);
+            g.fillStyle(0x18373a);
+            g.fillCircle(px + 20, py + 20, 2.5);
+          } else {
+            g.fillRoundedRect(px + 14, py + 10, 12, 20, 3);
+            g.strokeRoundedRect(px + 14, py + 10, 12, 20, 3);
+            g.fillStyle(0x18373a);
+            g.fillRect(px + 19, py + 14, 2, 12);
+            g.fillRect(px + 16, py + 19, 8, 2);
+          }
         }
         if (this.mining.affected.some((target) => target.x === x && target.y === y)) {
           g.lineStyle(1, 0xf5d59b, 0.7);
@@ -2774,6 +2908,20 @@ export class MiningScene extends Phaser.Scene {
             g.lineBetween(sxw - ux * 42, syw - uy * 42, sxw - ux * 12, syw - uy * 12);
             g.strokeCircle(sxw, syw, 29 + (this.reducedMotion ? 0 : pulse * 4));
           }
+        } else if (swimmer.kind === 'hull-scrapper') {
+          const color = swimmer.hitFlash > 0 ? 0xffffff : swimmer.armorBlockedFlash && swimmer.armorBlockedFlash > 0 ? 0xffd38a : 0xb5c4c1,
+            local = (forward: number, side: number) => ({ x: sxw + ux * forward - uy * side, y: syw + uy * forward + ux * side });
+          g.fillStyle(color, 0.16 * pulse);
+          g.fillCircle(sxw, syw, 33);
+          g.fillStyle(color, 0.95);
+          g.fillPoints([local(17, 0), local(9, -12), local(-11, -15), local(-18, -7), local(-18, 7), local(-11, 15), local(9, 12)], true);
+          g.fillStyle(0x66777a, 1);
+          g.fillPoints([local(17, 0), local(7, -8), local(2, 0), local(7, 8)], true);
+          g.fillStyle(0x243439, 1);
+          g.fillCircle(local(-8, -8).x, local(-8, -8).y, 2.5);
+          g.fillCircle(local(-8, 8).x, local(-8, 8).y, 2.5);
+          g.lineStyle(1.5, color, 0.8);
+          g.strokeCircle(sxw, syw, 22 + (this.reducedMotion ? 0 : pulse * 2));
         } else {
           const color = swimmer.hitFlash > 0 ? 0xffffff : tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
           g.fillStyle(color, 0.16 * pulse);
@@ -2799,8 +2947,9 @@ export class MiningScene extends Phaser.Scene {
             g.strokeCircle(sxw, syw, 17 + (this.reducedMotion ? 0 : Math.sin(this.tick * 5) * 2));
           }
         }
-        const maxHealth = swimmer.kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
-          healthColor = swimmer.kind === 'shard-manta' ? 0xe9a0ed : 0x8fe5d5,
+        const maxHealth = swimmer.kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat
+            : swimmer.kind === 'hull-scrapper' ? HULL_SCRAPPER.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
+          healthColor = swimmer.kind === 'shard-manta' ? 0xe9a0ed : swimmer.kind === 'hull-scrapper' ? 0xe2b483 : 0x8fe5d5,
           pipStart = sxw - (maxHealth - 1) * 4;
         g.fillStyle(0x101b24, 0.86);
         g.fillRect(sxw - 16, syw - 40, 32, 9);
@@ -2842,7 +2991,7 @@ export class MiningScene extends Phaser.Scene {
     const x = sx(this.pod.x),
       y = sy(this.pod.y),
       f = this.pod.facing,
-      vehicleScale = podVisualScale(this.progress.levels),
+      vehicleScale = podVisualScale(this.progress.levels, this.progress.shipComponents.length),
       px = (offset: number) => x + offset * vehicleScale * viewSign,
       py = (offset: number) => y + offset * vehicleScale * viewSign;
     const winchCable = this.surfaceWinchCable();
