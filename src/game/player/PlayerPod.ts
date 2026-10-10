@@ -5,7 +5,7 @@ import { crossedStructureDeck, type UndergroundStructure } from '../building/Und
 import { Progress } from '../economy/Progress';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, planetTangentVelocityLimit, wrapPlanetSeam } from '../world/PlanetChart';
 import { planetCameraFrameAngle, screenDirectionToWorld } from '../world/Projection';
-export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; releaseGrapple?: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean; mothership?: boolean };
+export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; releaseGrapple?: boolean; grappleEnabled?: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean; mothership?: boolean };
 export type GrappleAnchor = { x: number; y: number };
 export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach: number, gravitySign = 1): GrappleAnchor | undefined {
     const tx = Math.floor(x / WORLD.tile), ty = Math.floor(y / WORLD.tile), cells = Math.ceil(reach / WORLD.tile);
@@ -297,7 +297,7 @@ export class PlayerPod {
       coreTransit = !!this.world.planetChart && Math.abs(this.y - this.world.coreWorldY) <= CORE_CROSSING_CLEARANCE,
       maxOutward = coreTransit ? Math.max(maxRise, P.fall) : maxRise;
     this.vy = gravitySign > 0 ? Math.max(-maxOutward, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxOutward, this.vy));
-    if (p.grappleOwned && !input.mothership && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !input.releaseGrapple && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
+    if (p.grappleOwned && input.grappleEnabled !== false && !input.mothership && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !input.releaseGrapple && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
       const anchor = findGrappleAnchor(this.world, this.x, this.y, value(p.levels, 'grapple'), gravitySign);
       if (anchor) {
         this.grappleAnchor = anchor;

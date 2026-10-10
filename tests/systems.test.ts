@@ -1547,6 +1547,21 @@ test('G drops the grapple tether without thrust or fuel use', () => {
   assert.ok(pod.vy > 0, 'gravity resumes after release');
   assert.equal(progress.fuel, fuel, 'a cable release does not spend thrust fuel');
 });
+
+test('disabled grapple cannot catch a fall', () => {
+  const world = new TileWorld(192), progress = new Progress();
+  const pod = new PlayerPod(world, progress);
+  for (let y = 1; y <= 7; y++) world.break(24, y);
+  world.break(23, 4);
+  world.chunks.clear();
+  pod.docked = false;
+  progress.buy('grapple');
+  pod.x = 24 * WORLD.tile + 20;
+  pod.y = 6 * WORLD.tile + 10;
+  pod.vy = 250;
+  pod.update(1 / 60, { ...idle, grappleEnabled: false }, () => {});
+  assert.equal(pod.grappleAnchor, undefined, 'turning the safety hook off suppresses automatic catches');
+});
 test('automatic grapple waits for a damaging landing inside its short lookahead', () => {
   const world = new TileWorld(193), pod = new PlayerPod(world, new Progress());
   for (let y = 1; y <= 80; y++) world.break(WORLD.homeColumn, y);

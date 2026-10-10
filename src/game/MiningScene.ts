@@ -78,6 +78,8 @@ export class MiningScene extends Phaser.Scene {
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
   mothershipBoarded = false;
+  private grappleEnabled = true;
+  private grappleKeyWasDown = false;
   buildPlacementLabel!: Phaser.GameObjects.Text;
   cameraFlipLabel!: Phaser.GameObjects.Text;
   orbitalLabel!: Phaser.GameObjects.Text;
@@ -773,6 +775,7 @@ export class MiningScene extends Phaser.Scene {
     this.revealAroundPod();
     this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy * this.world.gravitySign(this.pod.y), this.farHemisphere, false, this.world.coreDepthMeters,
       false, false, false, 0, 0, false, this.planetSurface, false, this.isNearMothership(), this.mothershipBoarded, this.progress.shipComplete, this.inOrbit);
+    this.ui.setGrappleEnabled(this.grappleEnabled);
     if (import.meta.env.DEV)
       Object.defineProperty(window, '__mars', {
         configurable: true,
@@ -1649,13 +1652,22 @@ export class MiningScene extends Phaser.Scene {
     if (!this.ui.paused) {
       const previousFarSide = this.farHemisphere, previousPodY = this.pod.y;
       const k = this.keys,
-        winchRoute = k.R.isDown ? this.surfaceWinchCable() : undefined,
+        grappleKeyDown = k.G.isDown,
+        grappleKeyPressed = grappleKeyDown && !this.grappleKeyWasDown;
+      this.grappleKeyWasDown = grappleKeyDown;
+      if (grappleKeyPressed && this.progress.grappleOwned && !this.mothershipBoarded) {
+        this.grappleEnabled = !this.grappleEnabled;
+        this.ui.setGrappleEnabled(this.grappleEnabled);
+        this.ui.toast(this.grappleEnabled ? 'SAFETY GRAPPLE ON · G TO DISABLE' : 'SAFETY GRAPPLE OFF · G TO ENABLE');
+      }
+      const winchRoute = k.R.isDown ? this.surfaceWinchCable() : undefined,
         input: Controls = {
           left: k.A.isDown || k.LEFT.isDown,
           right: k.D.isDown || k.RIGHT.isDown,
           down: k.S.isDown || k.DOWN.isDown,
           up: k.W.isDown || k.UP.isDown || k.SPACE.isDown,
-          releaseGrapple: k.G.isDown,
+          releaseGrapple: grappleKeyPressed && !this.grappleEnabled,
+          grappleEnabled: this.grappleEnabled,
           stasis: k.X.isDown,
           reel: k.R.isDown && !!winchRoute,
           winchTarget: winchRoute?.points[1],
@@ -1726,7 +1738,7 @@ export class MiningScene extends Phaser.Scene {
       }
       if (!wasGrappled && this.pod.grappleAnchor) {
         this.soundFx.tone(620, 0.14, 'sine', 0.045, 1040);
-        this.ui.toast('SAFETY GRAPPLE CAUGHT · G RELEASES · W THRUSTS FREE');
+        this.ui.toast('SAFETY GRAPPLE CAUGHT · G TOGGLES OFF · W THRUSTS FREE');
       }
       const crossedPlanetSeam = this.pod.planetSeamCrossings !== 0;
       if (Math.abs(this.pod.planetSeamCrossings) % 2 === 1) this.drillAimY *= -1;

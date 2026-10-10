@@ -2,7 +2,7 @@
 
 ## Core-fuel campaign regression and deployment check — 2026-10-10
 
-GitHub Actions run [#5 on `6abf2ee`](https://github.com/kackupa/SrajMiner/actions/runs/38064628317) failed in `npm test` at the campaign-objective test: that pushed test still expected the retired four-part campaign even though progression had moved to core-fuel mothership travel. The current working-tree assertion now checks core unlock, boarding, orbit, and emergency recovery. `npm test` passes 162 system tests plus the atmosphere suite; `npm run build` succeeds; `git diff --check` is clean. The updated files remain local, so a fresh Pages run has not yet been triggered.
+GitHub Actions run [#5 on `6abf2ee`](https://github.com/kackupa/SrajMiner/actions/runs/38064628317) failed in `npm test` at the campaign-objective test: that pushed test still expected the retired four-part campaign even though progression had moved to core-fuel mothership travel. The current working-tree assertion now checks core unlock, boarding, orbit, and emergency recovery. `npm test` passes 163 system tests plus the atmosphere suite; `npm run build` succeeds; `git diff --check` is clean. The updated files remain local, so a fresh Pages run has not yet been triggered.
 
 ## Mothership route and orbital HUD — 2026-10-10
 
@@ -12,9 +12,17 @@ The repository's `tests/browser-campaign-travel.js` fixture also passed in isola
 
 That flight check exposed an orbital HUD mismatch: while the ship was in orbit, the depth panel still said `UNDERGROUND` and showed a miner return-fuel estimate. It now reads `MOTHERSHIP STATUS · ORBIT`, hides miner depth/record and return-fuel data, and restores the correct surface label after landing. The same isolated browser verified both states with no page errors. The normal Pages build and system tests pass; the Vite large-chunk advisory remains. The original player tab was not touched.
 
-## Dedicated grapple release — 2026-10-10
+## Colony and grapple visual/input follow-up — 2026-10-10
 
-Press **G** to release an active safety-grapple tether without thrusting; **W** retains its existing behavior of releasing and thrusting away. The HUD shows the G hint only after the grapple is installed, and the catch toast explains both options. This adds no saved state or migration. `npm test` passes 162 system tests plus cave-atmosphere coverage, including a regression that confirms manual release resumes gravity without thrust or fuel cost. `npm run build` passes with the existing large-chunk advisory, all browser regression scripts parse, and `git diff --check` is clean. A live browser presentation check was unavailable because the isolated local preview connection timed out; the user's play session was left untouched.
+An isolated Chrome view at 1280×800 loaded a version-26 Cryo Shelf save with all six core records and showed the tier-4 `BEACON TOWN` on the curved surface. The miner stayed centered and visible; the ore exchange and service bay silhouettes read against the curved decks. The screenshot is `output/playwright/surface-town-colony-review.png`. In the same isolated browser workflow, a purchased grapple exposed its G control hint, and G switched automatic catches off and on with matching HUD toasts. The footer now keeps the on/off state visible after the toast fades. `npm test` passes 163 system tests plus cave-atmosphere coverage, including disabled-catch and tether-release regressions; the production build passes with the existing large-chunk advisory. The normal player tab was not touched. Human judgment of town scale and grapple timing remains open.
+
+## Staged globe zoom handoff — 2026-10-10
+
+An isolated 1280×800 Chrome run used the mouse wheel in both directions. Zoom-out settled the local view at 0.62× before beginning the orbital handoff; the transition completed at 0.62× globe zoom. Zoom-in completed the reverse handoff before local zoom resumed at 1.06×. Captures: `output/playwright/globe-zoom-handoff.png` and `output/playwright/globe-zoom-return.png`. This confirms runtime transition ordering and scale; subjective readability and speed still need player feedback.
+
+## Grapple toggle and release — 2026-10-10
+
+Press **G** to toggle automatic catches on or off. Turning the grapple off immediately releases an active tether; **W** retains its existing behavior of releasing and thrusting away. The HUD shows the G hint only after the grapple is installed, and the catch toast confirms each toggle. Toggle state is session-only and starts enabled when the purchased grapple is available. System coverage verifies that disabling it suppresses automatic catches and that manual release resumes gravity without thrust or fuel cost. An isolated Chrome run verified the installed control hint and both G toggle states without touching the player tab.
 
 ## Landed mothership and core-fuel travel — 2026-10-10
 
