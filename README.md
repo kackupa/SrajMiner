@@ -34,7 +34,9 @@ The build uses the Pages base path so bundled assets load under the repository U
 Local development still uses `npm run dev`. Hosted saves are separate from local
 saves; use Export Save and Import Save to transfer a campaign.
 Deployment must finish successfully before the public link works; local build
-checks do not verify a live GitHub deployment.
+checks do not verify a live GitHub deployment. The deployment for commit
+`1f479b9` completed successfully on October 10, 2026; both build and deploy
+jobs passed, and Settings → Pages confirms GitHub Actions as the source.
 
 ## Play
 

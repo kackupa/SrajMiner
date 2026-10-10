@@ -411,7 +411,7 @@ The default isolated Chromium suite passed all seven campaign flows with no page
 
 ## GitHub Pages production smoke check — 2026-10-10
 
-The public URL `https://kackupa.github.io/SrajMiner/` loads the deployed game in a fresh isolated browser tab, including the expedition briefing, game canvas, dock UI, and Begin Expedition control. This confirms the Pages site is reachable; the local GitHub CLI token is invalid, so the Actions run details and repository Pages source setting could not be read directly. The existing `pages.yml` runs tests/build and deploys on pushes to `main` or `master` and on manual dispatch.
+The public URL `https://kackupa.github.io/SrajMiner/` loads the deployed game, including the expedition briefing, game canvas, dock UI, and Begin Expedition control. After the backlog commits were pushed, repository Settings → Pages confirmed the source is **GitHub Actions** and the site is live. The [Deploy game to GitHub Pages run for commit `1f479b9`](https://github.com/kackupa/SrajMiner/actions/runs/38032274303) completed successfully: `build` and `deploy` both passed and the `github-pages` artifact was published. The run includes non-blocking GitHub runner/action Node-version deprecation and Ubuntu image migration notices. The workflow also supports manual dispatch.
 
 ## Miner visual progression concept sheet — 2026-10-10
 
