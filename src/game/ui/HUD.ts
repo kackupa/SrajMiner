@@ -1,6 +1,7 @@
 import { CORE, CORE_RELICS, vesperChapterUnlocked, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, upgradeGateLabel, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, LASER_THERMAL, SURFACE_RAID, estimateWinchReturnFuel, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, drillReachTiles, drillVisualTier, DRILL_TIERS, UNDERGROUND_BUILDING, type Upgrade, type ShipComponent, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import { parseSaveFile, type SaveData } from '../save/SaveManager';
 import { Progress, type Cargo } from '../economy/Progress';
+import type { SaleReceipt } from '../economy/Sale';
 import type { Tile } from '../world/TileWorld';
 import type { TileWorld } from '../world/TileWorld';
 import type { PlayerPod } from '../player/PlayerPod';
@@ -14,7 +15,7 @@ import { tradeNetworkPremium } from '../config';
 import { tradeRouteEdges, VESPER_SYSTEM_POSITIONS } from '../economy/TradeNetwork';
 import { contractReady, marketContract, marketDemand, marketDemandBonus } from '../economy/MarketContracts';
 import type { WarehouseDirection } from '../economy/Warehouse';
-import { VESPER_RELAY_PROJECT, vesperRelayProgress } from '../economy/SystemProjects';
+import { CARGO_TUG_PROJECT, VESPER_RELAY_PROJECT, cargoTugProgress, vesperRelayProgress } from '../economy/SystemProjects';
 import { pauseScreen } from './PauseScreen';
 export const flightWarning = (input: {
   surface: boolean;
@@ -115,7 +116,7 @@ export type UIActions = {
   resume: () => void;
   recoverStranded: () => boolean;
   save: () => void;
-  sell: () => number;
+  sell: (buyerMapId?: MapId) => SaleReceipt | undefined;
   service: (key: 'fuel' | 'hull') => boolean;
   buy: (key: Upgrade) => boolean;
   buyCharges: () => boolean;
@@ -143,9 +144,11 @@ export type UIActions = {
   buildShipComponent: (key: ShipComponent) => boolean;
   travelMap: (id: MapId) => boolean;
   buildStructure: (kind: StructureKind) => boolean;
-  warehouseStock: () => Cargo;
-  transferWarehouse: (ore: Ore, direction: WarehouseDirection, units: number) => number;
+  warehouseStock: (mapId?: MapId) => Cargo;
+  warehouseMaps: () => MapId[];
+  transferWarehouse: (ore: Ore, direction: WarehouseDirection, units: number, mapId?: MapId) => number;
   contributeSystemProject: () => boolean;
+  contributeCargoTug: () => boolean;
   atWarehouse: () => boolean;
   placementActive: () => boolean;
   structures: () => readonly UndergroundStructure[];
@@ -173,7 +176,8 @@ export class HUD {
   docked = false;
   toastTimer = 0;
   displayedMoney = 80;
-  lastSale?: { cargo: Cargo; total: number };
+  lastSale?: SaleReceipt;
+  selectedSaleBuyer: MapId = 'cryo-shelf';
   savedAt = 0;
   saveFailed = false;
   targetSignature = '';
@@ -186,6 +190,7 @@ export class HUD {
   styleSection: 'paint' | 'suit' | 'decal' | 'profile' = 'paint';
   warehouseSelectedOre: Ore = 'copper';
   warehouseUnits = 1;
+  warehouseSourceMap: MapId = 'cryo-shelf';
   returnFocus: HTMLElement | null = null;
   toggleMap() {
     this.mapOpen = !this.mapOpen;
@@ -313,7 +318,7 @@ export class HUD {
       <div class="location-label"><span class="eyebrow">ICE MOON / CRYO SHELF</span><span>VESPER-9 · FARADAY HAB-07</span></div>
       <div id="tip" class="mission-tip hidden" aria-live="polite"><span class="tip-icon">✦</span><div><b id="mission-headline"></b><span id="mission-body"></span></div></div>
       <div id="drill-target" class="drill-target hidden"></div><div id="route-map-panel" class="route-map-panel hidden"><div><b>EXPLORED TUNNELS</b><button id="map-close" aria-label="Close explored map">×</button></div><canvas id="route-map" width="240" height="220" aria-label="Map of explored tunnels and nearby surveyed ore"></canvas><div class="map-legend" aria-label="Ore map legend">${ORE_KEYS.map((key) => `<span><i class="ore-key ore-${ORE_SILHOUETTES[key]}" data-ore="${key}" role="img" aria-label="${ORES[key].name} marker" style="--ore-color:${ORES[key].hex}"></i>${ORES[key].name}</span>`).join('')}<span><i class="special"></i>Signature find</span><span><i class="hash"></i>Archive hash</span></div><small>Ore appears only after your scanner surveys nearby rock · M toggles map</small></div><div id="toast" role="status" aria-live="polite"></div><div id="low-warning" role="status"></div>
-      <div class="station-dock" id="station-dock"><div class="dock-label"><i></i><div><b>HAB 07</b><span id="town-status">PROSPECTOR CAMP · TIER 0</span></div></div><button id="open-sell"><span>01</span> SELL ORE <b>↗</b></button><button id="open-service"><span>02</span> SERVICE <b>＋</b></button><button id="open-upgrades"><span>03</span> UPGRADES <b>↑</b></button><button id="open-archive"><span>04</span> ARCHIVE <b>▤</b></button><button id="open-shipyard"><span>05</span> SHIPYARD <b>↗</b></button><button id="open-destinations"><span>06</span> MAPS <b>⌖</b></button><button id="open-paints"><span>07</span> PAINT <b>✦</b></button></div>
+      <nav class="station-dock" id="station-dock" aria-label="Hab 07 services"><div class="dock-label"><i></i><div><b>HAB 07</b><span id="town-status">PROSPECTOR CAMP · TIER 0</span></div></div><div class="dock-main-actions" aria-label="Trade and improve"><button id="open-sell" title="Sell cargo"><span aria-hidden="true">↗</span>Sell ore</button><button id="open-service" title="Refuel and repair"><span aria-hidden="true">＋</span>Service</button><button id="open-upgrades" title="Improve the miner"><span aria-hidden="true">↑</span>Upgrades</button></div><div class="dock-more-label">EXPEDITION</div><div class="dock-more-actions" aria-label="Records and travel"><button id="open-archive" title="Signals and discoveries"><span aria-hidden="true">▤</span>Archive</button><button id="open-shipyard" title="Build the launch craft"><span aria-hidden="true">↗</span>Shipyard</button><button id="open-destinations" title="Travel between worlds"><span aria-hidden="true">⌖</span>Worlds</button><button id="open-paints" title="Change the miner's appearance"><span aria-hidden="true">✦</span>Style</button></div></nav>
       <input id="save-import-input" type="file" accept="application/json,.json" hidden /><div id="modal-layer" class="modal-layer"></div></main>
       <footer><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>HOLD LEFT CLICK · AIM + DRILL <span></span>WHEEL ZOOM <span></span><kbd>S</kbd> DOWN / DROP <span></span><kbd>W</kbd> THRUST <span></span><kbd>E</kbd> SELL / SERVICE <span></span><kbd>B</kbd> BUILD <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">$80</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
     this.on('pause', () => actions.pause());
@@ -359,7 +364,8 @@ export class HUD {
     this.warehouseSelectedOre = ore;
     const input = document.querySelector<HTMLInputElement>('#warehouse-units');
     this.warehouseUnits = input ? Math.max(0.5, Number(input.value) || 0.5) : this.warehouseUnits;
-    const moved = this.actions.transferWarehouse(ore, direction, all ? Number.MAX_SAFE_INTEGER : this.warehouseUnits);
+    const sourceMap = direction === 'withdraw' ? this.warehouseSourceMap : undefined;
+    const moved = this.actions.transferWarehouse(ore, direction, all ? Number.MAX_SAFE_INTEGER : this.warehouseUnits, sourceMap);
     if (!moved) this.toast(direction === 'store' ? `No ${ORES[ore].name.toLowerCase()} available to store.` : 'No stored ore fits in the miner’s cargo hold.');
     this.renderModal();
   }
@@ -372,7 +378,9 @@ export class HUD {
   open(name: string) {
     if (name === 'service' && !this.actions.serviceAccess()) return;
     if (name === 'sell' && !this.actions.sellAccess()) return;
+    if (name === 'sell') this.selectedSaleBuyer = this.mapId;
     if (name === 'warehouse' && !this.actions.atWarehouse()) return;
+    if (name === 'warehouse') this.warehouseSourceMap = this.mapId;
     if (name === 'upgrades' && !this.nearSurface) return;
     if (!this.modal) {
       const active = document.activeElement;
@@ -431,7 +439,7 @@ export class HUD {
     </section>`;
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''}" role="dialog" aria-modal="true" aria-label="Expedition briefing"><div class="eyebrow">${intro.eyebrow}</div><div class="intro-symbol">✦</div><h1>${intro.headline}</h1><p>${intro.dek}</p>${atlas}${atlas ? launchButton : ''}<div class="intro-loop"><span>01 <b>${intro.loop[0]}</b></span><i>→</i><span>02 <b>${intro.loop[1]}</b></span><i>→</i><span>03 <b>${intro.loop[2]}</b></span></div><p class="briefing">${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>SELL / SERVICE</span></div><div><kbd>B</kbd><span>BUILD AT SURFACE / DEPTH</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH THE RETURN-FUEL ESTIMATE AND KEEP A RESERVE.</p>${atlas ? '' : launchButton}<small class="intro-note">ORIGINAL REACTIVE SYNTH MUSIC · Q USES A PURCHASED CHARGE · X USES AN INSTALLED STASIS MODULE · R USES THE OPTIONAL SURFACE WINCH</small></section>`;
+      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''}" role="dialog" aria-modal="true" aria-label="Expedition briefing"><div class="eyebrow">${intro.eyebrow}</div><div class="intro-symbol">✦</div><h1>${intro.headline}</h1><p>${intro.dek}</p>${atlas}${atlas ? launchButton : `<div class="intro-loop"><span>01 <b>${intro.loop[0]}</b></span><i>→</i><span>02 <b>${intro.loop[1]}</b></span><i>→</i><span>03 <b>${intro.loop[2]}</b></span></div><p class="briefing">${intro.briefing}</p>`}<details class="intro-help"><summary>How to play · controls and safety</summary><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>SELL / SERVICE</span></div><div><kbd>B</kbd><span>BUILD AT SURFACE / DEPTH</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH THE RETURN-FUEL ESTIMATE AND KEEP A RESERVE.</p><small class="intro-note">Q USES A MINING CHARGE · X USES STASIS · R USES THE OPTIONAL SURFACE WINCH</small></details>${atlas ? '' : launchButton}</section>`;
     document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((node) => node.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((other) => {
         const selected = other === node;
@@ -502,26 +510,40 @@ export class HUD {
       content += `<div class="service-row"><div><b>CAVE ATMOSPHERE</b><small>Drifting dust and thruster wakes. Hidden with reduced motion.</small></div><button id="atmosphere-toggle" aria-label="Cave atmosphere" aria-pressed="${this.actions.atmosphereEnabled()}">${this.actions.atmosphereEnabled() ? 'ON' : 'OFF'}</button></div>`;
     } else if (name === 'sell') {
       title = 'A good day’s haul.';
-      sub = 'ORE EXCHANGE / OUTPOST 07';
+      sub = receipt ? `SETTLEMENT RECEIPT / ${MAPS[receipt.soldAt].name.toUpperCase()} → ${MAPS[receipt.destination].name.toUpperCase()}` : `ORE EXCHANGE / ${MAPS[this.mapId].name.toUpperCase()}`;
       const atTradingPost = this.actions.atTradePost();
+      const saleMarkets = this.actions.tradePostMaps(), selectedBuyer = receipt?.destination ??
+        (atTradingPost && saleMarkets.includes(this.selectedSaleBuyer) ? this.selectedSaleBuyer : this.mapId),
+        remoteBuyerChoice = atTradingPost && saleMarkets.length > 1;
       const relayOnline = p.milestones.includes(VESPER_RELAY_PROJECT.completionMilestone),
-        tradePremium = receipt ? 0 : tradeNetworkPremium(p.cargoValue, this.actions.tradeNetworkCount(), atTradingPost, relayOnline);
+        tradePremium = receipt?.networkPremium ?? tradeNetworkPremium(p.cargoValue, this.actions.tradeNetworkCount(), atTradingPost, relayOnline);
       const currentOrder = marketContract(this.mapId, p.milestones), order = currentOrder.order, complete = currentOrder.complete;
-      const demand = marketDemand(this.mapId, p.milestones), demandBonus = receipt ? 0 : marketDemandBonus(saleCargo, this.mapId, p.milestones, atTradingPost);
-      const deliversOrder = !receipt && contractReady(p.cargo, p.milestones, this.mapId, atTradingPost);
+      const demand = marketDemand(selectedBuyer, p.milestones), demandBonus = receipt?.localDemandBonus ?? marketDemandBonus(saleCargo, selectedBuyer, p.milestones, atTradingPost && saleMarkets.includes(selectedBuyer));
+      const localBuyer = selectedBuyer === this.mapId;
+      const deliversOrder = receipt ? receipt.contractReward > 0 : localBuyer && contractReady(p.cargo, p.milestones, this.mapId, atTradingPost);
       const orderReward = deliversOrder ? order.reward : 0;
-      const orderText = complete ? `PLANETARY BUY ORDERS · ${currentOrder.total}/${currentOrder.total} COMPLETE` : `${atTradingPost ? 'LOCAL BUY ORDER' : 'BUY ORDER · TRADING POST REQUIRED'} ${currentOrder.stage}/${currentOrder.total} · ${order.units} ${order.ore.toUpperCase()} · ${saleCargo[order.ore]}/${order.units} ON BOARD · +$${order.reward}`;
-      content = `<div class="network-status"><b>${orderText}</b><span>${complete ? 'This colony has fulfilled every standing delivery.' : deliversOrder ? `This sale completes order ${currentOrder.stage} and pays its bonus.` : 'Bring the requested ore to this planet’s Trading Post.'}</span></div>${relayOnline && atTradingPost ? `<div class="network-status"><b>VESPER RELAY ONLINE</b><span>+5% restored-route premium is included below.</span></div>` : ''}${atTradingPost ? `<div class="network-status"><b>LOCAL DEMAND ${demand.stage}/${demand.total} · ${demand.ore.toUpperCase()}</b><span>Rotates after sale · current haul bonus +$${demandBonus}</span></div>` : ''}<div class="ore-list">${ORE_KEYS.map((k) => `<div><span><i style="background:${ORES[k].hex}"></i>${ORES[k].name}</span><span>× ${saleCargo[k]}</span><b>$${saleCargo[k] * ORES[k].value}</b></div>`).join('')}</div><div class="sale-total"><span>${receipt ? 'CREDITS BANKED' : 'ESTIMATED PAYOUT'}</span><b>$${receipt?.total ?? p.cargoValue + tradePremium + orderReward + demandBonus}</b></div>${tradePremium ? `<p class="fine">LINKED-WORLD PREMIUM${relayOnline ? ' · RELAY ONLINE' : ''} · +$${tradePremium}</p>` : ''}${demandBonus ? `<p class="fine">LOCAL DEMAND PREMIUM · +$${demandBonus}</p>` : ''}${orderReward ? `<p class="fine">BUY ORDER PAID · +$${orderReward}</p>` : ''}<button id="sell" class="primary" ${p.count ? '' : 'disabled'}>SELL CARGO <span>↗</span></button>`;
+      const orderText = receipt ? receipt.contractReward ? `BUY ORDER ${receipt.contractStage}/${currentOrder.total} COMPLETED` : 'NO BUY ORDER COMPLETED' : complete ? `PLANETARY BUY ORDERS · ${currentOrder.total}/${currentOrder.total} COMPLETE` : !localBuyer ? `LOCAL ORDER ${currentOrder.stage}/${currentOrder.total} · NOT INCLUDED` : `${atTradingPost ? 'LOCAL BUY ORDER' : 'BUY ORDER · TRADING POST REQUIRED'} ${currentOrder.stage}/${currentOrder.total} · ${order.units} ${order.ore.toUpperCase()} · ${saleCargo[order.ore]}/${order.units} ON BOARD · +$${order.reward}`;
+      const buyerPicker = remoteBuyerChoice && !receipt ? `<label class="sale-buyer-label" for="sale-buyer">DESTINATION MARKET</label><select id="sale-buyer">${saleMarkets.map((id) => `<option value="${id}" ${id === selectedBuyer ? 'selected' : ''}>${MAPS[id].name.toUpperCase()}${id === this.mapId ? ' · LOCAL' : ' · LINKED BUYER'}</option>`).join('')}</select>` : '';
+      content = `${buyerPicker}<div class="network-status"><b>${orderText}</b><span>${receipt ? receipt.contractReward ? `${receipt.contractUnits} ${receipt.contractOre.toUpperCase()} shipped locally · +$${receipt.contractReward} order reward.` : 'This settlement did not complete the local delivery order.' : complete ? 'This colony has fulfilled every standing delivery.' : !localBuyer ? 'Remote buyer chosen. The local delivery order is skipped for this sale.' : deliversOrder ? `This sale completes order ${currentOrder.stage} and pays its bonus.` : 'Bring the requested ore to this planet’s Trading Post.'}</span></div>${(receipt?.networkPremium || relayOnline && atTradingPost) ? `<div class="network-status"><b>${relayOnline ? 'VESPER RELAY ONLINE · ' : ''}LINKED-WORLD PREMIUM</b><span>+$${tradePremium} included in settlement.</span></div>` : ''}${(atTradingPost || receipt) ? `<div class="network-status"><b>${receipt ? `${MAPS[receipt.destination].name.toUpperCase()} BUYER DEMAND` : `${MAPS[selectedBuyer].name.toUpperCase()} DEMAND ${demand.stage}/${demand.total} · ${demand.ore.toUpperCase()}`}</b><span>${receipt ? `+$${demandBonus} buyer-demand bonus.` : `This market's demand bonus · +$${demandBonus}`}</span></div>` : ''}<div class="ore-list">${ORE_KEYS.map((k) => `<div><span><i style="background:${ORES[k].hex}"></i>${ORES[k].name}</span><span>× ${saleCargo[k]}</span><b>$${saleCargo[k] * ORES[k].value}</b></div>`).join('')}</div><div class="sale-total"><span>${receipt ? `SOLD HERE · ${MAPS[receipt.soldAt].shortName} → ${MAPS[receipt.destination].shortName}` : 'ESTIMATED PAYOUT'}</span><b>$${receipt?.total ?? p.cargoValue + tradePremium + orderReward + demandBonus}</b></div>${tradePremium ? `<p class="fine">LINKED-WORLD PREMIUM · +$${tradePremium}</p>` : ''}${demandBonus ? `<p class="fine">BUYER DEMAND BONUS · +$${demandBonus}</p>` : ''}${(receipt?.contractReward ?? orderReward) ? `<p class="fine">LOCAL BUY ORDER PAID · +$${receipt?.contractReward ?? orderReward}</p>` : ''}<button id="sell" class="primary" ${p.count ? '' : 'disabled'}>SELL CARGO <span>↗</span></button>`;
     } else if (name === 'warehouse') {
       title = 'Keep your best finds.';
       sub = `ORE WAREHOUSE / ${MAPS[this.mapId].name.toUpperCase()}`;
-      const stock = this.actions.warehouseStock();
+      const warehouseMaps = this.actions.warehouseMaps(), remoteWarehousesOnline = p.milestones.includes(CARGO_TUG_PROJECT.completionMilestone),
+        selectedWarehouse = remoteWarehousesOnline && warehouseMaps.includes(this.warehouseSourceMap) ? this.warehouseSourceMap : this.mapId,
+        stock = this.actions.warehouseStock(selectedWarehouse), localStock = this.actions.warehouseStock(this.mapId);
       const relay = vesperRelayProgress(p.milestones), relayStage = relay.next,
-        canFundRelay = !!relayStage && relayStage.mapId === this.mapId && stock[relayStage.ore] >= relayStage.units,
+        canFundRelay = !!relayStage && relayStage.mapId === this.mapId && localStock[relayStage.ore] >= relayStage.units,
         relayCopy = relay.complete ? `ONLINE · linked Trading Posts earn an additional ${Math.round(VESPER_RELAY_PROJECT.relaySaleBonus * 100)}% sale premium.`
           : relayStage?.mapId === this.mapId ? `${relayStage.label} · CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()} FROM THIS WAREHOUSE.`
             : `NEXT · ${relayStage?.label} AT ${relayStage ? MAPS[relayStage.mapId].name.toUpperCase() : 'THE NEXT COLONY'}.`;
-      content = `<p>Choose an ore and move it between this planet’s secure store and the miner. Stored ore stays here if the miner is lost.</p><div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b></div>`).join('')}</div><div class="warehouse-transfer"><label for="warehouse-ore">SELECT ORE</label><select id="warehouse-ore">${ORE_KEYS.map((ore) => `<option value="${ore}" ${ore === this.warehouseSelectedOre ? 'selected' : ''}>${ORES[ore].name.toUpperCase()}</option>`).join('')}</select><label for="warehouse-units">UNITS · HALF-UNIT STEPS</label><input id="warehouse-units" type="number" min="0.5" step="0.5" value="${this.warehouseUnits}" /></div><div class="warehouse-actions"><button id="warehouse-store">STORE SELECTED</button><button id="warehouse-store-all">STORE ALL</button><button id="warehouse-withdraw">TAKE SELECTED</button><button id="warehouse-withdraw-all">TAKE ALL</button></div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">This inventory belongs to ${MAPS[this.mapId].name}. Press E here again to reopen storage; use the Trading Post to sell ore.</p>`;
+      const tug = cargoTugProgress(p.milestones), tugStage = tug.next,
+        canFundTug = !!tugStage && tugStage.mapId === this.mapId && localStock[tugStage.ore] >= tugStage.units,
+        tugCopy = tug.complete ? 'ONLINE · withdraw ore from any colony warehouse when you visit a warehouse.'
+          : tugStage?.mapId === this.mapId ? `${tugStage.label} · CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()} FROM THIS WAREHOUSE.`
+            : `NEXT · ${tugStage?.label} AT ${tugStage ? MAPS[tugStage.mapId].name.toUpperCase() : 'THE NEXT COLONY'}.`,
+        remoteSourcePicker = remoteWarehousesOnline && warehouseMaps.length > 1
+          ? `<label class="warehouse-source-label" for="warehouse-source">WITHDRAW FROM</label><select id="warehouse-source">${warehouseMaps.map((id) => `<option value="${id}" ${id === selectedWarehouse ? 'selected' : ''}>${MAPS[id].name.toUpperCase()}${id === this.mapId ? ' · LOCAL' : ' · REMOTE'}</option>`).join('')}</select>` : '';
+      content = `<p>Choose an ore and move it between the miner and a secure planet store. Stored ore stays safe if the miner is lost. Store actions always use this colony; withdraw uses the selected warehouse.</p>${remoteSourcePicker}<div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b></div>`).join('')}</div><div class="warehouse-transfer"><label for="warehouse-ore">SELECT ORE</label><select id="warehouse-ore">${ORE_KEYS.map((ore) => `<option value="${ore}" ${ore === this.warehouseSelectedOre ? 'selected' : ''}>${ORES[ore].name.toUpperCase()}</option>`).join('')}</select><label for="warehouse-units">UNITS · HALF-UNIT STEPS</label><input id="warehouse-units" type="number" min="0.5" step="0.5" value="${this.warehouseUnits}" /></div><div class="warehouse-actions"><button id="warehouse-store">STORE SELECTED</button><button id="warehouse-store-all">STORE ALL</button><button id="warehouse-withdraw">TAKE SELECTED</button><button id="warehouse-withdraw-all">TAKE ALL</button></div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES</b><span>${tugCopy}</span>${!tug.complete && tugStage?.mapId === this.mapId ? `<button id="fund-tug" ${canFundTug ? '' : 'disabled'}>CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">${remoteWarehousesOnline ? `Remote access is online · ${warehouseMaps.length}/${Object.keys(MAPS).length} colony depots connected.` : `This inventory belongs to ${MAPS[this.mapId].name}.`} Use a Trading Post to sell ore.</p>`;
     } else if (name === 'service') {
       title = 'Ready for another run.';
       sub = this.actions.structures().some((entry) => entry.kind === 'service') ? 'FUEL & REPAIR / LOCAL PIT STOP' : 'FUEL & REPAIR / OUTPOST 07';
@@ -603,10 +625,13 @@ export class HUD {
       title = 'Choose the next descent.';
       sub = 'DESTINATION BOARD / LONG-RANGE CRAFT';
       const postedMaps = this.actions.tradePostMaps(), routeEdges = tradeRouteEdges(postedMaps), positions = VESPER_SYSTEM_POSITIONS,
-        relay = vesperRelayProgress(p.milestones), relayOnline = p.milestones.includes(VESPER_RELAY_PROJECT.completionMilestone);
+        relay = vesperRelayProgress(p.milestones), relayOnline = p.milestones.includes(VESPER_RELAY_PROJECT.completionMilestone),
+        tug = cargoTugProgress(p.milestones), tugStage = tug.next;
       const routeSvg = `<svg class="trade-route-chart" viewBox="0 0 100 100" role="img" aria-label="${postedMaps.length} of ${Object.keys(MAPS).length} planetary Trading Posts connected${relayOnline ? ' through the restored Vesper Relay' : ''}"><g class="trade-route-lines">${routeEdges.map(({ from, to }) => `<line x1="${positions[from].x}" y1="${positions[from].y}" x2="${positions[to].x}" y2="${positions[to].y}" />`).join('')}${relayOnline ? postedMaps.map((id) => `<line class="relay-link" x1="50" y1="50" x2="${positions[id].x}" y2="${positions[id].y}" />`).join('') : ''}</g>${(Object.keys(MAPS) as MapId[]).map((id) => `<g class="trade-route-node ${postedMaps.includes(id) ? 'online' : ''}" transform="translate(${positions[id].x} ${positions[id].y})"><circle r="3.4"/><text y="8">${MAPS[id].shortName}</text></g>`).join('')}${relayOnline ? '<g class="trade-route-node relay" transform="translate(50 50)"><path d="M0 -4 L4 0 L0 4 L-4 0 Z"/><text y="9">RELAY</text></g>' : ''}</svg>`;
       const projectStatus = relayOnline ? 'VESPER RELAY RESTORED · +5% LINKED-POST SALE PREMIUM.' : `RESTORE VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES · FUND ORE FROM PLANET WAREHOUSES.`;
-      content = `<p>${p.shipComplete ? 'The ship can reach charted regions. Each map keeps its own tunnels and discoveries.' : 'Assemble the launch craft to travel beyond this shelf.'}</p><div class="trade-network-overview">${routeSvg}<div><b>VESPER EXCHANGE · ${postedMaps.length}/${Object.keys(MAPS).length} COLONIES LINKED</b><span>${postedMaps.length < 2 ? 'BUILD A POST ON ANOTHER WORLD TO OPEN A ROUTE' : `${routeEdges.length} ROUTE${routeEdges.length === 1 ? '' : 'S'} ACTIVE · EACH NODE CONNECTS TO ITS NEAREST PARTNER`}</span><span class="relay-status">${projectStatus}</span></div></div><div class="destination-list">${(Object.keys(MAPS) as MapId[]).map((id) => {
+      const tugStatus = tug.complete ? 'CARGO TUG ONLINE · REMOTE WITHDRAWALS AVAILABLE AT COLONY WAREHOUSES.'
+        : `CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES · ${tugStage?.label} AT ${tugStage ? MAPS[tugStage.mapId].name.toUpperCase() : 'NEXT COLONY'} · UNLOCK REMOTE WAREHOUSE ACCESS.`;
+      content = `<p>${p.shipComplete ? 'The ship can reach charted regions. Each map keeps its own tunnels and discoveries.' : 'Assemble the launch craft to travel beyond this shelf.'}</p><div class="trade-network-overview">${routeSvg}<div><b>VESPER EXCHANGE · ${postedMaps.length}/${Object.keys(MAPS).length} COLONIES LINKED</b><span>${postedMaps.length < 2 ? 'BUILD A POST ON ANOTHER WORLD TO OPEN A ROUTE' : `${routeEdges.length} ROUTE${routeEdges.length === 1 ? '' : 'S'} ACTIVE · EACH NODE CONNECTS TO ITS NEAREST PARTNER`}</span><span class="relay-status">${projectStatus}</span><span class="relay-status">${tugStatus}</span></div></div><div class="destination-list">${(Object.keys(MAPS) as MapId[]).map((id) => {
         const unlocked = id === this.mapId || id === 'cryo-shelf' || p.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(p.milestones));
         const current = id === this.mapId;
         const description = id === 'mars-frontier' ? 'Legacy frontier · persistent original-world saves' : id === 'cryo-shelf' ? 'Branching ice caverns · stable starter ores' : id === 'hull-graveyard' ? 'Wide wreck chambers · structural salvage' : id === 'vesper-9' ? 'Hidden return world · lantern groves and living crystal' : 'Narrow crystal seams · valuable deep deposits';
@@ -676,7 +701,7 @@ export class HUD {
       content = `<p>${reason === 'fuel' ? 'Your miner ran dry at this location. The tunnel and loose ore are still here. If you built a service beacon nearby, refuel and continue; otherwise recover when you are ready to abandon the unsold haul.' : reason === 'hull' ? 'Impact damage disabled the miner at this location. Your tunnel, loose ore, credits, and upgrades are safe. Recover the pilot when you are ready to leave this haul.' : 'The pilot cannot reach a safe dock. Your tunnel, loose ore, credits, and upgrades remain saved. Recover to the surface when you are ready to leave this haul.'}</p>${reason === 'fuel' && this.actions.serviceAccess() ? '<button id="service-all" class="primary">REFUEL AT THIS BEACON</button>' : ''}<button id="recover-stranded" class="${reason === 'fuel' && this.actions.serviceAccess() ? '' : 'primary'}">RECOVER TO SURFACE · FORFEIT UNSOLD CARGO</button>`;
     }
     document.querySelector('#modal-layer')!.innerHTML = name === 'pause' ? content :
-      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><div class="eyebrow">${sub}</div><h2>${title}</h2>${['sell', 'service', 'upgrades'].includes(name) && this.nearSurface ? `<nav class="outpost-tabs" aria-label="Outpost services">${['sell', 'service', 'upgrades'].map((k) => `<button id="tab-${k}" aria-pressed="${name === k}">${k === 'sell' ? 'Sell ore' : k === 'service' ? 'Service' : 'Upgrades'}</button>`).join('')}</nav>` : ''}${content}<div class="modal-bank">AVAILABLE CREDIT <b>$${p.money.toLocaleString()}</b></div></section>`;
+      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${['sell', 'service', 'upgrades'].includes(name) && this.nearSurface ? `<nav class="outpost-tabs" aria-label="Outpost services">${['sell', 'service', 'upgrades'].map((k) => `<button id="tab-${k}" aria-pressed="${name === k}">${k === 'sell' ? 'Sell ore' : k === 'service' ? 'Service' : 'Upgrades'}</button>`).join('')}</nav>` : ''}${content}</div><div class="modal-bank"><span>AVAILABLE CREDIT</span><b>$${p.money.toLocaleString()}</b></div></section>`;
     for (const k of ['sell', 'service', 'upgrades']) this.on(`tab-${k}`, () => this.open(k));
     this.on('style-paint', () => { this.styleSection = 'paint'; this.renderModal(); });
     this.on('style-suit', () => { this.styleSection = 'suit'; this.renderModal(); });
@@ -810,9 +835,8 @@ export class HUD {
     this.on('confirm-rescue', () => this.actions.rescue());
     this.on('confirm-new', () => this.actions.newGame());
     this.on('sell', () => {
-      const cargo = { ...p.cargo };
-      const n = this.actions.sell();
-      if (n) this.lastSale = { cargo, total: n };
+      const receipt = this.actions.sell(this.selectedSaleBuyer), n = receipt?.total ?? 0;
+      if (receipt) this.lastSale = receipt;
       this.renderModal();
       if (n) {
         document.querySelector('.sale-total span')!.textContent = 'CREDITS BANKED';
@@ -832,6 +856,10 @@ export class HUD {
     this.on('warehouse-withdraw-all', () => this.moveWarehouse('withdraw', true));
     this.on('fund-relay', () => {
       this.actions.contributeSystemProject();
+      this.renderModal();
+    });
+    this.on('fund-tug', () => {
+      this.actions.contributeCargoTug();
       this.renderModal();
     });
     for (const k of ['fuel', 'hull'] as const)
@@ -886,6 +914,16 @@ export class HUD {
       this.on(`map-${id}`, () => {
         if (this.actions.travelMap(id)) this.close();
       });
+    document.querySelector<HTMLSelectElement>('#sale-buyer')?.addEventListener('change', (event) => {
+      const buyer = (event.currentTarget as HTMLSelectElement).value as MapId;
+      if (this.actions.tradePostMaps().includes(buyer)) this.selectedSaleBuyer = buyer;
+      this.renderModal();
+    });
+    document.querySelector<HTMLSelectElement>('#warehouse-source')?.addEventListener('change', (event) => {
+      const selected = (event.currentTarget as HTMLSelectElement).value as MapId;
+      if (this.actions.warehouseMaps().includes(selected)) this.warehouseSourceMap = selected;
+      this.renderModal();
+    });
     const previousFocus = previousFocusId ? document.getElementById(previousFocusId) : null;
     (
       (previousFocus instanceof HTMLElement && !previousFocus.hasAttribute('disabled') ? previousFocus : null) ??

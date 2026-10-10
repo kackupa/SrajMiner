@@ -56,7 +56,7 @@ function polarCellOverlapsPod(
     const length = Math.hypot(axis.x, axis.y) || 1, nx = axis.x / length, ny = axis.y / length,
       tileProjection = polygon.map((point) => point.x * nx + point.y * ny),
       podCenter = center.x * nx + center.y * ny,
-      podRadius = Math.abs(nx) * P.halfWidth + Math.abs(ny) * P.halfHeight;
+      podRadius = Math.abs(nx) * (P.halfWidth - P.horizontalCollisionInset) + Math.abs(ny) * P.halfHeight;
     if (Math.max(...tileProjection) < podCenter - podRadius || Math.min(...tileProjection) > podCenter + podRadius) return false;
   }
   return true;
@@ -65,8 +65,8 @@ function polarCellOverlapsPod(
 function chartTilesUnderPod(world: TileWorld, x: number, y: number, cameraRotation: number) {
   const chart = world.planetChart!;
   const corners = [
-    { x: -P.halfWidth, y: -P.halfHeight }, { x: P.halfWidth, y: -P.halfHeight },
-    { x: P.halfWidth, y: P.halfHeight }, { x: -P.halfWidth, y: P.halfHeight },
+    { x: -(P.halfWidth - P.horizontalCollisionInset), y: -P.halfHeight }, { x: P.halfWidth - P.horizontalCollisionInset, y: -P.halfHeight },
+    { x: P.halfWidth - P.horizontalCollisionInset, y: P.halfHeight }, { x: -(P.halfWidth - P.horizontalCollisionInset), y: P.halfHeight },
   ].map((offset) => {
     const wx = x + offset.x * Math.cos(cameraRotation) + offset.y * Math.sin(cameraRotation),
       wy = y - offset.x * Math.sin(cameraRotation) + offset.y * Math.cos(cameraRotation),
@@ -131,8 +131,8 @@ export class PlayerPod {
       ty++
     )
       for (
-        let tx = Math.floor((x - P.halfWidth + 0.00001) / WORLD.tile);
-        tx <= Math.floor((x + P.halfWidth - 0.00001) / WORLD.tile);
+        let tx = Math.floor((x - P.halfWidth + P.horizontalCollisionInset + 0.00001) / WORLD.tile);
+        tx <= Math.floor((x + P.halfWidth - P.horizontalCollisionInset - 0.00001) / WORLD.tile);
         tx++
       )
         if (this.world.solid(tx, ty)) hits.push(this.world.get(tx, ty));
@@ -298,8 +298,8 @@ export class PlayerPod {
         // launch the pod across the chart (or wedge it into unrelated terrain).
         if (!this.world.planetChart) this.x =
           this.vx > 0
-            ? Math.min(...hitsX.map((t) => t.x * WORLD.tile)) - P.halfWidth
-            : Math.max(...hitsX.map((t) => (t.x + 1) * WORLD.tile)) + P.halfWidth;
+            ? Math.min(...hitsX.map((t) => t.x * WORLD.tile)) - (P.halfWidth - P.horizontalCollisionInset)
+            : Math.max(...hitsX.map((t) => (t.x + 1) * WORLD.tile)) + (P.halfWidth - P.horizontalCollisionInset);
         this.vx = 0;
       } else this.x = nx;
       this.wrapPlanetPosition();

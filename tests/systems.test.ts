@@ -1,20 +1,21 @@
 import assert from 'node:assert/strict';
 import { TileWorld, keyOf, type Tile } from '../src/game/world/TileWorld';
-import { RockSwimmer } from '../src/game/world/RockSwimmer';
+import { RockSwimmer, swimmerKindForEncounter } from '../src/game/world/RockSwimmer';
 import { SurfaceRaid } from '../src/game/world/SurfaceRaid';
 import { tradeNetworkPremium, UNDERGROUND_BUILDING } from '../src/game/config';
 import { canAffordStructure, findSurfaceBarrierSite, findSurfaceHabitatSite, findSurfaceTurretSite, findSurfaceWarehouseSite, globeSurfaceDistance, nearbyGlobeSurfaceStructure, nearbySurfaceHabitat, repairSurfaceStructure, surfaceArcCoordinate, surfaceArcPoint, validateSurfaceStructureSite } from '../src/game/building/UndergroundStructures';
 import { Progress } from '../src/game/economy/Progress';
 import { emptyCargo } from '../src/game/economy/Progress';
 import { transferWarehouseOre } from '../src/game/economy/Warehouse';
+import { buildSaleReceipt } from '../src/game/economy/Sale';
 import { PLANET_SURFACE_LANDMARKS, surfaceLandmarks } from '../src/game/surface/PlanetScenery';
-import { contributeVesperRelay, vesperRelayProgress, VESPER_RELAY_PROJECT, SYSTEM_PROJECT_MILESTONES } from '../src/game/economy/SystemProjects';
+import { cargoTugProgress, contributeCargoTug, contributeVesperRelay, remoteWarehouseAccess, vesperRelayProgress, CARGO_TUG_PROJECT, VESPER_RELAY_PROJECT, SYSTEM_PROJECT_MILESTONES } from '../src/game/economy/SystemProjects';
 import { DEFAULT_AUDIO_MIX, LANDMARK_CUE_NOTES, AudioSystem, normalizeAudioVolume, parseAudioMix, startingMusicPhase } from '../src/game/audio/AudioSystem';
 import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from '../src/game/mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile } from '../src/game/mining/DrillEffects';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
-import { ORE_KEYS, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
+import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
 import { tradeRouteEdges, VESPER_SYSTEM_POSITIONS } from '../src/game/economy/TradeNetwork';
 import { MARKET_CONTRACTS, advanceMarketDemand, contractReady, marketDemand, marketDemandBonus } from '../src/game/economy/MarketContracts';
@@ -103,6 +104,29 @@ test('linked trade posts award capped sale premiums only at member exchanges', (
   assert.equal(tradeNetworkPremium(1000, 5, true, true), 450, 'the restored relay raises the transparent cap by five percent');
   assert.equal(tradeNetworkPremium(-10, 5, true), 0);
 });
+test('sale receipt freezes ore, destination, and every settlement bonus before committing cargo', () => {
+  const cargo = { ...emptyCargo(), copper: 3, iron: 2 }, before = { ...cargo },
+    receipt = buildSaleReceipt(cargo, 'cryo-shelf', 'cryo-shelf', [], 2, true, true, false), gross = 3 * ORES.copper.value + 2 * ORES.iron.value;
+  assert.deepEqual(receipt.cargo, before);
+  assert.equal(receipt.destination, 'cryo-shelf');
+  assert.equal(receipt.gross, gross);
+  assert.equal(receipt.networkPremium, Math.floor(gross * 0.1));
+  assert.equal(receipt.localDemandBonus, Math.floor(3 * ORES.copper.value * 0.2));
+  assert.equal(receipt.contractReward, 120);
+  assert.equal(receipt.contractStage, 1);
+  assert.equal(receipt.total, receipt.gross + receipt.networkPremium + receipt.localDemandBonus + receipt.contractReward);
+  assert.deepEqual(cargo, before, 'previewing a receipt never mutates carried cargo');
+});
+test('connected remote buyers use their own demand and do not claim the local order', () => {
+  const cargo = { ...emptyCargo(), copper: 3, iron: 2, silver: 1 },
+    receipt = buildSaleReceipt(cargo, 'cryo-shelf', 'prism-fault', [], 3, true, true, false);
+  assert.equal(receipt.soldAt, 'cryo-shelf');
+  assert.equal(receipt.destination, 'prism-fault');
+  assert.equal(receipt.localDemandBonus, Math.floor(ORES.silver.value * 0.2), 'Prism Fault starts by seeking silver');
+  assert.equal(receipt.contractReward, 0, 'the Cryo local order is skipped when the remote buyer is chosen');
+  const offlineBuyer = buildSaleReceipt(cargo, 'cryo-shelf', 'prism-fault', [], 3, true, false, false);
+  assert.equal(offlineBuyer.localDemandBonus, 0, 'unlinked markets cannot be selected as remote buyers');
+});
 test('Vesper Relay project accepts only ordered planet-warehouse donations and pays once', () => {
   const milestones: string[] = [], cryoStock = { ...emptyCargo(), iron: 2 };
   assert.deepEqual(vesperRelayProgress(milestones), { completedStages: 0, totalStages: 3, complete: false, next: VESPER_RELAY_PROJECT.stages[0] });
@@ -123,6 +147,28 @@ test('Vesper Relay project accepts only ordered planet-warehouse donations and p
   assert.equal(milestones.includes(VESPER_RELAY_PROJECT.completionMilestone), true);
   assert.equal(contributeVesperRelay(milestones, 'prism-fault', prismStock).contributed, false,
     'a completed project cannot be paid twice');
+});
+test('Cargo Tug project funds remote warehouse access through ordered local donations', () => {
+  const milestones: string[] = [], cryoStock = { ...emptyCargo(), copper: 3 };
+  assert.equal(contributeCargoTug(milestones, 'hull-graveyard', { ...emptyCargo(), iron: 3 }).contributed, false,
+    'the project cannot skip its Cryo Shelf stage');
+  assert.equal(contributeCargoTug(milestones, 'cryo-shelf', { ...emptyCargo(), copper: 2 }).contributed, false,
+    'the stage needs all three copper from secure storage');
+  assert.equal(contributeCargoTug(milestones, 'cryo-shelf', cryoStock).contributed, true);
+  assert.equal(cryoStock.copper, 0);
+  const hullStock = { ...emptyCargo(), iron: 3 };
+  assert.equal(contributeCargoTug(milestones, 'hull-graveyard', hullStock).contributed, true);
+  const vesperStock = { ...emptyCargo(), diamond: 2 };
+  assert.equal(contributeCargoTug(milestones, 'vesper-9', vesperStock).completed, true);
+  assert.equal(vesperStock.diamond, 0);
+  assert.equal(cargoTugProgress(milestones).complete, true);
+  assert.equal(contributeCargoTug(milestones, 'vesper-9', vesperStock).contributed, false,
+    'the completed cargo tug cannot consume ore or pay twice');
+  assert.equal(remoteWarehouseAccess([], 'cryo-shelf', 'hull-graveyard', ['cryo-shelf', 'hull-graveyard']), false);
+  assert.equal(remoteWarehouseAccess(milestones, 'cryo-shelf', 'hull-graveyard', ['cryo-shelf', 'hull-graveyard']), true);
+  assert.equal(remoteWarehouseAccess(milestones, 'cryo-shelf', 'prism-fault', ['cryo-shelf']), false,
+    'remote access requires a built warehouse at that destination');
+  assert.ok(SYSTEM_PROJECT_MILESTONES.includes(CARGO_TUG_PROJECT.completionMilestone), 'the version-24 milestone list persists completion');
 });
 test('planet warehouses transfer selected half-unit ore without exceeding miner capacity', () => {
   const cargo = { ...emptyCargo(), copper: 2.5, iron: 1 }, warehouse = { ...emptyCargo(), copper: 4.5 };
@@ -368,6 +414,23 @@ test('polar core chamber has physical clearance and the miner collides with curv
   assert.ok(tangentSpan >= requiredSpan, `radial core cuts widen to ${mining.effectiveWidth} tiles for physical hull clearance`);
   assert.ok(Math.abs(140 - mining.progress.fuel - FUEL.drilling * 0.001) < 1e-9,
     'mandatory angular clearance does not multiply the starter drill fuel cost');
+});
+test('horizontal collision inset lets the miner clear small block lips while preserving full block collisions', () => {
+  const world = new TileWorld(734, [], [], 'cryo-shelf'), pod = new PlayerPod(world, new Progress()),
+    tileX = 8, tileY = 20, edgeX = tileX * WORLD.tile;
+  for (let x = tileX - 1; x <= tileX; x++) world.get(x, tileY).type = 'empty';
+  world.get(tileX, tileY).type = 'hard';
+  const centerY = (tileY + 0.5) * WORLD.tile, startX = edgeX - PHYSICS.halfWidth - 1;
+  pod.x = startX;
+  pod.y = centerY;
+  pod.docked = false;
+  pod.update(0.05, { ...idle, right: true }, () => {});
+  assert.ok(pod.x > startX + 1, 'horizontal steering advances past a barely protruding block edge');
+  assert.equal(pod.overlaps(pod.x, pod.y).length, 0, 'the relaxed side clearance still prevents a collision state');
+  assert.equal(pod.overlaps(edgeX - PHYSICS.halfWidth + PHYSICS.horizontalCollisionInset - 1, centerY).length, 0,
+    'the three-pixel inset clears a shallow visual overlap at a block corner');
+  assert.ok(pod.overlaps(edgeX - PHYSICS.halfWidth + PHYSICS.horizontalCollisionInset + 2, centerY).length,
+    'deeper overlap still blocks the miner');
 });
 test('polar wall contact stops at the last clear position instead of snapping to chart tile indices', () => {
   const world = new TileWorld(719, [], [], 'cryo-shelf', STARTER_PLANET_CHART), progress = new Progress(), pod = new PlayerPod(world, progress);
@@ -1910,6 +1973,44 @@ test('drill can drive off a rock swimmer with three clear beam hits', () => {
   assert.equal(swimmer.hitByDrill(blockedWorld, 980, 660, 1, 0, 80), false, 'solid rock blocks the beam until mined away');
   assert.equal(swimmer.active?.health, 3);
 });
+test('shard manta announces a straight charge, can be dodged, and yields a recovery window to the drill', () => {
+  assert.deepEqual([0, 1, 2, 3, 4, 5].map(swimmerKindForEncounter), [
+    'rock-swimmer', 'rock-swimmer', 'shard-manta', 'rock-swimmer', 'rock-swimmer', 'shard-manta',
+  ], 'the first encounters teach the existing hunter before introducing the charger');
+  const world = new TileWorld(943), manta = new RockSwimmer(943, 'cryo-shelf');
+  manta.active = { kind: 'shard-manta', mode: 'hunt', modeTimer: 0, x: 1000, y: 500, vx: 0, vy: 0, life: 10, phase: 0,
+    health: SHARD_MANTA.drillHitsToDefeat, drillCooldown: 0, hitFlash: 0 };
+  assert.equal(manta.update(0.05, 500, 1100, 500), false);
+  assert.equal(manta.active?.mode, 'windup', 'the manta stops and telegraphs before committing to its charge line');
+  assert.equal(manta.active?.vx, 0, 'it does not drift into the pod during its warning');
+  manta.update(0.96, 500, 1800, 500);
+  assert.equal(manta.active?.mode, 'charge');
+  assert.equal(manta.active?.vx, SHARD_MANTA.chargeSpeed, 'the committed dash is visibly faster than a swimmer');
+  const initialX = manta.active!.x;
+  assert.equal(manta.update(0.1, 500, 1800, 600), false, 'moving out of the announced line avoids damage');
+  assert.ok(manta.active!.x > initialX, 'the committed charge advances along its telegraphed direction');
+
+  const charging = new RockSwimmer(944, 'cryo-shelf');
+  charging.active = { kind: 'shard-manta', mode: 'charge', modeTimer: SHARD_MANTA.chargeSeconds, x: 1000, y: 500,
+    vx: SHARD_MANTA.chargeSpeed, vy: 0, life: 10, phase: 0, health: 2, drillCooldown: 0, hitFlash: 0 };
+  assert.equal(charging.update(0.1, 500, 1010, 500), true, 'a charge that intersects the pod remains dangerous');
+
+  const interrupt = new RockSwimmer(945, 'cryo-shelf'), drillWorld = new TileWorld(945);
+  for (let x = 24; x <= 27; x++) drillWorld.break(x, 12);
+  interrupt.active = { kind: 'shard-manta', mode: 'charge', modeTimer: 0.5, x: 1020, y: 500,
+    vx: 100, vy: 0, life: 10, phase: 0, health: 2, drillCooldown: 0, hitFlash: 0 };
+  assert.equal(interrupt.hitByDrill(drillWorld, 980, 500, 1, 0, 80), false, 'the first drill hit interrupts and stuns it');
+  assert.equal(interrupt.active?.mode, 'recover');
+  interrupt.update(0.31, 500, 980, 500);
+  assert.equal(interrupt.hitByDrill(drillWorld, 980, 500, 1, 0, 80), true, 'a follow-up hit during recovery repels it');
+});
+test('shard manta finishes its charge when the telegraph timer expires inside a long frame', () => {
+  const manta = new RockSwimmer(946, 'cryo-shelf');
+  manta.active = { kind: 'shard-manta', mode: 'windup', modeTimer: 0.03, chargeX: 1, chargeY: 0,
+    x: 800, y: 500, vx: 0, vy: 0, life: 10, phase: 0, health: 2, drillCooldown: 0, hitFlash: 0 };
+  assert.equal(manta.update(0.08, 500, 1100, 500), false);
+  assert.ok(manta.active!.x > 800, 'the remaining frame time moves the manta immediately after the warning ends');
+});
 test('stasis module cancels gravity in flight at a fuel cost and releases cleanly', () => {
   const world = new TileWorld(65), p = new Progress(), pod = new PlayerPod(world, p);
   for (let row = 0; row < 20; row++) world.break(24, row);
@@ -2413,7 +2514,7 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
   assert.equal(validateSave({ ...chartSave, milestones: ['demand-unknown-1'] }), false,
     'unrecognized market demand state is rejected');
   assert.equal(validateSave({ ...chartSave, milestones: SYSTEM_PROJECT_MILESTONES }), true,
-    'all Vesper Relay project stages persist in the existing version-24 milestone field');
+    'all system project stages persist in the existing version-24 milestone field');
   const vesperSave = { ...chartSave, activeMap: 'vesper-9' as const,
     maps: { 'vesper-9': { ...chartMap, warehouse: emptyCargo() } }, milestones: [...VESPER_CHAPTER_CORE_IDS, 'core-vesper'] };
   assert.equal(validateSave(vesperSave), true, 'the sixth world and its story milestone fit the existing save schema');

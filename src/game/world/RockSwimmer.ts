@@ -1,10 +1,12 @@
-import { ROCK_SWIMMER, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
+import { ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
 import { planetCartesianToChart, planetChartToCartesian, planetChartVectorToCartesian } from './PlanetChart';
 
 export type RockSwimmerState = {
+  kind?: 'rock-swimmer' | 'shard-manta';
+  mode?: 'hunt' | 'windup' | 'charge' | 'recover';
   x: number;
   y: number;
   vx: number;
@@ -14,7 +16,15 @@ export type RockSwimmerState = {
   health: number;
   drillCooldown: number;
   hitFlash: number;
+  modeTimer?: number;
+  chargeX?: number;
+  chargeY?: number;
+  warningPlayed?: boolean;
 };
+
+export function swimmerKindForEncounter(encounter: number): RockSwimmerState['kind'] {
+  return Math.floor(encounter) % 3 === 2 ? 'shard-manta' : 'rock-swimmer';
+}
 
 /** A cave predator that phases through rock, pressures the pod, and can be deterred by turrets. */
 export class RockSwimmer {
@@ -36,15 +46,21 @@ export class RockSwimmer {
       if (this.wait > 0) return false;
       const n = this.encounter++;
       const angle = random(this.seed, n, this.mapId.length, 141) * Math.PI * 2;
-      const distance = 125 + random(this.seed, n, this.mapId.length, 142) * 90;
+      const kind = swimmerKindForEncounter(n)!,
+        distance = kind === 'shard-manta'
+          ? 115 + random(this.seed, n, this.mapId.length, 142) * 48
+          : 125 + random(this.seed, n, this.mapId.length, 142) * 90;
       this.active = {
+        kind,
+        mode: 'hunt',
+        modeTimer: 0,
         x: podX + Math.cos(angle) * distance,
         y: podY + Math.sin(angle) * distance * 0.62,
         vx: Math.cos(angle + 1.6) * ROCK_SWIMMER.speed,
         vy: Math.sin(angle + 1.6) * ROCK_SWIMMER.speed * 0.62,
         life: ROCK_SWIMMER.swimSeconds,
         phase: random(this.seed, n, this.mapId.length, 143) * Math.PI * 2,
-        health: ROCK_SWIMMER.drillHitsToDefeat,
+        health: kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
         drillCooldown: 0,
         hitFlash: 0,
       };
@@ -52,6 +68,9 @@ export class RockSwimmer {
     }
 
     const swimmer = this.active;
+    swimmer.kind ??= 'rock-swimmer';
+    swimmer.mode ??= 'hunt';
+    swimmer.modeTimer ??= 0;
     swimmer.life -= dt;
     swimmer.drillCooldown = Math.max(0, swimmer.drillCooldown - dt);
     swimmer.hitFlash = Math.max(0, swimmer.hitFlash - dt);
@@ -67,20 +86,69 @@ export class RockSwimmer {
         return false;
       }
     }
-    // The swimmer now homes toward the pod and can attack if the player ignores the warning.
-    if (distance > 1) {
-      swimmer.vx += dx / distance * 24 * dt;
-      swimmer.vy += dy / distance * 18 * dt;
+    if (swimmer.kind === 'shard-manta') {
+      if (swimmer.mode === 'hunt' && distance <= SHARD_MANTA.windupDistance) {
+        swimmer.mode = 'windup';
+        swimmer.modeTimer = SHARD_MANTA.windupSeconds;
+        swimmer.chargeX = dx / (distance || 1);
+        swimmer.chargeY = dy / (distance || 1);
+        swimmer.vx = 0;
+        swimmer.vy = 0;
+      }
+      if (swimmer.mode === 'windup') {
+        swimmer.modeTimer = Math.max(0, swimmer.modeTimer - dt);
+        if (swimmer.modeTimer === 0) {
+          swimmer.mode = 'charge';
+          swimmer.modeTimer = SHARD_MANTA.chargeSeconds;
+          swimmer.vx = (swimmer.chargeX ?? dx / (distance || 1)) * SHARD_MANTA.chargeSpeed;
+          swimmer.vy = (swimmer.chargeY ?? dy / (distance || 1)) * SHARD_MANTA.chargeSpeed;
+          const chargeTime = Math.min(dt, SHARD_MANTA.chargeSeconds);
+          swimmer.x += swimmer.vx * chargeTime;
+          swimmer.y += swimmer.vy * chargeTime;
+          swimmer.modeTimer -= chargeTime;
+        }
+      } else if (swimmer.mode === 'charge') {
+        swimmer.x += swimmer.vx * dt;
+        swimmer.y += swimmer.vy * dt;
+        swimmer.modeTimer = Math.max(0, swimmer.modeTimer - dt);
+        if (swimmer.modeTimer === 0) {
+          swimmer.mode = 'recover';
+          swimmer.modeTimer = SHARD_MANTA.recoverSeconds;
+          swimmer.vx = 0;
+          swimmer.vy = 0;
+        }
+      } else if (swimmer.mode === 'recover') {
+        swimmer.modeTimer = Math.max(0, swimmer.modeTimer - dt);
+        if (swimmer.modeTimer === 0) swimmer.mode = 'hunt';
+      } else if (distance > 1) {
+        swimmer.vx += dx / distance * 17 * dt;
+        swimmer.vy += dy / distance * 13 * dt;
+        const speed = Math.hypot(swimmer.vx, swimmer.vy);
+        if (speed > SHARD_MANTA.huntSpeed) {
+          swimmer.vx *= SHARD_MANTA.huntSpeed / speed;
+          swimmer.vy *= SHARD_MANTA.huntSpeed / speed;
+        }
+        swimmer.x += swimmer.vx * dt;
+        swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 6 * dt;
+      }
+    } else {
+      // The swimmer homes toward the pod, asking the player to keep moving and aim the drill.
+      if (distance > 1) {
+        swimmer.vx += dx / distance * 24 * dt;
+        swimmer.vy += dy / distance * 18 * dt;
+      }
+      const speed = Math.hypot(swimmer.vx, swimmer.vy);
+      if (speed > ROCK_SWIMMER.speed) {
+        swimmer.vx *= ROCK_SWIMMER.speed / speed;
+        swimmer.vy *= ROCK_SWIMMER.speed / speed;
+      }
+      swimmer.x += swimmer.vx * dt;
+      swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 8 * dt;
     }
-    const speed = Math.hypot(swimmer.vx, swimmer.vy);
-    if (speed > ROCK_SWIMMER.speed) {
-      swimmer.vx *= ROCK_SWIMMER.speed / speed;
-      swimmer.vy *= ROCK_SWIMMER.speed / speed;
-    }
-    swimmer.x += swimmer.vx * dt;
-    swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 8 * dt;
 
-    if (distance <= ROCK_SWIMMER.contactRadius) {
+    const collisionDistance = Math.hypot(podX - swimmer.x, podY - swimmer.y),
+      contactRadius = swimmer.kind === 'shard-manta' ? SHARD_MANTA.contactRadius : ROCK_SWIMMER.contactRadius;
+    if (collisionDistance <= contactRadius) {
       this.active = undefined;
       this.wait = ROCK_SWIMMER.repeatSeconds;
       return true;
@@ -120,6 +188,12 @@ export class RockSwimmer {
     swimmer.health--;
     swimmer.drillCooldown = ROCK_SWIMMER.drillHitCooldownSeconds;
     swimmer.hitFlash = 0.14;
+    if (swimmer.kind === 'shard-manta') {
+      swimmer.mode = 'recover';
+      swimmer.modeTimer = SHARD_MANTA.recoverSeconds;
+      swimmer.vx = 0;
+      swimmer.vy = 0;
+    }
     if (swimmer.health > 0) return false;
     this.active = undefined;
     this.wait = ROCK_SWIMMER.repeatSeconds;

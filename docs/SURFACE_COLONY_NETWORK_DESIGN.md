@@ -6,7 +6,7 @@ The player begins at one crashed, permanently grounded starter ship and builds t
 
 ![Build-anywhere colony design for the curved planet surface](concepts/surface-colony-build-v2.svg)
 
-The first colony slice now includes save-backed habitats, trading posts, swimmer-intercept pylons, and warning-based surface raids that can damage or destroy habitats and pylons. The crashed-ship pickup, free-placement preview, and broader surface threat variety remain design work. Walls and gates now have a first playable implementation. Underground cities stay a later expansion; keep the colony layer local and offline.
+The first colony slice now includes save-backed habitats, trading posts, swimmer-intercept pylons, and warning-based surface raids that can damage or destroy habitats and pylons. The crashed-ship pickup, free-placement preview, and broader surface threat variety remain design work. Walls and gates now have a first playable implementation. Cave threat variety now includes a telegraphed Shard Manta charge; surface threat variety still needs world-specific encounters and browser balancing. Underground cities stay a later expansion; keep the colony layer local and offline.
 
 ## Core loop
 
@@ -96,7 +96,7 @@ The demand network above should later connect to fully explorable civilized plan
 
 ### Implementation boundary
 
-The current game implements a per-world Trading Post, durable structure save, linked-post route graph, capped sale premium, and a three-stage local buy-order chain per planet. The sale dialog previews the current order and its bonus, and save-backed milestones prevent duplicate claims while advancing the chain. Keep these rules while adding later economic layers; do not create a second ore inventory or payout path. Browser coverage verifies the first Cryo delivery, payment, and next-stage persistence. The optional Vesper Relay is the first authored system project: donate 2 iron at Cryo Shelf, 3 iron at Hull Graveyard, and 2 silver at Prism Fault from those local warehouses. Completion grants $1,200, adds a visible relay hub to the destination-board route map, and adds a clearly shown 5% to linked-post sale premiums. Project stages and completion use the existing version-24 milestone list, and donations commit atomically with the saved warehouse inventory. Still needed for the fuller network design: more authored projects, itemized cargo manifests, choice of local versus remote buyers, settlement receipts, and transaction recovery for any future shipment animation.
+The current game implements a per-world Trading Post, durable structure save, linked-post route graph, capped sale premium, and a three-stage local buy-order chain per planet. When two or more posts are online, a Trading Post lets the player choose any linked buyer; each buyer advances its own demand cycle, and a remote sale does not claim the seller planet's local order. Sales freeze an itemized receipt (ore, seller, buyer, network premium, demand bonus, and fulfilled order) and restore cargo, credits, and market progress if the save fails. Keep these rules while adding later economic layers; do not create a second ore inventory or payout path. The optional Vesper Relay is the first authored system project: donate 2 iron at Cryo Shelf, 3 iron at Hull Graveyard, and 2 silver at Prism Fault from those local warehouses. Completion grants $1,200, adds a visible relay hub to the destination-board route map, and adds a clearly shown 5% to linked-post sale premiums. The Cargo Tug is the second authored project: donate 3 copper at Cryo Shelf, 3 iron at Hull Graveyard, and 2 diamond at Vesper-9. It awards $900 and enables remote withdrawals from existing planet warehouses while visiting any warehouse; ore is debited directly from the source inventory. Both projects use version-24 milestones and commit donations atomically with warehouse stock, so no save migration is needed. Still needed for the fuller network design: more authored system projects and transaction recovery for any future shipment animation.
 
 ## Solar-system economy: long-term design
 
@@ -187,7 +187,7 @@ Contracts should create a modest decision between selling into current demand an
 
 1. Keep and polish current Trading Post links, one-time local buy orders, and premium; add itemized receipts.
 2. Add shifting local demand and connected buyer pools after the starter order loop is playtested.
-3. Add multi-stage deterministic planet contracts and one visible system logistics project. **Implemented:** local three-stage ore orders and the optional Vesper Relay, funded by saved warehouse stock across three worlds.
+3. Add multi-stage deterministic planet contracts and visible system logistics projects. **Implemented:** local three-stage ore orders, the Vesper Relay, and Cargo Tug, funded by saved warehouse stock across multiple worlds. More projects should unlock distinct local utility rather than stacking sale bonuses.
 4. Consider capped settlement dividends only after demonstrating that passive credits do not erase the reason to mine.
 5. Add order types/rewards only if players want more economic goals; test cargo, return-charge, and build-cost balance.
 

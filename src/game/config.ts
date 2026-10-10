@@ -53,6 +53,8 @@ export const PHYSICS = {
   damageScale: 0.2,
   halfWidth: 13,
   halfHeight: 16,
+  /** Small horizontal collision inset keeps exposed block corners from snagging the miner. */
+  horizontalCollisionInset: 3,
 };
 export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 180,
@@ -449,6 +451,17 @@ export const ROCK_SWIMMER = {
   drillHitsToDefeat: 3,
   drillHitCooldownSeconds: 0.3,
   drillHitRadius: 18,
+} as const;
+export const SHARD_MANTA = {
+  hullDamage: 8,
+  drillHitsToDefeat: 2,
+  huntSpeed: 34,
+  windupDistance: 168,
+  windupSeconds: 0.95,
+  chargeSpeed: 138,
+  chargeSeconds: 0.62,
+  recoverSeconds: 1.05,
+  contactRadius: 29,
 } as const;
 export const POD_PAINTS = {
   hab: { name: 'Hab Standard', description: 'The hard-wearing outpost finish.', cost: 0, hull: 0xeac781, trim: 0xffdfa0, light: 0xfff0bc },

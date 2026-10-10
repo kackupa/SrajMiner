@@ -22,8 +22,9 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 #viewport:has(.pause-screen) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning) { visibility: hidden; }
 #app:has(.pause-screen) .expedition { opacity: .45; }
 #app:has(.pause-screen) footer .controls { display: none; }
+#app:has(.pause-screen) footer .bank { visibility: hidden; }
 #viewport:has(.pause-screen) #toast { visibility: hidden; }
-#app:has(.pause-screen) footer::before { content: 'EXPEDITION ON HOLD'; color: #9badae; font: 10px 'Space Mono', monospace; letter-spacing: 1px; position: absolute; }
+#app:has(.pause-screen) footer::before { content: 'EXPEDITION ON HOLD'; color: #9badae; font: 10px 'Space Mono', monospace; letter-spacing: 1px; position: absolute; left: 24px; }
 
 .modal.pause-screen {
   width: min(1020px, 100%);
@@ -43,13 +44,13 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 .pause-screen h2 { font: 600 76px/.9 'Barlow Condensed', sans-serif; letter-spacing: -1.6px; margin: 23px 0 27px; color: #efefe4; }
 .pause-screen h2 em { color: #d5b384; font-style: normal; }
 .pause-screen .pause-resume {
-  border: 0; border-top: 1px solid #99aaa452; border-bottom: 1px solid #99aaa452;
-  background: transparent; color: #ecd8b3; margin: 0 0 10px; padding: 13px 0;
-  text-align: left; font: 500 27px 'Barlow Condensed', sans-serif; letter-spacing: .2px;
+  border: 1px solid #edc186; border-radius: 2px;
+  background: #edc186; color: #17252a; margin: 0 0 12px; padding: 14px 16px;
+  text-align: left; font: 600 22px 'Barlow Condensed', sans-serif; letter-spacing: .2px;
 }
 .pause-screen .pause-resume span { font: inherit; }
 .pause-screen .pause-resume span:last-child { font-family: 'DM Sans', sans-serif; font-size: 26px; padding-right: 5px; }
-.pause-screen .pause-resume:hover { background: #d5b384; color: #132027; padding-left: 12px; }
+.pause-screen .pause-resume:hover { background: #f2d19e; border-color: #f2d19e; color: #132027; padding-left: 19px; }
 .pause-file-actions { display: grid; }
 .pause-file-actions > :is(button, a) { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; padding: 10px 0; background: transparent; text-align: left; font: 14px 'DM Sans', sans-serif; letter-spacing: 0; color: #c0ceca; min-height: 36px; }
 .pause-file-actions > :is(button, a):hover { color: #f4dab3; background: #ffffff06; }
@@ -130,4 +131,127 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
   .pause-rig { padding: 24px; }
   .pod-portrait { height: 190px; }
   .pause-rig-heading { padding-right: 0; }
+}
+
+/* Menu pass: keep actions grouped, titles stable, and long content in its own scroll area. */
+.station-dock {
+  width: min(430px, 46vw);
+  min-width: min(340px, calc(100vw - 20px));
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 9px;
+  background: linear-gradient(145deg, #102128f5, #101b20f5);
+  border: 1px solid #a3c1b12b;
+  border-top: 2px solid #b7c6a455;
+  box-shadow: 0 14px 46px #0006;
+  white-space: normal;
+}
+.dock-label {
+  min-width: 0;
+  padding: 6px 9px 10px;
+  border-right: 0;
+  border-bottom: 1px solid #b5c4b22b;
+}
+.dock-label b { font-size: 10px; letter-spacing: 1.5px; }
+.dock-label span { margin-top: 3px; font-size: 9px; }
+.dock-main-actions,
+.dock-more-actions { display: grid; gap: 4px; }
+.dock-main-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dock-more-actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.station-dock .dock-main-actions button,
+.station-dock .dock-more-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 7px;
+  border: 1px solid #a5b8af1c;
+  background: #dce8de08;
+  color: #d4dbd1;
+  font: 600 10px 'DM Sans', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.station-dock .dock-main-actions button { min-height: 44px; background: #e3c18b0c; }
+.station-dock .dock-main-actions button:hover,
+.station-dock .dock-more-actions button:hover { background: #eac78d18; border-color: #eac78d76; }
+.station-dock .dock-main-actions button span,
+.station-dock .dock-more-actions button span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 19px;
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  color: #edc186;
+  border: 1px solid #edc18645;
+  font: 12px 'DM Sans', sans-serif;
+}
+.dock-more-label {
+  padding: 5px 2px 1px;
+  color: #8ea49b;
+  font: 8px 'Space Mono', monospace;
+  letter-spacing: 1.2px;
+}
+.dock-more-actions { padding-top: 4px; border-top: 1px solid #a5b8af20; }
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-color: #91b0a34a;
+  background: linear-gradient(155deg, #1a292b, #142124 72%);
+}
+.modal-head { flex: none; padding: 1px 38px 13px 0; border-bottom: 1px solid #9bb2a329; }
+.modal-head .eyebrow { color: #a5beb1; font-size: 8px; letter-spacing: 1.1px; }
+.modal-head h2 { margin: 8px 0 0; font-size: 33px; line-height: 1; }
+.modal-body { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 7px 2px 0; margin-right: -7px; scrollbar-color: #718a7d70 transparent; scrollbar-width: thin; }
+.modal-body > :first-child { margin-top: 12px; }
+.modal-bank { flex: none; margin-top: 13px; padding-top: 10px; }
+.modal:has(.outpost-tabs) { width: min(600px, 100%); }
+.modal .close { z-index: 2; top: 26px; right: 25px; width: 34px; height: 34px; border: 1px solid #aabdb123; background: #ffffff06; }
+.modal .close:hover { background: #ffffff12; }
+.modal.intro { display: block; overflow-y: auto; }
+.modal.intro { scrollbar-color: #718a7d70 transparent; scrollbar-width: thin; }
+.intro-help { margin-top: 15px; border-top: 1px solid #aabdb123; padding-top: 10px; text-align: left; }
+.intro-help summary { color: #adc0b5; cursor: pointer; list-style: none; font: 9px 'Space Mono', monospace; letter-spacing: .4px; }
+.intro-help summary::-webkit-details-marker { display: none; }
+.intro-help summary::after { content: '+'; float: right; color: #edc186; font-size: 15px; line-height: 10px; }
+.intro-help[open] summary::after { content: '−'; }
+.intro-help .intro-controls { margin-top: 12px; }
+.intro-help .intro-note { line-height: 1.6; }
+.modal.pause-screen { overflow: auto; }
+
+@media (max-width: 650px) {
+  .station-dock { width: min(300px, calc(100vw - 20px)); min-width: 0; right: 10px; bottom: 12px; }
+  .station-dock .dock-main-actions button,
+  .station-dock .dock-more-actions button { justify-content: center; gap: 5px; font-size: 9px; }
+  .station-dock .dock-main-actions button span,
+  .station-dock .dock-more-actions button span { flex-basis: 16px; width: 16px; height: 16px; }
+  .modal-head h2 { font-size: 29px; }
+  .modal .close { top: 19px; right: 18px; }
+  .modal-body { padding-right: 4px; margin-right: -4px; }
+  .modal-bank { margin-top: 10px; }
+}
+@media (max-height: 760px) {
+  .intro-with-atlas { padding: 17px 25px 14px; }
+  .intro-with-atlas h1 { font-size: 44px; margin: 6px 0 3px; }
+  .intro-with-atlas > p { margin: 5px 0; }
+  .intro-with-atlas .intro-atlas { margin: 9px 0 7px; padding: 8px 12px; }
+  .intro-with-atlas .atlas-chart { height: 104px; }
+  .intro-with-atlas #launch { margin-top: 12px; }
+  .pause-menu { padding: 25px 32px 20px; }
+  .pause-screen h2 { font-size: 54px; margin: 15px 0 18px; }
+  .pause-rig { padding: 21px 30px 17px; }
+  .pod-portrait { height: 138px; }
+  .pause-readouts { gap: 17px; margin-bottom: 12px; }
+  .pause-readouts dd { font-size: 25px; margin: 2px 0 6px; }
+  .pause-objective { padding-top: 11px; }
+  .pause-progress { margin: 9px 0 6px; }
+  .pause-credit { margin-top: 10px; padding-top: 8px; }
 }

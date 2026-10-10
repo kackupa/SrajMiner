@@ -742,9 +742,34 @@ kbd {
   letter-spacing: 1px;
 }
 .warehouse-transfer select,
-.warehouse-transfer input {
+.warehouse-transfer input,
+#warehouse-source {
   min-width: 0;
   width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 10px;
+  color: var(--cream);
+  background: #0d1718;
+  font: 12px 'Space Mono', monospace;
+}
+.warehouse-source-label {
+  display: block;
+  margin: 0 0 7px;
+  color: #94a999;
+  font: 8px 'Space Mono', monospace;
+  letter-spacing: 1px;
+}
+.sale-buyer-label {
+  display: block;
+  margin: 2px 0 7px;
+  color: #94a999;
+  font: 8px 'Space Mono', monospace;
+  letter-spacing: 1px;
+}
+#sale-buyer {
+  width: 100%;
+  margin: 0 0 12px;
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 10px;

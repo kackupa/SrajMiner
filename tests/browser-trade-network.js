@@ -135,10 +135,21 @@ async (page) => {
   const orderPreview = await orderPanel.innerText();
   if (!orderPreview.includes('3 COPPER') || !orderPreview.includes('+$120') || !orderPreview.includes('ESTIMATED PAYOUT'))
     throw Error(`Local Trading Post should preview its ore order and delivery bonus: ${orderPreview}`);
+  const buyerPicker = page.locator('#sale-buyer');
+  await buyerPicker.waitFor();
+  await buyerPicker.selectOption('mars-frontier');
+  const remotePreview = await orderPanel.innerText();
+  if (!remotePreview.includes('MARS FRONTIER DEMAND') || !remotePreview.includes('LOCAL ORDER 1/3 · NOT INCLUDED'))
+    throw Error(`A linked remote market should show its own demand and clearly waive the local order: ${remotePreview}`);
+  await buyerPicker.selectOption('cryo-shelf');
+  if (!(await orderPanel.innerText()).includes('LOCAL BUY ORDER 1/3'))
+    throw Error('Selecting the local market should restore the local buy-order preview');
   await page.locator('#sell').click();
   saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
   if (!saved.milestones.includes('contract-cryo') || saved.cargo.copper !== 0)
     throw Error(`Delivering the requested ore should pay and persist the order once: ${JSON.stringify({ milestones: saved.milestones, cargo: saved.cargo })}`);
+  if (!(await page.locator('#modal-layer').innerText()).includes('SETTLEMENT RECEIPT / CRYO SHELF → CRYO SHELF'))
+    throw Error('A completed sale should remain visible as a settlement receipt');
   const paidMoney = saved.money;
   await page.reload();
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
@@ -199,5 +210,36 @@ async (page) => {
   if (await page.locator('.trade-route-node.relay').count() !== 1 || await page.locator('.trade-route-lines line.relay-link').count() !== 2)
     throw Error(`The funded relay should appear as a visible star-map hub connected to posted colonies: ${await restoredRoutes.innerText()}`);
   await page.screenshot({ path: 'output/playwright/interplanetary-relay-project.png' });
+  await page.locator('#close').click();
+  const logisticsSave = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
+  logisticsSave.milestones = [...new Set([...logisticsSave.milestones, 'project-tug-cryo', 'project-tug-hull', 'project-tug-vesper', 'project-cargo-tug-online'])];
+  logisticsSave.maps['cryo-shelf'].structures.push({ id: 'warehouse:1250:0', kind: 'warehouse', x: 1250, y: 0 });
+  logisticsSave.maps['cryo-shelf'].warehouse = { copper: 2, iron: 0, silver: 0, gold: 0, diamond: 0 };
+  logisticsSave.maps['hull-graveyard'] = {
+    seed: 71203, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null,
+    structures: [{ id: 'warehouse:1120:0', kind: 'warehouse', x: 1120, y: 0 }],
+    warehouse: { copper: 0, iron: 0, silver: 2, gold: 0, diamond: 0 },
+    planetChart: { radiusRows: 150, columns: Math.round(Math.PI * 150) },
+  };
+  logisticsSave.maps['prism-fault'].x = 980;
+  logisticsSave.maps['prism-fault'].y = -22;
+  await page.evaluate((save) => localStorage.setItem('mars-miner.v1', JSON.stringify(save)), logisticsSave);
+  await page.reload();
+  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
+  await page.locator('#game').click();
+  await page.keyboard.press('e');
+  const warehousePanel = page.locator('#modal-layer');
+  await warehousePanel.waitFor();
+  if (!(await warehousePanel.innerText()).includes('CARGO TUG · 3/3 STAGES'))
+    throw Error('Cargo Tug completion should unlock the colony warehouse network');
+  await page.locator('#warehouse-source').selectOption('hull-graveyard');
+  await page.locator('#warehouse-ore').selectOption('silver');
+  await page.locator('#warehouse-units').fill('1');
+  if (!(await warehousePanel.innerText()).includes('STORED × 2')) throw Error('Remote source selection should show the remote planet’s inventory');
+  await page.screenshot({ path: 'output/playwright/cargo-tug-remote-warehouse.png' });
+  await page.locator('#warehouse-withdraw').click();
+  const remoteTransfer = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
+  if (remoteTransfer.maps['hull-graveyard'].warehouse.silver !== 1 || remoteTransfer.cargo.silver !== 1)
+    throw Error(`Remote withdrawal must debit its source and credit the miner once: ${JSON.stringify({ remote: remoteTransfer.maps['hull-graveyard'].warehouse, cargo: remoteTransfer.cargo })}`);
   return { version: funded.version, habitat: habitats[0], localPost: localPosts[0], surfaceTurret: surfaceTurrets[0], moneyAfterBuilds: paidMoney, habitatServiceVisible: true, salePremiumVisible: true, localBuyOrderPaid: true, relayProjectPersisted: true };
 }

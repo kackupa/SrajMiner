@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
-import { tradeNetworkPremium } from './config';
-import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
 import { Progress, emptyCargo, type Cargo } from './economy/Progress';
 import { tradeRouteEdges } from './economy/TradeNetwork';
 import { transferWarehouseOre, type WarehouseDirection } from './economy/Warehouse';
-import { advanceMarketDemand, marketDemandBonus } from './economy/MarketContracts';
-import { contributeVesperRelay, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
+import { buildSaleReceipt } from './economy/Sale';
+import { advanceMarketDemand } from './economy/MarketContracts';
+import { contributeCargoTug, contributeVesperRelay, CARGO_TUG_PROJECT, remoteWarehouseAccess, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
 import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
@@ -331,25 +331,35 @@ export class MiningScene extends Phaser.Scene {
           this.save();
           this.ui.toast(this.saves.warning || 'Expedition saved. Your tunnels are here to stay.');
         },
-        sell: () => {
-          if (!this.sellAccess) return 0;
-          const soldCargo = { ...this.progress.cargo };
-          const hasLocalPost = !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post'),
-            contract = this.progress.claimMarketContract(this.mapId, hasLocalPost),
-            sale = this.progress.sell(), connectedPosts = this.tradeNetworkCount(),
-            bonus = tradeNetworkPremium(sale, connectedPosts, hasLocalPost, this.progress.milestones.includes(VESPER_RELAY_PROJECT.completionMilestone)), demandBonus = marketDemandBonus(soldCargo, this.mapId, this.progress.milestones, hasLocalPost),
-            n = sale + bonus + demandBonus + contract;
-          this.progress.money += bonus + demandBonus;
-          if (sale > 0) advanceMarketDemand(this.progress.milestones, this.mapId, hasLocalPost, sale);
-          if (n) {
-            this.soundFx.reward();
-            this.float(`+$${n}`, this.pod.x, this.pod.y - 45, '#f5ca78');
-            this.burst(this.pod.x, this.pod.y, 0xf5ca78, 28);
-            const rewards = [bonus ? `+$${bonus} LINKED-WORLD PREMIUM` : '', demandBonus ? `+$${demandBonus} LOCAL DEMAND` : '', contract ? `+$${contract} PLANETARY ORDER` : ''].filter(Boolean).join(' · ');
-            this.ui.toast(rewards ? `+$${n} banked · ${rewards}.` : `+$${n} banked. Another piece of the Faraday recovered.`);
-            this.save();
+        sell: (buyerMapId?: MapId) => {
+          if (!this.sellAccess) return undefined;
+          const oldCargo = { ...this.progress.cargo }, oldMoney = this.progress.money, oldMilestones = [...this.progress.milestones],
+            hasLocalPost = !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post'),
+            destination = hasLocalPost && buyerMapId && this.tradePostMaps().includes(buyerMapId) ? buyerMapId : this.mapId,
+            localBuyer = hasLocalPost && destination === this.mapId,
+            receipt = buildSaleReceipt(oldCargo, this.mapId, destination, oldMilestones, this.tradeNetworkCount(), hasLocalPost,
+              hasLocalPost && this.tradePostMaps().includes(destination), oldMilestones.includes(VESPER_RELAY_PROJECT.completionMilestone));
+          if (!receipt.total) return undefined;
+          this.progress.claimMarketContract(this.mapId, localBuyer);
+          this.progress.sell();
+          this.progress.money += receipt.networkPremium + receipt.localDemandBonus;
+          advanceMarketDemand(this.progress.milestones, destination, hasLocalPost && this.tradePostMaps().includes(destination), receipt.gross);
+          if (!this.save()) {
+            this.progress.cargo = oldCargo;
+            this.progress.money = oldMoney;
+            this.progress.milestones = oldMilestones;
+            this.rememberCurrentMap();
+            this.ui.toast('SALE NOT SAVED · CARGO AND ORDER RESTORED. TRY AGAIN.');
+            return undefined;
           }
-          return n;
+          {
+            this.soundFx.reward();
+            this.float(`+$${receipt.total}`, this.pod.x, this.pod.y - 45, '#f5ca78');
+            this.burst(this.pod.x, this.pod.y, 0xf5ca78, 28);
+            const rewards = [receipt.networkPremium ? `+$${receipt.networkPremium} LINKED-WORLD PREMIUM` : '', receipt.localDemandBonus ? `+$${receipt.localDemandBonus} ${MAPS[destination].shortName} DEMAND` : '', receipt.contractReward ? `+$${receipt.contractReward} PLANETARY ORDER` : ''].filter(Boolean).join(' · ');
+            this.ui.toast(rewards ? `+$${receipt.total} banked · ${rewards}.` : `+$${receipt.total} banked. Another piece of the Faraday recovered.`);
+          }
+          return receipt;
         },
         service: (k) => {
           if (!this.canService) return false;
@@ -496,9 +506,11 @@ export class MiningScene extends Phaser.Scene {
           return ok;
         },
         buildStructure: (kind: StructureKind) => this.buildUndergroundStructure(kind),
-        warehouseStock: () => ({ ...this.warehouseCargo }),
-        transferWarehouse: (ore, direction, units) => this.transferWarehouse(ore, direction, units),
+        warehouseStock: (mapId) => ({ ...(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.warehouse ?? emptyCargo() : this.warehouseCargo) }),
+        warehouseMaps: () => this.warehouseMaps(),
+        transferWarehouse: (ore, direction, units, mapId) => this.transferWarehouse(ore, direction, units, mapId),
         contributeSystemProject: () => this.contributeSystemProject(),
+        contributeCargoTug: () => this.contributeCargoTug(),
         atWarehouse: () => !!this.nearbyWarehouse,
         placementActive: () => !!this.surfacePlacement,
         structures: () => this.structures,
@@ -838,22 +850,36 @@ export class MiningScene extends Phaser.Scene {
   tradeNetworkCount() {
     return this.tradePostMaps().length;
   }
-  transferWarehouse(ore: Ore, direction: WarehouseDirection, units: number) {
+  warehouseMaps() {
+    return (Object.keys(MAPS) as MapId[]).filter((id) => {
+      const structures = id === this.mapId ? this.structures : this.mapStates[id]?.structures;
+      return structures?.some((entry) => entry.kind === 'warehouse') ?? false;
+    });
+  }
+  transferWarehouse(ore: Ore, direction: WarehouseDirection, units: number, selectedMapId?: MapId) {
     if (!this.nearbyWarehouse) return 0;
-    const transfer = transferWarehouseOre(this.progress.cargo, this.warehouseCargo, ore, direction, units, this.progress.max('cargo'));
+    const targetMapId = direction === 'withdraw' && selectedMapId ? selectedMapId : this.mapId,
+      knownWarehouses = this.warehouseMaps();
+    if (!remoteWarehouseAccess(this.progress.milestones, this.mapId, targetMapId, knownWarehouses)) return 0;
+    const remoteState = targetMapId === this.mapId ? undefined : this.mapStates[targetMapId];
+    if (targetMapId !== this.mapId && !remoteState) return 0;
+    const targetWarehouse = targetMapId === this.mapId ? this.warehouseCargo : remoteState!.warehouse,
+      transfer = transferWarehouseOre(this.progress.cargo, targetWarehouse, ore, direction, units, this.progress.max('cargo'));
     if (!transfer.moved) return 0;
-    const oldCargo = this.progress.cargo, oldWarehouse = this.warehouseCargo;
+    const oldCargo = this.progress.cargo, oldWarehouse = targetWarehouse;
     this.progress.cargo = transfer.cargo;
-    this.warehouseCargo = transfer.warehouse;
+    if (targetMapId === this.mapId) this.warehouseCargo = transfer.warehouse;
+    else this.mapStates[targetMapId] = { ...remoteState!, warehouse: transfer.warehouse };
     if (!this.save()) {
       this.progress.cargo = oldCargo;
-      this.warehouseCargo = oldWarehouse;
+      if (targetMapId === this.mapId) this.warehouseCargo = oldWarehouse;
+      else this.mapStates[targetMapId] = remoteState!;
       this.rememberCurrentMap();
       this.ui.toast('STORAGE FAILED · ORE TRANSFER ROLLED BACK.');
       return 0;
     }
     this.soundFx.tone(direction === 'store' ? 540 : 420, 0.08, 'sine', 0.025, direction === 'store' ? 760 : 620);
-    this.ui.toast(`${direction === 'store' ? 'STORED' : 'RETRIEVED'} ${transfer.moved} ${ore.toUpperCase()} · ${MAPS[this.mapId].name.toUpperCase()} WAREHOUSE.`);
+    this.ui.toast(`${direction === 'store' ? 'STORED' : 'RETRIEVED'} ${transfer.moved} ${ore.toUpperCase()} · ${MAPS[targetMapId].name.toUpperCase()} WAREHOUSE.`);
     return transfer.moved;
   }
   contributeSystemProject() {
@@ -875,6 +901,27 @@ export class MiningScene extends Phaser.Scene {
     this.ui.toast(result.completed
       ? `VESPER RELAY ONLINE · +$${VESPER_RELAY_PROJECT.rewardCredits} · LINKED EXCHANGE PREMIUM +5%.`
       : `${MAPS[stage.mapId].name.toUpperCase()} RELAY WORK COMPLETE · ${stage.units} ${stage.ore.toUpperCase()} COMMITTED.`);
+    return true;
+  }
+  contributeCargoTug() {
+    if (!this.nearbyWarehouse) return false;
+    const oldWarehouse = { ...this.warehouseCargo }, oldMilestones = [...this.progress.milestones], oldMoney = this.progress.money,
+      result = contributeCargoTug(this.progress.milestones, this.mapId, this.warehouseCargo);
+    if (!result.contributed) return false;
+    if (result.completed) this.progress.money += CARGO_TUG_PROJECT.rewardCredits;
+    if (!this.save()) {
+      this.warehouseCargo = oldWarehouse;
+      this.progress.milestones = oldMilestones;
+      this.progress.money = oldMoney;
+      this.rememberCurrentMap();
+      this.ui.toast('PROJECT SAVE FAILED · MATERIALS RESTORED.');
+      return false;
+    }
+    const stage = result.stage!;
+    this.soundFx.reward();
+    this.ui.toast(result.completed
+      ? `CARGO TUG ONLINE · +$${CARGO_TUG_PROJECT.rewardCredits} · REMOTE WAREHOUSE ACCESS UNLOCKED.`
+      : `${MAPS[stage.mapId].name.toUpperCase()} CARGO TUG WORK COMPLETE · ${stage.units} ${stage.ore.toUpperCase()} COMMITTED.`);
     return true;
   }
   tradePostMaps() {
@@ -1576,6 +1623,7 @@ export class MiningScene extends Phaser.Scene {
         this.drillAimX = 0;
         this.drillAimY = 1;
       }
+      const incomingSwimmerKind = this.rockSwimmer.active?.kind ?? 'rock-swimmer';
       if (this.rockSwimmer.update(dt, this.depth, this.pod.x, this.pod.y, this.structures, (x, y) => {
         this.soundFx.tone(620, 0.1, 'square', 0.025, 240);
         this.float('TURRET INTERCEPT', x, y - 38, '#f0b779');
@@ -1584,12 +1632,22 @@ export class MiningScene extends Phaser.Scene {
           this.fail();
           return;
         }
-        this.progress.hull = Math.max(0, this.progress.hull - ROCK_SWIMMER.hullDamage);
+        const enemyDamage = incomingSwimmerKind === 'shard-manta' ? SHARD_MANTA.hullDamage : ROCK_SWIMMER.hullDamage;
+        this.progress.hull = Math.max(0, this.progress.hull - enemyDamage);
         this.shake = this.reducedMotion ? 0 : 4;
-        this.float(`−${ROCK_SWIMMER.hullDamage} HULL · ROCK SWIMMER`, this.pod.x, this.pod.y - 29, '#8fe5d5');
-        this.ui.toast('ROCK SWIMMER COLLISION · Steer clear when its glow approaches.');
+        const enemyName = incomingSwimmerKind === 'shard-manta' ? 'SHARD MANTA' : 'ROCK SWIMMER';
+        this.float(`−${enemyDamage} HULL · ${enemyName}`, this.pod.x, this.pod.y - 29, incomingSwimmerKind === 'shard-manta' ? '#e9a0ed' : '#8fe5d5');
+        this.ui.toast(incomingSwimmerKind === 'shard-manta'
+          ? 'SHARD MANTA HIT · DODGE ITS WIND-UP OR DRILL IT BEFORE THE CHARGE.'
+          : 'ROCK SWIMMER COLLISION · Steer clear when its glow approaches.');
         this.soundFx.tone(160, 0.16, 'sine', 0.04, 80);
         this.save();
+      }
+      const manta = this.rockSwimmer.active;
+      if (manta?.kind === 'shard-manta' && manta.mode === 'windup' && !manta.warningPlayed) {
+        manta.warningPlayed = true;
+        this.ui.toast('SHARD MANTA WINDING UP · DODGE THE CHARGE OR DRILL IT NOW.');
+        this.soundFx.tone(360, 0.1, 'triangle', 0.03, 720);
       }
       const raidEvent = this.surfaceRaid.update(dt, this.surface, this.world, this.structures, (x, y) => {
         this.soundFx.tone(680, 0.11, 'square', 0.03, 220);
@@ -1607,18 +1665,28 @@ export class MiningScene extends Phaser.Scene {
         this.ui.toast(lost ? 'COLONY MODULE LOST · Rebuild it from the surface yard.' : 'COLONY MODULE DAMAGED · Repair it from the surface yard for $180.');
         this.save();
       }
-      const drillIsHeld = mouseDrilling || input.down || input.left || input.right;
-      const swimmerPosition = this.rockSwimmer.active ? { x: this.rockSwimmer.active.x, y: this.rockSwimmer.active.y } : undefined;
-      if (drillIsHeld && this.rockSwimmer.hitByDrill(
+      const swimmerPosition = this.rockSwimmer.active ? { x: this.rockSwimmer.active.x, y: this.rockSwimmer.active.y } : undefined,
+        swimmerName = this.rockSwimmer.active?.kind === 'shard-manta' ? 'SHARD MANTA' : 'ROCK SWIMMER';
+      const enemyBeamHeld = mouseDrilling || input.down || input.left || input.right;
+      const swimmerHealthBefore = this.rockSwimmer.active?.health;
+      const swimmerDefeated = enemyBeamHeld && this.rockSwimmer.hitByDrill(
         this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
         WORLD.tile * drillReachTiles(this.progress.levels.drill),
-      )) {
+      );
+      const swimmerHealthAfter = this.rockSwimmer.active?.health;
+      if (swimmerDefeated) {
         this.burst(swimmerPosition?.x ?? this.pod.x, swimmerPosition?.y ?? this.pod.y, 0x9ce4cf, 10);
-        this.ui.toast('ROCK SWIMMER DRIVEN OFF · DRILL EFFECTIVE');
+        this.ui.toast(`${swimmerName} DRIVEN OFF · DRILL EFFECTIVE`);
         this.soundFx.tone(520, 0.12, 'triangle', 0.035, 180);
+      } else if (swimmerHealthBefore !== undefined && swimmerHealthAfter !== undefined && swimmerHealthAfter < swimmerHealthBefore) {
+        this.burst(swimmerPosition?.x ?? this.pod.x, swimmerPosition?.y ?? this.pod.y, swimmerName === 'SHARD MANTA' ? 0xd797e8 : 0x83e5d3, 5);
+        this.float(`${swimmerName} HIT · ${swimmerHealthAfter} HIT${swimmerHealthAfter === 1 ? '' : 'S'} LEFT`,
+          swimmerPosition?.x ?? this.pod.x, (swimmerPosition?.y ?? this.pod.y) - 26, swimmerName === 'SHARD MANTA' ? '#e9a0ed' : '#8fe5d5');
+        this.ui.toast(`${swimmerName} HIT · ${swimmerHealthAfter} MORE DRILL ${swimmerHealthAfter === 1 ? 'HIT' : 'HITS'} TO DRIVE OFF`);
+        this.soundFx.tone(410, 0.08, 'triangle', 0.025, 250);
       }
       const raiderPosition = this.surfaceRaid.active ? { x: this.surfaceRaid.active.x, y: this.surfaceRaid.active.y } : undefined;
-      if (drillIsHeld && this.surfaceRaid.hitByDrill(
+      if (enemyBeamHeld && this.surfaceRaid.hitByDrill(
         this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
         WORLD.tile * drillReachTiles(this.progress.levels.drill),
       )) {
@@ -1890,6 +1958,13 @@ export class MiningScene extends Phaser.Scene {
       viewSign = 1,
       cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, angle),
       surfaceStyle = MAPS[this.mapId].surface;
+    const zoom = Math.max(0.0001, this.cameraZoom),
+      expandedViewport = {
+        x: -w * (1 - zoom) / (2 * zoom),
+        y: -h * (1 - zoom) / (2 * zoom),
+        width: w / zoom,
+        height: h / zoom,
+      };
     const orbitBlend = this.world.planetChart ? Phaser.Math.SmoothStep(this.orbitalTransition, 0, 1) : 0;
     const orbitalView = !!this.world.planetChart && this.orbitalTransition >= 1;
     if (this.orbitalOverviewActive !== orbitalView) {
@@ -1931,7 +2006,7 @@ export class MiningScene extends Phaser.Scene {
       sy = (y: number) => project(this.pod.x, y).y;
     g.clear();
     g.fillStyle(0x131b20);
-    g.fillRect(0, 0, w, h);
+    g.fillRect(expandedViewport.x, expandedViewport.y, expandedViewport.width, expandedViewport.height);
     if (orbitalView) {
       this.drawOrbitalOverview(1);
       this.labels.forEach((label) => label.setVisible(false));
@@ -1943,7 +2018,7 @@ export class MiningScene extends Phaser.Scene {
     if (ground > 0 && this.world.planetChart) {
       const [skyTL, skyTR, skyBL, skyBR] = surfaceStyle.sky;
       g.fillGradientStyle(skyTL, skyTR, skyBL, skyBR);
-      g.fillRect(0, 0, w, h);
+      g.fillRect(expandedViewport.x, expandedViewport.y, expandedViewport.width, expandedViewport.height);
       const farSurface = this.pod.y >= this.world.coreWorldY;
       const surfaceRow = farSurface ? this.world.farSurfaceRow : 0;
       drawSurfaceLandmarks(g, this.surfaceFeatures, this.mapId, localProject, (x, y) => isOnScreen(x, y, 260));
@@ -2676,28 +2751,62 @@ export class MiningScene extends Phaser.Scene {
       if (tileDistance <= this.pod.scannerRadius * 1.25 && isOnScreen(swimmer.x, swimmer.y, T)) {
         const sxw = sx(swimmer.x), syw = sy(swimmer.y), angle = Math.atan2(swimmer.vy, swimmer.vx);
         const ux = Math.cos(angle), uy = Math.sin(angle), pulse = this.reducedMotion ? 1 : 0.8 + Math.sin(this.tick * 7 + swimmer.phase) * 0.2;
-        const color = swimmer.hitFlash > 0 ? 0xffffff : tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
-        g.fillStyle(color, 0.16 * pulse);
-        g.fillCircle(sxw, syw, 27);
-        for (let i = 3; i >= 0; i--) {
-          const tailX = sxw - ux * (8 + i * 8), tailY = syw - uy * (8 + i * 8) + Math.sin(this.tick * 8 + i + swimmer.phase) * 2;
-          g.fillStyle(color, 0.3 + (3 - i) * 0.11);
-          g.fillCircle(tailX, tailY, 2.5 + (3 - i) * 0.55);
+        if (swimmer.kind === 'shard-manta') {
+          const color = swimmer.hitFlash > 0 ? 0xffffff : swimmer.mode === 'windup' ? 0xffc15c : swimmer.mode === 'charge' ? 0xff8277 : 0xd797e8,
+            local = (forward: number, side: number) => ({ x: sxw + ux * forward - uy * side, y: syw + uy * forward + ux * side });
+          g.fillStyle(color, 0.15 * pulse);
+          g.fillCircle(sxw, syw, 34);
+          g.fillStyle(color, 0.88);
+          g.fillPoints([local(15, 0), local(2, -8), local(-16, -27), local(-8, -2)], true);
+          g.fillPoints([local(15, 0), local(2, 8), local(-16, 27), local(-8, 2)], true);
+          g.fillStyle(swimmer.hitFlash > 0 ? 0xffffff : 0xf5d8ff, 0.98);
+          g.fillPoints([local(18, 0), local(0, 7), local(-12, 0), local(0, -7)], true);
+          g.fillStyle(0x38233e, 1);
+          g.fillCircle(local(7, 0).x, local(7, 0).y, 2);
+          if (swimmer.mode === 'windup') {
+            const chargeProgress = 1 - (swimmer.modeTimer ?? 0) / SHARD_MANTA.windupSeconds;
+            g.lineStyle(2, 0xffc15c, 0.9);
+            g.strokeCircle(sxw, syw, 31 + chargeProgress * 15);
+            g.lineStyle(2, 0xffc15c, 0.7);
+            g.lineBetween(sxw, syw, sxw + (swimmer.chargeX ?? ux) * 48, syw + (swimmer.chargeY ?? uy) * 48);
+          } else if (swimmer.mode === 'charge') {
+            g.lineStyle(2, 0xff8277, 0.8);
+            g.lineBetween(sxw - ux * 42, syw - uy * 42, sxw - ux * 12, syw - uy * 12);
+            g.strokeCircle(sxw, syw, 29 + (this.reducedMotion ? 0 : pulse * 4));
+          }
+        } else {
+          const color = swimmer.hitFlash > 0 ? 0xffffff : tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
+          g.fillStyle(color, 0.16 * pulse);
+          g.fillCircle(sxw, syw, 27);
+          for (let i = 3; i >= 0; i--) {
+            const tailX = sxw - ux * (8 + i * 8), tailY = syw - uy * (8 + i * 8) + Math.sin(this.tick * 8 + i + swimmer.phase) * 2;
+            g.fillStyle(color, 0.3 + (3 - i) * 0.11);
+            g.fillCircle(tailX, tailY, 2.5 + (3 - i) * 0.55);
+          }
+          g.fillStyle(color, 0.9);
+          g.fillPoints([
+            { x: sxw + ux * 12, y: syw + uy * 12 },
+            { x: sxw + ux * 2 + uy * 7, y: syw + uy * 2 - ux * 7 },
+            { x: sxw - ux * 9, y: syw - uy * 9 },
+            { x: sxw + ux * 2 - uy * 7, y: syw + uy * 2 + ux * 7 },
+          ], true);
+          g.fillStyle(0x173338, 1);
+          g.fillCircle(sxw + ux * 5 - uy * 2, syw + uy * 5 + ux * 2, 1.5);
+          if (tileDistance * T < ROCK_SWIMMER.warningRadius) {
+            g.lineStyle(1, 0xf0b779, 0.4);
+            g.lineBetween(sx(this.pod.x), sy(this.pod.y), sxw, syw);
+            g.lineStyle(1, 0xf0b779, 0.6);
+            g.strokeCircle(sxw, syw, 17 + (this.reducedMotion ? 0 : Math.sin(this.tick * 5) * 2));
+          }
         }
-        g.fillStyle(color, 0.9);
-        g.fillPoints([
-          { x: sxw + ux * 12, y: syw + uy * 12 },
-          { x: sxw + ux * 2 + uy * 7, y: syw + uy * 2 - ux * 7 },
-          { x: sxw - ux * 9, y: syw - uy * 9 },
-          { x: sxw + ux * 2 - uy * 7, y: syw + uy * 2 + ux * 7 },
-        ], true);
-        g.fillStyle(0x173338, 1);
-        g.fillCircle(sxw + ux * 5 - uy * 2, syw + uy * 5 + ux * 2, 1.5);
-        if (tileDistance * T < ROCK_SWIMMER.warningRadius) {
-          g.lineStyle(1, 0xf0b779, 0.4);
-          g.lineBetween(sx(this.pod.x), sy(this.pod.y), sxw, syw);
-          g.lineStyle(1, 0xf0b779, 0.6);
-          g.strokeCircle(sxw, syw, 17 + (this.reducedMotion ? 0 : Math.sin(this.tick * 5) * 2));
+        const maxHealth = swimmer.kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
+          healthColor = swimmer.kind === 'shard-manta' ? 0xe9a0ed : 0x8fe5d5,
+          pipStart = sxw - (maxHealth - 1) * 4;
+        g.fillStyle(0x101b24, 0.86);
+        g.fillRect(sxw - 16, syw - 40, 32, 9);
+        for (let pip = 0; pip < maxHealth; pip++) {
+          g.fillStyle(pip < swimmer.health ? healthColor : 0x49545a, 1);
+          g.fillCircle(pipStart + pip * 8, syw - 35.5, 2.2);
         }
       }
     }
