@@ -10,7 +10,7 @@ async (page) => {
     money: 5000, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 },
     fuel: 43, hull: 100, cargo: { copper: 1.5, iron: 1, silver: 0, gold: 0, diamond: 0 },
     maxDepth: 0, artifact: false, milestones: ['core-cryo'], shipComponents: [], routeFragments: [],
-    coreFuel: 4, mothershipBoarded: true, charges: 0,
+    coreFuel: 4, mothershipBoarded: false, charges: 0,
     ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false,
     ownedSuits: ['hab'], selectedSuit: 'hab', ownedDecals: ['standard'], selectedDecal: 'standard',
     ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced',
@@ -24,8 +24,13 @@ async (page) => {
   await page.waitForFunction(() => !!window.__mars && !document.querySelector('.intro'));
 
   const initial = await page.evaluate(() => window.__mars);
-  if (initial.mapId !== 'cryo-shelf' || initial.coreFuel !== 4 || !initial.mothershipBoarded)
-    throw Error(`Core-ready fixture did not load aboard the mothership: ${JSON.stringify(initial)}`);
+  if (initial.mapId !== 'cryo-shelf' || initial.coreFuel !== 4 || initial.mothershipBoarded)
+    throw Error(`Core-ready fixture should load beside the landed mothership: ${JSON.stringify(initial)}`);
+  await page.keyboard.press('e');
+  await page.waitForFunction(() => window.__mars?.mothershipBoarded);
+  const boarded = await page.evaluate(() => ({ state: window.__mars, save: JSON.parse(localStorage.getItem('mars-miner.v1')) }));
+  if (!boarded.state.mothershipBoarded || !boarded.save.mothershipBoarded)
+    throw Error(`Pressing E beside the mothership should board and save immediately: ${JSON.stringify(boarded)}`);
   const startingFuel = initial.fuel, startingCargo = JSON.stringify(initial.cargo), startingMoney = initial.money;
   const visited = [];
   for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault', 'cinder-vale']) {

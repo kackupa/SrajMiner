@@ -614,10 +614,17 @@ export class MiningScene extends Phaser.Scene {
           this.ui.toast('MOTHERSHIP DRIVE OFFLINE · MINE THIS PLANET’S CORE TO FUEL THE SHIP');
           return;
         }
-        this.mothershipBoarded = !this.mothershipBoarded;
-        this.ui.setMothershipBoarded(this.mothershipBoarded);
+        const wasBoarded = this.mothershipBoarded;
+        this.mothershipBoarded = !wasBoarded;
         this.pod.vx = this.pod.vy = 0;
         this.pod.docked = this.mothershipBoarded;
+        if (!this.save()) {
+          this.mothershipBoarded = wasBoarded;
+          this.ui.setMothershipBoarded(wasBoarded);
+          this.pod.docked = wasBoarded;
+          return;
+        }
+        this.ui.setMothershipBoarded(this.mothershipBoarded);
         this.ui.toast(this.mothershipBoarded
           ? `BOARDED THE MOTHERSHIP · W ASCENDS · S LANDS · ${this.progress.coreFuel} CORE-FUEL JUMPS`
           : 'MOTHERSHIP HATCH OPEN · MINER CONTROLS RESTORED');
