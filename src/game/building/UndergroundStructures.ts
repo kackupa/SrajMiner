@@ -41,20 +41,38 @@ export function validateSurfaceStructureSite(
     return { valid: false, reason: 'LIMIT' };
   if (!canAffordStructure(kind, cargo, credits)) return { valid: false, reason: 'NEED MATERIALS / CREDITS' };
   const candidateArc = surfaceArcCoordinate(world, site.x, site.y), half = world.widthTiles * WORLD.tile,
+    candidateSurfaceY = site.y < world.coreWorldY ? 0 : world.farSurfaceY,
+    candidateOutward = Math.abs(site.y - candidateSurfaceY),
     distanceOnGlobe = (a: number, b: number) => {
       const difference = Math.abs(a - b) % (half * 2);
       return Math.min(difference, half * 2 - difference);
     },
     candidateHalfWidth = rule.widthTiles * WORLD.tile / 2;
+  let supportedWallLayer = candidateOutward === 0;
   for (const entry of existing) {
+    if (kind === 'wall' && entry.kind === 'wall') {
+      const entrySurfaceY = entry.y < world.coreWorldY ? 0 : world.farSurfaceY,
+        entryArc = surfaceArcCoordinate(world, entry.x, entry.y), difference = Math.abs(candidateArc - entryArc),
+        arcDistance = Math.min(difference, half * 2 - difference),
+        radialDistance = Math.abs(candidateOutward - Math.abs(entry.y - entrySurfaceY)),
+        wallHalfWidths = (UNDERGROUND_BUILDING.wall.widthTiles + UNDERGROUND_BUILDING.wall.widthTiles) * WORLD.tile / 2;
+      if (arcDistance < wallHalfWidths - 1 && radialDistance < WORLD.tile - 1)
+        return { valid: false, reason: 'OCCUPIED' };
+      if (arcDistance < wallHalfWidths - 1 &&
+          Math.abs(Math.abs(entry.y - entrySurfaceY) - (candidateOutward - WORLD.tile)) < 1)
+        supportedWallLayer = true;
+      continue;
+    }
     const onSurface = Math.min(Math.abs(entry.y), Math.abs(entry.y - world.farSurfaceY)) <= WORLD.tile * 4;
     if (!onSurface) continue;
+    if (kind === 'wall' && candidateOutward >= WORLD.tile * 4) continue;
     const entryArc = surfaceArcCoordinate(world, entry.x, entry.y), entryHalfWidth = UNDERGROUND_BUILDING[entry.kind].widthTiles * WORLD.tile / 2;
     const normalDistance = distanceOnGlobe(candidateArc, entryArc), modularJoin = (kind === 'wall' || kind === 'gate') &&
       (entry.kind === 'wall' || entry.kind === 'gate');
     if (normalDistance < candidateHalfWidth + entryHalfWidth + (modularJoin ? -1 : 8))
       return { valid: false, reason: 'OCCUPIED' };
   }
+  if (kind === 'wall' && !supportedWallLayer) return { valid: false, reason: 'OCCUPIED' };
   return { valid: true };
 }
 

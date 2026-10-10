@@ -1,6 +1,6 @@
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
-import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, CORE_FUEL, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 import { MARKET_CONTRACT_IDS, MARKET_DEMAND_IDS } from '../economy/MarketContracts';
 import { SYSTEM_PROJECT_MILESTONES } from '../economy/SystemProjects';
@@ -9,7 +9,7 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 24;
+  version: 25;
   planetChart: PlanetChartSize;
   campaignSeed: number;
   activeMap: MapId;
@@ -24,6 +24,7 @@ export type SaveData = {
   milestones: string[];
   shipComponents: string[];
   routeFragments: string[];
+  coreFuel: number;
   charges: number;
   ownedPaints: PodPaint[];
   selectedPaint: PodPaint;
@@ -84,7 +85,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 24 && chartIsSupported(d.planetChart) &&
+    d.version === 25 && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
     Object.hasOwn(MAPS, d.activeMap) &&
@@ -100,7 +101,7 @@ export function validateSave(s: unknown): s is SaveData {
           !m.warehouse || ORE_KEYS.some((ore) => !finite(m.warehouse[ore]) || m.warehouse[ore] < 0 || !Number.isInteger(m.warehouse[ore] * 2)) || m.structures.some((structure) =>
           !structure || typeof structure.id !== 'string' || structure.id.length > 80 ||
           !['platform', 'service', 'turret', 'trade-post', 'habitat', 'warehouse', 'wall', 'gate'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
-          !finite(structure.y) || structure.y < 0 || structure.y > 1e7 ||
+          !finite(structure.y) || structure.y < (structure.kind === 'wall' ? -UNDERGROUND_BUILDING.wall.maxPerMap * WORLD.tile : 0) || structure.y > 1e7 ||
           (structure.reload !== undefined && (!finite(structure.reload) || structure.reload < 0 || structure.reload > UNDERGROUND_BUILDING.turret.reloadSeconds)) ||
           (structure.integrity !== undefined && (!Number.isInteger(structure.integrity) || structure.integrity < 1 || structure.integrity > SURFACE_RAID.integrity))) ||
         new Set(m.structures.map((structure) => structure.id)).size !== m.structures.length ||
@@ -137,7 +138,8 @@ export function validateSave(s: unknown): s is SaveData {
     ) && !!d.cargo && ORE_KEYS.every((k) => finite(d.cargo[k]) && d.cargo[k] >= 0 && Number.isInteger(d.cargo[k] * 2)) &&
     Array.isArray(d.milestones) && d.milestones.every((v) => ['first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
     Array.isArray(d.shipComponents) && d.shipComponents.every((v) => ['frame', 'propulsion', 'navigation', 'life-support'].includes(v)) &&
-    Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v))
+    Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v)) &&
+    Number.isSafeInteger(d.coreFuel) && d.coreFuel >= 0 && d.coreFuel <= 100000
   );
 }
 function addWorldToolState(maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge' | 'structures' | 'warehouse'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge' | 'structures' | 'warehouse'>>>) {
@@ -153,6 +155,14 @@ export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 24) {
+    const old = s as Record<string, unknown>;
+    const components = Array.isArray(old.shipComponents) ? old.shipComponents : [];
+    const fragments = Array.isArray(old.routeFragments) ? old.routeFragments : [];
+    const hadFlightAccess = components.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length || fragments.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length;
+    const coreCount = Array.isArray(old.milestones) ? old.milestones.filter((id) => CORE_RELICS.some((relic) => relic.id === id)).length : 0;
+    return migrateSave({ ...old, version: 25, coreFuel: hadFlightAccess ? CORE_FUEL.legacyReserve : coreCount * CORE_FUEL.unitsPerCore });
+  }
   if (version === 23) {
     const old = s as Record<string, unknown>;
     const maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, unknown> : {};
@@ -316,6 +326,7 @@ export class SaveManager {
     p.artifact = d.artifact;
     p.milestones = [...d.milestones];
     p.routeFragments = [...d.routeFragments];
+    p.coreFuel = d.coreFuel;
     // Older saves paid credits for parts after finding each signal. Keep their
     // progress while making every recovered signal an installed part now.
     p.shipComponents = [...new Set([

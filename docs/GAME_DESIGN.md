@@ -34,7 +34,7 @@ This is an expanding playable campaign foundation, not yet a finished long-form 
 
 ## Planet-core campaign direction
 
-The long-term fantasy is to mine into the core of several distinct planets. Treat each destination as a planet with a recognizable sky, gravity/rock palette, strata, signature resources, hazards, and a route to a dangerous core chamber. The four current destinations now have different sealed core samples along the crossing path. Mining one records its planet-specific name and pays a one-time $600 archive salvage claim; the Archive tracks all four and marks the planetary ledger complete. This establishes a core objective on every current destination. The next progression step is to tie those records into authored story beats and a meaningful route unlock while keeping the familiar haul, sell, upgrade, and prepare loop between trips.
+The long-term fantasy is to mine into the core of several distinct planets. Treat each destination as a planet with a recognizable sky, gravity/rock palette, strata, signature resources, hazards, and a route to a dangerous core chamber. Every destination has a sealed core record in the crossing path. The core halo provides bounded 360-degree steering and temporary extra drill reach so the route can be explored around the center; recovering a record pays a one-time $3,000 claim on the first four worlds, $4,500 on Cinder Vale, and $6,000 on Vesper-9. The Archive tracks the ledger. These are substantial expedition payouts, while the final-world escalation rewards completing the whole campaign.
 
 ### Endgame: cross the core
 

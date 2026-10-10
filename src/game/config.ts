@@ -15,6 +15,8 @@ export const CORE = {
   depthMeters: 3600,
   passageRadius: 5,
   physicalPassageRadius: 72,
+  drillAssistRadius: 220,
+  drillAssistReach: 160,
   firstCrossingReward: 2200,
 };
 export const CORE_WORLD_Y = CORE.depthMeters / WORLD.meters * WORLD.tile;
@@ -89,7 +91,7 @@ export function tradeNetworkPremium(saleValue: number, connectedPosts: number, h
   return Math.floor(Math.max(0, saleValue) * rate);
 }
 // Warn early enough to brake before reaching the damaging landing threshold.
-export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.6;
+  export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.4;
 export const FALL_CAMERA_LOOKAHEAD = 96;
 export const fallMotionCueIntensity = (vy: number, gravitySign: number) =>
   Math.max(0, Math.min(1, (vy * gravitySign - DESCENT_WARNING_SPEED) / (PHYSICS.safeImpact - DESCENT_WARNING_SPEED)));
@@ -266,13 +268,15 @@ export const MAPS = {
 // cached chunks can be discarded without adding feature state to player saves.
 export type MapId = keyof typeof MAPS;
 export const CORE_RELICS = [
-  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the Faraday’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 600 },
-  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 600 },
-  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 600 },
-  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call. One final key remains.', bounty: 600 },
-  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the Faraday can reach them.', bounty: 900 },
-  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the Faraday finally has a home port.', bounty: 1200 },
+  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the Faraday’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 3000 },
+  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 3000 },
+  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 3000 },
+  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call. One final key remains.', bounty: 3000 },
+  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the Faraday can reach them.', bounty: 4500 },
+  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the Faraday finally has a home port.', bounty: 6000 },
 ] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
+/** A recovered planetary core powers several interplanetary jumps; this is separate from pod flight fuel. */
+export const CORE_FUEL = { unitsPerCore: 4, jumpCost: 1, legacyReserve: 6 } as const;
 export const CORE_SURVEY_CONCLUSION = {
   title: 'A route home, carried through six worlds',
   transcript: 'The Faraday did not vanish beneath Vesper-9. The crew scattered its return key across five planetary cores, then built a living settlement around the final handshake. The signal has been waiting for the whole route.',
@@ -354,7 +358,7 @@ export type Upgrade = keyof typeof UPGRADES;
 export type Levels = Record<Upgrade, number>;
 export const UPGRADE_KEYS = Object.keys(UPGRADES) as Upgrade[];
 export const UPGRADE_MILESTONE_GATES = [
-  { firstLevel: 6, label: 'FARADAY ASSEMBLED', requirement: 'ship' },
+  { firstLevel: 6, label: 'FIRST PLANETARY CORE RECOVERED', requirement: 'ship' },
   { firstLevel: 11, label: '2 PLANETARY CORES LOGGED', requirement: 'two-cores' },
   { firstLevel: 16, label: 'ALL PLANETARY CORES LOGGED', requirement: 'all-cores' },
 ] as const;

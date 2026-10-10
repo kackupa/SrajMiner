@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { CORE, CORE_FUEL, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
 import { Progress, emptyCargo, type Cargo } from './economy/Progress';
@@ -8,7 +8,7 @@ import { transferWarehouseOre, type WarehouseDirection } from './economy/Warehou
 import { buildSaleReceipt } from './economy/Sale';
 import { advanceMarketDemand } from './economy/MarketContracts';
 import { contributeCargoTug, contributeSurveyArray, contributeVesperRelay, CARGO_TUG_PROJECT, remoteWarehouseAccess, SURVEY_ARRAY_PROJECT, surveyScannerRadius, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
-import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
+import { MiningSystem, aimedDrillTarget, effectiveDrillReach, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
 import { AudioSystem } from './audio/AudioSystem';
@@ -26,7 +26,7 @@ import { RockSwimmer } from './world/RockSwimmer';
 import { SurfaceRaid } from './world/SurfaceRaid';
 import { CaveAtmosphere } from './world/CaveAtmosphere';
 import { advanceOrbitalTransition, cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, GLOBE_HANDOFF_ZOOM, orbitalOverviewMinZoom, planetCameraFrameAngle } from './world/Projection';
-import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartLocalOffset, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetTile } from './world/PlanetChart';
+import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartLocalOffset, planetChartToCartesian, planetChartVectorToCartesian, planetTileDecorationScale, wrapPlanetTile } from './world/PlanetChart';
 import type { PlanetChartSize } from './world/PlanetChart';
 import { canAffordStructure, findBuildSite, findSurfaceBarrierSite, findSurfaceHabitatSite, findSurfaceTradePostSite, findSurfaceTurretSite, findSurfaceWarehouseSite, globeSurfaceDistance, nearbyGlobeSurfaceStructure, nearbyServiceStation, repairSurfaceStructure, surfaceArcCoordinate, surfaceArcPoint, validateSurfaceStructureSite, type StructureKind, type SurfaceStructureKind, type UndergroundStructure } from './building/UndergroundStructures';
 type Particle = {
@@ -597,6 +597,10 @@ export class MiningScene extends Phaser.Scene {
     for (const key of ['LEFT', 'RIGHT', 'UP', 'DOWN']) this.input.keyboard!.on(`keydown-${key}`, (event: KeyboardEvent) => {
       if (!this.surfacePlacement || this.ui.modal) return;
       event.preventDefault();
+      if (this.surfacePlacement.kind === 'wall' && (key === 'UP' || key === 'DOWN')) {
+        this.nudgeSurfaceWallHeight(key === 'UP' ? 1 : -1);
+        return;
+      }
       const direction = key === 'LEFT' || key === 'UP' ? -1 : 1;
       this.nudgeSurfacePlacement((event.shiftKey ? 5 : 1) * WORLD.tile * direction);
     });
@@ -974,6 +978,8 @@ export class MiningScene extends Phaser.Scene {
   updateSurfacePlacementFromPointer(screenX: number, screenY: number) {
     const placement = this.surfacePlacement, chart = this.world.planetChart;
     if (!placement || !chart) return;
+    const oldSurfaceY = placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
+      outwardOffset = placement.kind === 'wall' ? Math.max(0, Math.abs(placement.y - oldSurfaceY)) : 0;
     const point = this.screenPointToWorld(screenX, screenY, this.scale.width, this.scale.height),
       polar = planetChartToCartesian({ u: point.x / WORLD.tile, v: point.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile),
       radius = Math.hypot(polar.x, polar.y);
@@ -981,8 +987,9 @@ export class MiningScene extends Phaser.Scene {
     const surfacePolar = { x: polar.x * chart.radiusRows * WORLD.tile / radius, y: polar.y * chart.radiusRows * WORLD.tile / radius },
       chartPoint = planetCartesianToChart(surfacePolar, chart.columns, chart.radiusRows, WORLD.tile),
       row = chartPoint.v < chart.radiusRows ? 0 : this.world.farSurfaceY,
-      site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row));
-    this.surfacePlacement = { ...placement, ...site };
+      site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row)),
+      gravity = this.world.gravitySign(row);
+    this.surfacePlacement = { ...placement, ...site, y: row - gravity * outwardOffset };
     this.updateSurfacePlacementLabel();
   }
   nudgeSurfacePlacement(delta: number) {
@@ -990,6 +997,14 @@ export class MiningScene extends Phaser.Scene {
     if (!placement) return;
     const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta);
     this.surfacePlacement = { ...placement, ...site };
+    this.updateSurfacePlacementLabel();
+  }
+  nudgeSurfaceWallHeight(levelDelta: number) {
+    const placement = this.surfacePlacement;
+    if (!placement || placement.kind !== 'wall') return;
+    const gravity = this.world.gravitySign(placement.y), surfaceY = placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
+      currentOffset = Math.abs(placement.y - surfaceY), nextOffset = Math.max(0, currentOffset + levelDelta * WORLD.tile);
+    this.surfacePlacement = { ...placement, y: surfaceY - gravity * nextOffset };
     this.updateSurfacePlacementLabel();
   }
   surfacePlacementCheck() {
@@ -1010,7 +1025,7 @@ export class MiningScene extends Phaser.Scene {
     const check = this.surfacePlacementCheck(), rule = UNDERGROUND_BUILDING[placement.kind],
       resources = Object.entries(rule.materials).map(([ore, count]) => `${count} ${ore.slice(0, 2).toUpperCase()}`).join(' / '),
       status = check?.valid ? 'SITE CLEAR' : check?.reason ?? 'SITE BLOCKED';
-    this.buildPlacementLabel.setText(`${placement.kind.replace('-', ' ').toUpperCase()} · ${rule.widthTiles} TILES · $${rule.credits} + ${resources}  |  ${status}  |  CLICK / ENTER · ESC`)
+    this.buildPlacementLabel.setText(`${placement.kind.replace('-', ' ').toUpperCase()} · ${rule.widthTiles} TILES · $${rule.credits} + ${resources}  |  ${status}  |  ${placement.kind === 'wall' ? '←/→ MOVE · ↑/↓ STACK · ' : ''}CLICK / ENTER · ESC`)
       .setColor(check?.valid ? '#d9f5df' : '#ffc0a8')
       .setPosition(this.scale.width / 2, this.scale.height - 56)
       .setVisible(true);
@@ -1185,8 +1200,12 @@ export class MiningScene extends Phaser.Scene {
       if (!this.inOrbit && id !== this.mapId) this.ui.toast('HOLD W TO CLIMB ABOVE THE GLOBE · WORLDS OPEN IN ORBIT');
       return false;
     }
-    const unlocked = id === 'cryo-shelf' || id === this.mapId || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
+    const unlocked = id === 'cryo-shelf' || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
     if (!unlocked) return false;
+    if (!this.progress.spendCoreFuelForJump()) {
+      this.ui.toast('CORE FUEL LOW · MINE A PLANETARY CORE TO POWER ANOTHER JUMP');
+      return false;
+    }
     this.rememberCurrentMap();
     this.mapId = id;
     const state = restoreMapState(this.mapStates[id], id, this.seedForMap(id), this.chartForUnvisitedMap(id));
@@ -1231,7 +1250,7 @@ export class MiningScene extends Phaser.Scene {
     const p = this.progress;
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 24,
+      version: 25,
       planetChart: { ...(this.world.planetChart ?? this.campaignChart) },
       campaignSeed: this.campaignSeed,
       activeMap: this.mapId,
@@ -1246,6 +1265,7 @@ export class MiningScene extends Phaser.Scene {
       milestones: [...p.milestones],
       shipComponents: [...p.shipComponents],
       routeFragments: [...p.routeFragments],
+      coreFuel: p.coreFuel,
       charges: p.charges,
       ownedPaints: [...p.ownedPaints],
       selectedPaint: p.selectedPaint,
@@ -1460,10 +1480,8 @@ export class MiningScene extends Phaser.Scene {
     this.progress.milestones.push(fragment.milestoneId);
     this.soundFx.playLandmarkCue('route');
     this.soundFx.reward();
-    this.ui.toast(this.progress.shipComplete
-      ? `FARADAY ASSEMBLED · WORLDS UNLOCKED · +$${ROUTE_PART_RECOVERY_BONUS}`
-      : `${component.name.toUpperCase()} FOUND · ${this.progress.shipComponents.length}/4 · +$${ROUTE_PART_RECOVERY_BONUS}`);
-    this.float(`PART FOUND · +$${ROUTE_PART_RECOVERY_BONUS}`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, '#9ae8d8');
+    this.ui.toast(`PLANETARY SIGNAL RECOVERED · ${component.name.toUpperCase()} SURVEY · +$${ROUTE_PART_RECOVERY_BONUS}`);
+    this.float(`SURVEY · +$${ROUTE_PART_RECOVERY_BONUS}`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, '#9ae8d8');
     if (persist) this.save();
     return true;
   }
@@ -1495,13 +1513,13 @@ export class MiningScene extends Phaser.Scene {
         ? 'LEVEL 11+ UPGRADE MILESTONE UNLOCKED'
         : '';
     this.ui.toast(complete
-      ? `PLANETARY CORE LEDGER COMPLETE · ${relic.name.toUpperCase()} · ${milestoneToast} · +$${relic.bounty}`
+      ? `PLANETARY CORE LEDGER COMPLETE · ${relic.name.toUpperCase()} · +${CORE_FUEL.unitsPerCore} CORE FUEL · ${milestoneToast} · +$${relic.bounty}`
       : chartedChapter
-        ? `VESPER-9 CHARTED · NEW PLANET CHAPTER UNLOCKED · ${relic.name.toUpperCase()} · +$${relic.bounty}`
+        ? `VESPER-9 CHARTED · NEW PLANET CHAPTER UNLOCKED · ${relic.name.toUpperCase()} · +${CORE_FUEL.unitsPerCore} CORE FUEL · +$${relic.bounty}`
         : milestoneToast
-          ? `${relic.name.toUpperCase()} RECOVERED · ${milestoneToast} · +$${relic.bounty} CLAIM`
-          : `${relic.name.toUpperCase()} RECOVERED · +$${relic.bounty} ARCHIVE CLAIM`);
-    this.float(`+$${relic.bounty} CORE CLAIM`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, `#${relic.tint.toString(16).padStart(6, '0')}`);
+          ? `${relic.name.toUpperCase()} RECOVERED · +${CORE_FUEL.unitsPerCore} CORE FUEL · ${milestoneToast} · +$${relic.bounty}`
+          : `${relic.name.toUpperCase()} RECOVERED · +${CORE_FUEL.unitsPerCore} CORE FUEL · +$${relic.bounty} CLAIM`);
+    this.float(`+${CORE_FUEL.unitsPerCore} CORE FUEL`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, `#${relic.tint.toString(16).padStart(6, '0')}`);
     if (persist) this.save();
     return true;
   }
@@ -1691,7 +1709,7 @@ export class MiningScene extends Phaser.Scene {
       this.aimTile = this.progress.pilotEscaping || orbitalView ? undefined : aimedDrillTarget(
         this.world, this.pod.x, this.pod.y,
         aimWorldX, aimWorldY,
-        WORLD.tile * drillReachTiles(this.progress.levels.drill),
+        effectiveDrillReach(this.world, this.pod.x, this.pod.y, WORLD.tile * drillReachTiles(this.progress.levels.drill)),
       );
       const directionTarget = pointerAiming ? this.aimTile : target ?? this.mining.target;
       if (pointerAiming) {
@@ -1934,9 +1952,10 @@ export class MiningScene extends Phaser.Scene {
     this.uiClock += dt;
     if (this.uiClock > 0.08) {
       const descentSpeed = this.pod.vy * this.world.gravitySign(this.pod.y);
+      const coreDrillMode = this.inCoreDrillHalo();
       this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), descentSpeed, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
         this.progress.returnWinch, this.pod.reeling, !!this.surfaceWinchCable(), this.laserThermal.heat, this.laserThermal.vent,
-        drillVisualTier(this.progress.levels.drill) === 5, this.planetSurface);
+        drillVisualTier(this.progress.levels.drill) === 5, this.planetSurface, coreDrillMode);
       this.ui.drawMap(this.world, this.pod);
       this.uiClock = 0;
     }
@@ -1947,6 +1966,13 @@ export class MiningScene extends Phaser.Scene {
     return { x: this.pod.x - this.scale.width / 2, y: cameraY - this.scale.height / 2, width: this.scale.width, height: this.scale.height,
       podX: this.pod.x, podY: this.pod.y, thrusting: this.pod.thrusting,
       drilling: !!this.mining.target, aimX: this.drillAimX, aimY: this.drillAimY };
+  }
+  private inCoreDrillHalo() {
+    const chart = this.world.planetChart;
+    if (!chart) return false;
+    const point = planetChartToCartesian({ u: this.pod.x / WORLD.tile, v: this.pod.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile),
+      core = planetChartToCartesian({ u: WORLD.homeColumn, v: chart.radiusRows }, chart.columns, chart.radiusRows, WORLD.tile);
+    return Math.hypot(point.x - core.x, point.y - core.y) <= CORE.drillAssistRadius;
   }
   drawOrbitalOverview(alpha: number) {
     const g = this.orbitG, chart = this.world.planetChart, w = this.scale.width, h = this.scale.height;
@@ -2390,61 +2416,65 @@ export class MiningScene extends Phaser.Scene {
         if (tile.ore) {
           const color = ORES[tile.ore].color;
           const silhouette = ORE_SILHOUETTES[tile.ore];
+          const markerX = px + tileWidth / 2, markerY = py + tileHeight / 2,
+            markerScale = this.world.planetChart ? planetTileDecorationScale(tileWidth, tileHeight, T) : 1;
           const markerAlpha = 0.42 + light * 0.58;
           for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
             const neighborTile = this.world.get(nx, ny), neighborKey = keyOf(neighborTile.x, neighborTile.y);
             if (!this.world.discovered.has(neighborKey) || this.world.destroyed.has(neighborKey)) continue;
             const neighbor = neighborTile;
             if (neighbor.ore !== tile.ore) continue;
-            g.lineStyle(2, color, 0.18 + light * 0.16);
-            g.lineBetween(px + 20, py + 20, sx(nx * T + 20), sy(ny * T + 20));
+            const neighborCenter = project(nx * T + T / 2, ny * T + T / 2);
+            g.lineStyle(Math.max(0.75, 2 * markerScale), color, 0.18 + light * 0.16);
+            g.lineBetween(markerX, markerY, neighborCenter.x, neighborCenter.y);
           }
           if (tile.geode || tile.regionFind) {
             const findColor = tile.geode ? 0xb8a8ff : REGION_FINDS[tile.regionFind!].tint;
             g.fillStyle(findColor, (this.reducedMotion ? 0.24 : 0.16 + (Math.sin(this.tick * 3 + x + y) + 1) * 0.06) * (0.45 + light * 0.55));
-            g.fillCircle(px + 20, py + 20, 18);
-            g.lineStyle(1, tile.geode ? 0xd1caff : findColor, 0.35 + light * 0.65);
-            if (tile.geode) g.strokeRect(px + 2, py + 2, T - 4, T - 4);
+            g.fillCircle(markerX, markerY, 18 * markerScale);
+            g.lineStyle(Math.max(0.5, markerScale), tile.geode ? 0xd1caff : findColor, 0.35 + light * 0.65);
+            if (tile.geode) g.strokeRect(markerX - 18 * markerScale, markerY - 18 * markerScale, 36 * markerScale, 36 * markerScale);
             else {
-              g.strokeCircle(px + 20, py + 20, 15);
-              g.lineBetween(px + 8, py + 20, px + 32, py + 20);
+              g.strokeCircle(markerX, markerY, 15 * markerScale);
+              g.lineBetween(markerX - 12 * markerScale, markerY, markerX + 12 * markerScale, markerY);
             }
           }
           g.fillStyle(color, 0.18 + light * 0.2);
-          g.fillCircle(px + 20, py + 20, 15);
+          g.fillCircle(markerX, markerY, 15 * markerScale);
           const unitAmount = tile.oreUnits ?? 1;
           const crystalCount = unitAmount >= 3 ? 8 : unitAmount >= 2 ? 6 : unitAmount < 1 ? 2 : 4;
           for (let i = 0; i < crystalCount; i++) {
             const ox = 7 + random(43, x + i, y, 3) * 23,
               oy = 7 + random(51, x, y + i, 6) * 23,
-              scale = unitAmount >= 3 ? 1.45 : unitAmount >= 2 ? 1.2 : unitAmount < 1 ? 0.75 : 1;
+              scale = (unitAmount >= 3 ? 1.45 : unitAmount >= 2 ? 1.2 : unitAmount < 1 ? 0.75 : 1) * markerScale,
+              crystalX = markerX + (ox - 20) * markerScale, crystalY = markerY + (oy - 20) * markerScale;
             g.fillStyle(color, markerAlpha);
             if (silhouette === 'facets')
               g.fillPoints(
                 [
-                  { x: px + ox, y: py + oy - 4 * scale },
-                  { x: px + ox + 4 * scale, y: py + oy },
-                  { x: px + ox, y: py + oy + 5 * scale },
-                  { x: px + ox - 4 * scale, y: py + oy },
+                  { x: crystalX, y: crystalY - 4 * scale },
+                  { x: crystalX + 4 * scale, y: crystalY },
+                  { x: crystalX, y: crystalY + 5 * scale },
+                  { x: crystalX - 4 * scale, y: crystalY },
                 ],
                 true,
               );
             else if (silhouette === 'spires')
               g.fillTriangle(
-                px + ox,
-                py + oy - 5,
-                  px + ox - 3 * scale,
-                  py + oy + 5 * scale,
-                  px + ox + 3 * scale,
-                  py + oy + 5 * scale,
+                crystalX,
+                crystalY - 5 * markerScale,
+                crystalX - 3 * scale,
+                crystalY + 5 * scale,
+                crystalX + 3 * scale,
+                crystalY + 5 * scale,
               );
             else if (silhouette === 'bars') {
-              g.fillRect(px + ox, py + oy, 8, 3);
-              g.fillRect(px + ox + 2, py + oy + 4, 8, 3);
-            } else if (silhouette === 'nuggets') g.fillCircle(px + ox, py + oy, 4);
-            else g.fillRect(px + ox, py + oy, 5 + (i % 3), 4 + (i % 2));
+              g.fillRect(crystalX, crystalY, 8 * markerScale, 3 * markerScale);
+              g.fillRect(crystalX + 2 * markerScale, crystalY + 4 * markerScale, 8 * markerScale, 3 * markerScale);
+            } else if (silhouette === 'nuggets') g.fillCircle(crystalX, crystalY, 4 * markerScale);
+            else g.fillRect(crystalX, crystalY, (5 + (i % 3)) * markerScale, (4 + (i % 2)) * markerScale);
             g.fillStyle(0xffffff, (0.2 + light * 0.4) * markerAlpha);
-              g.fillRect(px + ox, py + oy, 2 * scale, Math.max(1, scale));
+            g.fillRect(crystalX, crystalY, 2 * scale, Math.max(0.5, scale));
           }
         }
         if (tile.signalHashId) {
@@ -3088,11 +3118,12 @@ export class MiningScene extends Phaser.Scene {
       beamY = (aimPolar.dx * sin + aimPolar.dy * cos) / beamLength;
     const drillLevel = this.progress.levels.drill;
     const beamStartX = x + beamX * 12, beamStartY = y + beamY * 4;
-    const preview = drillPreviewDimensions(drillLevel);
-    const beamEndX = x + beamX * preview.length, beamEndY = y + beamY * preview.length;
+    const preview = drillPreviewDimensions(drillLevel),
+      visibleBeamLength = Math.max(preview.length, effectiveDrillReach(this.world, this.pod.x, this.pod.y, preview.length));
+    const beamEndX = x + beamX * visibleBeamLength, beamEndY = y + beamY * visibleBeamLength;
     const chart = this.world.planetChart,
       cutPreviewTile = this.aimTile ?? this.mining.target,
-      localAim = chart ? planetCartesianVectorToWorld(
+      localAim = chart && !this.inCoreDrillHalo() ? planetCartesianVectorToWorld(
         { u: this.pod.x / T, v: this.pod.y / T }, { x: aimPolar.dx, y: aimPolar.dy }, chart.columns, chart.radiusRows, T,
       ) : { x: aimPolar.dx, y: aimPolar.dy },
       radialAim = Math.abs(localAim.y) >= Math.abs(localAim.x),

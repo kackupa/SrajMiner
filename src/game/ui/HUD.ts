@@ -984,7 +984,7 @@ export class HUD {
     return seconds < 5 ? 'Saved on this device · just now' : `Saved on this device · ${seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m`} ago`;
   }
   update(depth: number, surface: boolean, dt: number, docked = false, returnFuel = 0, descentSpeed = 0, farHemisphere = false, pilotEscaping = false, coreDepth = CORE.depthMeters,
-    returnWinch = false, reeling = false, winchCableConnected = false, laserHeat = 0, laserVent = 0, laserTier = false, planetSurface = surface) {
+    returnWinch = false, reeling = false, winchCableConnected = false, laserHeat = 0, laserVent = 0, laserTier = false, planetSurface = surface, coreDrillMode = false) {
     const p = this.p;
     this.nearSurface = surface;
     this.onCrust = planetSurface;
@@ -1034,14 +1034,16 @@ export class HUD {
       'PROSPECTOR CAMP · TIER 0', 'YARD EXPANSION · TIER 1', 'SKY DISTRICT · TIER 2',
       'CORE SKYWAY · TIER 3', 'BEACON TOWN · TIER 4',
     ][townTier]!;
-    document.querySelector('#depth-note')!.textContent = planetSurface
-      ? 'SURFACE OPERATIONS'
-      : stratumAt(depth, this.mapId);
+    document.querySelector('#depth-note')!.textContent = coreDrillMode
+      ? 'CORE HALO · AIM 360° · HOLD CLICK TO MINE'
+      : planetSurface
+        ? docked ? 'SURFACE · HOLD S TO DRILL' : 'SURFACE ZONE · ABOVE CRUST'
+        : `UNDERGROUND · ${stratumAt(depth, this.mapId)}`;
     const gravityNote = document.querySelector<HTMLElement>('#gravity-note')!;
     gravityNote.textContent = farHemisphere
       ? 'FAR HEMISPHERE · W CLIMBS OUTWARD'
       : depth >= coreDepth - 120
-        ? 'CORE PASSAGE · COAST THROUGH THE TURN'
+        ? coreDrillMode ? 'CORE CROSSING · STEER + DRILL 360°' : 'CORE PASSAGE · COAST THROUGH THE TURN'
         : '';
     gravityNote.classList.toggle('active', !!gravityNote.textContent);
     this.displayedMoney += (p.money - this.displayedMoney) * Math.min(1, dt * 9);

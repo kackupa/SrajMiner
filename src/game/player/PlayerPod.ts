@@ -1,9 +1,9 @@
-import { atSurface, surfaceTownTier, MAX_TOWN_ALTITUDE } from '../surface/SurfaceStation';
+import { atSurface, onPlanetSurface, surfaceTownTier, MAX_TOWN_ALTITUDE } from '../surface/SurfaceStation';
 import { WORLD, CORE, CORE_CROSSING_CLEARANCE, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { crossedStructureDeck, type UndergroundStructure } from '../building/UndergroundStructures';
 import { Progress } from '../economy/Progress';
-import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, wrapPlanetSeam } from '../world/PlanetChart';
+import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, planetTangentVelocityLimit, wrapPlanetSeam } from '../world/PlanetChart';
 import { planetCameraFrameAngle, screenDirectionToWorld } from '../world/Projection';
 export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean };
 export type GrappleAnchor = { x: number; y: number };
@@ -274,16 +274,20 @@ export class PlayerPod {
     }
     const escapeSpeed = escapePack ? ESCAPE_SUIT.speedMultiplier : 1;
     const escapeThrust = escapePack ? ESCAPE_SUIT.thrustMultiplier : 1;
+    const maxHorizontal = chart
+      ? planetTangentVelocityLimit({ u: this.x / WORLD.tile, v: this.y / WORLD.tile }, P.horizontal * engine * escapeSpeed,
+        chart.columns, chart.radiusRows, WORLD.tile)
+      : P.horizontal * engine * escapeSpeed;
     this.vx += dir * P.acceleration * engine * escapeSpeed * dt;
     this.vy += sideAcceleration * P.acceleration * engine * escapeSpeed * dt;
     if (!screenDir) this.vx *= Math.exp(-10 * dt);
-    this.vx = Math.max(-P.horizontal * engine * escapeSpeed, Math.min(P.horizontal * engine * escapeSpeed, this.vx));
+    this.vx = Math.max(-maxHorizontal, Math.min(maxHorizontal, this.vx));
     if (this.stasisActive) this.vy = 0;
     else {
       const thrust = this.thrusting ? P.thrust * engine * escapeThrust * (this.reeling ? RETURN_WINCH.pullMultiplier : 1) : 0;
       this.vx += thrustAxis.x * thrust * dt;
       this.vy += (gravitySign * (P.gravity + (input.down ? 110 : 0)) + thrustAxis.y * thrust) * dt;
-      this.vx = Math.max(-P.horizontal * engine * escapeSpeed, Math.min(P.horizontal * engine * escapeSpeed, this.vx));
+      this.vx = Math.max(-maxHorizontal, Math.min(maxHorizontal, this.vx));
     }
     const maxRise = P.rise * engine * escapeSpeed * (this.reeling ? RETURN_WINCH.pullMultiplier : 1),
       // Preserve the pod's ballistic speed through the gravity center. Without
@@ -345,9 +349,12 @@ export class PlayerPod {
       const builtDeckY = crossedStructureDeck(this.structures, this.x, this.y, ny, stepGravity, P.halfHeight, input.down);
       const surfaceY = surfaceYAt(this.y, this.world.planetChart), dockY = surfaceY - stepGravity * 22,
         movingOutward = this.vy * -stepGravity > 0,
+        surfaceBoundary = this.world.planetChart
+          ? onPlanetSurface(this.x, dockY, this.world.planetChart)
+          : atSurface(this.x, dockY),
         crossesDock = stepGravity > 0 ? this.y >= dockY && ny <= dockY : this.y <= dockY && ny >= dockY;
       if (
-        crossesDock && movingOutward && atSurface(this.x, dockY, this.world.planetChart) &&
+        crossesDock && movingOutward && surfaceBoundary &&
         (this.reeling || !input.up && !input.down)
       ) {
         this.y = dockY;
@@ -359,7 +366,7 @@ export class PlayerPod {
       }
       const movingInward = this.vy * stepGravity > 0,
         crossesSurfaceFromOutside = stepGravity > 0 ? this.y <= dockY && ny >= dockY : this.y >= dockY && ny <= dockY;
-      if (crossesSurfaceFromOutside && movingInward && !input.up && !input.down && atSurface(this.x, dockY, this.world.planetChart)) {
+      if (crossesSurfaceFromOutside && movingInward && !input.down && surfaceBoundary) {
         this.y = dockY;
         if (!input.left && !input.right) this.vx = 0;
         this.vy = 0;

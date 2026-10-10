@@ -241,5 +241,37 @@ async (page) => {
   const remoteTransfer = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
   if (remoteTransfer.maps['hull-graveyard'].warehouse.silver !== 1 || remoteTransfer.cargo.silver !== 1)
     throw Error(`Remote withdrawal must debit its source and credit the miner once: ${JSON.stringify({ remote: remoteTransfer.maps['hull-graveyard'].warehouse, cargo: remoteTransfer.cargo })}`);
+  const surveySave = {
+    ...remoteTransfer,
+    activeMap: 'vesper-9',
+    milestones: [...new Set([...remoteTransfer.milestones, 'core-mars', 'core-cryo', 'core-hull', 'core-prism', 'core-cinder',
+      'project-survey-cryo', 'project-survey-cinder'])],
+    maps: {
+      ...remoteTransfer.maps,
+      'vesper-9': {
+        seed: 71204, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null,
+        structures: [{ id: 'warehouse:980:0', kind: 'warehouse', x: 980, y: 0 }],
+        warehouse: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 2 },
+        planetChart: { radiusRows: 110, columns: Math.round(Math.PI * 110) },
+      },
+    },
+  };
+  await page.evaluate((save) => localStorage.setItem('mars-miner.v1', JSON.stringify(save)), surveySave);
+  await page.reload();
+  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
+  await page.locator('#game').click();
+  await page.keyboard.press('e');
+  const surveyPanel = page.locator('#modal-layer');
+  await surveyPanel.waitFor();
+  if (!(await surveyPanel.innerText()).includes('LONG-RANGE SURVEY ARRAY · 2/3 STAGES') ||
+      !(await surveyPanel.innerText()).includes('LOCK THE FARADAY ARRAY'))
+    throw Error('Survey Array should show the final Vesper-9 warehouse stage');
+  await page.locator('#fund-survey').click();
+  const surveyComplete = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
+  if (!surveyComplete.milestones.includes('project-survey-array-online') ||
+      surveyComplete.maps['vesper-9'].warehouse.diamond !== 0)
+    throw Error('Survey Array completion should consume Vesper-9 diamond and persist its scanner utility milestone');
+  if (!(await surveyPanel.innerText()).includes('scanner reveal and searchlight reach +2 tiles'))
+    throw Error('Completed Survey Array should explain its scanner and searchlight reward');
   return { version: funded.version, habitat: habitats[0], localPost: localPosts[0], surfaceTurret: surfaceTurrets[0], moneyAfterBuilds: paidMoney, habitatServiceVisible: true, salePremiumVisible: true, localBuyOrderPaid: true, relayProjectPersisted: true };
 }

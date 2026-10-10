@@ -1,4 +1,4 @@
-import { CORE_RELICS, CORE_SURVEY_CONCLUSION, MAPS, NAVIGATION_HASHES, ROUTE_FRAGMENTS, type CoreRelicId, type MapId } from '../config';
+import { CORE_FUEL, CORE_RELICS, CORE_SURVEY_CONCLUSION, MAPS, NAVIGATION_HASHES, ROUTE_FRAGMENTS, type CoreRelicId, type MapId } from '../config';
 
 export type CampaignMapRecord = {
   id: MapId;
@@ -40,13 +40,14 @@ export function campaignMapRecords(
 
 /** Record a mined planetary core once and award its fixed archive salvage claim. */
 export function collectCoreRelic(
-  progress: { milestones: string[]; money: number },
+  progress: { milestones: string[]; money: number; coreFuel: number },
   id: CoreRelicId,
 ) {
   const relic = CORE_RELICS.find((entry) => entry.id === id);
   if (!relic || progress.milestones.includes(id)) return undefined;
   progress.milestones.push(id);
   progress.money += relic.bounty;
+  progress.coreFuel += CORE_FUEL.unitsPerCore;
   return relic;
 }
 

@@ -21,6 +21,23 @@ export type PlanetSeamState = PlanetChartPoint & {
   crossings: number;
 };
 
+const MIN_TANGENT_SCALE = 0.25;
+
+/** Convert a desired physical lateral speed into the chart-space velocity cap at a globe radius. */
+export function planetTangentVelocityLimit(
+  point: PlanetChartPoint,
+  physicalSpeed: number,
+  columns: number,
+  radiusRows: number,
+  tileSize = 1,
+) {
+  assertChart(columns, radiusRows);
+  if (![point.u, point.v, physicalSpeed, tileSize].every(Number.isFinite) || physicalSpeed < 0 || tileSize <= 0)
+    throw new RangeError('Planet tangent speed and position must be finite and non-negative');
+  const tangentScale = Math.abs(radiusRows - point.v) * tileSize * Math.PI / columns;
+  return physicalSpeed * tileSize / Math.max(tangentScale, MIN_TANGENT_SCALE);
+}
+
 /** Apply the planet's twisted side seam to a world-space strip position. */
 export function wrapPlanetWorldX(
   x: number,
@@ -84,6 +101,13 @@ export function planetChartCellCorners(
     bottomRight: planetChartToCartesian({ u: tile.x + 1, v: tile.y + 1 }, columns, radiusRows, tileSize),
     bottomLeft: planetChartToCartesian({ u: tile.x, v: tile.y + 1 }, columns, radiusRows, tileSize),
   };
+}
+
+/** Uniform scale for tile-local art so polar cells keep ore markers inside their visible footprint. */
+export function planetTileDecorationScale(width: number, height: number, tileSize = 1) {
+  if (![width, height, tileSize].every(Number.isFinite) || width < 0 || height < 0 || tileSize <= 0)
+    throw new RangeError('Tile dimensions must be non-negative and tile size must be positive');
+  return Math.min(1, width / tileSize, height / tileSize);
 }
 
 /** True when a curved chart cell reaches within a physical distance of the core. */
@@ -192,9 +216,12 @@ export function planetCartesianVectorToWorld(
   const tangentScale = radiusPixels * Math.PI / columns;
   const radial = -Math.sin(theta) * vector.x + Math.cos(theta) * vector.y;
   const tangent = Math.cos(theta) * vector.x + Math.sin(theta) * vector.y;
-  if (Math.abs(tangentScale) < tileSize * 0.025)
-    return { x: 0, y: radial * tileSize };
-  return { x: tangent * tileSize / tangentScale, y: radial };
+  // Polar longitude is singular at the exact core. Keep angular control alive
+  // there by clamping the tangent denominator to a quarter pixel; without this,
+  // mouse aim and lateral thrust collapse to purely radial movement.
+  if (Math.abs(tangentScale) >= tileSize * 0.025) return { x: tangent * tileSize / tangentScale, y: radial };
+  const stableTangentScale = MIN_TANGENT_SCALE;
+  return { x: tangent * tileSize / stableTangentScale, y: radial };
 }
 
 /**

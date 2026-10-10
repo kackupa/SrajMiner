@@ -18,6 +18,10 @@ The first 3×3 copper seam is guaranteed. Other geology varies by seed. Ore test
 
 Each of the four guaranteed Cryo Shelf route fragments pays one salvage claim matching a ship component: $420 frame, $720 propulsion, $980 navigation, and $680 habitat core. The $2,800 total exactly covers the ship; ordinary ore income can fund upgrades and services. Each claim is issued only when its fragment is first recovered, and the saved fragment record prevents repeat payouts.
 
+## Planetary core rewards
+
+Crossing through a planet's core and reaching its far hemisphere for the first time pays a one-time $2,200 claim. Mining the world-specific core record pays a second one-time archive claim: $3,000 on Cryo Shelf, Mars Frontier, Hull Graveyard, and Prism Fault; $4,500 on Cinder Vale; and $6,000 on Vesper-9. The core record also advances the six-world archive ledger and unlocks the final upgrade band after all records are recovered. Crossing and record claims use saved milestone IDs, so repeat crossings and reloading a save do not pay again. These deliberate payouts make a successful core expedition a major return, in addition to any ore hauled back.
+
 ## Upgrade levels
 
 | Category | Starter values, levels 1 → 5         | Purchase costs, levels 2 → 5 |
@@ -51,6 +55,6 @@ Drill, cargo, fuel, hull, engine, scanner, and grapple levels each grow the rend
 
 Initial testing showed a 360 m run and return could consume around three quarters of the hull through cave drops and landing. Raised the safe impact threshold from 245 to 280 pixels/s and reduced damage from 0.25 to 0.20 per excess pixel/s. Terminal fall speed remains 430: a maximum-speed landing costs 30 hull. One-tile drops remain safe. Hull upgrades raise the margin for error, while engine upgrades make ascent and braking stronger.
 
-The HUD now warns “FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT” at 168 pixels/s (60% of the damage threshold), leaving time to react before a damaging landing. This cue has unit coverage but still needs live human timing/noticeability review. Low fuel and critical hull cues override it.
+The HUD now warns “FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT” at 112 pixels/s (40% of the damage threshold), giving a wider response window before a damaging landing. A three-seed campaign sweep now survives a modeled 600 ms response delay after the cue; at 800 ms one deep run still loses the pod. Low fuel and critical hull cues override the descent warning. Live human timing and noticeability review remains open.
 
 Fuel is deliberately forgiving on the first expedition. Longer excursions and chasing high-value seams introduce the return decision. Long-session late-game economics still need wider human playtesting.

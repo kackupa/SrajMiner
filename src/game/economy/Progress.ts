@@ -2,6 +2,7 @@ import {
   ORES,
   ORE_KEYS,
   CORE_RELICS,
+  CORE_FUEL,
   SERVICE,
   SHIP_COMPONENTS,
   CHARGE,
@@ -46,6 +47,7 @@ export class Progress {
   milestones: string[] = [];
   shipComponents: string[] = [];
   routeFragments: string[] = [];
+  coreFuel = 0;
   charges = 0;
   salvageMagnet = false;
   stasisModule = false;
@@ -158,13 +160,22 @@ export class Progress {
     const fragment = ROUTE_FRAGMENTS.find((entry) => entry.id === id);
     if (!fragment || this.routeFragments.includes(id)) return false;
     this.routeFragments.push(id);
-    const component = ROUTE_SHIP_COMPONENTS[fragment.id];
-    if (!this.shipComponents.includes(component)) this.shipComponents.push(component);
+    // Route beacons remain optional survey finds; they no longer assemble or gate travel.
     this.money += ROUTE_PART_RECOVERY_BONUS;
     return true;
   }
   get shipComplete() {
-    return Object.keys(SHIP_COMPONENTS).every((key) => this.shipComponents.includes(key));
+    // Keep the historic property for callers; core recovery unlocks flight on new campaigns.
+    return this.milestones.some((id) => CORE_RELICS.some((relic) => relic.id === id)) ||
+      Object.keys(SHIP_COMPONENTS).every((key) => this.shipComponents.includes(key));
+  }
+  canTravelToPlanet() {
+    return this.coreFuel >= CORE_FUEL.jumpCost;
+  }
+  spendCoreFuelForJump() {
+    if (!this.canTravelToPlanet()) return false;
+    this.coreFuel -= CORE_FUEL.jumpCost;
+    return true;
   }
   get count() {
     return ORE_KEYS.reduce((n, k) => n + this.cargo[k], 0);

@@ -2,6 +2,16 @@ import { CHARGE, CORE, FUEL, PHYSICS, SALVAGE_MAGNET, WORLD, drillReachTiles, dr
 import { Progress } from '../economy/Progress';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetWorldX } from '../world/PlanetChart';
+/** Temporary 360-degree drill reach while close enough to navigate around the core. */
+export function effectiveDrillReach(world: TileWorld, podX: number, podY: number, standardReach: number) {
+  if (!world.planetChart) return standardReach;
+  const chart = world.planetChart,
+    point = planetPoint(world, podX, podY),
+    core = planetChartToCartesian({ u: WORLD.homeColumn, v: chart.radiusRows }, chart.columns, chart.radiusRows, WORLD.tile);
+  return Math.hypot(point.x - core.x, point.y - core.y) <= CORE.drillAssistRadius
+    ? Math.max(standardReach, CORE.drillAssistReach)
+    : standardReach;
+}
 export function directionalDrillOrientation(input: { left: boolean; right: boolean; down: boolean }): 'horizontal' | 'vertical' {
   return input.left || input.right ? 'horizontal' : 'vertical';
 }
@@ -32,7 +42,24 @@ export function aimedDrillTarget(
   if (world.planetChart) {
     const chart = world.planetChart,
       origin = planetPoint(world, podX, podY), pointer = planetPoint(world, aimX, aimY),
-      dx = pointer.x - origin.x, dy = pointer.y - origin.y, length = Math.hypot(dx, dy);
+      dx = pointer.x - origin.x, dy = pointer.y - origin.y,
+      length = Math.hypot(dx, dy);
+    const core = planetChartToCartesian({ u: WORLD.homeColumn, v: chart.radiusRows }, chart.columns, chart.radiusRows, WORLD.tile);
+    if (Math.hypot(origin.x - core.x, origin.y - core.y) <= CORE.drillAssistRadius) {
+      // Around the polar singularity a chart-space ray can collapse or bend
+      // sharply. Keep the mouse direction as a physical chord and project
+      // each point back onto the globe, just as the regular planet ray does.
+      if (length < 1) return undefined;
+      const distanceLimit = Math.min(length, maxDistance), steps = Math.ceil(distanceLimit / 3);
+      for (let i = 1; i <= steps; i++) {
+        const distance = distanceLimit * i / steps,
+          point = planetCartesianToChart({ x: origin.x + dx / length * distance, y: origin.y + dy / length * distance }, chart.columns, chart.radiusRows, WORLD.tile),
+          tile = world.get(Math.floor(point.u), Math.floor(point.v));
+        if (tile.type === 'boundary') return undefined;
+        if (tile.type !== 'empty') return tile;
+      }
+      return undefined;
+    }
     if (length < 1) return undefined;
     const distanceLimit = Math.min(length, maxDistance), steps = Math.ceil(distanceLimit / 3);
     for (let i = 1; i <= steps; i++) {
