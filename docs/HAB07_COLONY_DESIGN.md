@@ -26,7 +26,7 @@ Every building should have one recognizable function cue:
 - **Service Bay:** a wider door, open repair cradle, two squat fuel tanks, and a hose reel. Mint work lights mark the vehicle interface.
 - **Pod Workshop:** a small overhead drill gantry, a suspended tool/bit shape, and side parts drawers. Lilac trim connects it to the existing workshop color.
 - **Hab 07 core:** the central recognizable home module, with a warm airlock window, antenna mast, and foundation footings. Keep the standard Hab emblem visible on both surface hubs.
-- **Faraday cradle:** an open gantry around the existing ship silhouette. Its support frame, engine bell, folded fins, and lit launch rail make assembly progress visible without adding a new objective.
+- **mothership cradle:** an open gantry around the existing ship silhouette. Its support frame, engine bell, folded fins, and lit launch rail make assembly progress visible without adding a new objective.
 - **Archive station:** a low, broad observation cabin with a dish or signal fork mounted above it. Its lights pulse gently only when appropriate and obey reduced-motion settings.
 
 Keep a shared buried service trunk between the three original service buildings. Use short, clearly supported pipes/cable runs and color-coded couplers, so the cluster feels planned without filling the ground with spaghetti lines.
@@ -38,8 +38,8 @@ The town should visibly grow at the progression gates the game already has. Pres
 | Existing town stage | Trigger already in game | Visual build-out |
 | --- | --- | --- |
 | Survey Camp | Starting state | Three function-specific service huts, Hab marker, simple cargo pallets, landing apron and low utility trunk. |
-| First Dock | First Faraday component | First curved upper deck, heavier elevator frames, cargo cage and the start of the launch cradle. |
-| Frontier Port | All ship components installed | Readable assembled Faraday in its gantry, a small transit car, upper work bay and connected deck railing. |
+| First Dock | First mothership component | First curved upper deck, heavier elevator frames, cargo cage and the start of the launch cradle. |
+| Frontier Port | All ship components installed | Readable assembled mothership in its gantry, a small transit car, upper work bay and connected deck railing. |
 | Signal Colony | First planetary core record | Archive observatory and signal mast, one upper habitat module, and a subtle signal light. |
 | Beacon Network | Four planetary core records | Finished upper beacon, a few lit route segments, additional braced deck supports, and the complete shipyard silhouette. |
 
@@ -74,7 +74,7 @@ Use only a few slow, small loops: a service light turns on during a service inte
 ## Acceptance checks for the coding agent
 
 - At starter progression, players can tell which hut sells ore, services the pod, and offers upgrades from its silhouette and a small prop cue.
-- Each current town tier adds a visibly meaningful skyline change tied to the existing milestone; the Faraday's assembly is easy to read.
+- Each current town tier adds a visibly meaningful skyline change tied to the existing milestone; the mothership's assembly is easy to read.
 - The colony remains recognizable from both surface hubs and at orbital overview scale as a small paired settlement attached to the globe.
 - Decks, structures, lights, and cables follow planetary curvature on both hemispheres and have no seam pop.
 - Existing station interaction coordinates, one-way platform behavior, player collision, saving, and service logic stay unchanged.

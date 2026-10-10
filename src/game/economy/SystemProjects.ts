@@ -60,7 +60,7 @@ export const SURVEY_ARRAY_PROJECT = {
   stages: [
     { milestone: 'project-survey-cryo', mapId: 'cryo-shelf', ore: 'silver', units: 2, label: 'TUNE THE ICE-SHELF RECEIVER' },
     { milestone: 'project-survey-cinder', mapId: 'cinder-vale', ore: 'gold', units: 3, label: 'CALIBRATE THE DEEP-RANGE DISH' },
-    { milestone: 'project-survey-vesper', mapId: 'vesper-9', ore: 'diamond', units: 2, label: 'LOCK THE FARADAY ARRAY' },
+    { milestone: 'project-survey-vesper', mapId: 'vesper-9', ore: 'diamond', units: 2, label: 'POWER THE LONG-RANGE SURVEY ARRAY' },
   ],
 } as const satisfies {
   id: string;

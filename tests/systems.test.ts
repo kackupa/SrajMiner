@@ -15,7 +15,7 @@ import { MiningSystem, aimedDrillTarget, effectiveDrillReach, pointerDrillDirect
 import { advanceLaserThermal, drillImpactProfile } from '../src/game/mining/DrillEffects';
 import { PlayerPod, findGrappleAnchor, type Controls } from '../src/game/player/PlayerPod';
 import { validateSave, migrateSave, parseSaveFile, SaveManager, type SaveData } from '../src/game/save/SaveManager';
-import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
+import { ORE_KEYS, ORES, ORE_SILHOUETTES, WORLD, CORE, CORE_FUEL, CORE_RELICS, coreSurveyComplete, vesperChapterUnlocked, VESPER_CHAPTER_CORE_IDS, CORE_WORLD_Y, CORE_CROSSING_CLEARANCE, FAR_SURFACE_ROW, FAR_SURFACE_Y, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, SURFACE_RAID, PHYSICS, FUEL, DESCENT_WARNING_SPEED, fallCameraLookAhead, fallMotionCueIntensity, MUSIC_DEPTH, UPGRADES, UPGRADE_KEYS, upgradeGateForLevel, upgradeGateMet, SHIP_COMPONENTS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, PILOT_SUITS, POD_DECALS, POD_PROFILES, REGION_FINDS, depthAtWorldY, gravityDirectionAt, farHemisphereAfterCoreExit, estimateVerticalReturnFuel, estimateWinchReturnFuel, drillReachTiles, drillPreviewDimensions, drillVisualTier, drillWidth, DRILL_TIERS, POD_SIZE, podVisualScale } from '../src/game/config';
 import { getDialogFocusables } from '../src/game/ui/focus';
 import { tradeRouteEdges, VESPER_SYSTEM_POSITIONS } from '../src/game/economy/TradeNetwork';
 import { MARKET_CONTRACTS, advanceMarketDemand, contractReady, marketDemand, marketDemandBonus } from '../src/game/economy/MarketContracts';
@@ -36,6 +36,15 @@ function test(name: string, fn: () => void) {
   console.log(`PASS ${name}`);
 }
 const idle: Controls = { left: false, right: false, up: false, down: false };
+test('mothership ascent works at empty local fuel and leaves the miner tank unchanged', () => {
+  const world = new TileWorld(1901, [], [], 'cryo-shelf'), progress = new Progress(), pod = new PlayerPod(world, progress),
+    startY = pod.y;
+  progress.fuel = 0;
+  for (let frame = 0; frame < 90; frame++) pod.update(1 / 60, { ...idle, up: true, mothership: true }, () => {});
+  assert.ok(pod.y < startY, 'the mothership can lift off without miner fuel');
+  assert.equal(progress.fuel, 0, 'mothership flight never consumes the local tank');
+  assert.equal(pod.thrusting, true);
+});
 test('directional drilling maps Down to radial cuts and A/D to tangent cuts', () => {
   assert.equal(directionalDrillOrientation({ down: true, left: false, right: false }), 'vertical', 'Down selects a radial cut');
   assert.equal(directionalDrillOrientation({ down: false, left: true, right: false }), 'horizontal', 'A selects a tangent cut');
@@ -261,23 +270,30 @@ test('planetary buy orders pay once only at their local Trading Post and persist
   assert.equal(p.claimMarketContract('cryo-shelf', true), 0, 'a claimed stage cannot pay again');
   assert.equal(p.claimMarketContract('prism-fault', true), 0, 'contracts remain planet-specific');
 });
-test('campaign objective tracks ship-part collection, core records and emergency rescue', () => {
+test('campaign objective follows core-powered travel, core records and emergency rescue', () => {
   const p = new Progress();
   let objective = campaignObjective(p, 'cryo-shelf');
-  assert.match(objective.title, /0\/4/);
-  assert.match(objective.body, /THERMAL OBSERVATORY · 96 M/);
-  assert.match(objective.body, /Drill the glowing ship part\. It installs automatically/);
+  assert.match(objective.title, /PLANET CORE/);
+  assert.match(objective.body, /Cryo Anchor Lens.*first interplanetary jump/);
+  assert.equal(p.shipComplete, false, 'optional route signals do not unlock interplanetary travel');
   for (const fragment of ROUTE_FRAGMENTS) p.collectRouteFragment(fragment.id);
+  assert.equal(p.shipComplete, false, 'finding every optional route signal does not complete a ship');
+  assert.equal(p.coreFuel, 0);
+  p.milestones.push('core-cryo');
+  p.coreFuel = CORE_FUEL.unitsPerCore;
   objective = campaignObjective(p, 'cryo-shelf');
-  assert.equal(p.shipComplete, true);
-  assert.match(objective.title, /INTERPLANETARY MINER · FARADAY READY/);
-  assert.match(objective.body, /Hold W.*orbit.*WORLDS.*travel between planets/i);
-  objective = campaignObjective(p, 'cryo-shelf', 0, false, true);
-  assert.match(objective.title, /FARADAY IN ORBIT/);
-  assert.match(objective.body, /WORLDS.*S TO DESCEND/i);
-  p.milestones.push(CORE_RELICS.find((relic) => relic.mapId === 'cryo-shelf')!.id);
+  assert.equal(p.shipComplete, true, 'the first core enables flight');
+  assert.match(objective.title, /CORE DRIVE ONLINE/);
+  assert.match(objective.body, /mothership.*E.*W takes off.*S lands.*4 jumps/i);
+  objective = campaignObjective(p, 'cryo-shelf', 0, false, true, false);
+  assert.match(objective.title, /RETURN TO THE MOTHERSHIP/);
+  assert.match(objective.body, /S to land.*press E/i);
+  objective = campaignObjective(p, 'cryo-shelf', 0, false, true, true);
+  assert.match(objective.title, /MOTHERSHIP IN ORBIT/);
+  assert.match(objective.body, /WORLDS.*S to land.*mothership/i);
+  p.milestones.push(CORE_RELICS.find((relic) => relic.mapId === 'mars-frontier')!.id);
   objective = campaignObjective(p, 'cryo-shelf');
-  assert.match(objective.title, /FARADAY CORE LEDGER · 1\/6/);
+  assert.match(objective.title, /MOTHERSHIP CORE LEDGER · 2\/6/);
   p.pilotEscaping = true;
   assert.match(campaignObjective(p, 'cryo-shelf').title, /EMERGENCY RETURN/);
 });
@@ -1097,11 +1113,17 @@ test('each planetary core has one deterministic, drillable record with a one-tim
     mining.update(1 / 60, relicTile, (broken) => { if (broken.coreRelicId && collectCoreRelic(progress, broken.coreRelicId)) collected++; });
   assert.equal(collected, 1, 'drilling the passage objective records it once');
   assert.equal(progress.money, 80 + CORE_RELICS.find((entry) => entry.id === 'core-cryo')!.bounty, 'a core objective pays its displayed archive claim once');
+  assert.equal(progress.coreFuel, CORE_FUEL.unitsPerCore, 'the first core fuels the first outbound planetary jump');
   assert.equal(world.get(x, row).type, 'empty');
   assert.equal(new TileWorld(world.seed, [...world.destroyed], [], 'cryo-shelf').get(x, row).coreRelicId, undefined, 'excavation prevents the record from respawning after reload');
   for (const relic of CORE_RELICS.filter((entry) => entry.id !== 'core-cryo')) assert.ok(collectCoreRelic(progress, relic.id));
   assert.equal(coreSurveyComplete(progress.milestones), true, 'all records complete the planetary ledger');
   assert.equal(collectCoreRelic(progress, 'core-mars'), undefined, 'a recorded core cannot pay twice');
+  assert.equal(progress.coreFuel, CORE_RELICS.length * CORE_FUEL.unitsPerCore, 'each unique core refills the interplanetary reserve once');
+  assert.equal(progress.spendCoreFuelForJump(), true);
+  assert.equal(progress.coreFuel, CORE_RELICS.length * CORE_FUEL.unitsPerCore - 1, 'a jump spends core fuel');
+  assert.equal(progress.spendCoreFuelForJump(), true);
+  assert.equal(progress.coreFuel, CORE_RELICS.length * CORE_FUEL.unitsPerCore - 2);
 });
 test('core halo grants visible all-direction drill reach around the center', () => {
   const world = new TileWorld(719, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
@@ -1366,7 +1388,7 @@ test('route fragments open deterministic authored chambers with landmarks', () =
     assert.equal(outside.landmarkId, undefined);
   }
 });
-test('mining a route fragment records it once and persists its excavation', () => {
+test('mining an optional route signal records it once without assembling a ship', () => {
   const w = new TileWorld(77, [], [], 'cryo-shelf'), p = new Progress(), m = new MiningSystem(w, p);
   const fragment = w.get(24, 8);
   let collected = 0;
@@ -1375,7 +1397,8 @@ test('mining a route fragment records it once and persists its excavation', () =
   });
   assert.equal(collected, 1);
   assert.deepEqual(p.routeFragments, ['fragment-1']);
-  assert.deepEqual(p.shipComponents, ['frame'], 'the first glowing route signal is the ship frame');
+  assert.deepEqual(p.shipComponents, [], 'optional survey signals do not install ship parts');
+  assert.equal(p.shipComplete, false);
   assert.equal(p.money, 80 + ROUTE_PART_RECOVERY_BONUS, 'recovery bonus is paid once');
   const restored = new TileWorld(77, [...w.destroyed], [], 'cryo-shelf');
   assert.equal(restored.get(24, 8).fragmentId, undefined);
@@ -1415,16 +1438,29 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
     ownedDecals: ['standard'], selectedDecal: 'standard', ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced', stasisModule: false, returnWinch: false,
   } as const;
   const version19Save = { ...save, version: 19 as const, planetChart: PLANET_CHART, maps: { 'cryo-shelf': { ...save.maps['cryo-shelf'], structures: [] } }, escapeSuit: false, pilotEscaping: false };
-  const currentSave = { ...version19Save, version: 24 as const, grappleOwned: false, maps: { 'cryo-shelf': { ...version19Save.maps['cryo-shelf'], warehouse: emptyCargo() } } };
+  const version24Save = { ...version19Save, version: 24 as const, shipComponents: ['frame', 'propulsion', 'navigation', 'life-support'], grappleOwned: false, maps: { 'cryo-shelf': { ...version19Save.maps['cryo-shelf'], warehouse: emptyCargo() } } };
+  const currentSave = { ...version24Save, version: 26 as const, coreFuel: 0, mothershipBoarded: false };
+  assert.equal(validateSave(version24Save), false, 'version-24 saves migrate before current validation');
   assert.equal(validateSave(currentSave), true);
-  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 24, 'version-18 campaigns migrate with preserved planet geometry');
+  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 26, 'version-18 campaigns migrate with preserved planet geometry');
   assert.equal(validateSave({ ...currentSave, hull: 0, pilotEscaping: true }), true, 'a crashed miner can be saved while its pilot is alive in the escape suit');
   assert.equal(validateSave({ ...currentSave, hull: 0 }), false, 'zero hull without an active escape is rejected');
-  assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'escape support fits the version-20 save shape');
-  assert.equal(validateSave({ ...currentSave, milestones: ['core-unknown'] }), false, 'unrecognized core-record IDs are rejected');
+  assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'core records persist with the core-fuel save');
+  assert.equal(validateSave({ ...currentSave, coreFuel: -1 }), false, 'negative interplanetary fuel is rejected');
+  const legacyFlightsave = migrateSave(version24Save);
+  assert.equal(legacyFlightsave?.coreFuel, CORE_FUEL.legacyReserve, 'a completed legacy ship gets a travel reserve');
+  assert.equal(legacyFlightsave?.shipComponents.length, 4, 'legacy component records remain preserved for save compatibility');
+  const legacyRouteComplete = migrateSave({ ...version24Save, shipComponents: [], routeFragments: ROUTE_FRAGMENTS.map((fragment) => fragment.id) });
+  assert.equal(legacyRouteComplete?.coreFuel, CORE_FUEL.legacyReserve,
+    'a v24 save completed through route records keeps its former flight access after migration');
+  const legacyCoreSave = migrateSave({ ...version24Save, shipComponents: [], routeFragments: [], milestones: ['core-cryo'] });
+  assert.equal(legacyCoreSave?.coreFuel, CORE_FUEL.unitsPerCore, 'prior recovered cores become corresponding core-fuel charges');
+  const savedInOrbit = migrateSave({ ...currentSave, version: 25, coreFuel: 2, mothershipBoarded: undefined,
+    maps: { ...version24Save.maps, 'cryo-shelf': { ...version24Save.maps['cryo-shelf'], x: 980, y: -5000 } } });
+  assert.equal(savedInOrbit?.mothershipBoarded, true, 'a flight-ready v25 save in orbit restores the player aboard the mothership');
   const migratedV14 = migrateSave(save);
   assert.deepEqual(migratedV14?.maps['cryo-shelf']?.structures, [], 'version-14 campaigns receive an empty construction list');
-  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 24, 'version-16 campaigns migrate through the chart schema');
+  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 26, 'version-16 campaigns migrate through the chart schema');
   assert.deepEqual(migrateSave(currentSave)?.milestones, NAVIGATION_HASHES.map((hash) => hash.id));
   const oldUnupgraded = migrateSave({ ...version19Save, version: 13, levels: { ...version19Save.levels, grapple: undefined } });
   assert.equal(oldUnupgraded?.levels.grapple, 1, 'v13 campaigns gain the baseline grapple level');
@@ -1490,6 +1526,26 @@ test('automatic grapple catches a fast fall on reachable higher rock and W relea
   pod.update(1 / 60, { ...idle, up: true }, (amount) => { damage += amount; });
   assert.equal(pod.grappleAnchor, undefined, 'thrust breaks the tether');
   assert.ok(pod.vy < 0, 'the miner can thrust clear after release');
+});
+test('G drops the grapple tether without thrust or fuel use', () => {
+  const world = new TileWorld(192), progress = new Progress(), pod = new PlayerPod(world, progress);
+  for (let y = 1; y <= 7; y++) world.break(24, y);
+  world.break(23, 4);
+  world.chunks.clear();
+  pod.docked = false;
+  pod.x = 24 * WORLD.tile + 20;
+  pod.y = 6 * WORLD.tile + 10;
+  pod.vy = 250;
+  progress.money = 170;
+  assert.equal(progress.buy('grapple'), true);
+  pod.update(1 / 60, idle, () => {});
+  assert.ok(pod.grappleAnchor, 'the purchased automatic hook should catch an imminent hard impact');
+  const fuel = progress.fuel;
+  pod.update(1 / 60, { ...idle, releaseGrapple: true }, () => {});
+  assert.equal(pod.grappleAnchor, undefined, 'G releases the cable immediately');
+  assert.equal(pod.thrusting, false, 'releasing does not force the miner to thrust');
+  assert.ok(pod.vy > 0, 'gravity resumes after release');
+  assert.equal(progress.fuel, fuel, 'a cable release does not spend thrust fuel');
 });
 test('automatic grapple waits for a damaging landing inside its short lookahead', () => {
   const world = new TileWorld(193), pod = new PlayerPod(world, new Progress());
@@ -1675,8 +1731,8 @@ test('campaign route supports serviced, physical sorties through all four signal
         serviceCredits,
       });
     }
-    assert.equal(progress.shipComponents.length, Object.keys(SHIP_COMPONENTS).length, `seed ${seed}: each signal installs its ship part`);
-    assert.equal(progress.shipComplete, true, `seed ${seed}: all guaranteed chambers should unlock region travel`);
+    assert.equal(progress.shipComponents.length, 0, `seed ${seed}: optional signals do not install parts`);
+    assert.equal(progress.shipComplete, false, `seed ${seed}: only core recovery unlocks region travel`);
     console.log('[campaign-balance-sample]', JSON.stringify({ seed, sorties, shipComplete: progress.shipComplete, postShipCredits: progress.money }));
   }
 });
@@ -1713,7 +1769,7 @@ test('campaign return safety under delayed warning response', () => {
       outcomes.push({ seed, hull: Math.round(progress.hull * 10) / 10, survives: progress.hull > 0, fuel: Math.round(progress.fuel * 10) / 10, allSignals, allReturned, shipReady: progress.shipComplete });
     }
     console.log('[campaign-reaction-sweep]', JSON.stringify({ delayMs, outcomes }));
-    if (delayMs <= 600) assert.ok(outcomes.every((outcome) => outcome.survives && outcome.allSignals && outcome.allReturned && outcome.shipReady), `all seeds must collect all signals and return every time with ${delayMs} ms warning response delay`);
+    if (delayMs <= 600) assert.ok(outcomes.every((outcome) => outcome.survives && outcome.allSignals && outcome.allReturned), `all seeds must collect all optional signals and return every time with ${delayMs} ms warning response delay`);
   }
 });
 test('the opening signal can be drilled and returned from across varied campaign seeds', () => {
@@ -1750,22 +1806,22 @@ test('the opening signal can be drilled and returned from across varied campaign
     }
     assert.equal(pod.docked, true, `seed ${seed}: pod returns to Hab 07`);
     assert.ok(progress.hull > 0, `seed ${seed}: pod survives the opening sortie`);
-    assert.equal(progress.money, 80 + ROUTE_PART_RECOVERY_BONUS, `seed ${seed}: first-part recovery bonus is paid once`);
-    assert.deepEqual(progress.shipComponents, ['frame'], `seed ${seed}: the first signal installs the frame immediately`);
+    assert.equal(progress.money, 80 + ROUTE_PART_RECOVERY_BONUS, `seed ${seed}: optional survey grant is paid once`);
+    assert.deepEqual(progress.shipComponents, [], `seed ${seed}: optional route signal does not assemble the mothership`);
     assert.ok(progress.fuel < fuelAtSignal, `seed ${seed}: the trip has a measurable return cost`);
   }
 });
-test('each guaranteed route signal installs its matching ship part once without credits', () => {
+test('route signals remain optional paid survey finds, not ship requirements', () => {
   const p = new Progress();
   const openingBalance = p.money;
   for (const fragment of ROUTE_FRAGMENTS) {
     assert.equal(p.collectRouteFragment(fragment.id), true);
-    assert.ok(p.shipComponents.includes(ROUTE_SHIP_COMPONENTS[fragment.id]), `${fragment.landmark} installs its matching part`);
+    assert.equal(p.shipComponents.length, 0, `${fragment.landmark} is not a ship component`);
     assert.equal(p.collectRouteFragment(fragment.id), false);
   }
   assert.equal(p.money, openingBalance + ROUTE_FRAGMENTS.length * ROUTE_PART_RECOVERY_BONUS, 'each part grants the same small gear bonus');
-  assert.equal(p.shipComponents.length, 4);
-  assert.equal(p.shipComplete, true);
+  assert.equal(p.shipComponents.length, 0);
+  assert.equal(p.shipComplete, false);
 });
 test('all five ores obey depth bands and form adjacent veins', () => {
   const w = new TileWorld(7),
@@ -1947,21 +2003,21 @@ test('cargo limit, pricing, and sale clear inventory exactly once', () => {
   assert.equal(p.count, 0);
   assert.equal(p.sell(), 0);
 });
-test('milestone gates unlock successive upgrade tiers, with unlimited levels after the final core ledger', () => {
+test('first core and subsequent core records unlock upgrade tiers, with unlimited levels after the final ledger', () => {
   const p = new Progress();
   p.money = 1_000_000;
   assert.equal(upgradeGateForLevel(5), undefined);
   assert.equal(upgradeGateMet(5, { shipComplete: false, coreRelics: [] }), true);
-  assert.equal(upgradeGateMet(6, { shipComplete: false, coreRelics: [] }), false);
-  assert.equal(upgradeGateMet(6, { shipComplete: true, coreRelics: [] }), true);
+  assert.equal(upgradeGateMet(6, { shipComplete: true, coreRelics: [] }), false);
+  assert.equal(upgradeGateMet(6, { shipComplete: false, coreRelics: ['core-mars'] }), true);
   assert.equal(upgradeGateMet(11, { shipComplete: true, coreRelics: ['core-mars'] }), false);
   assert.equal(upgradeGateMet(11, { shipComplete: true, coreRelics: ['core-mars', 'core-cryo'] }), true);
   assert.equal(upgradeGateMet(16, { shipComplete: true, coreRelics: CORE_RELICS.map((r) => r.id).slice(0, -1) }), false);
   assert.equal(upgradeGateMet(16, { shipComplete: true, coreRelics: CORE_RELICS.map((r) => r.id) }), true);
   assert.equal(upgradeGateMet(200, { shipComplete: true, coreRelics: CORE_RELICS.map((r) => r.id) }), true, 'final milestone unlock keeps the tracks uncapped');
   for (const k of UPGRADE_KEYS) for (let level = 1; level < 5; level++) assert.ok(p.buy(k));
-  assert.equal(p.buy('drill'), false, 'the sixth level requires the Faraday');
-  for (const key of Object.keys(SHIP_COMPONENTS) as Array<keyof typeof SHIP_COMPONENTS>) p.shipComponents.push(key);
+  assert.equal(p.buy('drill'), false, 'the sixth level requires a planetary core');
+  p.milestones.push('core-mars');
   for (const k of UPGRADE_KEYS) {
     for (let level = 5; level < 10; level++) {
       const before = p.max(k),
@@ -2024,7 +2080,7 @@ test('scanner upgrades expand fog of war until the full map width is surveyed', 
   assert.equal(p.max('scanner'), WORLD.width);
   const fullWidthAndShallower = new TileWorld(78);
   p.money = 100000;
-  p.shipComponents = Object.keys(SHIP_COMPONENTS);
+  p.milestones.push('core-cryo');
   assert.equal(p.buy('scanner'), true, 'scanner progression continues after full map width');
   assert.ok(p.max('scanner') > WORLD.width, 'extra scanner levels extend vertical survey depth');
   fullWidthAndShallower.reveal(980, 400, 0, p.max('scanner'));
@@ -2357,12 +2413,12 @@ test('surface winch plans around built underground service decks and cabins', ()
   assert.ok(route, 'an open bypass keeps a service beacon from blocking extraction');
   assert.ok(route!.some((point) => point.x <= 21.5 * WORLD.tile), 'the winch routes outside the beacon deck and cabin footprint');
 });
-test('recovered ship parts complete the Faraday without a purchase', () => {
+test('optional route signals do not complete the mothership without a core', () => {
   const p = new Progress();
   p.money = 250;
   for (const fragment of ROUTE_FRAGMENTS) assert.equal(p.collectRouteFragment(fragment.id), true);
   assert.equal(p.money, 250 + ROUTE_FRAGMENTS.length * ROUTE_PART_RECOVERY_BONUS);
-  assert.equal(p.shipComplete, true);
+  assert.equal(p.shipComplete, false);
 });
 test('charge packs spend credits once and provide three usable charges', () => {
   const p = new Progress();
@@ -2541,7 +2597,7 @@ test('emergency recovery lands at the current longitude on the nearest crust', (
     'far-side rescue lands at that hemisphere instead of resetting to the home dock');
   assert.deepEqual(legacy, { x: 900, y: WORLD.spawnY, far: false }, 'legacy rectangular worlds still recover to their home surface');
 });
-test('Faraday orbit uses the existing saved chart position and parks outside the starter globe', () => {
+test('mothership orbit uses the existing saved chart position and parks outside the starter globe', () => {
   const altitude = orbitAltitude(STARTER_PLANET_CHART);
   assert.ok(altitude > MAX_TOWN_ALTITUDE, 'orbit clears the tallest surface town tier');
   assert.equal(isInOrbit(-altitude, STARTER_PLANET_CHART), true);
@@ -2553,7 +2609,7 @@ test('Faraday orbit uses the existing saved chart position and parks outside the
   assert.equal(isInOrbit(farOrbit, STARTER_PLANET_CHART), true, 'the opposite crust has its own orbital approach');
   assert.equal(orbitalParkingY(farOrbit + 100, STARTER_PLANET_CHART), farOrbit);
 });
-test('assembled Faraday can thrust past the town cap into orbit', () => {
+test('assembled mothership can thrust past the town cap into orbit', () => {
   const world = new TileWorld(771, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
     progress = new Progress();
   progress.shipComponents = Object.keys(SHIP_COMPONENTS);
@@ -2564,7 +2620,7 @@ test('assembled Faraday can thrust past the town cap into orbit', () => {
   assert.ok(pod.y <= -orbitAltitude(STARTER_PLANET_CHART), 'W thrust reaches orbit beyond the buildable town skyline');
   assert.ok(progress.fuel > 0, 'the starter tank can complete a direct launch');
 });
-test('assembled Faraday can leave orbit from the far hemisphere too', () => {
+test('assembled mothership can leave orbit from the far hemisphere too', () => {
   const world = new TileWorld(772, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
     progress = new Progress();
   progress.shipComponents = Object.keys(SHIP_COMPONENTS);
@@ -2750,7 +2806,7 @@ test('every purchased upgrade grows pod artwork without enlarging tunnel collisi
   const rebuiltSizes = [0, 1, 2, 3, 4].map((parts) => podVisualScale(levels[0]!, parts));
   assert.equal(rebuiltSizes[0], 1);
   assert.ok(rebuiltSizes.every((size, i) => i === 0 || size > rebuiltSizes[i - 1]),
-    'each recovered Faraday component visibly expands the miner');
+    'each recovered mothership component visibly expands the miner');
   assert.equal(rebuiltSizes.at(-1), 1 + POD_SIZE.shipPartBonus * 4);
   assert.equal(PHYSICS.halfWidth, 13);
   assert.equal(PHYSICS.halfHeight, 16);
@@ -2766,10 +2822,10 @@ test('cosmetic progression stays visual-only and persists in versioned saves', (
   assert.equal(p.selectPaint('hab'), true);
   assert.equal(p.selectPaint('prism'), false);
   const save = {
-    version: 24 as const, planetChart: PLANET_CHART, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
+    version: 26 as const, planetChart: PLANET_CHART, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
     maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], warehouse: emptyCargo() } },
     money: p.money, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull, cargo: { ...p.cargo }, maxDepth: 0,
-    artifact: false, milestones: ['contract-cryo'], shipComponents: [], routeFragments: [], charges: 0,
+    artifact: false, milestones: ['contract-cryo'], shipComponents: [], routeFragments: [], coreFuel: p.coreFuel, mothershipBoarded: false, charges: 0,
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false, ownedSuits: [...p.ownedSuits], selectedSuit: p.selectedSuit,
     ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal, ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization, stasisModule: p.stasisModule, returnWinch: p.returnWinch, escapeSuit: p.escapeSuit, pilotEscaping: p.pilotEscaping, grappleOwned: p.grappleOwned,
   } satisfies SaveData;
@@ -2797,14 +2853,14 @@ test('large excavation and physical drops survive serialized save import', () =>
     vy: 0,
   }));
   const data: SaveData = {
-    version: 24, planetChart: LEGACY_PLANET_CHART, campaignSeed: 123, activeMap: 'cryo-shelf',
+    version: 26, planetChart: LEGACY_PLANET_CHART, campaignSeed: 123, activeMap: 'cryo-shelf',
     maps: { 'cryo-shelf': {
       seed: 123, x: WORLD.spawnX, y: WORLD.spawnY, maxDepth: 120000,
       destroyed, discovered: [...destroyed], drops, activeCharge: null, structures: [{ id: 'service:980:12000', kind: 'service', x: 980, y: 12000 }], warehouse: emptyCargo(),
     } },
     money: 80, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull,
     cargo: { ...p.cargo }, maxDepth: 120000, artifact: false, milestones: [],
-    shipComponents: [], routeFragments: [], charges: 0,
+    shipComponents: [], routeFragments: [], coreFuel: p.coreFuel, mothershipBoarded: false, charges: 0,
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false,
     ownedSuits: [...p.ownedSuits], selectedSuit: p.selectedSuit,
     ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal,
@@ -2825,7 +2881,7 @@ test('large excavation and physical drops survive serialized save import', () =>
   assert.equal(restored.specialization, 'balanced');
 });
 
-test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, and legacy migrations', () => {
+test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, and legacy migrations', () => {
   const p = new Progress(), tileX = 400, row = 12, tileKey = `${tileX},${row}`;
   const chartMap = {
     seed: 123, x: (tileX + 2) * WORLD.tile, y: row * WORLD.tile, maxDepth: 144,
@@ -2836,9 +2892,9 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
     planetChart: PLANET_CHART,
   };
   const chartSave = {
-    version: 24 as const, planetChart: PLANET_CHART, campaignSeed: 123, activeMap: 'mars-frontier' as const,
+    version: 26 as const, planetChart: PLANET_CHART, campaignSeed: 123, activeMap: 'mars-frontier' as const,
     maps: { 'mars-frontier': { ...chartMap, warehouse: emptyCargo() } }, money: 80, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull,
-    cargo: { ...p.cargo }, maxDepth: 144, artifact: false, milestones: [], shipComponents: [], routeFragments: [], charges: 0,
+    cargo: { ...p.cargo }, maxDepth: 144, artifact: false, milestones: [], shipComponents: [], routeFragments: [], coreFuel: p.coreFuel, mothershipBoarded: false, charges: 0,
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false,
     ownedSuits: [...p.ownedSuits], selectedSuit: p.selectedSuit, ownedDecals: [...p.ownedDecals], selectedDecal: p.selectedDecal,
     ownedProfiles: [...p.ownedProfiles], selectedProfile: p.selectedProfile, specialization: p.specialization,
@@ -2892,12 +2948,12 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
   const stackedWall = { ...chartMap, warehouse: emptyCargo(), structures: [{ id: 'wall:16000:-48', kind: 'wall' as const, x: 16000, y: -WORLD.tile, integrity: SURFACE_RAID.integrity }] };
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': stackedWall } }), true, 'outward home-side wall layers persist in the existing save schema');
   const migratedV22 = migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV22?.version, 24, 'version-22 maps migrate through integrity and local warehouse state');
+  assert.equal(migratedV22?.version, 26, 'version-22 maps migrate through integrity, warehouses and core fuel');
   assert.ok(migratedV22?.maps['mars-frontier']?.structures.every((structure) => structure.integrity === SURFACE_RAID.integrity),
     'existing buildings enter the raid system at full integrity');
   assert.deepEqual(migratedV22?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v22 storage migrates to an empty planet warehouse');
   const migratedV23 = migrateSave({ ...chartSave, version: 23, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV23?.version, 24, 'v23 campaigns migrate to the new warehouse schema');
+  assert.equal(migratedV23?.version, 26, 'v23 campaigns migrate to the new warehouse and core-fuel schema');
   assert.deepEqual(migratedV23?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v23 planets begin with empty warehouse stock');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, structures: [{ id: 'habitat:16000:0', kind: 'habitat' as const, x: 16000, y: 0, integrity: 0 }] } } }), false,
     'save validation rejects a structure with no remaining integrity instead of keeping a broken ghost');
@@ -2905,7 +2961,7 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
     'save validation rejects more than three habitats on one planet');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...withTradePost, structures: [...withTradePost.structures, { id: 'trade-post:16100:0', kind: 'trade-post' as const, x: 16100, y: 0 }] } } }), false,
     'each planet can have only one trading post');
-  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 24, 'version-22 campaigns migrate without losing their existing planet data');
+  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 26, 'version-22 campaigns migrate without losing their existing planet data');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, planetChart: { ...PLANET_CHART, columns: PLANET_CHART.columns - 1 } } } }), false,
     'unknown chart geometry cannot silently reinterpret saved coordinates');
   const legacySave = { ...chartSave, version: 18, maps: { 'mars-frontier': {
@@ -2913,7 +2969,7 @@ test('version-24 per-planet chart metadata accepts mixed geometry, warehouses, a
     drops: [{ id: '123:500,12', ore: 'gold' as const, units: 1, x: 20020, y: 480, vx: 0, vy: 0 }], activeCharge: null, structures: [],
   } } };
   const migrated = migrateSave(legacySave);
-  assert.equal(migrated?.version, 24);
+  assert.equal(migrated?.version, 26);
   assert.deepEqual(migrated?.planetChart, LEGACY_PLANET_CHART, 'v18 saves preserve their original 3,600 m radius');
   assert.equal(migrated?.maps['mars-frontier']?.planetChart, undefined, 'old map coordinates stay intact under the legacy campaign chart');
   assert.deepEqual(migrated?.maps['mars-frontier']?.destroyed, ['500,12']);
@@ -2926,7 +2982,7 @@ test('versioned save validation and reconstruction', () => {
   w.break(24, 0);
   w.reveal(980, 0);
   const d: SaveData = {
-    version: 24, planetChart: LEGACY_PLANET_CHART,
+    version: 26, planetChart: LEGACY_PLANET_CHART,
     campaignSeed: 2,
     activeMap: 'mars-frontier',
     maps: { 'mars-frontier': {
@@ -2941,7 +2997,7 @@ test('versioned save validation and reconstruction', () => {
     maxDepth: 120,
     artifact: false,
     milestones: [],
-    shipComponents: [],
+    shipComponents: [], coreFuel: 0, mothershipBoarded: false,
     routeFragments: ['fragment-1'],
     charges: 2,
     ownedPaints: ['hab', 'polar'],
@@ -2966,7 +3022,7 @@ test('versioned save validation and reconstruction', () => {
     'save validation still rejects positions outside the supported orbit altitude');
   const migratedV12 = migrateSave({ ...d, version: 12, returnWinch: undefined });
   assert.ok(migratedV12);
-  assert.equal(migratedV12.version, 24);
+  assert.equal(migratedV12.version, 26);
   assert.equal(migratedV12.returnWinch, false, 'older campaigns receive the new optional module as unowned');
   const oldChargeSave = { ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, activeCharge: { x: 980, y: 280, fuse: 0.7 } } } };
   assert.ok(validateSave(oldChargeSave), 'existing active charges remain valid without a velocity field');
@@ -2975,7 +3031,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(validateSave({ ...d, version: 3 }), false);
   const migratedV3 = migrateSave({ ...d, version: 3, routeFragments: undefined } as unknown as SaveData);
   assert.ok(migratedV3);
-  assert.equal(migratedV3.version, 24);
+  assert.equal(migratedV3.version, 26);
   assert.deepEqual(migratedV3.routeFragments, []);
   assert.deepEqual(migratedV3.maps['mars-frontier']?.drops, []);
   assert.equal(migratedV3.charges, 0);
@@ -2983,25 +3039,25 @@ test('versioned save validation and reconstruction', () => {
   const legacyV4 = { ...d, version: 4, charges: undefined, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, drops: undefined, activeCharge: undefined } } };
   const migratedV4 = migrateSave(legacyV4);
   assert.ok(migratedV4);
-  assert.equal(migratedV4.version, 24);
+  assert.equal(migratedV4.version, 26);
   assert.deepEqual(migratedV4.maps['mars-frontier']?.drops, []);
   const legacyV7 = { ...d, version: 7, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV7 = migrateSave(legacyV7);
   assert.ok(migratedV7);
-  assert.equal(migratedV7.version, 24);
+  assert.equal(migratedV7.version, 26);
   assert.equal(migratedV7.selectedSuit, 'hab');
   assert.deepEqual(migratedV7.ownedSuits, ['hab']);
   const legacyV6 = { ...d, version: 6, salvageMagnet: undefined, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV6 = migrateSave(legacyV6);
   assert.ok(migratedV6);
-  assert.equal(migratedV6.version, 24);
+  assert.equal(migratedV6.version, 26);
   assert.equal(migratedV6.salvageMagnet, false);
   assert.equal(migratedV6.selectedSuit, 'hab');
   assert.deepEqual(migratedV6.ownedPaints, ['hab', 'polar']);
   const legacyV5 = { ...d, version: 5, ownedPaints: undefined, selectedPaint: undefined, salvageMagnet: undefined };
   const migratedV5 = migrateSave(legacyV5);
   assert.ok(migratedV5);
-  assert.equal(migratedV5.version, 24);
+  assert.equal(migratedV5.version, 26);
   assert.equal(migratedV5.salvageMagnet, false);
   assert.deepEqual(migratedV5.ownedPaints, ['hab']);
   const withDrop = { ...d, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, destroyed: [...d.maps['mars-frontier']!.destroyed, '24,3'], drops: [{ id: '2:24,3', ore: 'gold', units: 1.5, x: 980, y: 130, vx: 24, vy: -40 }] } } };
@@ -3018,7 +3074,7 @@ test('versioned save validation and reconstruction', () => {
   };
   const migrated = migrateSave(legacy);
   assert.ok(migrated);
-  assert.equal(migrated.version, 24);
+  assert.equal(migrated.version, 26);
   assert.equal(migrated.activeMap, 'mars-frontier');
   assert.equal(migrated.maps['mars-frontier']?.x, 980);
   assert.deepEqual(migrated.shipComponents, []);
@@ -3032,7 +3088,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(p.fuel, 110);
   assert.equal(p.count, 0.5);
   assert.deepEqual(p.routeFragments, ['fragment-1']);
-  assert.deepEqual(p.shipComponents, ['frame'], 'older saves install parts for signals already recovered');
+  assert.deepEqual(p.shipComponents, [], 'optional route signals no longer install ship parts');
   assert.equal(p.charges, 2);
   assert.deepEqual(p.ownedPaints, ['hab', 'polar']);
   assert.equal(p.selectedPaint, 'polar');
@@ -3052,7 +3108,7 @@ test('versioned save validation and reconstruction', () => {
   const legacyV8 = { ...d, version: 8, ownedDecals: undefined, selectedDecal: undefined };
   const migratedV8 = migrateSave(legacyV8);
   assert.ok(migratedV8);
-  assert.equal(migratedV8.version, 24);
+  assert.equal(migratedV8.version, 26);
   assert.deepEqual(migratedV8.ownedDecals, ['standard']);
   assert.equal(migratedV8.selectedDecal, 'standard');
   assert.deepEqual(migratedV8.ownedProfiles, ['standard']);
@@ -3060,12 +3116,12 @@ test('versioned save validation and reconstruction', () => {
   const legacyV9 = { ...d, version: 9, ownedProfiles: undefined, selectedProfile: undefined };
   const migratedV9 = migrateSave(legacyV9);
   assert.ok(migratedV9);
-  assert.equal(migratedV9.version, 24);
+  assert.equal(migratedV9.version, 26);
   assert.deepEqual(migratedV9.ownedProfiles, ['standard']);
   assert.equal(migratedV9.specialization, 'balanced');
   const migratedV10 = migrateSave({ ...d, version: 10, specialization: undefined });
   assert.ok(migratedV10);
-  assert.equal(migratedV10.version, 24);
+  assert.equal(migratedV10.version, 26);
   assert.equal(migratedV10.specialization, 'balanced');
   assert.deepEqual(migratedV10.maps, d.maps, 'v10 migration preserves every region record');
   assert.equal(validateSave({ ...d, specialization: 'unknown' }), false);

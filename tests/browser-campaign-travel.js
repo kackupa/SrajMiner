@@ -1,73 +1,64 @@
-// Run via Playwright CLI in a dedicated development-browser session; it replaces that session's save.
+// Verify the complete four-jump, core-fueled mothership route on a disposable dev origin.
 async (page) => {
-  const baseURL = new URL(page.url()).origin;
-  await page.goto('about:blank');
-  await page.goto(baseURL);
-  await page.waitForFunction(() => !!window.__mars);
-
-  const seed = 77123;
-  const worldState = (mapSeed, destroyed = [], discovered = []) => ({
-    seed: mapSeed,
-    x: 980,
-    y: -22,
-    maxDepth: 0,
-    destroyed,
-    discovered,
-    drops: [],
-    activeCharge: null,
-  });
-  const cryo = worldState(seed, ['24,0'], ['24,0', '24,1']);
+  const chart = { radiusRows: 40, columns: 126 }, seed = 77123;
   const save = {
-    version: 10,
-    campaignSeed: seed,
-    activeMap: 'cryo-shelf',
-    maps: { 'cryo-shelf': cryo },
-    money: 5000,
-    levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1 },
-    fuel: 43,
-    hull: 74,
-    cargo: { copper: 1.5, iron: 1, silver: 0, gold: 0, diamond: 0 },
-    maxDepth: 0,
-    artifact: false,
-    milestones: [],
-    shipComponents: ['frame', 'propulsion', 'navigation', 'life-support'],
-    routeFragments: [],
-    charges: 0,
+    version: 26, planetChart: chart, campaignSeed: seed, activeMap: 'cryo-shelf',
+    maps: { 'cryo-shelf': {
+      seed, x: 555, y: -22, maxDepth: 0, destroyed: ['24,0'], discovered: ['24,0', '24,1'],
+      drops: [], activeCharge: null, structures: [], warehouse: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 }, planetChart: chart,
+    } },
+    money: 5000, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 },
+    fuel: 43, hull: 100, cargo: { copper: 1.5, iron: 1, silver: 0, gold: 0, diamond: 0 },
+    maxDepth: 0, artifact: false, milestones: ['core-cryo'], shipComponents: [], routeFragments: [],
+    coreFuel: 4, mothershipBoarded: true, charges: 0,
     ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false,
-    ownedSuits: ['hab'], selectedSuit: 'hab',
-    ownedDecals: ['standard'], selectedDecal: 'standard',
-    ownedProfiles: ['standard'], selectedProfile: 'standard',
+    ownedSuits: ['hab'], selectedSuit: 'hab', ownedDecals: ['standard'], selectedDecal: 'standard',
+    ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced',
+    stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: false,
   };
+  await page.evaluate(() => localStorage.clear());
   await page.evaluate((data) => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
   await page.reload();
   await page.setViewportSize({ width: 1280, height: 800 });
-  await page.getByRole('button', { name: 'CONTINUE EXPEDITION ↗' }).click();
+  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
+  await page.waitForFunction(() => !!window.__mars && !document.querySelector('.intro'));
 
-  const baseline = await page.evaluate(() => window.__mars);
-  if (baseline.mapId !== 'cryo-shelf' || baseline.fuel !== 43 || baseline.hull !== 74)
-    throw Error('Campaign fixture did not load');
-  const expectedCargo = JSON.stringify(baseline.cargo);
+  const initial = await page.evaluate(() => window.__mars);
+  if (initial.mapId !== 'cryo-shelf' || initial.coreFuel !== 4 || !initial.mothershipBoarded)
+    throw Error(`Core-ready fixture did not load aboard the mothership: ${JSON.stringify(initial)}`);
+  const startingFuel = initial.fuel, startingCargo = JSON.stringify(initial.cargo), startingMoney = initial.money;
   const visited = [];
-  for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault', 'cryo-shelf']) {
-    await page.locator('#open-destinations').click();
-    await page.locator(`#map-${id}`).click();
+  for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault', 'cinder-vale']) {
+    await page.keyboard.down('w');
+    try {
+      await page.waitForFunction(() => window.__mars?.inOrbit && window.__mars?.orbitalOverviewActive, {}, { timeout: 30000 });
+    } finally { await page.keyboard.up('w'); }
+    await page.locator('#orbit-worlds').click();
+    const jump = page.locator(`#map-${id}`);
+    if (!(await jump.isEnabled())) throw Error(`${id} should be reachable with a core-fuel charge in orbit`);
+    await jump.click();
     const state = await page.evaluate(() => window.__mars);
-    if (state.mapId !== id) throw Error(`Travel failed: expected ${id}, got ${state.mapId}`);
-    if (state.fuel !== 43 || state.hull !== 74 || JSON.stringify(state.cargo) !== expectedCargo)
-      throw Error(`Travel changed expedition resources at ${id}`);
-    if (state.money !== 5000 || state.shipComponents.length !== 4)
-      throw Error(`Travel changed campaign progression at ${id}`);
-    visited.push({ id, seed: state.seed, destroyed: state.destroyed.length });
+    const expectedFuel = 3 - visited.length;
+    if (state.mapId !== id || state.coreFuel !== expectedFuel || !state.mothershipBoarded || !state.docked)
+      throw Error(`Core-fuel jump to ${id} did not arrive aboard with the expected reserve: ${JSON.stringify(state)}`);
+    if (state.fuel !== startingFuel || state.hull !== 100 || JSON.stringify(state.cargo) !== startingCargo || state.money !== startingMoney)
+      throw Error(`Interplanetary travel changed miner fuel, hull, cargo, or credits at ${id}`);
+    visited.push({ id, coreFuel: state.coreFuel, seed: state.seed });
   }
 
   const final = await page.evaluate(() => ({
     state: window.__mars,
     save: JSON.parse(localStorage.getItem('mars-miner.v1')),
   }));
-  if (final.save.activeMap !== 'cryo-shelf') throw Error('Active destination was not saved');
-  if (final.save.maps['cryo-shelf'].destroyed.includes('24,0') !== true)
-    throw Error('Excavated tile did not persist through travel');
-  if (Object.keys(final.save.maps).length !== 4) throw Error('Visited region records were not saved');
+  if (final.save.activeMap !== 'cinder-vale' || final.save.coreFuel !== 0)
+    throw Error(`The four-core-fuel jump reserve should be exhausted on Cinder Vale: ${JSON.stringify(final.save)}`);
+  if (!final.save.maps['cryo-shelf'].destroyed.includes('24,0')) throw Error('The original excavated tile did not persist');
+  if (Object.keys(final.save.maps).length !== 5) throw Error('Each visited world should have an independent saved map');
   await page.screenshot({ path: 'output/playwright/campaign-travel.png' });
-  return { visited, savedMaps: Object.keys(final.save.maps), final: final.state };
-}
+  await page.reload();
+  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
+  const restored = await page.evaluate(() => window.__mars);
+  if (restored.mapId !== 'cinder-vale' || restored.coreFuel !== 0 || !restored.mothershipBoarded || !restored.docked)
+    throw Error(`Final planet, depleted core fuel, and aboard state should survive reload: ${JSON.stringify(restored)}`);
+  return { visited, savedMaps: Object.keys(final.save.maps), remainingCoreFuel: restored.coreFuel, localFuel: restored.fuel };
+};

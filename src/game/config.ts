@@ -268,18 +268,18 @@ export const MAPS = {
 // cached chunks can be discarded without adding feature state to player saves.
 export type MapId = keyof typeof MAPS;
 export const CORE_RELICS = [
-  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the Faraday’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 3000 },
+  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the mothership’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 3000 },
   { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 3000 },
   { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 3000 },
-  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call. One final key remains.', bounty: 3000 },
-  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the Faraday can reach them.', bounty: 4500 },
-  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the Faraday finally has a home port.', bounty: 6000 },
+  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the mothership’s signal is a path home, not a distress call. One final key remains.', bounty: 3000 },
+  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the mothership can reach them.', bounty: 4500 },
+  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the mothership finally has a home port.', bounty: 6000 },
 ] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
 /** A recovered planetary core powers several interplanetary jumps; this is separate from pod flight fuel. */
 export const CORE_FUEL = { unitsPerCore: 4, jumpCost: 1, legacyReserve: 6 } as const;
 export const CORE_SURVEY_CONCLUSION = {
   title: 'A route home, carried through six worlds',
-  transcript: 'The Faraday did not vanish beneath Vesper-9. The crew scattered its return key across five planetary cores, then built a living settlement around the final handshake. The signal has been waiting for the whole route.',
+  transcript: 'The mothership did not vanish beneath Vesper-9. The crew scattered its return key across five planetary cores, then built a living settlement around the final handshake. The signal has been waiting for the whole route.',
 } as const;
 export type CoreRelicId = (typeof CORE_RELICS)[number]['id'];
 export const coreSurveyComplete = (milestones: readonly string[]) => CORE_RELICS.every((relic) => milestones.includes(relic.id));
@@ -358,7 +358,7 @@ export type Upgrade = keyof typeof UPGRADES;
 export type Levels = Record<Upgrade, number>;
 export const UPGRADE_KEYS = Object.keys(UPGRADES) as Upgrade[];
 export const UPGRADE_MILESTONE_GATES = [
-  { firstLevel: 6, label: 'FIRST PLANETARY CORE RECOVERED', requirement: 'ship' },
+  { firstLevel: 6, label: 'FIRST PLANETARY CORE RECOVERED', requirement: 'first-core' },
   { firstLevel: 11, label: '2 PLANETARY CORES LOGGED', requirement: 'two-cores' },
   { firstLevel: 16, label: 'ALL PLANETARY CORES LOGGED', requirement: 'all-cores' },
 ] as const;
@@ -369,7 +369,7 @@ export function upgradeGateForLevel(level: number) {
 export function upgradeGateMet(level: number, state: UpgradeGateState) {
   const gate = upgradeGateForLevel(level);
   if (!gate) return true;
-  if (gate.requirement === 'ship') return state.shipComplete;
+  if (gate.requirement === 'first-core') return state.coreRelics.some((id) => CORE_RELICS.some((relic) => relic.id === id));
   if (gate.requirement === 'two-cores') return state.coreRelics.length >= 2;
   return CORE_RELICS.every((relic) => state.coreRelics.includes(relic.id));
 }
@@ -486,7 +486,7 @@ export const POD_PAINT_KEYS = Object.keys(POD_PAINTS) as PodPaint[];
 export const PILOT_SUITS = {
   hab: { name: 'Hab Issue', description: 'Standard insulated outpost suit.', cost: 0, body: 0xd9dfd0, trim: 0xeac781 },
   polar: { name: 'Polar Survey', description: 'Reflective ice-runner shell.', cost: 160, body: 0x55b8bd, trim: 0xcaf8ee },
-  ark: { name: 'Ark Salvage', description: 'Field repairs stitched from Faraday canvas.', cost: 320, body: 0x739a72, trim: 0xc8e8ad },
+  ark: { name: 'Ark Salvage', description: 'Field repairs stitched from mothership canvas.', cost: 320, body: 0x739a72, trim: 0xc8e8ad },
   prism: { name: 'Prism Runner', description: 'A violet suit with a bright helmet seal.', cost: 520, body: 0x9a79c9, trim: 0xe1caff },
 } as const;
 export type PilotSuit = keyof typeof PILOT_SUITS;
@@ -494,7 +494,7 @@ export const PILOT_SUIT_KEYS = Object.keys(PILOT_SUITS) as PilotSuit[];
 export const POD_DECALS = {
   standard: { name: 'Hab Mark', description: 'Outpost identification stripe.', cost: 0, color: 0xeac781, style: 'stripe' },
   arrow: { name: 'Descent Arrow', description: 'A bold directional survey mark.', cost: 140, color: 0x72ddd0, style: 'arrow' },
-  ark: { name: 'Faraday Crest', description: 'The lost ship’s recovery insignia.', cost: 280, color: 0xa4d6a3, style: 'crest' },
+  ark: { name: 'Mothership Crest', description: 'The lost ship’s recovery insignia.', cost: 280, color: 0xa4d6a3, style: 'crest' },
   prism: { name: 'Prism Trace', description: 'A luminous mark for deep runs.', cost: 440, color: 0xc3a2ff, style: 'prism' },
 } as const;
 export type PodDecal = keyof typeof POD_DECALS;
@@ -518,20 +518,20 @@ export const ROUTE_FRAGMENTS = [
   { id: 'fragment-1', milestoneId: 'first-core-sample', row: 8, x: 24, title: 'Warm core sample', landmark: 'Thermal Observatory', chamber: { halfWidth: 4, halfHeight: 2 }, detail: 'A live thermal trace reveals a safe fracture through the shelf.' },
   { id: 'fragment-2', milestoneId: 'basalt-vein', row: 27, x: 24, title: 'Basalt route key', landmark: 'Basalt Engine Hall', chamber: { halfWidth: 5, halfHeight: 2 }, detail: 'The key maps a service passage through the iron veil.' },
   { id: 'fragment-3', milestoneId: 'deep-scan', row: 52, x: 24, title: 'Deep navigation shard', landmark: 'Ark Signal Gallery', chamber: { halfWidth: 6, halfHeight: 3 }, detail: 'A ship coordinate points into the old wreck field.' },
-  { id: 'fragment-4', milestoneId: 'route-signal', row: 90, x: 24, title: 'Faraday route beacon', landmark: 'Faraday Beacon Vault', chamber: { halfWidth: 7, halfHeight: 3 }, detail: 'The final beacon reconstructs the long-range route.' },
+  { id: 'fragment-4', milestoneId: 'route-signal', row: 90, x: 24, title: 'Mothership route beacon', landmark: 'Mothership Beacon Vault', chamber: { halfWidth: 7, halfHeight: 3 }, detail: 'The final beacon reconstructs the long-range route.' },
 ] as const;
 // Optional, offline archive collectibles; these fictional hashes have no value or exchange path.
 export const NAVIGATION_HASHES = [
-  { id: 'hash-cryo', mapId: 'cryo-shelf', x: 12, row: 16, name: 'ICEBOUND ECHO', hash: '7C1A·09EF·B44D', crew: 'Asha Vale', role: 'Signal Officer', transcript: 'The echo is not a beacon. It is a handshake waiting for our key. Someone below knows we are here.', detail: 'A shipyard checksum, signed before the Faraday left orbit.' },
+  { id: 'hash-cryo', mapId: 'cryo-shelf', x: 12, row: 16, name: 'ICEBOUND ECHO', hash: '7C1A·09EF·B44D', crew: 'Asha Vale', role: 'Signal Officer', transcript: 'The echo is not a beacon. It is a handshake waiting for our key. Someone below knows we are here.', detail: 'A shipyard checksum, signed before the mothership left orbit.' },
   { id: 'hash-hull', mapId: 'hull-graveyard', x: 12, row: 22, name: 'WRECK REGISTER', hash: 'A308·F11C·620B', crew: 'Orrin Bale', role: 'Flight Recorder', transcript: 'The manifest says no survivors. I watched the landing crew walk away from the wreck. The record was changed after we split up.', detail: 'An ark manifest that lists a crew no surviving log remembers.' },
   { id: 'hash-prism', mapId: 'prism-fault', x: 36, row: 32, name: 'PRISM KEY', hash: 'D9E2·44A7·C015', crew: 'Imani Cho', role: 'Navigator', transcript: 'The beacon bends through the fault, but the coordinates resolve cleanly. This route points back to the first signal—not deeper into the ice.', detail: 'A navigation key refracted through an abandoned survey beacon.' },
-  { id: 'hash-mars', mapId: 'mars-frontier', x: 9, row: 20, name: 'RED DUST INDEX', hash: '51B7·C82D·A903', crew: 'Sol Reyes', role: 'Surface Lead', transcript: 'We found the Faraday’s launch telemetry beneath this shelf. Its last destination was Vesper-9. The crew were not marked lost. They were marked passengers.', detail: 'A checksum from the first surface team, preserved under the frontier.' },
+  { id: 'hash-mars', mapId: 'mars-frontier', x: 9, row: 20, name: 'RED DUST INDEX', hash: '51B7·C82D·A903', crew: 'Sol Reyes', role: 'Surface Lead', transcript: 'We found the mothership’s launch telemetry beneath this shelf. Its last destination was Vesper-9. The crew were not marked lost. They were marked passengers.', detail: 'A checksum from the first surface team, preserved under the frontier.' },
 ] as const;
 export const CREW_ARCHIVE_CONCLUSION = {
   title: 'THE SIGNAL WAS A HANDSHAKE',
   author: 'Asha Vale',
   role: 'Signal Officer · Final annotation',
-  transcript: 'The Faraday reached Vesper-9. We scattered the access keys across the survey beacons so the ship could not be followed. The signal below the shelf is the return handshake. Someone is waiting to be let home.',
+  transcript: 'The mothership reached Vesper-9. We scattered the access keys across the survey beacons so the ship could not be followed. The signal below the shelf is the return handshake. Someone is waiting to be let home.',
 } as const;
 export type NavigationHashId = (typeof NAVIGATION_HASHES)[number]['id'];
 export type RouteFragmentId = (typeof ROUTE_FRAGMENTS)[number]['id'];

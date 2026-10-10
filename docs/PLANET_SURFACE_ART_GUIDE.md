@@ -49,7 +49,7 @@ The original board has no final grid/longitude values. The implementation should
 
 - Five destinations are present: Mars Frontier, Cryo Shelf, Hull Graveyard, Prism Fault, and Cinder Vale.
 - Each already has a distinct sky/ground/mountain palette and separate underground strata, ore weighting, and signature finds.
-- The ordinary surface renderer uses a gradient sky, three distant mountain bands, a thin ground lip, and the shared Hab 07 / Faraday skyline. The region palette changes, but the landscape language and nearby ground details are mostly shared.
+- The ordinary surface renderer uses a gradient sky, three distant mountain bands, a thin ground lip, and the shared Hab 07 / mothership skyline. The region palette changes, but the landscape language and nearby ground details are mostly shared.
 - New maps use a round polar chart with a continuous wrapped surface, two playable hemispheres, and an orbital cutaway. At orbital zoom, the current planet is shown as broad concentric color bands; no detailed continent/terrain texture exists yet.
 - Surface-town structures and the player's route already use curved tangent/radial world coordinates. New landscape art must follow the same curvature and remain continuous at the wrap seam.
 
@@ -85,7 +85,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 - Palette: glacier cyan, chalk ice, blue-black crevasse shadow, and occasional mint reflected signal light. Keep surface highlights brighter than the blue-grey underground strata.
 - Horizon: smooth distant ice shelves interrupted by jagged pressure ridges, crevasse fins, and a huge faint ringed planet or gas-giant arc.
 - Near surface: layered snow lips, fractured ice plates, blue crack lines, small frost plumes, and slow ice motes. Use a few broad wind streaks rather than constant particle noise.
-- Orbital read: pale polar cap, dark blue fissure network, and a subtle bright route seam near the Faraday signal path.
+- Orbital read: pale polar cap, dark blue fissure network, and a subtle bright route seam near the mothership signal path.
 - Mining material extension: ice blocks have translucent-looking edge bands and fracture lines; buried hull material keeps a warm metallic contrast. No slippery movement or ice-specific physics in this art pass.
 - Avoid: making all blocks pale (ore visibility suffers) or using a busy snowstorm over the player.
 

@@ -9,7 +9,7 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 25;
+  version: 26;
   planetChart: PlanetChartSize;
   campaignSeed: number;
   activeMap: MapId;
@@ -25,6 +25,7 @@ export type SaveData = {
   shipComponents: string[];
   routeFragments: string[];
   coreFuel: number;
+  mothershipBoarded: boolean;
   charges: number;
   ownedPaints: PodPaint[];
   selectedPaint: PodPaint;
@@ -85,7 +86,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 25 && chartIsSupported(d.planetChart) &&
+    d.version === 26 && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
     Object.hasOwn(MAPS, d.activeMap) &&
@@ -139,7 +140,8 @@ export function validateSave(s: unknown): s is SaveData {
     Array.isArray(d.milestones) && d.milestones.every((v) => ['first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
     Array.isArray(d.shipComponents) && d.shipComponents.every((v) => ['frame', 'propulsion', 'navigation', 'life-support'].includes(v)) &&
     Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v)) &&
-    Number.isSafeInteger(d.coreFuel) && d.coreFuel >= 0 && d.coreFuel <= 100000
+    Number.isSafeInteger(d.coreFuel) && d.coreFuel >= 0 && d.coreFuel <= 100000 &&
+    typeof d.mothershipBoarded === 'boolean'
   );
 }
 function addWorldToolState(maps: Record<string, Omit<WorldSave, 'drops' | 'activeCharge' | 'structures' | 'warehouse'> & Partial<Pick<WorldSave, 'drops' | 'activeCharge' | 'structures' | 'warehouse'>>>) {
@@ -155,11 +157,24 @@ export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 25) {
+    const old = s as Record<string, unknown>, activeMap = old.activeMap as string,
+      maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, unknown> : {},
+      map = maps[activeMap] && typeof maps[activeMap] === 'object' ? maps[activeMap] as Record<string, unknown> : {},
+      chart = map.planetChart && typeof map.planetChart === 'object' ? map.planetChart as Record<string, unknown>
+        : old.planetChart && typeof old.planetChart === 'object' ? old.planetChart as Record<string, unknown> : {},
+      orbitAltitude = Math.max(900, Math.round(Number(chart.radiusRows ?? PLANET_CHART.radiusRows) * WORLD.tile * 0.72)),
+      inOrbit = finite(map.y) && (map.y <= -orbitAltitude || map.y >= Number(chart.radiusRows ?? PLANET_CHART.radiusRows) * WORLD.tile * 2 + orbitAltitude);
+    return migrateSave({ ...old, version: 26, mothershipBoarded: !!old.mothershipBoarded || inOrbit && Number(old.coreFuel) > 0 });
+  }
   if (version === 24) {
     const old = s as Record<string, unknown>;
     const components = Array.isArray(old.shipComponents) ? old.shipComponents : [];
     const fragments = Array.isArray(old.routeFragments) ? old.routeFragments : [];
-    const hadFlightAccess = components.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length || fragments.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length;
+    // Earlier v24 saves could represent a completed route with fragment records
+    // even when the installed-component list had not yet been written.
+    const hadFlightAccess = components.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length ||
+      fragments.length >= Object.keys(ROUTE_SHIP_COMPONENTS).length;
     const coreCount = Array.isArray(old.milestones) ? old.milestones.filter((id) => CORE_RELICS.some((relic) => relic.id === id)).length : 0;
     return migrateSave({ ...old, version: 25, coreFuel: hadFlightAccess ? CORE_FUEL.legacyReserve : coreCount * CORE_FUEL.unitsPerCore });
   }
@@ -327,12 +342,9 @@ export class SaveManager {
     p.milestones = [...d.milestones];
     p.routeFragments = [...d.routeFragments];
     p.coreFuel = d.coreFuel;
-    // Older saves paid credits for parts after finding each signal. Keep their
-    // progress while making every recovered signal an installed part now.
-    p.shipComponents = [...new Set([
-      ...d.shipComponents,
-      ...d.routeFragments.map((id) => ROUTE_SHIP_COMPONENTS[id as keyof typeof ROUTE_SHIP_COMPONENTS]),
-    ])];
+    // Preserve installed components for migrated flight-ready saves. Route finds
+    // are optional survey records in the core-fuel campaign.
+    p.shipComponents = [...d.shipComponents];
     p.charges = d.charges;
     p.salvageMagnet = d.salvageMagnet;
     p.stasisModule = d.stasisModule;

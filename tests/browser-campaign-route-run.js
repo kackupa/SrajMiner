@@ -1,110 +1,52 @@
-// Physical Cryo Shelf campaign loop from a fresh save; run only on a dedicated dev origin.
+// Physical first-core expedition: drill the recommended globe, collect its record, and return safely.
 async (page) => {
   const baseURL = new URL(page.url()).origin;
   await page.evaluate(() => localStorage.clear());
-  await page.goto('about:blank'); await page.goto(baseURL); await page.waitForFunction(() => !!window.__mars);
-  const seed = 77124, chart = { columns: 471, radiusRows: 150 };
-  const save = {
-    version: 20, planetChart: chart, campaignSeed: seed, activeMap: 'cryo-shelf',
-    maps: { 'cryo-shelf': { seed, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], planetChart: chart } },
-    money: 80, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 }, fuel: 140, hull: 100,
-    cargo: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 }, maxDepth: 0, artifact: false,
-    milestones: [], shipComponents: [], routeFragments: [], charges: 0,
-    ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false,
-    ownedSuits: ['hab'], selectedSuit: 'hab', ownedDecals: ['standard'], selectedDecal: 'standard',
-    ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced',
-    stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: false,
-  };
-  await page.evaluate(data => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
-  await page.reload(); await page.setViewportSize({ width: 1280, height: 800 });
-  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  const trips = [];
-  const descendSafelyTo = async (fragment) => {
-    const deadline = Date.now() + 180000;
-    await page.keyboard.down('s');
-    while (Date.now() < deadline) {
+  await page.goto('about:blank');
+  await page.goto(baseURL);
+  await page.locator('.intro').waitFor();
+  await page.locator('#launch').click();
+  await page.waitForFunction(() => !!window.__mars && !document.querySelector('.intro'), {}, { timeout: 10000 });
+
+  const initial = await page.evaluate(() => window.__mars);
+  if (initial.mapId !== 'cryo-shelf' || initial.coreFuel !== 0 || initial.shipComplete)
+    throw Error(`Fresh campaign should require its first core: ${JSON.stringify(initial)}`);
+
+  const miningDeadline = Date.now() + 180000;
+  await page.keyboard.down('s');
+  try {
+    while (Date.now() < miningDeadline) {
       const state = await page.evaluate(() => window.__mars);
-      if (state.routeFragments.includes(fragment)) return state;
-      if (state.hull <= 0 || state.fuel <= 0) break;
-      if (state.vy > 150) {
+      if (state.milestones.includes('core-cryo')) break;
+      if (state.hull <= 0 || state.fuel <= 0) throw Error(`The starter expedition failed before reaching its core: ${JSON.stringify(state)}`);
+      if (state.descentSpeed > 150) {
         await page.keyboard.up('s');
         await page.keyboard.down('w');
-        await page.waitForFunction(() => window.__mars && window.__mars.vy < 100, null, { timeout: 5000 });
-        await page.keyboard.up('w');
+        try {
+          await page.waitForFunction(() => window.__mars && window.__mars.descentSpeed < 95, {}, { timeout: 6000 });
+        } finally { await page.keyboard.up('w'); }
         await page.keyboard.down('s');
-      } else await page.waitForTimeout(75);
+      } else await page.waitForTimeout(60);
     }
-    throw Error(`Could not reach ${fragment} using warning-led braking: ${JSON.stringify(await page.evaluate(() => window.__mars))}`);
-  };
-  for (const [index, fragment] of ['fragment-1', 'fragment-2', 'fragment-3', 'fragment-4'].entries()) {
-    try {
-      await descendSafelyTo(fragment);
-    } catch (error) {
-      const state = await page.evaluate(() => window.__mars),
-        summary = { x: state.x, y: state.y, depth: state.depth, fuel: state.fuel, hull: state.hull,
-          cargo: state.cargo, overlaps: state.overlaps, destroyed: state.destroyed.length, routeFragments: state.routeFragments };
-      await page.screenshot({ path: `output/playwright/campaign-route-blocked-${fragment}.png` });
-      throw Error(`Could not reach ${fragment} in compact campaign: ${JSON.stringify(summary)}; ${error}`);
-    } finally { await page.keyboard.up('s'); await page.keyboard.up('w'); }
-    const mined = await page.evaluate(() => window.__mars);
-    if (mined.overlaps || mined.hull <= 0 || mined.fuel <= 0) throw Error(`Unsafe after ${fragment}: ${JSON.stringify(mined)}`);
-    trips.push({ fragment, depth: mined.depth, fuelAtFind: mined.fuel, hullAtFind: mined.hull, money: mined.money });
+  } finally { await page.keyboard.up('s'); await page.keyboard.up('w'); }
 
-    await page.keyboard.down('w');
-    await page.waitForFunction(() => window.__mars?.y < -35, {}, { timeout: 60000 });
-    await page.keyboard.up('w');
-    await page.waitForFunction(() => window.__mars?.docked, {}, { timeout: 10000 });
-    const docked = await page.evaluate(() => window.__mars);
-    if (docked.overlaps || docked.hull <= 0) throw Error(`Unsafe return after ${fragment}: ${JSON.stringify(docked)}`);
+  const core = await page.evaluate(() => window.__mars);
+  if (!core.milestones.includes('core-cryo') || core.coreFuel !== 4 || !core.shipComplete)
+    throw Error(`Drilling the Cryo core should grant its record and four separate travel units: ${JSON.stringify(core)}`);
+  await page.screenshot({ path: 'output/playwright/cryo-core-recovered.png' });
 
-    if (Object.values(docked.cargo).some(Boolean)) {
-      await page.locator('#open-sell').click();
-      await page.locator('#sell').click();
-      await page.locator('#close').click();
-    }
-    await page.locator('#open-service').click();
-    const service = page.locator('#service-all');
-    if (await service.isEnabled()) await service.click();
-    await page.locator('#close').click();
-    // Recovery bonuses and ore sales fund the tools that make the deep vault reachable.
-    if (index === 2) {
-      await page.locator('#open-upgrades').click();
-      for (const upgrade of ['fuel', 'fuel', 'drill']) {
-        const button = page.locator(`#buy-${upgrade}`);
-        if (!(await button.isEnabled())) throw Error(`Campaign could not afford the ${upgrade} upgrade before the Faraday vault: ${JSON.stringify(await page.evaluate(() => window.__mars))}`);
-        await button.click();
-      }
-      await page.locator('#close').click();
-    }
-    const ready = await page.evaluate(() => window.__mars);
-    if (ready.fuel < 120 || ready.hull < 85) throw Error(`Could not safely service before next descent: ${JSON.stringify(ready)}`);
-    trips[index].returnFuel = ready.fuel;
-    trips[index].returnHull = ready.hull;
-  }
-
-  const archiveBefore = await page.evaluate(() => window.__mars);
-  const campaignSave = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
-  if (archiveBefore.routeFragments.length !== 4 || !campaignSave.artifact)
-    throw Error(`All route signals and deep transmission should be recovered: ${JSON.stringify({ state: archiveBefore, artifact: campaignSave.artifact })}`);
-  const ready = await page.evaluate(() => window.__mars);
-  if (ready.shipStatus !== 'FLIGHT READY' || ready.shipComponents.length !== 4)
-    throw Error(`Finding the four parts should assemble the Faraday automatically: ${JSON.stringify(ready)}`);
+  const returnDeadline = Date.now() + 120000;
   await page.keyboard.down('w');
-  await page.waitForFunction(() => window.__mars?.orbitalOverviewActive, {}, { timeout: 30000 });
-  await page.keyboard.up('w');
-  await page.locator('#orbit-worlds').click();
-  for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault']) {
-    const button = page.locator(`#map-${id}`);
-    if (await button.isDisabled()) throw Error(`Campaign ship did not unlock ${id}`);
-  }
-  await page.locator('#map-hull-graveyard').click();
-  const traveled = await page.evaluate(() => window.__mars);
-  if (traveled.mapId !== 'hull-graveyard' || traveled.routeFragments.length !== 4 || traveled.money < 0)
-    throw Error(`Travel after automatic ship assembly failed: ${JSON.stringify(traveled)}`);
-  await page.reload(); await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  const restored = await page.evaluate(() => window.__mars);
-  if (restored.mapId !== 'hull-graveyard' || restored.routeFragments.length !== 4 || restored.shipComponents.length !== 4)
-    throw Error(`Campaign did not persist after travel: ${JSON.stringify(restored)}`);
-  await page.screenshot({ path: 'output/playwright/campaign-route-run.png' });
-  return { trips, assembled: restored.shipComponents, deepSignal: campaignSave.artifact, moneyAfterTravel: restored.money, destination: restored.mapId };
-}
+  try {
+    await page.waitForFunction(() => window.__mars?.docked && window.__mars?.depth === 0, {}, { timeout: returnDeadline - Date.now() });
+  } finally { await page.keyboard.up('w'); }
+  const home = await page.evaluate(() => window.__mars);
+  if (home.hull <= 0 || home.fuel <= 0 || home.overlaps || !home.docked || home.coreFuel !== 4)
+    throw Error(`Returning from the starter core should preserve the miner and core fuel: ${JSON.stringify(home)}`);
+  await page.locator('#open-shipyard').click();
+  const drive = await page.locator('#modal-layer').innerText();
+  if (!drive.includes('4 JUMPS AVAILABLE') || !drive.includes('separate from the miner'))
+    throw Error(`Core-fuel reserve and local miner fuel should remain clearly distinct: ${drive}`);
+  await page.screenshot({ path: 'output/playwright/cryo-core-return.png' });
+  return { depthAtCore: core.depth, fuelAtCore: core.fuel, returnFuel: home.fuel, hull: home.hull, coreFuel: home.coreFuel };
+};

@@ -23,7 +23,7 @@ async (page) => {
   await page.waitForFunction(y => Math.abs(window.__mars.y - y) < 16 && Math.abs(window.__mars.vy) < 5,
     expectedTopDeck, { timeout: 12000 });
   const topLanding = await page.evaluate(() => window.__mars);
-  if (topLanding.overlaps || !topLanding.farHemisphere || topLanding.hull !== 100 || topLanding.shipStatus !== 'FLIGHT READY')
+  if (topLanding.overlaps || !topLanding.farHemisphere || topLanding.hull !== 100 || topLanding.shipStatus !== 'CORE DRIVE ONLINE')
     throw Error(`The upgraded far-side town should catch the miner cleanly: ${JSON.stringify(topLanding)}`);
   await page.screenshot({ path: 'output/playwright/surface-town-upper-deck.png' });
   await page.keyboard.down('s'); await page.waitForTimeout(100); await page.keyboard.up('s');

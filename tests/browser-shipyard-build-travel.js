@@ -1,98 +1,91 @@
-// Verify recovered signals assemble the Faraday automatically and legacy saves migrate safely.
+// Verify v26 core-powered mothership takeoff, landing, jump spend, and reload on a dedicated dev origin.
 async (page) => {
-  const seed = 77124, chart = { columns: 471, radiusRows: 150 };
+  const chart = { radiusRows: 40, columns: 126 }, seed = 77124;
   const save = {
-    version: 20, planetChart: chart, campaignSeed: seed, activeMap: 'cryo-shelf',
-    maps: { 'cryo-shelf': { seed, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], planetChart: chart } },
-    money: 0, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 }, fuel: 140, hull: 100,
-    cargo: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 }, maxDepth: 0, artifact: false,
-    milestones: [], shipComponents: [], routeFragments: ['fragment-1', 'fragment-2', 'fragment-3', 'fragment-4'], charges: 0,
+    version: 26, planetChart: chart, campaignSeed: seed, activeMap: 'cryo-shelf',
+    maps: { 'cryo-shelf': {
+      seed, x: 555, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null,
+      structures: [], warehouse: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 }, planetChart: chart,
+    } },
+    money: 80, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 },
+    fuel: 140, hull: 100, cargo: { copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 },
+    maxDepth: 0, artifact: false, milestones: ['core-cryo'], shipComponents: [], routeFragments: [],
+    coreFuel: 4, mothershipBoarded: true, charges: 0,
     ownedPaints: ['hab'], selectedPaint: 'hab', salvageMagnet: false,
     ownedSuits: ['hab'], selectedSuit: 'hab', ownedDecals: ['standard'], selectedDecal: 'standard',
     ownedProfiles: ['standard'], selectedProfile: 'standard', specialization: 'balanced',
     stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: false,
   };
-  await page.evaluate(data => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
+  const baseURL = new URL(page.url()).origin;
+  await page.evaluate(() => localStorage.clear());
+  await page.evaluate((data) => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
   await page.reload();
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  const assembled = await page.evaluate(() => window.__mars);
-  if (assembled.money !== 0 || assembled.shipComponents.length !== 4 || assembled.shipStatus !== 'FLIGHT READY')
-    throw Error(`Already-recovered signals should install all four parts for free: ${JSON.stringify(assembled)}`);
-  await page.screenshot({ path: 'output/playwright/faraday-hub-flight-ready.png' });
-  await page.locator('#open-shipyard').click();
-  const parts = await page.locator('#modal-layer').innerText();
-  if (!parts.includes('shipyard purchase needed') || (parts.match(/FOUND · INSTALLED AUTOMATICALLY/g) ?? []).length !== 4)
-    throw Error(`Ship-parts panel should show four recovered parts with no purchases: ${parts}`);
-  await page.locator('#close').click();
+  await page.waitForFunction(() => !!window.__mars && !document.querySelector('.intro'));
+
+  const loaded = await page.evaluate(() => window.__mars);
+  if (!loaded.shipComplete || !loaded.mothershipBoarded || loaded.coreFuel !== 4 || loaded.mapId !== 'cryo-shelf' || !loaded.docked)
+    throw Error(`Core-ready surface save should restore aboard at its pad: ${JSON.stringify(loaded)}`);
+  if (await page.locator('#control-e').innerText() !== 'DISEMBARK' ||
+      await page.locator('#control-w').innerText() !== 'TAKE OFF' || await page.locator('#control-s').innerText() !== '—')
+    throw Error('The footer should show mothership-specific controls while parked on the surface');
+
   await page.locator('#open-destinations').click();
-  const surfaceBoard = await page.locator('#modal-layer').innerText();
-  if (!surfaceBoard.includes('Hold W to climb above the globe') ||
-      await page.locator('#map-hull-graveyard').isEnabled())
-    throw Error(`Other worlds must remain gated until the Faraday reaches orbit: ${surfaceBoard}`);
+  if (await page.locator('#map-hull-graveyard').isEnabled())
+    throw Error('The mothership must reach orbit before opening the world jump controls');
   await page.locator('#close').click();
-  const orbitY = -Math.max(900, Math.round(chart.radiusRows * 40 * 0.72));
+
+  const startingFuel = loaded.fuel;
   await page.keyboard.down('w');
   try {
-    await page.waitForFunction((threshold) => window.__mars?.y <= threshold && window.__mars?.orbitalOverviewActive,
-      orbitY, { timeout: 30000 });
-  } finally {
-    await page.keyboard.up('w');
-  }
-  const orbital = await page.evaluate(() => window.__mars);
-  if (orbital.hull !== 100 || orbital.fuel <= 0 || !(await page.locator('#orbit-worlds').isVisible()))
-    throw Error(`Takeoff should park safely with Worlds available: ${JSON.stringify(orbital)}`);
-  await page.screenshot({ path: 'output/playwright/faraday-orbital-cutaway.png' });
-  await page.reload();
-  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  const restoredOrbit = await page.evaluate(() => window.__mars);
-  if (restoredOrbit.y > orbitY || !restoredOrbit.orbitalOverviewActive ||
-      !(await page.locator('#orbit-worlds').isVisible()))
-    throw Error(`Orbital parking position should survive reload: ${JSON.stringify(restoredOrbit)}`);
+    await page.waitForFunction(() => window.__mars?.inOrbit && window.__mars?.orbitalOverviewActive, {}, { timeout: 30000 });
+  } finally { await page.keyboard.up('w'); }
+  let state = await page.evaluate(() => window.__mars);
+  if (!state.mothershipBoarded || state.coreFuel !== 4 || state.fuel !== startingFuel || state.hull !== 100)
+    throw Error(`Mothership takeoff should preserve core and local fuel and avoid damage: ${JSON.stringify(state)}`);
+  await page.waitForFunction(() => document.querySelector('#control-s')?.textContent?.trim() === 'LAND');
+  if (await page.locator('#control-s').innerText() !== 'LAND' || await page.locator('#control-w').innerText() !== 'THRUST')
+    throw Error('The footer should switch to orbital takeoff/landing instructions');
+  if (!(await page.locator('#orbit-worlds').isVisible())) throw Error('Orbit should expose the Worlds control');
+  await page.screenshot({ path: 'output/playwright/mothership-orbit.png' });
+
+  await page.keyboard.down('s');
+  try {
+    await page.waitForFunction(() => !window.__mars?.inOrbit && window.__mars?.docked, {}, { timeout: 10000 });
+  } finally { await page.keyboard.up('s'); }
+  state = await page.evaluate(() => window.__mars);
+  if (!state.mothershipBoarded || state.y !== -22 || state.fuel !== startingFuel || state.hull !== 100)
+    throw Error(`S should land the mothership safely back at its pad: ${JSON.stringify(state)}`);
+
+  await page.keyboard.press('e');
+  state = await page.evaluate(() => window.__mars);
+  if (state.mothershipBoarded || state.docked) throw Error(`E should disembark the miner at the pad: ${JSON.stringify(state)}`);
+  await page.waitForFunction(() => document.querySelector('#control-e')?.textContent?.trim() === 'BOARD MOTHERSHIP');
+  if (await page.locator('#control-e').innerText() !== 'BOARD MOTHERSHIP')
+    throw Error('The footer should point back to boarding when the miner stands beside the landed ship');
+  await page.keyboard.press('e');
+  state = await page.evaluate(() => window.__mars);
+  if (!state.mothershipBoarded || !state.docked) throw Error(`E should board the mothership at the pad: ${JSON.stringify(state)}`);
+
+  await page.keyboard.down('w');
+  try {
+    await page.waitForFunction(() => window.__mars?.inOrbit && window.__mars?.orbitalOverviewActive, {}, { timeout: 30000 });
+  } finally { await page.keyboard.up('w'); }
   await page.locator('#orbit-worlds').click();
-  for (const id of ['mars-frontier', 'hull-graveyard', 'prism-fault']) {
-    if (await page.locator(`#map-${id}`).isDisabled()) throw Error(`Recovered parts did not unlock ${id}`);
-  }
+  if (!(await page.locator('#map-hull-graveyard').isEnabled()) || !(await page.locator('#map-cinder-vale').isEnabled()) ||
+      await page.locator('#map-vesper-9').isEnabled())
+    throw Error('The five known worlds should be available after the first core, while Vesper-9 stays chapter-locked');
   await page.locator('#map-hull-graveyard').click();
-  const traveled = await page.evaluate(() => window.__mars);
-  if (traveled.mapId !== 'hull-graveyard' || traveled.money !== 0 || traveled.shipComponents.length !== 4)
-    throw Error(`Travel after automatic ship assembly failed: ${JSON.stringify(traveled)}`);
-  if (traveled.hull !== 100 || traveled.y > -21.9 || await page.locator('#orbit-worlds').isVisible())
-    throw Error(`Arrival should be a safe surface landing, ready to explore: ${JSON.stringify(traveled)}`);
+  state = await page.evaluate(() => window.__mars);
+  if (state.mapId !== 'hull-graveyard' || state.coreFuel !== 3 || !state.mothershipBoarded || !state.docked || state.fuel !== startingFuel)
+    throw Error(`A jump should spend one core-fuel unit, arrive at the new pad, and preserve local fuel: ${JSON.stringify(state)}`);
+
   await page.reload();
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
   const restored = await page.evaluate(() => window.__mars);
-  if (restored.mapId !== 'hull-graveyard' || restored.shipComponents.length !== 4 || restored.money !== 0)
-    throw Error('Ship parts and destination did not survive reload');
-  await page.screenshot({ path: 'output/playwright/ship-parts-auto-travel.png' });
-
-  // Reload at the far-side orbit to verify the same world selector and outward thrust there.
-  const farOrbitY = chart.radiusRows * 40 * 2 + Math.max(900, Math.round(chart.radiusRows * 40 * 0.72));
-  save.maps['cryo-shelf'].y = farOrbitY;
-  const farContext = await page.context().browser().newContext(),
-    farPage = await farContext.newPage(), baseURL = new URL(page.url()).origin;
-  await farPage.goto(baseURL);
-  await farPage.getByRole('button', { name: /BEGIN EXPEDITION|CONTINUE EXPEDITION/ }).waitFor();
-  await farPage.evaluate(data => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), save);
-  await farPage.reload();
-  await farPage.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  await farPage.waitForFunction(() => window.__mars?.inOrbit && window.__mars?.orbitalOverviewActive);
-  if (!(await farPage.locator('#orbit-worlds').isVisible()) ||
-      (await farPage.locator('#low-warning').innerText()).includes('FAST DESCENT'))
-    throw Error('Far-side orbit should expose Worlds without a false fast-descent warning');
-  const farBefore = await farPage.evaluate(() => window.__mars.y);
-  let farDeparture;
-  await farPage.keyboard.down('w');
-  try {
-    await farPage.waitForFunction((y) => window.__mars?.y > y, farBefore, { timeout: 5000 });
-    farDeparture = await farPage.evaluate(() => window.__mars.y);
-    if (!(await farPage.locator('#orbit-worlds').isVisible()))
-      throw Error('World selector should remain available while leaving far-side orbit');
-  } finally {
-    await farPage.keyboard.up('w');
-  }
-  const farAfter = await farPage.evaluate(() => window.__mars);
-  return { shipComponents: restored.shipComponents, money: restored.money, mapId: restored.mapId,
-    farOrbit: { before: farBefore, departing: farDeparture, parked: farAfter.y, worldsVisible: true,
-      warning: await farPage.locator('#low-warning').innerText() } };
+  if (restored.mapId !== 'hull-graveyard' || restored.coreFuel !== 3 || !restored.mothershipBoarded || !restored.docked)
+    throw Error(`Destination, core fuel, and boarding state should survive reload: ${JSON.stringify(restored)}`);
+  await page.screenshot({ path: 'output/playwright/mothership-arrival.png' });
+  return { destination: restored.mapId, remainingCoreFuel: restored.coreFuel, minerFuel: restored.fuel, boarded: restored.mothershipBoarded };
 };

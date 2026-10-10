@@ -7,10 +7,10 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
   exportControl: string, saveStatus: string) {
   const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
   const objective = !p.shipComplete
-    ? { title: 'Find the four ship parts', text: 'Drill the glowing parts in the Cryo Shelf. Each installs automatically.', done: p.shipComponents.length, total: 4, unit: 'parts recovered' }
-    : cores < 4
-      ? { title: 'Reach the planetary cores', text: 'Recover a sealed core record from each destination.', done: cores, total: 4, unit: 'core records' }
-      : { title: 'The planetary ledger is complete', text: 'Keep exploring. There are still tunnels to make your own.', done: 4, total: 4, unit: 'core records' };
+    ? { title: 'Mine a planetary core', text: 'The core unlocks mothership flight and adds interplanetary fuel. Local miner fuel is separate.', done: 0, total: 1, unit: 'core recovered' }
+      : cores < 5
+      ? { title: 'Reach the planetary cores', text: `Recover cores to replenish core fuel. ${p.coreFuel} interplanetary jumps remain; local pod fuel is separate.`, done: cores, total: 5, unit: 'core records' }
+      : { title: 'Chart the final world', text: 'Five planetary cores have revealed Vesper-9. Recover its Return Bloom.', done: cores, total: 6, unit: 'core records' };
   const readout = (name: string, value: string, ratio: number) => `<div><dt>${name}</dt><dd>${value}</dd><i aria-hidden="true"><b style="width:${Math.max(0, Math.min(100, ratio * 100))}%"></b></i></div>`;
   return `<section class="modal pause-screen" role="dialog" aria-modal="true" aria-label="EXPEDITION PAUSED">
     <button class="close" id="close" aria-label="Close panel">×</button>
@@ -36,7 +36,8 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
         ${readout('Hull', `${Math.ceil(p.hull / p.max('hull') * 100)}<small>%</small>`, p.hull / p.max('hull'))}
         ${readout('Cargo', `${p.count}<small> / ${p.max('cargo')}</small>`, p.count / p.max('cargo'))}
       </dl>
-      <div class="pause-objective"><span>THE FARADAY EXPEDITION</span><h3>${objective.title}</h3><p>${objective.text}</p><div class="pause-progress" aria-hidden="true">${Array.from({ length: objective.total }, (_, i) => `<i class="${i < objective.done ? 'complete' : ''}"></i>`).join('')}</div><small>${objective.done} / ${objective.total} ${objective.unit}</small></div>
+      <div class="pause-objective"><span>THE mothership EXPEDITION</span><h3>${objective.title}</h3><p>${objective.text}</p><div class="pause-progress" aria-hidden="true">${Array.from({ length: objective.total }, (_, i) => `<i class="${i < objective.done ? 'complete' : ''}"></i>`).join('')}</div><small>${objective.done} / ${objective.total} ${objective.unit}</small></div>
+      <div class="pause-credit"><span>Core fuel · interplanetary jumps</span><b>${p.coreFuel}</b></div>
       <div class="pause-credit"><span>Banked credits</span><b>$${p.money.toLocaleString()}</b></div>
     </aside>
   </section>`;

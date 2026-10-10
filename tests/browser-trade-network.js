@@ -30,7 +30,7 @@ async (page) => {
   await page.keyboard.press('Enter');
   saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
   const habitats = saved.maps['cryo-shelf'].structures.filter((item) => item.kind === 'habitat');
-  if (habitats.length !== 1 || saved.money !== 4100 || saved.version !== 24)
+  if (habitats.length !== 1 || saved.money !== 4100 || saved.version !== 26)
     throw Error(`Building should spend once and persist a habitat: ${JSON.stringify({ habitats, version: saved.version, money: saved.money })}`);
   saved.maps['cryo-shelf'].x = habitats[0].x - 140;
   habitats[0].integrity = 1;
@@ -76,7 +76,7 @@ async (page) => {
   await page.keyboard.press('Enter');
   saved = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));
   const localPosts = saved.maps['cryo-shelf'].structures.filter((item) => item.kind === 'trade-post');
-  if (localPosts.length !== 1 || saved.version !== 24 || saved.money !== 2820)
+  if (localPosts.length !== 1 || saved.version !== 26 || saved.money !== 2820)
     throw Error(`Building should spend once and persist a local post: ${JSON.stringify({ localPosts, version: saved.version, money: saved.money })}`);
   saved.maps['cryo-shelf'].x = localPosts[0].x + 100;
   saved.maps['cryo-shelf'].y = -22;
@@ -185,14 +185,15 @@ async (page) => {
     warehouse: { copper: 0, iron: 0, silver: 2, gold: 0, diamond: 0 },
     planetChart: { radiusRows: 150, columns: Math.round(Math.PI * 150) },
   };
+  relaySave.activeMap = 'prism-fault';
   relaySave.milestones = [...new Set([...relaySave.milestones, 'project-relay-cryo', 'project-relay-hull'])];
   const relayStartMoney = relaySave.money;
   await page.evaluate((save) => localStorage.setItem('mars-miner.v1', JSON.stringify(save)), relaySave);
   await page.reload();
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
   await page.locator('#game').click();
-  await page.locator('#open-destinations').click();
-  await page.locator('#map-prism-fault').click();
+  // This fixture opens the target colony directly; interplanetary travel itself
+  // is covered by browser-shipyard-build-travel with the current orbit/boarding flow.
   await page.locator('#game').click();
   await page.keyboard.press('e');
   const projectPanel = page.locator('#modal-layer');
@@ -264,7 +265,7 @@ async (page) => {
   const surveyPanel = page.locator('#modal-layer');
   await surveyPanel.waitFor();
   if (!(await surveyPanel.innerText()).includes('LONG-RANGE SURVEY ARRAY · 2/3 STAGES') ||
-      !(await surveyPanel.innerText()).includes('LOCK THE FARADAY ARRAY'))
+      !(await surveyPanel.innerText()).includes('POWER THE LONG-RANGE SURVEY ARRAY'))
     throw Error('Survey Array should show the final Vesper-9 warehouse stage');
   await page.locator('#fund-survey').click();
   const surveyComplete = await page.evaluate(() => JSON.parse(localStorage.getItem('mars-miner.v1')));

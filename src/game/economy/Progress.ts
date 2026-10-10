@@ -170,7 +170,7 @@ export class Progress {
       Object.keys(SHIP_COMPONENTS).every((key) => this.shipComponents.includes(key));
   }
   canTravelToPlanet() {
-    return this.coreFuel >= CORE_FUEL.jumpCost;
+    return this.shipComplete && this.coreFuel >= CORE_FUEL.jumpCost;
   }
   spendCoreFuelForJump() {
     if (!this.canTravelToPlanet()) return false;

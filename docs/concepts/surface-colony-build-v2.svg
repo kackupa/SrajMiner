@@ -10,7 +10,7 @@
   </defs>
   <rect width="1600" height="1120" fill="url(#board)"/>
   <text x="46" y="48" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">BUILD A COLONY ON THE GLOBE</text>
-  <text x="47" y="76" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">STARTING WORLD: PERMANENT WRECK · NEW WORLDS: FARADAY LANDS INTACT · BUILD ANYWHERE VALID</text>
+  <text x="47" y="76" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">STARTING WORLD: PERMANENT WRECK · NEW WORLDS: mothership LANDS INTACT · BUILD ANYWHERE VALID</text>
   <path d="M46 97H1554" stroke="#465751"/>
 
   <!-- Surface placement is freeform along the circular crust, not a row of fixed towns. -->
@@ -52,7 +52,7 @@
   <text x="690" y="253" fill="#9db0a4" font-family="monospace" font-size="11">• Pack buildings closely; leave room to walk and drive.</text>
   <text x="690" y="280" fill="#9db0a4" font-family="monospace" font-size="11">• Build sites are freeform; defenses only cover nearby ground.</text>
   <text x="690" y="307" fill="#9db0a4" font-family="monospace" font-size="11">• The near and far hemispheres use the same placement rules.</text>
-  <text x="690" y="334" fill="#9db0a4" font-family="monospace" font-size="11">• Wreck stays only at home; Faraday lands intact elsewhere.</text>
+  <text x="690" y="334" fill="#9db0a4" font-family="monospace" font-size="11">• Wreck stays only at home; mothership lands intact elsewhere.</text>
   <text x="690" y="361" fill="#9db0a4" font-family="monospace" font-size="11">• Existing credits and ore buy modules; no recipes or new meter.</text>
   <path d="M686 387H1495" stroke="#435551"/>
   <text x="690" y="418" fill="#d1c3a4" font-family="monospace" font-size="10">Start with the ship and free placement. Add attacks after the placement / save loop is stable.</text>
@@ -124,6 +124,6 @@
     <text x="18" y="385" fill="#8be1cf" font-family="monospace" font-size="9">Never allow a raid to soft-lock required upgrades.</text>
   </g>
   <path d="M47 1047H1553" stroke="#465751"/>
-  <text x="49" y="1073" fill="#d7caa9" font-family="monospace" font-size="10" letter-spacing="1">PHASES: STARTER WRECK → BUILD FARADAY → LAND &amp; TRADE ON NEW WORLDS → BUILD / DEFEND → UNDERGROUND CITIES (LATER).</text>
+  <text x="49" y="1073" fill="#d7caa9" font-family="monospace" font-size="10" letter-spacing="1">PHASES: STARTER WRECK → BUILD mothership → LAND &amp; TRADE ON NEW WORLDS → BUILD / DEFEND → UNDERGROUND CITIES (LATER).</text>
   <text x="49" y="1096" fill="#879a8e" font-family="monospace" font-size="10">Charge is the existing fuel resource under a new name. Keep it the only energy / survival meter.</text>
 </svg>

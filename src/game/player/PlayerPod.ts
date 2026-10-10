@@ -5,7 +5,7 @@ import { crossedStructureDeck, type UndergroundStructure } from '../building/Und
 import { Progress } from '../economy/Progress';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartCellCorners, planetChartToCartesian, planetTangentVelocityLimit, wrapPlanetSeam } from '../world/PlanetChart';
 import { planetCameraFrameAngle, screenDirectionToWorld } from '../world/Projection';
-export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean };
+export type Controls = { left: boolean; right: boolean; down: boolean; up: boolean; releaseGrapple?: boolean; stasis?: boolean; reel?: boolean; winchTarget?: { x: number; y: number }; escapePack?: boolean; mothership?: boolean };
 export type GrappleAnchor = { x: number; y: number };
 export function findGrappleAnchor(world: TileWorld, x: number, y: number, reach: number, gravitySign = 1): GrappleAnchor | undefined {
     const tx = Math.floor(x / WORLD.tile), ty = Math.floor(y / WORLD.tile), cells = Math.ceil(reach / WORLD.tile);
@@ -228,7 +228,7 @@ export class PlayerPod {
     this.grappleCooldown = Math.max(0, this.grappleCooldown - dt);
     if (this.grappleAnchor) {
       this.grappleHang = Math.max(0, this.grappleHang - dt);
-      if (input.up || this.grappleHang <= 0) this.grappleAnchor = undefined;
+      if (input.up || input.releaseGrapple || this.grappleHang <= 0) this.grappleAnchor = undefined;
       else {
         this.vx = this.vy = 0;
         this.thrusting = this.reeling = this.stasisActive = false;
@@ -264,7 +264,7 @@ export class PlayerPod {
     const escapePack = !!input.escapePack;
     this.stasisActive = requestStasis;
     this.reeling = requestWinch;
-    this.thrusting = (input.up || requestWinch) && (p.fuel > 0 || escapePack) && !this.stasisActive;
+    this.thrusting = (input.up || requestWinch) && (p.fuel > 0 || escapePack || !!input.mothership) && !this.stasisActive;
     if (screenDir) this.facing = screenDir;
     // Center a vertical cut gently, so landing near a grid edge does not drill two shafts.
     if (input.down && !screenDir && this.vy * gravitySign >= 0) {
@@ -297,7 +297,7 @@ export class PlayerPod {
       coreTransit = !!this.world.planetChart && Math.abs(this.y - this.world.coreWorldY) <= CORE_CROSSING_CLEARANCE,
       maxOutward = coreTransit ? Math.max(maxRise, P.fall) : maxRise;
     this.vy = gravitySign > 0 ? Math.max(-maxOutward, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxOutward, this.vy));
-    if (p.grappleOwned && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
+    if (p.grappleOwned && !input.mothership && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !input.releaseGrapple && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
       const anchor = findGrappleAnchor(this.world, this.x, this.y, value(p.levels, 'grapple'), gravitySign);
       if (anchor) {
         this.grappleAnchor = anchor;
@@ -308,7 +308,7 @@ export class PlayerPod {
         return;
       }
     }
-    p.fuel = Math.max(
+    if (!input.mothership) p.fuel = Math.max(
       0,
       p.fuel - (escapePack ? 0 : dt * ((dir || input.down ? FUEL.moving : 0) + (this.thrusting ? FUEL.thrust * (this.reeling ? RETURN_WINCH.fuelMultiplier : 1) : 0) + (this.stasisActive ? STASIS_MODULE.fuelPerSecond : 0))),
     );

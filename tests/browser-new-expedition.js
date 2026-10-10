@@ -1,62 +1,38 @@
+// Fresh-start UI: deployment, first-core goal, and pre-core travel lock.
 async (page) => {
-  await page.getByRole('button', { name: /BEGIN EXPEDITION/ }).click();
-  const previousSeed = await page.evaluate(() => window.__mars.seed);
-  await page.locator('#pause').click();
-  await page.locator('#new').click();
-  await page.locator('#confirm-new').click();
-  await page.getByRole('button', { name: /BEGIN EXPEDITION/ }).waitFor();
+  const intro = page.locator('.intro');
+  await intro.waitFor();
+  const opening = await intro.innerText();
+  if (!opening.includes('THE MOTHERSHIP') || !opening.includes('Drive out') || !opening.includes('planetary core'))
+    throw Error(`Fresh start should introduce the mothership and core-fuel goal: ${opening}`);
 
+  await page.locator('#intro-atlas').click();
   const atlas = page.getByRole('region', { name: 'Vesper system route map' });
-  const atlasWorlds = await atlas.getByRole('button').count();
-  const cryo = atlas.getByRole('button', { name: /CRYO SHELF.*RECOMMENDED/ });
-  const mars = atlas.getByRole('button', { name: /MARS FRONTIER.*SHIP REQUIRED/ });
-  if (atlasWorlds !== 6) throw Error('Opening system map should show five known worlds and the hidden Vesper-9 chapter');
-  if (await cryo.getAttribute('aria-pressed') !== 'true') throw Error('Cryo Shelf should be the first deployment');
-  if (!(await page.locator('#atlas-copy').textContent())?.includes('480 m-deep'))
-    throw Error('The recommended start should explain its shorter core depth');
-  await mars.click();
-  if (await mars.getAttribute('aria-pressed') !== 'true' || !(await page.locator('#atlas-copy').textContent())?.includes('rust-red'))
-    throw Error('Selecting Mars should preview its world dossier without unlocking travel');
-  await cryo.click();
-  if (await cryo.getAttribute('aria-pressed') !== 'true') throw Error('Starting world preview should return to Cryo Shelf');
-  const goal = await atlas.locator('.atlas-goal').innerText();
-  if (!goal.includes('FIND 4 SHIP PARTS') || !goal.includes('TRAVEL THE SYSTEM') || !goal.includes('LOG 5 CORES') || !goal.includes('FIND VESPER-9'))
-    throw Error(`Opening map should explain the campaign goal: ${goal}`);
-  const cinder = atlas.getByRole('button', { name: /CINDER VALE.*SHIP REQUIRED/ });
-  await cinder.click();
-  if (!(await page.locator('#atlas-copy').textContent())?.includes('one key in the route home'))
-    throw Error('Cinder Vale dossier should explain its late-game story role');
-  const vesper = atlas.getByRole('button', { name: /VESPER-9.*5 CORE RECORDS REQUIRED/ });
-  await vesper.click();
-  if (!(await page.locator('#atlas-copy').textContent())?.includes('five known planetary cores'))
-    throw Error('Vesper-9 dossier should explain its core-ledger unlock');
-  await page.screenshot({ path: 'output/playwright/vesper-start-map.png' });
-  await page.setViewportSize({ width: 800, height: 600 });
-  const introBounds = await page.locator('.intro').evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return { top: rect.top, bottom: rect.bottom, height: rect.height, scrollHeight: element.scrollHeight };
-  });
-  const launchBounds = await page.locator('#launch').evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    return { top: rect.top, bottom: rect.bottom };
-  });
-  if (launchBounds.bottom > introBounds.bottom + 1 || launchBounds.top < introBounds.top || launchBounds.bottom > 600)
-    throw Error(`Compact briefing should keep Begin Expedition visible inside its panel: ${JSON.stringify({ introBounds, launchBounds })}`);
-  await page.screenshot({ path: 'output/playwright/vesper-start-map-800x600.png' });
-  await page.getByRole('button', { name: /BEGIN EXPEDITION/ }).click();
+  if (await atlas.getByRole('button').count() !== 6) throw Error('The system atlas should show five known worlds and the hidden chapter');
+  const atlasText = await atlas.innerText();
+  if (!atlasText.includes('CRYO SHELF') || !atlasText.includes('RECOMMENDED · 480 M DEEP') || !atlasText.includes('5 CORE RECORDS REQUIRED'))
+    throw Error(`The start atlas should recommend the compact first world and explain the chapter gate: ${atlasText}`);
+  await page.screenshot({ path: 'output/playwright/core-fuel-start-atlas.png' });
+  await page.locator('#intro-back').click();
+
+  await page.locator('#launch').click();
+  await page.waitForFunction(() => !!window.__mars && !document.querySelector('.intro'), {}, { timeout: 10000 });
   const fresh = await page.evaluate(() => window.__mars);
-  if (fresh.seed === previousSeed || fresh.money !== 80 || fresh.destroyed.length || fresh.levels.drill !== 1 || fresh.mapId !== 'cryo-shelf')
-    throw Error(`New expedition should start a clean Cryo campaign after preview: ${JSON.stringify(fresh)}`);
+  if (fresh.mapId !== 'cryo-shelf' || fresh.money !== 80 || fresh.shipComplete || fresh.coreFuel !== 0 || fresh.mothershipBoarded)
+    throw Error(`A clean Cryo deployment should begin before core recovery: ${JSON.stringify(fresh)}`);
+
   await page.locator('#open-shipyard').click();
-  const shipyard = await page.locator('#modal-layer').innerText();
-  if (!shipyard.includes('installs automatically') || !shipyard.includes('shipyard purchase needed') || !shipyard.includes('$200 for gear'))
-    throw Error(`Shipyard should explain automatic, free part installation: ${shipyard}`);
-  for (const landmark of ['THERMAL OBSERVATORY', 'BASALT ENGINE HALL', 'ARK SIGNAL GALLERY', 'FARADAY BEACON VAULT']) {
-    if (!shipyard.includes(landmark)) throw Error(`Ship parts list should point to ${landmark}: ${shipyard}`);
-  }
-  if ((shipyard.match(/FIND PART/g) ?? []).length !== 4)
-    throw Error(`Fresh ship parts list should show four locations to find: ${shipyard}`);
-  await page.screenshot({ path: 'output/playwright/shipyard-parts-list.png' });
-  return { seed: fresh.seed, money: fresh.money, docked: fresh.docked, tiles: fresh.destroyed.length,
-    atlasWorlds, goal, compactIntro: introBounds, compactLaunch: launchBounds, shipPartsToFind: 4 };
-}
+  const drive = await page.locator('#modal-layer').innerText();
+  if (!drive.includes('Mine this planet’s core') || !drive.includes('separate from the miner'))
+    throw Error(`Core drive panel should explain the first core and separate fuel pools: ${drive}`);
+  await page.locator('#close').click();
+  await page.locator('#open-destinations').click();
+  if (await page.locator('#map-mars-frontier').isEnabled() || await page.locator('#map-hull-graveyard').isEnabled() ||
+      await page.locator('#map-vesper-9').isEnabled())
+    throw Error('Interplanetary destinations must remain locked before the first core');
+  const board = await page.locator('#modal-layer').innerText();
+  if (!board.includes('5 CORES REQUIRED') || !board.includes('CORE FUEL'))
+    throw Error(`Destination board should explain jump fuel and the hidden-world gate: ${board}`);
+  await page.screenshot({ path: 'output/playwright/core-fuel-destination-gate.png' });
+  return { mapId: fresh.mapId, firstGoal: 'mine the Cryo core', coreFuel: fresh.coreFuel, interplanetaryTravelLocked: true };
+};
