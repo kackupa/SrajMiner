@@ -1164,6 +1164,20 @@ test('core halo aim reaches independent rock targets through the full 360 degree
       'the drilled tile must remain inside the temporary core reach');
   }
 });
+test('core halo ray resolves ore cells narrower than the old 3-pixel aim steps', () => {
+  const chart = STARTER_PLANET_CHART,
+    center = planetChartToCartesian({ u: WORLD.homeColumn, v: chart.radiusRows }, chart.columns, chart.radiusRows, WORLD.tile),
+    targetX = WORLD.homeColumn + 5, targetY = chart.radiusRows - 2,
+    targetPoint = planetChartToCartesian({ u: targetX + 0.5, v: targetY + 0.5 }, chart.columns, chart.radiusRows, WORLD.tile),
+    destroyed = [] as string[];
+  for (let y = 0; y < chart.radiusRows * 2; y++)
+    for (let x = 0; x < chart.columns; x++)
+      if (x !== targetX || y !== targetY) destroyed.push(keyOf(x, y));
+  const world = new TileWorld(721, destroyed, [], 'cryo-shelf', chart), target = world.get(targetX, targetY);
+  target.type = 'rock';
+  const found = aimedDrillTarget(world, center.x, center.y, targetPoint.x, targetPoint.y, CORE.drillAssistReach);
+  assert.equal(found, target, 'the sub-pixel polar ore cell remains selectable along a precise core ray');
+});
 function sim(pod: PlayerPod, seconds: number, input: Controls, mining?: MiningSystem) {
   let damage = 0;
   for (let i = 0; i < seconds * 120; i++) {
