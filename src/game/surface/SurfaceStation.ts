@@ -3,7 +3,7 @@ export const STATIONS = [
   { x: 980, name: 'SERVICE BAY', label: '02 / SERVICE', color: 0x91c8bb, width: 144 },
   { x: 1250, name: 'POD WORKSHOP', label: '03 / UPGRADE', color: 0xc5b8d5, width: 124 },
 ];
-import { farSurfaceYFor } from '../config';
+import { WORLD, farSurfaceYFor } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 export const TOWN_TIER_HEIGHTS = [158, 252, 346, 440, 552] as const;
 export const MAX_TOWN_ALTITUDE = TOWN_TIER_HEIGHTS[4] + 100;
@@ -18,6 +18,12 @@ export function surfaceTownTier(shipComponents: readonly string[], coreRecords: 
 export const atSurface = (x: number, y: number, chart?: PlanetChartSize) => {
   const farY = farSurfaceYFor(chart);
   return (y < 0 && y > -650 || y >= farY && y <= farY + 650) && x > 560 && x < 1410;
+};
+/** True while on the exposed crust anywhere around a charted globe. Legacy maps keep their authored Hab 07 yard. */
+export const onPlanetSurface = (x: number, y: number, chart?: PlanetChartSize) => {
+  if (!chart) return atSurface(x, y);
+  const farY = farSurfaceYFor(chart), circumference = chart.columns * WORLD.tile;
+  return x >= 0 && x < circumference && (y < 0 && y > -650 || y >= farY && y <= farY + 650);
 };
 export const dockedOnSurface = (x: number, y: number, chart?: PlanetChartSize) => {
   const farY = farSurfaceYFor(chart);

@@ -1,6 +1,6 @@
 # Miner visual progression roadmap
 
-This is an original concept sheet for the current geometric Phaser miner, not a replacement sprite or a promise to expand its collision body. It turns the existing five drill hardware tiers into a coherent silhouette progression. The drill is the clearest earned upgrade; the cabin remains readable, the chassis grows modestly, and the pilot stays visible. Optional paint, suit, decal, and profile choices remain separate from upgrade identity.
+The miner should visibly grow from a small, bare starter pod into a larger, more advanced machine as upgrades are purchased. [The upgrade visual map](miner-upgrade-visual-map.svg) now maps every existing upgrade level and purchased equipment to a specific visible part. Three broader base identities remain available in [the character directions study](miner-character-directions-v1.svg); whichever identity is chosen, it follows the same upgrade language. These are original design studies, not replacement sprites or a promise to expand the miner's collision body.
 
 ![Original five-tier miner concept sheet](miner-tier-sheet.svg)
 
@@ -11,6 +11,20 @@ This is an original concept sheet for the current geometric Phaser miner, not a 
 | 3 | Resonance Lance | Coil collar around the drill rail | Matching-color pulse rings at breakthrough |
 | 4 | Survey Bore | Braced nose and stabilizer struts | Brace settles on impact; controlled recoil |
 | 5 | Laser Miner | Long emitter, heat fins, mint cutting channel | Heat rises during a sustained cut, then a brief visible vent |
+
+## Appearance changes for all current upgrades
+
+| Existing upgrade | Visible progression |
+|---|---|
+| Drill, levels 1–5 | Contact bit → longer auger rails → resonance collar → stabilizer frame → laser emitter and heat fins. Every tier changes the nose silhouette. |
+| Cargo bay, levels 1–5 | Flush starter compartment → small side bins → paired bins → broad ribbed ore cassette with loading lights. This is the main source of width/rear-mass growth. |
+| Fuel tank, levels 1–5 | Single compact canister → larger banded canister → paired tanks with visible valve collars. Keep it visually distinct from cargo. |
+| Hull, levels 1–5 | Add layered shell plates, reinforced corners, and more substantial landing skids. Decoration must remain within the same collision capsule. |
+| Engine, levels 1–5 | Small exhausts become twin vector-nozzle housings with brighter cores; thrust animation scales with engine level. |
+| Survey scanner, levels 1–5 | Roof antenna → paired sensor fins → compact dish/mast; use a short visible sweep during a scan. |
+| Auto grapple, levels 1–5 | Add hook sockets, then paired launcher housings and larger cable drums to show range/cooldown improvements. Hook animates only when catching. |
+
+Purchased equipment also attaches visibly: salvage magnet gets pickup coils; stasis gets a belly stabilizer ring; Surface Winch gets a top spool and visible cable when reeling; the escape suit gets a side-mounted pack that leaves with the pilot on ejection. Charge packs remain carried inventory and need not permanently enlarge the pod. Cosmetic paint, decals, and silhouette profile stay distinct from earned hardware. Pilot specialization is a selected performance path; any visual cue should be a small swappable label/light, not a different chassis.
 
 ## Shared parts and animation states
 
@@ -28,4 +42,4 @@ Use a small set of shared poses rather than a bespoke animation per tier: idle b
 
 The current game draws the miner with Phaser Graphics in `MiningScene`; this sheet is a design reference only. Implement later as functions/data for chassis modules and drill modules, with color/material inputs from the equipped cosmetics. Keep progression modules mechanically distinct from cosmetic finishes. Validate every tier at the starter and maximum visual scales, aim in all directions, both gravity hemispheres, docking, and terrain contact. Browser review should check target readability at normal play zoom and orbital zoom before the sheet is treated as approved art.
 
-Current implementation already covers the tier names, modest pod growth, 360-degree drill pivot, hardware cues, breakthrough effects, and tier-five heat/vent behavior. Remaining design work is human review of silhouette readability and this concept direction before any replacement art or animation expansion.
+Current implementation covers drill tiers, modest pod growth, a 360-degree drill pivot, hardware cues for all seven purchased upgrade tracks, optional installed equipment, breakthrough effects, and tier-five heat/vent behavior. Drill and cargo levels account for pod growth; fuel, hull, engine, scanner, and grapple levels add separate art parts without changing the collision footprint. The three base identities remain art directions, and browser/human review at varied zoom and depth is still needed before treating the silhouettes as final.

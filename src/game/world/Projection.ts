@@ -2,6 +2,8 @@ import { planetChartToCartesian, type PlanetChartSize } from './PlanetChart';
 
 export type ScreenPoint = { x: number; y: number };
 export type Direction = { x: number; y: number };
+export const GLOBE_HANDOFF_ZOOM = 0.62;
+export const ORBITAL_TRANSITION_SECONDS = 0.38;
 
 /** Smallest gameplay zoom that fits the whole planet in a HUD-safe viewport. */
 export function orbitalOverviewMinZoom(width: number, height: number, planetRadius: number): number {
@@ -9,6 +11,14 @@ export function orbitalOverviewMinZoom(width: number, height: number, planetRadi
     throw new RangeError('Orbital overview dimensions and radius must be finite and positive');
   const safeDiameter = Math.min(width * 0.28, height * 0.6);
   return Math.min(1.8, safeDiameter / (planetRadius * 2));
+}
+
+/** Advance the short, explicit handoff between a fully zoomed-out local view and the globe view. */
+export function advanceOrbitalTransition(progress: number, dt: number, showGlobe: boolean, reducedMotion = false): number {
+  if (reducedMotion) return showGlobe ? 1 : 0;
+  if (!Number.isFinite(progress) || !Number.isFinite(dt) || dt < 0) throw new RangeError('Invalid orbital transition state');
+  const step = dt / ORBITAL_TRANSITION_SECONDS;
+  return Math.max(0, Math.min(1, progress + (showGlobe ? step : -step)));
 }
 
 /** Camera rotation that keeps local outward (the miner's up) at screen-up on a round world. */

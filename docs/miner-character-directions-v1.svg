@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1500 920" role="img" aria-labelledby="title desc">
+  <title id="title">Three new visual directions for the Cold Signal miner</title>
+  <desc id="desc">A comparison sheet of three original miner silhouettes: a salvage diver, a cage runner, and a deep-core beetle. All keep the same pilot scale, drill direction, and gameplay footprint.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#17242a"/><stop offset="1" stop-color="#0b1217"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#9fb4a8" stroke-opacity=".06"/></pattern>
+    <linearGradient id="amber" x2="0" y2="1"><stop stop-color="#efc98c"/><stop offset="1" stop-color="#aa8053"/></linearGradient>
+    <linearGradient id="teal" x2="0" y2="1"><stop stop-color="#9fe5d4"/><stop offset="1" stop-color="#397b78"/></linearGradient>
+    <g id="pilot"><circle r="11" fill="#c98768" stroke="#eed8b8" stroke-width="2"/><path d="M-7-2q7-9 14 0v5H-7z" fill="#173238" stroke="#8fe5d0" stroke-width="1.5"/><path d="M2-2h4" stroke="#f7dfad" stroke-width="1.5"/></g>
+    <g id="drill"><path d="M0 0L0-76" stroke="#d7c79f" stroke-width="8"/><path d="M-7-48l14 10-14 10 14 10-14 10 14 10" fill="none" stroke="#f1cb83" stroke-width="3"/><path d="M0-84l-11 12h22z" fill="#8ee4d1" stroke="#d6f4e8" stroke-width="2"/></g>
+  </defs>
+  <rect width="1500" height="920" fill="url(#bg)"/><rect width="1500" height="920" fill="url(#grid)"/>
+  <text x="54" y="62" fill="#f0d5a6" font-family="monospace" font-size="14" letter-spacing="5">COLD SIGNAL / CHARACTER DESIGN STUDY 01</text>
+  <text x="54" y="121" fill="#edf3e8" font-family="Arial,sans-serif" font-size="42" font-weight="700">Three miners. Three very different silhouettes.</text>
+  <text x="55" y="157" fill="#9eafa8" font-family="monospace" font-size="13" letter-spacing="1">NEW CHARACTER READ · SAME GAMEPLAY SCALE · DRILL ALWAYS POINTS TOWARD AIM</text>
+  <g fill="#10191e" stroke="#52665f">
+    <rect x="48" y="190" width="448" height="620" rx="4"/><rect x="526" y="190" width="448" height="620" rx="4"/><rect x="1004" y="190" width="448" height="620" rx="4"/>
+  </g>
+  <g font-family="monospace" letter-spacing="2">
+    <text x="76" y="230" fill="#e8c68b" font-size="12">A / SALVAGE DIVER</text>
+    <text x="554" y="230" fill="#e8c68b" font-size="12">B / CAGE RUNNER</text>
+    <text x="1032" y="230" fill="#e8c68b" font-size="12">C / DEEP-CORE BEETLE</text>
+  </g>
+  <!-- Salvage Diver: visible life-support pack, suspended cockpit and articulated mining nose. -->
+  <g transform="translate(272 465)" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="0" cy="7" rx="119" ry="143" fill="#071014" opacity=".7"/>
+    <path d="M-73-51l-31-25v-31l34 8 15 34M73-51l31-25v-31l-34 8-15 34" fill="#34494a" stroke="#82938a" stroke-width="4"/>
+    <path d="M-91 61l-32 47 24 16 44-42M91 61l32 47-24 16-44-42" fill="#796e5a" stroke="#c1aa7e" stroke-width="4"/>
+    <path d="M-54-58q54-38 108 0l-10 102q-44 31-88 0z" fill="#27393b" stroke="#b3b49a" stroke-width="4"/>
+    <path d="M-38-39q38-22 76 0v40q-38 22-76 0z" fill="url(#amber)" stroke="#f0d49e" stroke-width="3"/>
+    <path d="M-27-28q27-15 54 0v22q-27 15-54 0z" fill="url(#teal)" stroke="#b1f0df" stroke-width="2"/>
+    <g transform="translate(0 -17)"><use href="#pilot"/></g>
+    <path d="M-77-19h-19v52h19M77-19h19v52H77" fill="none" stroke="#d4b67d" stroke-width="6"/>
+    <rect x="-104" y="-17" width="27" height="56" rx="8" fill="#465c59" stroke="#a9b29d" stroke-width="3"/>
+    <rect x="77" y="-17" width="27" height="56" rx="8" fill="#465c59" stroke="#a9b29d" stroke-width="3"/>
+    <circle cx="-91" cy="-6" r="5" fill="#8fe5d0"/><circle cx="91" cy="-6" r="5" fill="#eabf78"/>
+    <path d="M-26 48v23h52V48" fill="#263739" stroke="#9aa89a" stroke-width="3"/>
+    <path d="M0 70v37" stroke="#c6ad7d" stroke-width="7"/><path d="M-14 104h28l-14 20z" fill="#e5bd79" stroke="#f4ddaa" stroke-width="2"/>
+    <g transform="translate(0 124) rotate(180) scale(.55)"><use href="#drill"/></g>
+    <text x="0" y="178" text-anchor="middle" fill="#aebbb1" stroke="none" font-family="monospace" font-size="12">POD + RESCUE RIG</text>
+  </g>
+  <!-- Cage Runner: skeletal protective hoop, exposed little pilot and narrow sled body. -->
+  <g transform="translate(750 465)" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="0" cy="7" rx="119" ry="143" fill="#071014" opacity=".7"/>
+    <path d="M-92 59l-37 33 21 23 48-31M92 59l37 33-21 23-48-31" fill="#52605b" stroke="#bac0a7" stroke-width="5"/>
+    <path d="M-74 64L-56-27Q0-66 56-27l18 91M-80-10Q0 22 80-10M-57-48L0 68 57-48" fill="none" stroke="#d4b779" stroke-width="10"/>
+    <path d="M-34-40q34-22 68 0l10 54q-44 30-88 0z" fill="#38494a" stroke="#93a098" stroke-width="3"/>
+    <path d="M-24-24q24-15 48 0v22q-24 15-48 0z" fill="url(#teal)" stroke="#bcf1df" stroke-width="2"/>
+    <g transform="translate(0 -10) scale(.82)"><use href="#pilot"/></g>
+    <path d="M-43 21h86l15 34H-58z" fill="#a27b52" stroke="#ecd09b" stroke-width="3"/>
+    <path d="M0 53v43" stroke="#c6ad7d" stroke-width="7"/><path d="M-14 94h28l-14 22z" fill="#e5bd79" stroke="#f4ddaa" stroke-width="2"/>
+    <g transform="translate(0 116) rotate(180) scale(.55)"><use href="#drill"/></g>
+    <circle cx="-80" cy="-13" r="6" fill="#e9bf79"/><circle cx="80" cy="-13" r="6" fill="#8fe5d0"/>
+    <text x="0" y="178" text-anchor="middle" fill="#aebbb1" stroke="none" font-family="monospace" font-size="12">EXPOSED PILOT + ROLL CAGE</text>
+  </g>
+  <!-- Deep-Core Beetle: broad low armored pod, six articulated legs, central drill. -->
+  <g transform="translate(1228 465)" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="0" cy="7" rx="136" ry="143" fill="#071014" opacity=".7"/>
+    <g fill="none" stroke="#8d9c8f" stroke-width="9">
+      <path d="M-52-28l-91-32-19 18 89 54M52-28l91-32 19 18-89 54M-59 12l-94 7-12 26 103 3M59 12l94 7 12 26-103 3M-45 47l-68 58 10 24 82-61M45 47l68 58-10 24-82-61"/>
+    </g>
+    <g fill="#475552" stroke="#c2b28a" stroke-width="3"><path d="M-172-50l20-18 18 18-13 21z"/><path d="M172-50l-20-18-18 18 13 21z"/><path d="M-165 24l15-15 18 14-9 19z"/><path d="M165 24l-15-15-18 14 9 19z"/><path d="M-113 104l11 21-23 13-16-17z"/><path d="M113 104l-11 21 23 13 16-17z"/></g>
+    <path d="M-87-31q0-42 42-51h90q42 9 42 51v75q-43 47-87 47t-87-47z" fill="#8c7959" stroke="#ddc89d" stroke-width="5"/>
+    <path d="M-49-52q49-27 98 0v38q-49 27-98 0z" fill="#354b4c" stroke="#bbd8c5" stroke-width="3"/>
+    <path d="M-38-44q38-20 76 0v22q-38 20-76 0z" fill="url(#teal)" stroke="#b8f0df" stroke-width="2"/>
+    <g transform="translate(0 -33) scale(.8)"><use href="#pilot"/></g>
+    <path d="M-72 23h144l-12 37H-60z" fill="#374746" stroke="#9da89a" stroke-width="3"/>
+    <path d="M0 60v30" stroke="#c6ad7d" stroke-width="8"/><path d="M-16 87h32l-16 23z" fill="#e5bd79" stroke="#f4ddaa" stroke-width="2"/>
+    <g transform="translate(0 110) rotate(180) scale(.55)"><use href="#drill"/></g>
+    <path d="M-75-7l-20 23M75-7l20 23" stroke="#f0c678" stroke-width="4"/>
+    <circle cx="-99" cy="18" r="5" fill="#8fe5d0"/><circle cx="99" cy="18" r="5" fill="#8fe5d0"/>
+    <text x="0" y="178" text-anchor="middle" fill="#aebbb1" stroke="none" font-family="monospace" font-size="12">LOW ARMOURED CRAWLER</text>
+  </g>
+  <g font-family="Arial,sans-serif" fill="#dce5dc">
+    <text x="76" y="680" font-size="18" font-weight="700">A tender machine</text><text x="76" y="708" font-size="14" fill="#9eafa8">Chunky life-support pack, hanging tool arms,</text><text x="76" y="729" font-size="14" fill="#9eafa8">and a pilot framed like a deep-sea diver.</text>
+    <text x="554" y="680" font-size="18" font-weight="700">A dangerous little vehicle</text><text x="554" y="708" font-size="14" fill="#9eafa8">Minimal shell; a bold roll cage makes the</text><text x="554" y="729" font-size="14" fill="#9eafa8">pilot and improvised machine the focal point.</text>
+    <text x="1032" y="680" font-size="18" font-weight="700">A tunnelling creature</text><text x="1032" y="708" font-size="14" fill="#9eafa8">Wide armored body, articulated legs, and</text><text x="1032" y="729" font-size="14" fill="#9eafa8">the strongest silhouette from a distance.</text>
+  </g>
+  <path d="M76 760H1424" stroke="#465851"/>
+  <text x="76" y="786" fill="#9eafa8" font-family="monospace" font-size="12" letter-spacing="1">SHARED RULES: SAME PILOT SIZE · SAME DRILL AIM POINT · DECORATIVE PARTS STAY INSIDE THE EXISTING COLLISION FOOTPRINT</text>
+  <text x="76" y="835" fill="#e8c68b" font-family="monospace" font-size="12" letter-spacing="1">THIS IS A CHARACTER REDESIGN STUDY, NOT THE FIVE-TIER DRILL UPGRADE SHEET</text>
+</svg>

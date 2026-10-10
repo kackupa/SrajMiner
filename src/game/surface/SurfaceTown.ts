@@ -1,5 +1,5 @@
 import { STATIONS, TOWN_TIER_HEIGHTS } from './SurfaceStation';
-import { WORLD } from '../config';
+import { WORLD, type MapId } from '../config';
 
 /** Draw the Hab and service buildings in tangent/radial coordinates on a globe. */
 export function drawPlanetSurfaceOutpost(
@@ -9,6 +9,7 @@ export function drawPlanetSurfaceOutpost(
   tier: number,
   tick: number,
   reducedMotion: boolean,
+  mapId: MapId = 'cryo-shelf',
 ) {
   const far = surfaceRow > 0;
   // Surface elevations and x positions are already world pixels; only the
@@ -38,6 +39,11 @@ export function drawPlanetSurfaceOutpost(
     poly(points);
   };
   const warm = 0xe8ba79, mint = 0x8be1cf, metal = 0x344443, edge = 0x83958a;
+  const planetAccent = mapId === 'mars-frontier' ? 0xe59b70
+    : mapId === 'cryo-shelf' ? 0x9bd9e2
+      : mapId === 'hull-graveyard' ? 0xb8c8a9
+        : mapId === 'prism-fault' ? 0xc5a7ff
+          : mapId === 'cinder-vale' ? 0xf08a58 : 0xb2e98e;
 
   // A curved bed of regolith ties the buildings to the visible polar surface.
   arcBand(400, 1580, 0, 9, 0x273631, 0.96);
@@ -57,6 +63,66 @@ export function drawPlanetSurfaceOutpost(
       g.fillStyle(window === 0 ? 0xf3d29a : color, window === 0 ? 0.85 : 0.42);
       g.fillRect(p.x - 4, p.y - 5, 8, 10);
     }
+  }
+
+  // A short shared utility trunk visually connects the three service modules.
+  arcBand(777, 903, 9, 6, 0x202c2a, 0.96);
+  g.lineStyle(1.5, 0x8b9b8e, 0.74);
+  line(777, 12, 903, 12);
+  for (const couplerX of [780, 900]) {
+    const coupler = at(couplerX, 12);
+    g.fillStyle(planetAccent, 0.9);
+    g.fillRect(coupler.x - 2, coupler.y - 2, 4, 4);
+  }
+
+  // Large, function-specific shapes make the service choices readable before
+  // the player reaches the labels: ore hopper, open service cradle, drill gantry.
+  const oreStation = STATIONS[0]!;
+  g.fillStyle(0x293532, 1);
+  poly([
+    { x: oreStation.x - 27, height: 57 }, { x: oreStation.x + 27, height: 57 },
+    { x: oreStation.x + 13, height: 69 }, { x: oreStation.x - 13, height: 69 },
+  ]);
+  box(oreStation.x, 18, 54, 5, 0x9b7950);
+  for (const [index, dx] of [-29, -10, 10, 29].entries()) {
+    box(oreStation.x + dx, 10, 11, 13, index % 2 ? 0x697b70 : 0x8a6f50);
+    const binLight = at(oreStation.x + dx, 18);
+    g.fillStyle(index % 2 ? 0x9bd3bc : 0xf0c47f, 0.9);
+    g.fillRect(binLight.x - 3, binLight.y - 1, 6, 2);
+  }
+
+  const serviceStation = STATIONS[1]!;
+  box(serviceStation.x, 38, 13, 34, 0x1c2928);
+  box(serviceStation.x, 28, 17, 24, 0x52675f);
+  box(serviceStation.x, 20, 20, 16, 0x2b403e);
+  g.lineStyle(2, mint, 0.84);
+  line(serviceStation.x - 25, 55, serviceStation.x - 25, 26);
+  line(serviceStation.x + 25, 55, serviceStation.x + 25, 26);
+  line(serviceStation.x - 25, 55, serviceStation.x + 25, 55);
+  for (const dx of [-50, 50]) {
+    box(serviceStation.x + dx, 14, 12, 19, 0x263534);
+    box(serviceStation.x + dx, 10, 14, 15, 0x718b7e);
+    const tankLight = at(serviceStation.x + dx, 29);
+    g.fillStyle(mint, 0.9);
+    g.fillRect(tankLight.x - 3, tankLight.y - 1, 6, 2);
+  }
+
+  const workshop = STATIONS[2]!;
+  g.lineStyle(3, 0x414f4c, 0.98);
+  line(workshop.x - 35, 51, workshop.x - 35, 77);
+  line(workshop.x + 35, 51, workshop.x + 35, 77);
+  line(workshop.x - 35, 77, workshop.x + 35, 77);
+  g.lineStyle(2, planetAccent, 0.9);
+  line(workshop.x, 76, workshop.x, 59);
+  const bit = at(workshop.x, 57);
+  g.fillStyle(0x222f2d, 1);
+  g.fillTriangle(bit.x - 5, bit.y - 3, bit.x + 5, bit.y - 3, bit.x, bit.y + 6);
+  g.fillStyle(planetAccent, 0.92);
+  for (const dx of [-42, 42]) box(workshop.x + dx, 9, 14, 18, 0x7a8c80);
+  for (const drawerY of [19, 26]) {
+    const drawer = at(workshop.x - 42, drawerY);
+    g.fillStyle(0xd0b9d7, 0.92);
+    g.fillRect(drawer.x - 2, drawer.y - 1, 4, 2);
   }
 
   // Launch frame remains a distinct campaign objective at either surface.

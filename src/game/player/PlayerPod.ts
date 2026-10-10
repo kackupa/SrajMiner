@@ -292,7 +292,11 @@ export class PlayerPod {
         if (dir && Math.sign(this.vx) === dir) target = hitsX.find((t) => t.type !== 'boundary');
         if (Math.abs(this.vx) > P.safeImpact)
           onImpact((Math.abs(this.vx) - P.safeImpact) * P.damageScale);
-        this.x =
+        // A charted globe's tile indices are angular/radial coordinates, not
+        // Cartesian collision bounds. Keep the last known-clear position when
+        // the swept step hits a curved cell; snapping to x * tile here can
+        // launch the pod across the chart (or wedge it into unrelated terrain).
+        if (!this.world.planetChart) this.x =
           this.vx > 0
             ? Math.min(...hitsX.map((t) => t.x * WORLD.tile)) - P.halfWidth
             : Math.max(...hitsX.map((t) => (t.x + 1) * WORLD.tile)) + P.halfWidth;
@@ -352,7 +356,9 @@ export class PlayerPod {
         }
         const top = Math.min(...hitsY.map((t) => t.y * WORLD.tile)),
           bottom = Math.max(...hitsY.map((t) => (t.y + 1) * WORLD.tile));
-        this.y = this.vy * stepGravity > 0
+        // As above, polar chart cells curve in Cartesian space. Their row
+        // boundaries cannot be used as player y coordinates.
+        if (!this.world.planetChart) this.y = this.vy * stepGravity > 0
           ? stepGravity > 0 ? top - P.halfHeight : bottom + P.halfHeight
           : stepGravity > 0 ? bottom + P.halfHeight : top - P.halfHeight;
         this.vy = 0;

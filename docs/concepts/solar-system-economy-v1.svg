@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Solar-system economy concept</title>
+  <desc id="desc">A dynamic demand market, planet-specialty contracts, and a shared relay restoration project connect the five colonies and populated hubs through player-built trade posts.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#172326"/><stop offset="1" stop-color="#10191c"/></linearGradient>
+    <linearGradient id="card" x2="0" y2="1"><stop stop-color="#243235"/><stop offset="1" stop-color="#192628"/></linearGradient>
+    <radialGradient id="sun"><stop stop-color="#f2c987"/><stop offset=".5" stop-color="#d58953"/><stop offset="1" stop-color="#805044"/></radialGradient>
+    <g id="planet"><circle r="37" fill="var(--p)" stroke="var(--edge)" stroke-width="3"/><path d="M-31-5q18-13 34 0t30-4M-29 13q18-10 35 2t27-2" fill="none" stroke="var(--land)" stroke-width="4"/><path d="M-22-24q18-10 37 0" fill="none" stroke="#d6c9aa" stroke-width="2" opacity=".7"/></g>
+    <g id="post"><path d="M-13 4v-17l6-7h14l6 7V4z" fill="#344443" stroke="#c1c6ae" stroke-width="1.5"/><path d="M-9-18h18v4H-9z" fill="#9a7558"/><path d="M-6-9h12v9H-6z" fill="#e8ba79"/><path d="M0-20v-8" stroke="#e8ba79" stroke-width="2"/></g>
+    <g id="ore"><path d="M0-10 9-4 6 8-5 9-10 0z" fill="var(--ore)" stroke="#e8ddc3" stroke-width="1.5"/><path d="M0-10 1 0 9-4M1 0-5 9" fill="none" stroke="#fff" stroke-opacity=".5"/></g>
+  </defs>
+  <rect width="1600" height="1120" fill="url(#bg)"/>
+  <text x="46" y="49" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">VESPER SYSTEM · A SMALL, PLAYER-DRIVEN ECONOMY</text>
+  <text x="47" y="78" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">SELL WHERE DEMAND IS HIGH · CONNECTED POSTS EXPAND YOUR BUYER POOL</text>
+  <path d="M46 99H1554" stroke="#465751"/>
+  <!-- network map -->
+  <rect x="48" y="120" width="1504" height="368" rx="5" fill="url(#card)" stroke="#465751"/>
+  <text x="72" y="153" fill="#d7caa9" font-family="monospace" font-size="11" font-weight="bold" letter-spacing="1">SYSTEM MAP · CONNECTED COLONIES 3 / 5 · ROUTES EXTEND AS YOU BUILD</text>
+  <path d="M268 321Q400 202 535 297T810 351T1093 276T1347 336" fill="none" stroke="#b78855" stroke-width="3" stroke-dasharray="7 9" opacity=".75"/>
+  <path d="M268 321Q400 202 535 297T810 351" fill="none" stroke="#f0c78a" stroke-width="5" stroke-dasharray="5 9"/>
+  <circle cx="800" cy="267" r="46" fill="url(#sun)" opacity=".9"/><circle cx="800" cy="267" r="59" fill="none" stroke="#f2c987" stroke-opacity=".15" stroke-width="15"/>
+  <ellipse cx="800" cy="267" rx="120" ry="83" fill="none" stroke="#c5b8d5" stroke-opacity=".35" stroke-width="2" stroke-dasharray="3 6"/>
+  <g transform="translate(692 223)"><rect x="-12" y="-7" width="24" height="14" rx="4" fill="#46505a" stroke="#c5b8d5" stroke-width="2"/><path d="M-22 0h10m24 0h10m-22-14v7m0 14v7" stroke="#c5b8d5" stroke-width="2"/><circle r="3" fill="#e8ba79"/></g>
+  <g transform="translate(908 311)"><rect x="-12" y="-7" width="24" height="14" rx="4" fill="#46505a" stroke="#c5b8d5" stroke-width="2"/><path d="M-22 0h10m24 0h10m-22-14v7m0 14v7" stroke="#c5b8d5" stroke-width="2"/><circle r="3" fill="#e8ba79"/></g>
+  <text x="692" y="198" fill="#c5b8d5" font-family="monospace" font-size="8" text-anchor="middle">VESPER CIVIC RING</text><text x="908" y="343" fill="#c5b8d5" font-family="monospace" font-size="8" text-anchor="middle">ASTERION EXCHANGE</text>
+  <g style="--p:#885844;--edge:#e0a776;--land:#bc8866" transform="translate(268 321)"><use href="#planet"/><g transform="translate(0 -38) scale(.65)"><use href="#post"/></g></g>
+  <g style="--p:#466c78;--edge:#a9d5d5;--land:#82a7ad" transform="translate(535 297)"><use href="#planet"/><g transform="translate(0 -38) scale(.65)"><use href="#post"/></g></g>
+  <g style="--p:#596b63;--edge:#a1b3a2;--land:#8e9a87" transform="translate(810 351)"><use href="#planet"/><g transform="translate(0 -38) scale(.65)"><use href="#post"/></g></g>
+  <g style="--p:#575274;--edge:#b3b1ed;--land:#9185ba" transform="translate(1093 276)"><use href="#planet"/><g transform="translate(0 -38) scale(.65)" opacity=".35"><use href="#post"/></g></g>
+  <g style="--p:#67443e;--edge:#f08a58;--land:#b16a4f" transform="translate(1347 336)"><use href="#planet"/><g transform="translate(0 -38) scale(.65)" opacity=".35"><use href="#post"/></g></g>
+  <g font-family="monospace" font-size="9" text-anchor="middle" font-weight="bold"><text x="268" y="389" fill="#e0a776">MARS FRONTIER</text><text x="268" y="405" fill="#8be1cf">COPPER · STARTER GOODS</text><text x="535" y="365" fill="#a9d5d5">CRYO SHELF</text><text x="535" y="381" fill="#8be1cf">IRON / SILVER · ROUTE PARTS</text><text x="810" y="419" fill="#a1b3a2">HULL GRAVEYARD</text><text x="810" y="435" fill="#8be1cf">IRON · STRUCTURAL SALVAGE</text><text x="1093" y="346" fill="#b3b1ed">PRISM FAULT</text><text x="1093" y="362" fill="#92a69b">SILVER / OPTICS · POST NEEDED</text><text x="1347" y="406" fill="#f08a58">CINDER VALE</text><text x="1347" y="422" fill="#92a69b">HEAT ALLOYS · LATE ROUTE</text></g>
+  <rect x="85" y="447" width="1430" height="26" rx="3" fill="#111b1e"/><text x="102" y="465" fill="#e8ba79" font-family="monospace" font-size="9">ACTIVE ROUTE: MARS → CRYO → HULL · MORE POSTS = MORE BUYERS SHARING YOUR ORE · POPULATED HUBS ADD STRONG DEMAND</text>
+  <!-- market / contract cards -->
+  <g transform="translate(48 512)">
+    <rect width="478" height="391" rx="5" fill="url(#card)" stroke="#465751"/><text x="22" y="34" fill="#e8ddc3" font-family="monospace" font-size="12" font-weight="bold">MARKET · DEMAND BY DESTINATION</text>
+    <text x="22" y="61" fill="#92a69b" font-family="monospace" font-size="9">SELL MORE ORE HERE → THIS MARKET SATURATES</text>
+    <path d="M22 78H456" stroke="#465751"/>
+    <g font-family="monospace" font-size="10"><text x="34" y="111" fill="#b9c3b4">COPPER</text><text x="433" y="111" fill="#e8ba79" text-anchor="end">MARS ×1.0 · CIVIC ×1.4</text><text x="34" y="145" fill="#b9c3b4">IRON</text><text x="433" y="145" fill="#e8ba79" text-anchor="end">HULL ×1.0 · CIVIC ×1.4</text><text x="34" y="179" fill="#b9c3b4">SILVER</text><text x="433" y="179" fill="#e8ba79" text-anchor="end">CRYO ×1.0 · CIVIC ×1.3</text><text x="34" y="213" fill="#b9c3b4">GOLD</text><text x="433" y="213" fill="#e8ba79" text-anchor="end">CINDER ×1.0 · ASTERION ×1.5</text></g>
+    <path d="M22 234H456" stroke="#465751"/>
+    <text x="22" y="265" fill="#8be1cf" font-family="monospace" font-size="10" font-weight="bold">NETWORK = WIDER BUYER POOL</text><text x="22" y="289" fill="#92a69b" font-family="monospace" font-size="9">Connected posts spread this ore across more markets.</text><text x="22" y="310" fill="#92a69b" font-family="monospace" font-size="9">More buyers means each one saturates more slowly.</text>
+    <rect x="22" y="337" width="432" height="36" rx="2" fill="#d9b67f"/><text x="155" y="360" fill="#182326" font-family="monospace" font-size="10" font-weight="bold">SELL SELECTED ORE</text>
+  </g>
+  <g transform="translate(546 512)">
+    <rect width="482" height="391" rx="5" fill="url(#card)" stroke="#465751"/><text x="22" y="34" fill="#e8ddc3" font-family="monospace" font-size="12" font-weight="bold">PLANET CONTRACTS · FIXED REWARDS</text>
+    <text x="22" y="61" fill="#92a69b" font-family="monospace" font-size="9">PICK A JOB · RESERVE ONLY THE LISTED ORE</text>
+    <rect x="18" y="80" width="446" height="119" rx="3" fill="#172326" stroke="#8be1cf"/>
+    <text x="34" y="105" fill="#a1b3a2" font-family="monospace" font-size="9" font-weight="bold">HULL GRAVEYARD · ROUTE ORDER 01</text><text x="34" y="129" fill="#e8ddc3" font-family="monospace" font-size="11" font-weight="bold">STRUCTURAL IRON DELIVERY</text>
+    <text x="34" y="151" fill="#92a69b" font-family="monospace" font-size="9">Deliver 8 iron · route connected</text><text x="34" y="178" fill="#e8ba79" font-family="monospace" font-size="10" font-weight="bold">PAYOUT $300 + 2 COPPER CACHE</text>
+    <rect x="18" y="210" width="446" height="119" rx="3" fill="#172326" stroke="#465751"/>
+    <text x="34" y="235" fill="#a9d5df" font-family="monospace" font-size="9" font-weight="bold">CRYO SHELF · ROUTE ORDER 02</text><text x="34" y="259" fill="#e8ddc3" font-family="monospace" font-size="11" font-weight="bold">STABILIZE THE ICE LANE</text>
+    <text x="34" y="281" fill="#92a69b" font-family="monospace" font-size="9">Deliver 4 copper + 2 silver</text><text x="34" y="308" fill="#e8ba79" font-family="monospace" font-size="10" font-weight="bold">PAYOUT $250 + RELAY KIT</text>
+    <text x="22" y="359" fill="#879a8e" font-family="monospace" font-size="8">Fixed rewards stay predictable while market offers move.</text>
+  </g>
+  <g transform="translate(1048 512)">
+    <rect width="504" height="391" rx="5" fill="url(#card)" stroke="#465751"/><text x="22" y="34" fill="#e8ddc3" font-family="monospace" font-size="12" font-weight="bold">SYSTEM PROJECT · SHARED GOAL</text>
+    <text x="22" y="61" fill="#92a69b" font-family="monospace" font-size="9">RESTORE THE VESPER CARGO RELAY</text>
+    <circle cx="252" cy="164" r="49" fill="#455050" stroke="#e8ba79" stroke-width="3"/><path d="M252 112v-19m-14 19h28m-54 50h80m-64 27h48m-24-76v102" fill="none" stroke="#d7caa9" stroke-width="4"/><circle cx="252" cy="164" r="69" fill="none" stroke="#8be1cf" stroke-width="2" stroke-dasharray="4 6"/>
+    <rect x="22" y="245" width="460" height="25" rx="3" fill="#10191c" stroke="#465751"/><rect x="24" y="247" width="211" height="21" rx="2" fill="#668579"/><text x="36" y="264" fill="#e8ddc3" font-family="monospace" font-size="9" font-weight="bold">46% FUNDED</text>
+    <text x="22" y="298" fill="#92a69b" font-family="monospace" font-size="9">Contribute from banked stock across colonies:</text><text x="22" y="319" fill="#d7caa9" font-family="monospace" font-size="9">12 iron · 6 silver · 4 gold · 3 of 5 worlds linked</text>
+    <text x="22" y="350" fill="#8be1cf" font-family="monospace" font-size="9" font-weight="bold">REWARD: NEW CONTRACTS + SYSTEM MAP RELAY VISUAL</text>
+    <text x="22" y="372" fill="#879a8e" font-family="monospace" font-size="8">Finite, permanent progress · no real-time countdown</text>
+  </g>
+  <rect x="48" y="920" width="1504" height="72" rx="4" fill="#202d2e" stroke="#e8ba79"/>
+  <text x="70" y="949" fill="#e8ba79" font-family="monospace" font-size="11" font-weight="bold">CONNECTED POSTS = MORE BUYERS = SLOWER PRICE DROPS · POSTS ALSO TRICKLE CREDITS INTO YOUR ACCOUNT</text>
+  <text x="70" y="974" fill="#d7caa9" font-family="monospace" font-size="10">ONE POST: SMALL LOCAL MARKET · THREE POSTS: SALES SPREAD ACROSS THREE BUYER POOLS · CIVIC / ASTERION: POPULATED HIGH-DEMAND HUBS</text>
+  <text x="48" y="1022" fill="#879a8e" font-family="monospace" font-size="9">DESIGN RULE: MARKET PRICES FALL WITH REPEATED SALES OF THAT ORE · NETWORK POSTS DISTRIBUTE VOLUME · CONTRACTS PROVIDE FIXED ALTERNATIVES</text>
+  <text x="48" y="1044" fill="#879a8e" font-family="monospace" font-size="9">Planet and populated-hub demand profiles are proposals; show current quotes and saturation before any sale.</text>
+</svg>

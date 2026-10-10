@@ -37,7 +37,7 @@ async (page) => {
   for (let i = 0; i < 4; i++) await page.locator('#buy-drill').click();
   for (let i = 0; i < 4; i++) await page.locator('#buy-cargo').click();
   const upgraded = await page.evaluate(() => window.__mars);
-  if (upgraded.podScale !== 1.38 || upgraded.overlaps !== 0)
+  if (upgraded.podScale !== 1.44 || upgraded.overlaps !== 0)
     throw Error(`Visual growth or collision regression: ${JSON.stringify(upgraded)}`);
   await page.locator('#close').click();
   await page.screenshot({ path: 'output/playwright/pod-growth-after.png' });

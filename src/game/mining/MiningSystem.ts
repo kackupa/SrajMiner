@@ -5,6 +5,12 @@ import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartToCart
 export function directionalDrillOrientation(input: { left: boolean; right: boolean; down: boolean }): 'horizontal' | 'vertical' {
   return input.left || input.right ? 'horizontal' : 'vertical';
 }
+/** Protect the miner's hull, except for the solid tile the player is explicitly cutting to clear an obstruction. */
+export function drillProtection(overlappingTiles: readonly Tile[], target?: Tile) {
+  const protectedTiles = new Set(overlappingTiles.map((tile) => `${tile.x},${tile.y}`));
+  if (target && target.type !== 'boundary') protectedTiles.delete(`${target.x},${target.y}`);
+  return protectedTiles;
+}
 export function chargeTargets(world: TileWorld, centerX: number, centerY: number, radius: number) {
   const targets: Tile[] = [];
   for (let dy = -radius; dy <= radius; dy++)
@@ -23,6 +29,21 @@ export function aimedDrillTarget(
   aimY: number,
   maxDistance = WORLD.tile * drillReachTiles(1),
 ) {
+  if (world.planetChart) {
+    const chart = world.planetChart,
+      origin = planetPoint(world, podX, podY), pointer = planetPoint(world, aimX, aimY),
+      dx = pointer.x - origin.x, dy = pointer.y - origin.y, length = Math.hypot(dx, dy);
+    if (length < 1) return undefined;
+    const distanceLimit = Math.min(length, maxDistance), steps = Math.ceil(distanceLimit / 3);
+    for (let i = 1; i <= steps; i++) {
+      const distance = distanceLimit * i / steps,
+        point = planetCartesianToChart({ x: origin.x + dx / length * distance, y: origin.y + dy / length * distance }, chart.columns, chart.radiusRows, WORLD.tile),
+        tile = world.get(Math.floor(point.u), Math.floor(point.v));
+      if (tile.type === 'boundary') return undefined;
+      if (tile.type !== 'empty') return tile;
+    }
+    return undefined;
+  }
   const dx = aimX - podX, dy = aimY - podY, length = Math.hypot(dx, dy);
   if (length < 1) return undefined;
   const nx = dx / length, ny = dy / length;
@@ -36,6 +57,23 @@ export function aimedDrillTarget(
     if (tile.type !== 'empty') return tile;
   }
   return undefined;
+}
+/** Convert a screen/world pointer into the miner's local aim direction, even through empty tunnels. */
+export function pointerDrillDirection(world: TileWorld, podX: number, podY: number, aimX: number, aimY: number) {
+  let dx = aimX - podX, dy = aimY - podY;
+  if (world.planetChart) {
+    const chart = world.planetChart,
+      origin = planetPoint(world, podX, podY), pointer = planetPoint(world, aimX, aimY),
+      local = planetCartesianVectorToWorld(
+        { u: podX / WORLD.tile, v: podY / WORLD.tile },
+        { x: pointer.x - origin.x, y: pointer.y - origin.y },
+        chart.columns, chart.radiusRows, WORLD.tile,
+      );
+    dx = local.x;
+    dy = local.y;
+  }
+  const length = Math.hypot(dx, dy);
+  return length < 1 ? undefined : { x: dx / length, y: dy / length };
 }
 export function collectOreDrop(progress: Progress, drop: { ore: Ore; units: number }) {
   const collected = progress.collectUnits(drop.ore, drop.units);

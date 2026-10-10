@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+  <title id="title">Hab 07 miner town and colony building concepts</title>
+  <desc id="desc">Five progression stages for the existing Hab 07 surface settlement, with distinct useful station silhouettes, curved decks, and a globe placement study.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#1c2a2c"/><stop offset="1" stop-color="#111b1e"/></linearGradient>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#29383a"/><stop offset="1" stop-color="#69564e"/></linearGradient>
+    <linearGradient id="horizon" x2="0" y2="1"><stop stop-color="#66534c"/><stop offset="1" stop-color="#855b4b"/></linearGradient>
+    <g id="ore-hut">
+      <path d="M-38 0V-23L-24-37H24L38-23V0Z" fill="#344443" stroke="#83958a" stroke-width="2"/>
+      <path d="M-32-22H32V-4H-32Z" fill="#465650"/>
+      <path d="M-26-33H25L32-24H-33Z" fill="#6d7770"/>
+      <path d="M-21-19H21V-9H-21Z" fill="#263330"/>
+      <path d="M-17-17H-7V-11H-17Zm13 0H6V-11H-4Zm13 0h8v6H9Z" fill="#e8ba79"/>
+      <path d="M-29 3H29" stroke="#273631" stroke-width="4"/>
+    </g>
+    <g id="service-hut">
+      <path d="M-43 0V-24H43V0Z" fill="#344443" stroke="#83958a" stroke-width="2"/>
+      <path d="M-37-29H37V-23H-37Z" fill="#69736a"/>
+      <path d="M-33-20H33V-5H-33Z" fill="#202e30"/>
+      <path d="M-28-18H-17V-7H-28Zm16 0h11v11h-11Zm16 0h11V-7H4Z" fill="#8be1cf" opacity=".82"/>
+      <path d="M-48 3H48" stroke="#273631" stroke-width="4"/>
+      <path d="M-47-29v-15m94 15v-15" stroke="#8be1cf" stroke-width="2"/>
+    </g>
+    <g id="workshop-hut">
+      <path d="M-42 0V-26L-30-38H30L42-26V0Z" fill="#344443" stroke="#83958a" stroke-width="2"/>
+      <path d="M-35-23H35V-5H-35Z" fill="#465650"/>
+      <path d="M-34-26L-27-35H26L34-26Z" fill="#c5b8d5"/>
+      <path d="M-29-18H-16V-7H-29Zm21 0H5V-7H-8Zm21 0h13V-7H13Z" fill="#b8a8ca" opacity=".8"/>
+      <path d="M-47 3H47" stroke="#273631" stroke-width="4"/>
+      <path d="M31-32v-17m-5 0h10" stroke="#a8c5bc" stroke-width="2"/>
+    </g>
+    <g id="little-pod">
+      <path d="M-11 5L-9-8Q0-19 9-8L11 5Z" fill="#d6c896" stroke="#263330" stroke-width="2"/>
+      <path d="M-6-7Q0-14 6-7L5-1H-5Z" fill="#8be1cf"/>
+      <path d="M-6 5h12" stroke="#263330" stroke-width="3"/>
+      <path d="M-11 4l-4 4m26-4 4 4" stroke="#e8ba79" stroke-width="2"/>
+    </g>
+    <g id="deck">
+      <path d="M-125 0Q0 8 125 0V9Q0 17-125 9Z" fill="#263532" stroke="#83958a" stroke-width="2"/>
+      <path d="M-118-2Q0 6 118-2" fill="none" stroke="#a0b6a9" stroke-width="2"/>
+      <path d="M-102 11v12m42-10v12m42-10v12m42-12v12m42-14v12" stroke="#62766d" stroke-width="3"/>
+      <path d="M-121-7h7m29 2h7m29 2h7m29 2h7m29 1h7m29 0h7m29-3h7" stroke="#e8ba79" stroke-width="3"/>
+    </g>
+  </defs>
+  <rect width="1600" height="1180" fill="url(#bg)"/>
+  <text x="48" y="48" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">HAB 07 / FROM MINING STOP TO FRONTIER COLONY</text>
+  <text x="49" y="76" fill="#94a99e" font-family="monospace" font-size="11" letter-spacing="2">DESIGN PROPOSAL · RETAIN EXISTING SERVICE POINTS, DECK ROUTES, CAMPAIGN GATES, AND GLOBE CURVATURE</text>
+  <g transform="translate(1450 53)">
+    <circle r="32" fill="#344044" stroke="#81958b" stroke-width="2"/>
+    <path d="M-29-13A32 32 0 0 1 29 13" fill="none" stroke="#d29770" stroke-width="6"/>
+    <path d="M-29-13A32 32 0 0 1 29 13" fill="none" stroke="#8be1cf" stroke-width="3" stroke-dasharray="2 7"/>
+    <circle cx="-23" cy="-22" r="4" fill="#e8ba79"/><circle cx="23" cy="22" r="4" fill="#8be1cf"/>
+  </g>
+  <text x="1368" y="100" fill="#82988d" font-family="monospace" font-size="9" letter-spacing="1">BOTH SURFACE HUBS</text>
+
+  <!-- Five unlock stages. All scenes keep the same land scale and service frontage. -->
+  <g transform="translate(36 132)">
+    <rect width="292" height="570" rx="4" fill="#202d2e" stroke="#435551"/>
+    <text x="18" y="30" fill="#e8ba79" font-family="monospace" font-size="13" font-weight="bold">00 · SURVEY CAMP</text>
+    <text x="18" y="48" fill="#91a69b" font-family="monospace" font-size="9">STARTER HUB / THREE CLEAR SERVICES</text>
+    <rect x="12" y="66" width="268" height="285" fill="url(#sky)"/>
+    <path d="M12 251L52 219 86 232 115 207 151 239 181 214 220 235 249 215 280 228V275H12Z" fill="#67534b"/>
+    <path d="M12 268L48 247 82 257 115 239 148 265 188 246 220 262 251 245 280 257V290H12Z" fill="#855b4b"/>
+    <circle cx="249" cy="99" r="8" fill="#dfb884"/>
+    <path d="M12 290H280" stroke="#e0a776" stroke-width="4"/><path d="M12 294H280V351H12Z" fill="#3c302e"/>
+    <path d="M25 305h75m18 0h45m30 0h69" stroke="#60463e" stroke-width="3"/>
+    <g transform="translate(69 289) scale(.72)"><use href="#ore-hut"/></g>
+    <g transform="translate(151 289) scale(.78)"><use href="#service-hut"/></g>
+    <g transform="translate(235 289) scale(.72)"><use href="#workshop-hut"/></g>
+    <g transform="translate(207 285) scale(.73)"><use href="#little-pod"/></g>
+    <path d="M60 282v-28m-8 0h16" stroke="#82968a" stroke-width="2"/><circle cx="60" cy="252" r="7" fill="none" stroke="#d8c897" stroke-width="2"/>
+    <text x="20" y="379" fill="#e2d6bc" font-family="monospace" font-size="10">MAKE THE THREE HUTS FEEL PURPOSE-BUILT</text>
+    <text x="20" y="401" fill="#91a69b" font-family="monospace" font-size="10">ore hopper · repair cradle · drill gantry</text>
+    <text x="20" y="423" fill="#91a69b" font-family="monospace" font-size="10">Shared buried utility trunk joins them.</text>
+    <path d="M20 445H272" stroke="#435551"/>
+    <text x="20" y="472" fill="#d8c897" font-family="monospace" font-size="9">LANDMARK</text>
+    <text x="20" y="491" fill="#9eafa2" font-family="monospace" font-size="10">A small survey mast signals Hab 07.</text>
+    <text x="20" y="531" fill="#80958a" font-family="monospace" font-size="9">Existing start state</text>
+  </g>
+
+  <g transform="translate(340 132)">
+    <rect width="292" height="570" rx="4" fill="#202d2e" stroke="#435551"/>
+    <text x="18" y="30" fill="#e8ba79" font-family="monospace" font-size="13" font-weight="bold">01 · FIRST DOCK</text>
+    <text x="18" y="48" fill="#91a69b" font-family="monospace" font-size="9">FIRST SHIP PART / LIFT + CARGO</text>
+    <rect x="12" y="66" width="268" height="285" fill="url(#sky)"/>
+    <path d="M12 251L52 219 86 232 115 207 151 239 181 214 220 235 249 215 280 228V275H12Z" fill="#67534b"/>
+    <path d="M12 268L48 247 82 257 115 239 148 265 188 246 220 262 251 245 280 257V290H12Z" fill="#855b4b"/>
+    <circle cx="249" cy="99" r="8" fill="#dfb884"/><path d="M12 290H280" stroke="#e0a776" stroke-width="4"/><path d="M12 294H280V351H12Z" fill="#3c302e"/>
+    <g transform="translate(65 289) scale(.67)"><use href="#ore-hut"/></g><g transform="translate(151 289) scale(.72)"><use href="#service-hut"/></g><g transform="translate(238 289) scale(.67)"><use href="#workshop-hut"/></g>
+    <g stroke="#344443" stroke-width="5"><path d="M43 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/><path d="M244 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/></g>
+    <g transform="translate(151 218) scale(1.03)"><use href="#deck"/></g>
+    <path d="M47 177h210" stroke="#71847b" stroke-width="2"/><g transform="translate(209 283) scale(.7)"><use href="#little-pod"/></g>
+    <path d="M20 379"/>
+    <text x="20" y="379" fill="#e2d6bc" font-family="monospace" font-size="10">ADD A REAL WORKING-SCALE UPPER DECK</text>
+    <text x="20" y="401" fill="#91a69b" font-family="monospace" font-size="10">Chunky elevator towers anchor it.</text>
+    <text x="20" y="423" fill="#91a69b" font-family="monospace" font-size="10">Cargo cage hangs below one tower.</text>
+    <path d="M20 445H272" stroke="#435551"/>
+    <text x="20" y="472" fill="#d8c897" font-family="monospace" font-size="9">LANDMARK</text>
+    <text x="20" y="491" fill="#9eafa2" font-family="monospace" font-size="10">A lift lantern glows below the deck.</text>
+    <text x="20" y="531" fill="#80958a" font-family="monospace" font-size="9">First ship component</text>
+  </g>
+
+  <g transform="translate(644 132)">
+    <rect width="292" height="570" rx="4" fill="#202d2e" stroke="#435551"/>
+    <text x="18" y="30" fill="#e8ba79" font-family="monospace" font-size="13" font-weight="bold">02 · FRONTIER PORT</text>
+    <text x="18" y="48" fill="#91a69b" font-family="monospace" font-size="9">SHIP ASSEMBLED / GANTRY + TRANSIT</text>
+    <rect x="12" y="66" width="268" height="285" fill="url(#sky)"/>
+    <path d="M12 251L52 219 86 232 115 207 151 239 181 214 220 235 249 215 280 228V275H12Z" fill="#67534b"/>
+    <path d="M12 268L48 247 82 257 115 239 148 265 188 246 220 262 251 245 280 257V290H12Z" fill="#855b4b"/>
+    <circle cx="249" cy="99" r="8" fill="#dfb884"/><path d="M12 290H280" stroke="#e0a776" stroke-width="4"/><path d="M12 294H280V351H12Z" fill="#3c302e"/>
+    <g transform="translate(65 289) scale(.67)"><use href="#ore-hut"/></g><g transform="translate(151 289) scale(.72)"><use href="#service-hut"/></g><g transform="translate(238 289) scale(.67)"><use href="#workshop-hut"/></g>
+    <g stroke="#344443" stroke-width="5"><path d="M43 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/><path d="M244 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/></g>
+    <g transform="translate(151 218) scale(1.03)"><use href="#deck"/></g>
+    <path d="M104 174V123h92v51m-82-51v-19h71v19m-68 4h65" fill="none" stroke="#9ba99c" stroke-width="4"/>
+    <path d="M147 169l4-53 17 5 7 48z" fill="#84938b" stroke="#344443" stroke-width="2"/><path d="M151 141h18m-19 11h19" stroke="#e8ba79" stroke-width="3"/>
+    <path d="M73 149H230" stroke="#9b9f89" stroke-width="2"/><rect x="178" y="136" width="36" height="20" rx="5" fill="#263330" stroke="#8be1cf"/><path d="M184 142h8m9 0h8" stroke="#8be1cf" stroke-width="3"/>
+    <text x="20" y="379" fill="#e2d6bc" font-family="monospace" font-size="10">MAKE THE FARADAY A TRUE SILHOUETTE</text>
+    <text x="20" y="401" fill="#91a69b" font-family="monospace" font-size="10">Open launch cradle, fins, service arm.</text>
+    <text x="20" y="423" fill="#91a69b" font-family="monospace" font-size="10">Short transit car joins upper bays.</text>
+    <path d="M20 445H272" stroke="#435551"/>
+    <text x="20" y="472" fill="#d8c897" font-family="monospace" font-size="9">LANDMARK</text>
+    <text x="20" y="491" fill="#9eafa2" font-family="monospace" font-size="10">A lit ship cradle marks the colony.</text>
+    <text x="20" y="531" fill="#80958a" font-family="monospace" font-size="9">Four ship components</text>
+  </g>
+
+  <g transform="translate(948 132)">
+    <rect width="292" height="570" rx="4" fill="#202d2e" stroke="#435551"/>
+    <text x="18" y="30" fill="#e8ba79" font-family="monospace" font-size="13" font-weight="bold">03 · SIGNAL COLONY</text>
+    <text x="18" y="48" fill="#91a69b" font-family="monospace" font-size="9">CORE SAMPLE / ARCHIVE + HABITAT</text>
+    <rect x="12" y="66" width="268" height="285" fill="url(#sky)"/>
+    <path d="M12 251L52 219 86 232 115 207 151 239 181 214 220 235 249 215 280 228V275H12Z" fill="#67534b"/>
+    <path d="M12 268L48 247 82 257 115 239 148 265 188 246 220 262 251 245 280 257V290H12Z" fill="#855b4b"/>
+    <circle cx="249" cy="99" r="8" fill="#dfb884"/><path d="M12 290H280" stroke="#e0a776" stroke-width="4"/><path d="M12 294H280V351H12Z" fill="#3c302e"/>
+    <g transform="translate(65 289) scale(.67)"><use href="#ore-hut"/></g><g transform="translate(151 289) scale(.72)"><use href="#service-hut"/></g><g transform="translate(238 289) scale(.67)"><use href="#workshop-hut"/></g>
+    <g stroke="#344443" stroke-width="5"><path d="M43 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/><path d="M244 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/></g>
+    <g transform="translate(151 218) scale(1.03)"><use href="#deck"/></g>
+    <path d="M102 174V123h96v51" fill="none" stroke="#84978b" stroke-width="5"/>
+    <rect x="115" y="116" width="70" height="39" rx="3" fill="#344443" stroke="#91a69b" stroke-width="2"/><path d="M122 124h56v6h-56z" fill="#8be1cf"/><path d="M125 138h11v10h-11m18-10h11v10h-11m18-10h11v10h-11" fill="#c7d1c1"/>
+    <path d="M209 119v-63m-28 21 56 0m-47-14 38 28m-38 0 38-28" fill="none" stroke="#657b73" stroke-width="3"/><circle cx="209" cy="55" r="7" fill="#8be1cf"/>
+    <circle cx="209" cy="55" r="14" fill="none" stroke="#8be1cf" stroke-width="2" opacity=".65"/>
+    <text x="20" y="379" fill="#e2d6bc" font-family="monospace" font-size="10">GIVE THE ARCHIVE A DISTINCT SHAPE</text>
+    <text x="20" y="401" fill="#91a69b" font-family="monospace" font-size="10">Observation room + signal mast.</text>
+    <text x="20" y="423" fill="#91a69b" font-family="monospace" font-size="10">Habitat lights make it feel inhabited.</text>
+    <path d="M20 445H272" stroke="#435551"/>
+    <text x="20" y="472" fill="#d8c897" font-family="monospace" font-size="9">LANDMARK</text>
+    <text x="20" y="491" fill="#9eafa2" font-family="monospace" font-size="10">A pulse traces around the dish rim.</text>
+    <text x="20" y="531" fill="#80958a" font-family="monospace" font-size="9">First planetary core record</text>
+  </g>
+
+  <g transform="translate(1252 132)">
+    <rect width="312" height="570" rx="4" fill="#202d2e" stroke="#435551"/>
+    <text x="18" y="30" fill="#e8ba79" font-family="monospace" font-size="13" font-weight="bold">04 · BEACON NETWORK</text>
+    <text x="18" y="48" fill="#91a69b" font-family="monospace" font-size="9">FOUR CORE RECORDS / SKYLINE COMPLETE</text>
+    <rect x="12" y="66" width="288" height="285" fill="url(#sky)"/>
+    <path d="M12 251L52 219 86 232 115 207 151 239 181 214 220 235 249 215 280 228 300 222V275H12Z" fill="#67534b"/>
+    <path d="M12 268L48 247 82 257 115 239 148 265 188 246 220 262 251 245 280 257 300 252V290H12Z" fill="#855b4b"/>
+    <circle cx="270" cy="99" r="8" fill="#dfb884"/><path d="M12 290H300" stroke="#e0a776" stroke-width="4"/><path d="M12 294H300V351H12Z" fill="#3c302e"/>
+    <g transform="translate(71 289) scale(.67)"><use href="#ore-hut"/></g><g transform="translate(156 289) scale(.72)"><use href="#service-hut"/></g><g transform="translate(243 289) scale(.67)"><use href="#workshop-hut"/></g>
+    <g stroke="#344443" stroke-width="5"><path d="M42 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/><path d="M259 290V174m17 116V174m-20 0h23m-20 30h17m-17 30h17m-17 30h17"/></g>
+    <g transform="translate(151 218) scale(1.03)"><use href="#deck"/></g>
+    <path d="M95 174V123h112v51" fill="none" stroke="#84978b" stroke-width="5"/>
+    <rect x="116" y="113" width="70" height="42" rx="3" fill="#344443" stroke="#91a69b" stroke-width="2"/><path d="M122 121h58v6h-58z" fill="#8be1cf"/><path d="M127 136h11v12h-11m18-12h11v12h-11m18-12h11v12h-11" fill="#c7d1c1"/>
+    <path d="M150 114V68m-48 0h96M111 68v-22m70 22V46m-35 22V39" fill="none" stroke="#83958a" stroke-width="4"/><path d="M104 46h14m56 0h14m-50-7h24" stroke="#e8ba79" stroke-width="4"/>
+    <path d="M150 41V15m-8 0h16" stroke="#8be1cf" stroke-width="3"/><circle cx="150" cy="13" r="6" fill="#8be1cf"/><circle cx="150" cy="13" r="14" fill="none" stroke="#8be1cf" stroke-width="2" opacity=".7"/>
+    <path d="M45 170Q150 145 263 169" fill="none" stroke="#e8ba79" stroke-width="2"/><g fill="#8be1cf"><circle cx="78" cy="162" r="3"/><circle cx="106" cy="155" r="3"/><circle cx="205" cy="155" r="3"/><circle cx="232" cy="162" r="3"/></g>
+    <text x="20" y="379" fill="#e2d6bc" font-family="monospace" font-size="10">FINISH WITH A READABLE SKYLINE</text>
+    <text x="20" y="401" fill="#91a69b" font-family="monospace" font-size="10">Beacon, route lights, cable and gantry.</text>
+    <text x="20" y="423" fill="#91a69b" font-family="monospace" font-size="10">Keep silhouettes below HUD safe zones.</text>
+    <path d="M20 445H292" stroke="#435551"/>
+    <text x="20" y="472" fill="#d8c897" font-family="monospace" font-size="9">LANDMARK</text>
+    <text x="20" y="491" fill="#9eafa2" font-family="monospace" font-size="10">Beacon line echoes around the globe.</text>
+    <text x="20" y="531" fill="#80958a" font-family="monospace" font-size="9">Four planetary core records</text>
+  </g>
+
+  <!-- Station-specific silhouette key -->
+  <text x="46" y="749" fill="#e8ddc3" font-family="monospace" font-size="15" font-weight="bold" letter-spacing="2">THREE SERVICES · THREE INSTANTLY RECOGNIZABLE SILHOUETTES</text>
+  <g transform="translate(46 778)">
+    <rect width="480" height="280" rx="4" fill="#1c292b" stroke="#435551"/>
+    <g transform="translate(94 115) scale(1.48)"><use href="#ore-hut"/></g>
+    <path d="M50 136l20 39h49l20-39" fill="none" stroke="#69736a" stroke-width="5"/><path d="M75 168h39l-8 15H83z" fill="#e7b56b"/>
+    <text x="205" y="73" fill="#e7b56b" font-family="monospace" font-size="13" font-weight="bold">ORE EXCHANGE</text>
+    <text x="205" y="98" fill="#97a99d" font-family="monospace" font-size="11">Roof hopper + visible ore bins.</text>
+    <text x="205" y="119" fill="#97a99d" font-family="monospace" font-size="11">Warm amber signal stripe.</text>
+    <text x="205" y="155" fill="#d5c9ae" font-family="monospace" font-size="10">Reads as storage at a glance.</text>
+  </g>
+  <g transform="translate(560 778)">
+    <rect width="480" height="280" rx="4" fill="#1c292b" stroke="#435551"/>
+    <g transform="translate(94 115) scale(1.48)"><use href="#service-hut"/></g>
+    <path d="M38 157v-53h22v53m89 0v-53h22v53M49 105h88m-65 0V77m43 28V77" fill="none" stroke="#71847b" stroke-width="5"/>
+    <path d="M73 141h48v18H73z" fill="#8be1cf" opacity=".8"/><path d="M83 133h28v9H83z" fill="#a5eee0"/>
+    <text x="205" y="73" fill="#8be1cf" font-family="monospace" font-size="13" font-weight="bold">SERVICE BAY</text>
+    <text x="205" y="98" fill="#97a99d" font-family="monospace" font-size="11">Open repair cradle + fuel tanks.</text>
+    <text x="205" y="119" fill="#97a99d" font-family="monospace" font-size="11">Mint guide lights and hose reel.</text>
+    <text x="205" y="155" fill="#d5c9ae" font-family="monospace" font-size="10">Reads as a place to dock and repair.</text>
+  </g>
+  <g transform="translate(1074 778)">
+    <rect width="480" height="280" rx="4" fill="#1c292b" stroke="#435551"/>
+    <g transform="translate(94 115) scale(1.48)"><use href="#workshop-hut"/></g>
+    <path d="M43 153V91h20v62m89 0V91h20v62M52 91h91m-78-17h66v17H65z" fill="none" stroke="#77847c" stroke-width="5"/>
+    <path d="M97 88v36m-11-3 11 12 11-12m-32-26 10-10m44 10-10-10" fill="none" stroke="#c5b8d5" stroke-width="4"/>
+    <text x="205" y="73" fill="#c5b8d5" font-family="monospace" font-size="13" font-weight="bold">POD WORKSHOP</text>
+    <text x="205" y="98" fill="#97a99d" font-family="monospace" font-size="11">Small drill gantry + parts drawers.</text>
+    <text x="205" y="119" fill="#97a99d" font-family="monospace" font-size="11">Cool lilac tier marker.</text>
+    <text x="205" y="155" fill="#d5c9ae" font-family="monospace" font-size="10">Reads as upgrades and fabrication.</text>
+  </g>
+  <path d="M46 1090H1554" stroke="#435551"/>
+  <text x="48" y="1117" fill="#d8c897" font-family="monospace" font-size="10" letter-spacing="1">GLOBE RULE: BUILDINGS, DECKS, CABLES, AND LIGHTS FOLLOW THE SAME CURVED TANGENT SURFACE ON BOTH HEMISPHERES.</text>
+  <text x="48" y="1140" fill="#84988d" font-family="monospace" font-size="10">Keep the existing interaction columns and landing/drop-through behavior. This is a visual redesign proposal, not new features or code.</text>
+</svg>

@@ -721,6 +721,46 @@ kbd {
     monospace;
   color: #cfcdb2;
 }
+.modal:has(.warehouse-transfer) {
+  width: min(590px, calc(100vw - 32px));
+}
+.warehouse-stock > div {
+  grid-template-columns: minmax(100px, 1fr) minmax(90px, 110px) minmax(90px, 110px);
+  gap: 8px;
+  padding: 8px 0;
+}
+.warehouse-transfer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 18px 0 12px;
+}
+.warehouse-transfer label {
+  align-self: end;
+  color: #94a999;
+  font: 8px 'Space Mono', monospace;
+  letter-spacing: 1px;
+}
+.warehouse-transfer select,
+.warehouse-transfer input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 10px;
+  color: var(--cream);
+  background: #0d1718;
+  font: 12px 'Space Mono', monospace;
+}
+.warehouse-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.warehouse-actions button {
+  padding: 10px 6px;
+  font-size: 10px;
+}
 .sale-total {
   display: flex;
   align-items: center;
@@ -756,6 +796,24 @@ kbd {
   font-size: 11px;
   color: #91a898;
   margin-top: 8px;
+}
+.network-status {
+  display: grid;
+  gap: 7px;
+  padding: 13px 15px;
+  margin: 14px 0;
+  border: 1px solid rgba(139, 225, 207, 0.25);
+  background: rgba(31, 62, 57, 0.42);
+}
+.network-status b {
+  color: #a5f1d8;
+  font: 10px 'Space Mono', monospace;
+  letter-spacing: 1px;
+}
+.network-status span {
+  color: #91a898;
+  font: 9px 'Space Mono', monospace;
+  line-height: 1.6;
 }
 .modal .fine {
   font-size: 10px;
@@ -794,7 +852,8 @@ kbd {
   color: #b9c6ae;
 }
 .upgrade-readout,
-.upgrade-next-readout {
+.upgrade-next-readout,
+.upgrade-gate {
   display: block;
   font:
     8px 'Space Mono',
@@ -807,6 +866,11 @@ kbd {
 }
 .upgrade-next-readout {
   color: #85988b;
+}
+.upgrade-gate {
+  display: block;
+  margin: 5px 0 2px;
+  color: #e4a66d;
 }
 .upgrade-row button {
   padding: 12px 6px;
@@ -1020,6 +1084,29 @@ kbd {
 }
 .atlas-world small { color: var(--world-color); font-size: 6px; }
 .atlas-world.locked { opacity: .76; }
+.trade-network-overview {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(180px, 1.1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  margin: 10px 0 14px;
+  border: 1px solid #8bb8a52c;
+  background: linear-gradient(105deg,#122023,#111a1d);
+}
+.trade-network-overview > div { display: grid; gap: 6px; }
+.trade-network-overview b { color: #e7d1a8; font: 9px 'Space Mono', monospace; letter-spacing: .4px; }
+.trade-network-overview span { color: #91aa9d; font: 7px 'Space Mono', monospace; line-height: 1.6; }
+.trade-route-chart { width: 100%; height: 112px; overflow: visible; }
+.trade-route-lines line { stroke: #f0c77d; stroke-width: .65; stroke-dasharray: 2 2; opacity: .85; }
+.trade-route-lines line.relay-link { stroke: #9be5dc; opacity: .45; stroke-dasharray: 1.2 1.4; }
+.trade-route-node circle { fill: #27383a; stroke: #94a99d; stroke-width: .7; }
+.trade-route-node.relay path { fill: #9be5dc; stroke: #e0fff8; stroke-width: .8; }
+.trade-route-node.online circle { fill: #f1c77c; stroke: #fff0c4; stroke-width: 1; }
+.trade-route-node text { fill: #9eb2a6; text-anchor: middle; font: 2.4px 'Space Mono', monospace; }
+.trade-route-node.online text { fill: #ffe1a0; }
+.trade-route-node.relay text { fill: #c7fff3; }
+.relay-status { color: #a4efd9 !important; }
 .world-disc {
   display: block;
   width: 17px;
@@ -1032,6 +1119,8 @@ kbd {
 .world-disc.mars { background: radial-gradient(circle at 35% 30%, #f2bd91 0 8%, #b96d55 38%, #492f38 78%); }
 .world-disc.hull { background: radial-gradient(circle at 35% 30%, #e1ead8 0 8%, #788e83 38%, #293a3a 78%); }
 .world-disc.prism { background: radial-gradient(circle at 35% 30%, #f0d5ff 0 8%, #8e72c4 38%, #302d56 78%); }
+.world-disc.cinder { background: radial-gradient(circle at 35% 30%, #ffe0a1 0 7%, #ed7549 35%, #713b43 72%, #342936 100%); }
+.world-disc.vesper { background: radial-gradient(circle at 35% 30%, #e5f9b4 0 8%, #86ba78 34%, #37685f 70%, #203a43 100%); }
 .atlas-preview {
   border-top: 1px solid #b5c7b51c;
   padding: 8px 0 6px;

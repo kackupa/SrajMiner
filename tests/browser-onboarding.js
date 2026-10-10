@@ -5,7 +5,7 @@ async (page) => {
   await page.goto(baseURL);
   await page.waitForFunction(() => !!window.__mars);
   const briefing = await page.locator('.modal.intro').innerText();
-  for (const cue of ['STEER', 'DESCEND / DRILL', 'THRUST UP', 'SELL / SERVICE', 'BUILD AT DEPTH', 'EXPLORED MAP', 'PAUSE', 'ORE FILLS CARGO', 'RETURN-FUEL ESTIMATE']) {
+  for (const cue of ['STEER', 'DESCEND / DRILL', 'THRUST UP', 'AIM · HOLD TO DRILL', 'SELL / SERVICE', 'BUILD AT DEPTH', 'EXPLORED MAP', 'PAUSE', 'ORE FILLS CARGO', 'RETURN-FUEL ESTIMATE']) {
     if (!briefing.includes(cue)) throw Error(`Missing first-run instruction: ${cue}`);
   }
 

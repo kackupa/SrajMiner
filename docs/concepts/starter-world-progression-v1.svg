@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="850" viewBox="0 0 1500 850" role="img" aria-labelledby="title desc">
+  <title id="title">Compact starter-world progression</title>
+  <desc id="desc">A smaller but complete tutorial globe teaches docking, mining, returning, assembling the Travel Ship, then launching toward larger specialized worlds.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#172326"/><stop offset="1" stop-color="#10191c"/></linearGradient>
+    <radialGradient id="starter"><stop stop-color="#7b6553"/><stop offset=".7" stop-color="#9a684e"/><stop offset=".73" stop-color="#d2a071"/><stop offset=".77" stop-color="#4d4742"/><stop offset="1" stop-color="#303638"/></radialGradient>
+    <radialGradient id="dest"><stop stop-color="#4b5e66"/><stop offset=".72" stop-color="#567381"/><stop offset=".76" stop-color="#b5d5d2"/><stop offset=".8" stop-color="#34464a"/><stop offset="1" stop-color="#263236"/></radialGradient>
+    <g id="tick"><path d="M0-8v16" stroke="#d7caa9" stroke-width="2"/></g>
+  </defs>
+  <rect width="1500" height="850" fill="url(#bg)"/>
+  <text x="46" y="48" fill="#e8ddc3" font-family="monospace" font-size="24" font-weight="bold" letter-spacing="3">STARTER WORLD · TEACH, THEN LET THEM LEAVE</text>
+  <text x="47" y="77" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">A SMALLER TRUE GLOBE · MINE ORE → SELL → BUY SHIP PARTS · NO OPTIONAL SYSTEM AS A DEPARTURE GATE</text>
+  <path d="M46 99H1454" stroke="#465751"/>
+  <!-- scale comparison -->
+  <rect x="48" y="120" width="1404" height="314" rx="5" fill="#202d2e" stroke="#465751"/>
+  <text x="72" y="153" fill="#d7caa9" font-family="monospace" font-size="11" font-weight="bold" letter-spacing="1">WORLD SCALE · KEEP THE GLOBE SHAPE, SHORTEN THE FIRST LOOP</text>
+  <circle cx="304" cy="286" r="103" fill="url(#starter)" stroke="#e0a776" stroke-width="3"/><circle cx="304" cy="286" r="82" fill="none" stroke="#e8ba79" stroke-width="2" stroke-dasharray="4 6"/>
+  <path d="M304 183A103 103 0 0 1 407 286A103 103 0 0 1 304 389A103 103 0 0 1 201 286" fill="none" stroke="#8be1cf" stroke-width="4" stroke-dasharray="8 5"/>
+  <circle cx="304" cy="183" r="9" fill="#e8ba79" stroke="#172326" stroke-width="2"/><path d="M294 180l10-12 10 12" fill="#8e5140" stroke="#e8ba79" stroke-width="2"/>
+  <circle cx="374" cy="356" r="6" fill="#8be1cf"/><circle cx="226" cy="324" r="6" fill="#8be1cf"/><circle cx="294" cy="207" r="5" fill="#c5b8d5"/>
+  <path d="M305 183Q368 217 374 356Q298 415 226 324Q215 239 294 207" fill="none" stroke="#d5bd90" stroke-width="2" stroke-dasharray="4 5"/>
+  <text x="446" y="220" fill="#e8ba79" font-family="monospace" font-size="12" font-weight="bold">STARTER GLOBE</text><text x="446" y="245" fill="#92a69b" font-family="monospace" font-size="10">≈60–70% standard circumference</text><text x="446" y="266" fill="#92a69b" font-family="monospace" font-size="10">≈60–70% standard mine depth</text><text x="446" y="298" fill="#d7caa9" font-family="monospace" font-size="9">Full round-world travel and core crossing;</text><text x="446" y="315" fill="#d7caa9" font-family="monospace" font-size="9">fewer bands, shorter required route.</text>
+  <circle cx="1039" cy="286" r="133" fill="url(#dest)" stroke="#a9d5d5" stroke-width="3"/><circle cx="1039" cy="286" r="112" fill="none" stroke="#a9d5d5" stroke-width="2" opacity=".55"/><path d="M912 260q44-24 88 4t86-3q41-20 80 7M915 311q40-18 84 4t86-2q43-17 81 5" fill="none" stroke="#8aa7a7" stroke-width="5"/>
+  <path d="M1039 153A133 133 0 0 1 1172 286A133 133 0 0 1 1039 419A133 133 0 0 1 906 286" fill="none" stroke="#c5b8d5" stroke-width="3" stroke-dasharray="3 7"/>
+  <text x="1039" y="445" fill="#a9d5d5" font-family="monospace" font-size="12" font-weight="bold" text-anchor="middle">DESTINATION WORLD</text>
+  <text x="1231" y="227" fill="#c5b8d5" font-family="monospace" font-size="11" font-weight="bold">FULL EXPEDITION SCALE</text><text x="1231" y="251" fill="#92a69b" font-family="monospace" font-size="9">Longer circumference/depth</text><text x="1231" y="270" fill="#92a69b" font-family="monospace" font-size="9">Unique ores / planet style</text><text x="1231" y="289" fill="#92a69b" font-family="monospace" font-size="9">Local post adds market reach</text><text x="1231" y="308" fill="#92a69b" font-family="monospace" font-size="9">Travel Ship lands intact and ready</text>
+  <!-- progression path -->
+  <text x="72" y="480" fill="#e8ddc3" font-family="monospace" font-size="12" font-weight="bold" letter-spacing="1">SHORT REQUIRED PATH · OPTIONAL COLONY SYSTEMS NEVER BLOCK DEPARTURE</text>
+  <path d="M110 621H1391" stroke="#52645b" stroke-width="5"/>
+  <path d="M110 621H1064" stroke="#8be1cf" stroke-width="5"/>
+  <g font-family="monospace" text-anchor="middle">
+    <circle cx="151" cy="621" r="24" fill="#344443" stroke="#e8ba79" stroke-width="3"/><text x="151" y="626" fill="#e8ba79" font-size="12" font-weight="bold">1</text><text x="151" y="671" fill="#e8ddc3" font-size="10" font-weight="bold">DOCK AT WRECK</text><text x="151" y="692" fill="#92a69b" font-size="9">Learn Charge / repair</text><text x="151" y="709" fill="#92a69b" font-size="9">Ship is safe home</text>
+    <circle cx="408" cy="621" r="24" fill="#344443" stroke="#8be1cf" stroke-width="3"/><text x="408" y="626" fill="#8be1cf" font-size="12" font-weight="bold">2</text><text x="408" y="671" fill="#e8ddc3" font-size="10" font-weight="bold">MINE &amp; SELL ORE</text><text x="408" y="692" fill="#92a69b" font-size="9">Common ore pays credits</text><text x="408" y="709" fill="#92a69b" font-size="9">Keep Charge for the return</text>
+    <circle cx="664" cy="621" r="24" fill="#344443" stroke="#8be1cf" stroke-width="3"/><text x="664" y="626" fill="#8be1cf" font-size="12" font-weight="bold">3</text><text x="664" y="671" fill="#e8ddc3" font-size="10" font-weight="bold">BUY FOUR SHIP PARTS</text><text x="664" y="692" fill="#92a69b" font-size="9">Frame · propulsion · computer</text><text x="664" y="709" fill="#92a69b" font-size="9">Life support · clear prices</text>
+    <circle cx="920" cy="621" r="24" fill="#344443" stroke="#8be1cf" stroke-width="3"/><text x="920" y="626" fill="#8be1cf" font-size="12" font-weight="bold">4</text><text x="920" y="671" fill="#e8ddc3" font-size="10" font-weight="bold">INSTALL &amp; LAUNCH</text><text x="920" y="692" fill="#92a69b" font-size="9">Travel Ship becomes ready</text><text x="920" y="709" fill="#92a69b" font-size="9">Leave whenever you want</text>
+    <circle cx="1176" cy="621" r="24" fill="#344443" stroke="#c5b8d5" stroke-width="3"/><text x="1176" y="626" fill="#c5b8d5" font-size="12" font-weight="bold">5</text><text x="1176" y="671" fill="#e8ddc3" font-size="10" font-weight="bold">LAND ON NEW WORLD</text><text x="1176" y="692" fill="#92a69b" font-size="9">Travel Ship remains functional</text><text x="1176" y="709" fill="#92a69b" font-size="9">Choose mining or build post</text>
+  </g>
+  <rect x="48" y="759" width="1404" height="52" rx="4" fill="#202d2e" stroke="#465751"/>
+  <text x="72" y="790" fill="#e8ba79" font-family="monospace" font-size="10" font-weight="bold">OPTIONAL BEFORE DEPARTURE:</text><text x="277" y="790" fill="#b9c3b4" font-family="monospace" font-size="10">Trading Post · walls/turrets · contracts · rare finds · full surface exploration · extra upgrades</text>
+  <text x="48" y="835" fill="#879a8e" font-family="monospace" font-size="9">DESIGN TARGET ONLY · tune chart radius/depth against world-projection and core-crossing constraints; preserve save compatibility for existing campaigns.</text>
+</svg>

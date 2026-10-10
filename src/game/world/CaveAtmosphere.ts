@@ -119,6 +119,12 @@ export class CaveAtmosphere {
       g.fillStyle(color, alpha);
       if (world.mapId === 'prism-fault') {
         g.fillTriangle(x, y - size, x - size, y + size, x + size, y + size);
+      } else if (world.mapId === 'cinder-vale') {
+        g.fillStyle(0xff6c43, alpha * 0.72);
+        g.fillCircle(x, y, size * 0.85);
+      } else if (world.mapId === 'vesper-9') {
+        g.fillTriangle(x, y - size, x + size * 0.7, y, x, y + size);
+        g.fillTriangle(x, y - size, x - size * 0.7, y, x, y + size);
       } else if (world.mapId === 'mars-frontier' || p.wake) {
         g.fillCircle(x, y, size * 0.65);
       } else {

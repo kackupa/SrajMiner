@@ -3,6 +3,7 @@ import type { PlanetChartSize } from '../world/PlanetChart';
 import { TileWorld } from '../world/TileWorld';
 import type { ActiveCharge, OreDrop, WorldSave } from '../save/SaveManager';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
+import { emptyCargo, type Cargo } from '../economy/Progress';
 
 export function snapshotMapState(
   previous: WorldSave | undefined,
@@ -13,6 +14,7 @@ export function snapshotMapState(
   drops: OreDrop[],
   activeCharge?: ActiveCharge,
   structures: UndergroundStructure[] = [],
+  warehouse: Cargo = previous?.warehouse ?? emptyCargo(),
 ): WorldSave {
   return {
     seed: world.seed,
@@ -24,6 +26,7 @@ export function snapshotMapState(
     drops: drops.map((drop) => ({ ...drop })),
     activeCharge: activeCharge ? { ...activeCharge } : null,
     structures: structures.map((structure) => ({ ...structure })),
+    warehouse: { ...warehouse },
     ...(world.planetChart ? { planetChart: { ...world.planetChart } } : previous?.planetChart ? { planetChart: { ...previous.planetChart } } : {}),
   };
 }
@@ -39,5 +42,6 @@ export function restoreMapState(
     drops: state?.drops.map((drop) => ({ ...drop })) ?? [],
     activeCharge: state?.activeCharge ? { ...state.activeCharge } : undefined,
     structures: state?.structures.map((structure) => ({ ...structure })) ?? [],
+    warehouse: state?.warehouse ? { ...state.warehouse } : emptyCargo(),
   };
 }

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1160" viewBox="0 0 1600 1160" role="img" aria-labelledby="title desc">
+  <title id="title">Surface colony network concepts for Mars Miner</title>
+  <desc id="desc">A globe with several surface towns and four distinct settlement kits designed in the current game's flat, dark teal visual style.</desc>
+  <defs>
+    <linearGradient id="board" x2="0" y2="1"><stop stop-color="#1b292b"/><stop offset="1" stop-color="#111b1e"/></linearGradient>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#263638"/><stop offset="1" stop-color="#5f514b"/></linearGradient>
+    <clipPath id="planet"><circle cx="300" cy="295" r="188"/></clipPath>
+    <g id="hut"><path d="M-28 0V-22L-19-31H19L28-22V0Z" fill="#344443" stroke="#83958a" stroke-width="2"/><path d="M-21-27H21V-22H-21Z" fill="#69736a"/><path d="M-20-17H20V-5H-20Z" fill="#202e30"/><path d="M-15-15h8v7h-8m14-7h8v7h-8" fill="#e8ba79"/><path d="M-32 3H32" stroke="#273631" stroke-width="4"/></g>
+    <g id="pod"><path d="M-9 4-7-7Q0-16 7-7L9 4Z" fill="#d6c896" stroke="#263330" stroke-width="2"/><path d="M-5-7Q0-12 5-7L4-2H-4Z" fill="#8be1cf"/><path d="M-9 4l-3 3m21-3 3 3" stroke="#e8ba79" stroke-width="2"/></g>
+    <g id="deck"><path d="M-60 0Q0 7 60 0v7Q0 14-60 7Z" fill="#263532" stroke="#83958a" stroke-width="2"/><path d="M-54-2Q0 5 54-2" fill="none" stroke="#a0b6a9" stroke-width="2"/><path d="M-40 9v12m40-10v10m40-12v12" stroke="#62766d" stroke-width="3"/></g>
+  </defs>
+  <rect width="1600" height="1160" fill="url(#board)"/>
+  <text x="46" y="49" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">SURFACE COLONY NETWORK</text>
+  <text x="47" y="77" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">HAB 07 STAYS THE CAPITAL · SMALLER TOWNS GIVE THE GLOBE PLACES TO GO</text>
+  <path d="M46 97H1554" stroke="#465751"/>
+
+  <!-- Globe placement plan -->
+  <rect x="46" y="119" width="1508" height="370" rx="5" fill="#172326" stroke="#435551"/>
+  <text x="72" y="151" fill="#d7caa9" font-family="monospace" font-size="12" letter-spacing="2">SUGGESTED SURFACE PLACEMENT · ONE CONTINUOUS WRAPPED ROUTE</text>
+  <g clip-path="url(#planet)">
+    <circle cx="300" cy="295" r="188" fill="#b07957"/>
+    <circle cx="300" cy="295" r="166" fill="#4d4746"/>
+    <circle cx="300" cy="295" r="139" fill="#465452"/>
+    <circle cx="300" cy="295" r="111" fill="#3c4b50"/>
+    <circle cx="300" cy="295" r="80" fill="#273a41"/>
+    <path d="M128 205l44-18 24 11 21-9 23 14 21-6 29 17 30-11 26 20 34-12 32 18 27-2 25 17-7 20-22-8-18 12-25-9-29 13-21-14-24 11-23-17-28 13-24-15-20 10-22-17-32 10-25-15-32 4-19-15Z" fill="#d29770" opacity=".92"/>
+    <path d="M124 354l31-13 27 9 24-17 23 12 26-13 20 12 27-9 27 15 28-13 27 16 35-13 24 12 27-6 22 18-9 18-25-9-23 13-28-14-22 9-23-15-23 13-29-14-29 8-20-14-28 13-26-14-34 7-22-15-29 7-19-18Z" fill="#8f6857" opacity=".95"/>
+    <path d="M156 249q38 28 71 4t72 7q42 31 78 2t68 6" fill="none" stroke="#e0a776" stroke-width="9" opacity=".8"/>
+    <path d="M146 315q34-25 68-5t71-5q42-24 73 0t70-2" fill="none" stroke="#8be1cf" stroke-width="8" stroke-dasharray="2 14" opacity=".75"/>
+    <path d="M144 274q23 20 40 8t31 10m151 91q18-15 31-7t26-8" fill="none" stroke="#b8b8d0" stroke-width="6" stroke-dasharray="4 9"/>
+  </g>
+  <circle cx="300" cy="295" r="188" fill="none" stroke="#e1bd89" stroke-width="5"/>
+  <circle cx="300" cy="295" r="165" fill="none" stroke="#8f9f91" stroke-width="2"/>
+  <circle cx="300" cy="295" r="139" fill="none" stroke="#697b75" stroke-width="2"/>
+  <circle cx="300" cy="295" r="111" fill="none" stroke="#60716f" stroke-width="2"/>
+  <circle cx="300" cy="295" r="80" fill="none" stroke="#657975" stroke-width="2"/>
+  <!-- Each town is attached to the outer crust; route arcs hug the globe. -->
+  <path d="M300 107A188 188 0 0 1 488 295A188 188 0 0 1 300 483A188 188 0 0 1 112 295A188 188 0 0 1 300 107Z" fill="none" stroke="#e7c98f" stroke-width="3" stroke-dasharray="5 9"/>
+  <g transform="translate(300 107)"><circle r="15" fill="#253331" stroke="#e8ba79" stroke-width="3"/><path d="M-7 4V-3h14v7zm-3-3 10-9L10 1" fill="none" stroke="#e8ba79" stroke-width="2"/></g>
+  <g transform="translate(488 295)"><circle r="13" fill="#243533" stroke="#8be1cf" stroke-width="3"/><path d="M-7 4V-7H7V4Zm-4 0h22" fill="none" stroke="#8be1cf" stroke-width="2"/></g>
+  <g transform="translate(300 483)"><circle r="13" fill="#243533" stroke="#c4b7d1" stroke-width="3"/><path d="M-7 4V-2L0-9 7-2V4Zm-3-4h20" fill="none" stroke="#c4b7d1" stroke-width="2"/></g>
+  <g transform="translate(112 295)"><circle r="13" fill="#243533" stroke="#c3a77b" stroke-width="3"/><path d="M-8 4V-5L0-9 8-5V4Zm-2-2h20" fill="none" stroke="#c3a77b" stroke-width="2"/></g>
+  <text x="530" y="255" fill="#8be1cf" font-family="monospace" font-size="11" font-weight="bold">FIELD CAMP</text><text x="530" y="274" fill="#94a69b" font-family="monospace" font-size="10">safe landing / refuel</text>
+  <path d="M519 277 500 289" stroke="#8be1cf"/>
+  <text x="332" y="450" fill="#c4b7d1" font-family="monospace" font-size="11" font-weight="bold">SURVEY STATION</text><text x="332" y="468" fill="#94a69b" font-family="monospace" font-size="10">landmark / chart desk</text>
+  <path d="M330 442 314 426" stroke="#c4b7d1"/>
+  <text x="68" y="255" fill="#c3a77b" font-family="monospace" font-size="11" font-weight="bold">SALVAGE YARD</text><text x="68" y="274" fill="#94a69b" font-family="monospace" font-size="10">crane / ore transfer</text>
+  <path d="M197 278 123 291" stroke="#c3a77b"/>
+  <text x="331" y="131" fill="#e8ba79" font-family="monospace" font-size="11" font-weight="bold">HAB 07 CAPITAL</text><text x="331" y="150" fill="#94a69b" font-family="monospace" font-size="10">all existing services</text>
+  <path d="M326 147 308 115" stroke="#e8ba79"/>
+  <text x="690" y="194" fill="#dfd3b5" font-family="monospace" font-size="13" font-weight="bold">KEEP THE GLOBE READABLE</text>
+  <text x="690" y="226" fill="#9db0a4" font-family="monospace" font-size="11">• Hab 07 stays the only full service capital.</text>
+  <text x="690" y="253" fill="#9db0a4" font-family="monospace" font-size="11">• Place small towns at a few deliberate longitudes.</text>
+  <text x="690" y="280" fill="#9db0a4" font-family="monospace" font-size="11">• Each site sticks to the curved outer crust.</text>
+  <text x="690" y="307" fill="#9db0a4" font-family="monospace" font-size="11">• The orbital map marks sites with distinct icons.</text>
+  <text x="690" y="334" fill="#9db0a4" font-family="monospace" font-size="11">• Surface approach uses the same local tangent view.</text>
+  <text x="690" y="361" fill="#9db0a4" font-family="monospace" font-size="11">• Keep enough empty crust between settlements.</text>
+  <path d="M686 387H1495" stroke="#435551"/>
+  <text x="690" y="419" fill="#d1c3a4" font-family="monospace" font-size="10">VISUAL START: sites are landmarks. If playable services are added later, make each stop's use explicit and distinct.</text>
+  <text x="690" y="444" fill="#82968b" font-family="monospace" font-size="10">Suggested sites are design placements, not saved coordinates or a final economy plan.</text>
+
+  <!-- Four settlement concepts -->
+  <text x="47" y="529" fill="#e8ddc3" font-family="monospace" font-size="15" font-weight="bold" letter-spacing="2">FOUR SCALES OF SETTLEMENT</text>
+  <g transform="translate(46 552)">
+    <rect width="362" height="469" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#e8ba79" font-family="monospace" font-size="12" font-weight="bold">01 / HAB 07 · CAPITAL</text>
+    <text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">THE MAIN HUB · SELL / SERVICE / UPGRADES</text>
+    <rect x="12" y="63" width="338" height="204" fill="url(#sky)"/>
+    <path d="M12 214L52 187 89 202 130 173 171 203 210 181 254 204 291 181 350 206V241H12Z" fill="#67534b"/>
+    <path d="M12 231H350" stroke="#e0a776" stroke-width="4"/><path d="M12 235H350V267H12Z" fill="#3c302e"/>
+    <g transform="translate(95 230) scale(.72)"><use href="#hut"/></g><g transform="translate(179 230) scale(.8)"><use href="#hut"/></g><g transform="translate(264 230) scale(.72)"><use href="#hut"/></g>
+    <path d="M97 223v-12m83 12v-16m84 16v-12" stroke="#e8ba79" stroke-width="2"/><g transform="translate(218 228) scale(.66)"><use href="#pod"/></g>
+    <path d="M58 230v-43m-10 0h20m-14 43 4-31 4 31" fill="none" stroke="#72857c" stroke-width="3"/>
+    <text x="18" y="302" fill="#ddd1b6" font-family="monospace" font-size="10">Existing services stay here. Make each hut</text><text x="18" y="321" fill="#ddd1b6" font-family="monospace" font-size="10">recognizable before adding more buildings.</text>
+    <text x="18" y="371" fill="#92a69b" font-family="monospace" font-size="9">KEEP: original service coordinates, shipyard,</text><text x="18" y="390" fill="#92a69b" font-family="monospace" font-size="9">growth tiers and recognizable Hab 07 mark.</text>
+  </g>
+  <g transform="translate(430 552)">
+    <rect width="362" height="469" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#8be1cf" font-family="monospace" font-size="12" font-weight="bold">02 / FIELD CAMP · FORWARD STOP</text>
+    <text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">SMALL · WARM · EASY TO FIND AT NIGHT</text>
+    <rect x="12" y="63" width="338" height="204" fill="#243237"/>
+    <path d="M12 210L54 191 95 202 143 182 182 201 224 184 266 200 305 185 350 199V240H12Z" fill="#4c5e59"/>
+    <path d="M12 231H350" stroke="#8be1cf" stroke-width="4"/><path d="M12 235H350V267H12Z" fill="#354744"/>
+    <g fill="#344443" stroke="#83958a" stroke-width="2"><path d="M88 230v-33l10-11h47l9 11v33z"/><path d="M171 230v-26h53v26z"/></g>
+    <path d="M98 194h47m-37 14h28" stroke="#8be1cf" stroke-width="3"/><path d="M184 210h28" stroke="#e8ba79" stroke-width="4"/>
+    <path d="M81 231v-49m80 49v-49m-80 0h80" fill="none" stroke="#6f8178" stroke-width="4"/><circle cx="121" cy="177" r="8" fill="none" stroke="#8be1cf" stroke-width="2"/>
+    <g transform="translate(271 228) scale(.66)"><use href="#pod"/></g><path d="M245 226h54v6h-54" fill="#263532" stroke="#9caea1" stroke-width="2"/>
+    <text x="18" y="302" fill="#ddd1b6" font-family="monospace" font-size="10">One habitat module + landing apron,</text><text x="18" y="321" fill="#ddd1b6" font-family="monospace" font-size="10">fuel/repair beacon and emergency mast.</text>
+    <text x="18" y="371" fill="#92a69b" font-family="monospace" font-size="9">OPTIONAL UTILITY: safe return stop only;</text><text x="18" y="390" fill="#92a69b" font-family="monospace" font-size="9">do not duplicate upgrades or selling.</text>
+  </g>
+  <g transform="translate(814 552)">
+    <rect width="362" height="469" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#c5b8d5" font-family="monospace" font-size="12" font-weight="bold">03 / SURVEY STATION · SIGNALS</text>
+    <text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">QUIET OBSERVATORY · MAP / ARCHIVE IDENTITY</text>
+    <rect x="12" y="63" width="338" height="204" fill="#252a3a"/>
+    <path d="M12 211L55 190 94 201 136 181 177 204 222 184 261 204 310 182 350 202V240H12Z" fill="#494761"/>
+    <path d="M12 231H350" stroke="#b5a5d5" stroke-width="4"/><path d="M12 235H350V267H12Z" fill="#3c3b4c"/>
+    <path d="M95 230v-30h83v30z" fill="#344443" stroke="#83958a" stroke-width="2"/><path d="M104 205h65v5h-65" fill="#c5b8d5"/><path d="M109 215h15v11h-15m22-11h15v11h-15m22-11h12v11h-12" fill="#9eacc0"/>
+    <path d="M216 228v-64m-23 12a27 27 0 0 1 46 0m-44 0h42m-21-23v17" fill="none" stroke="#a9a0c5" stroke-width="4"/><circle cx="216" cy="162" r="6" fill="#c5b8d5"/>
+    <path d="M45 230v-32m-8 0h16" stroke="#81948b" stroke-width="3"/><g transform="translate(286 228) scale(.62)"><use href="#pod"/></g>
+    <text x="18" y="302" fill="#ddd1b6" font-family="monospace" font-size="10">A dish, chart cabin, sample cabinets</text><text x="18" y="321" fill="#ddd1b6" font-family="monospace" font-size="10">and one distinctive survey mast.</text>
+    <text x="18" y="371" fill="#92a69b" font-family="monospace" font-size="9">OPTIONAL UTILITY: archive/region record</text><text x="18" y="390" fill="#92a69b" font-family="monospace" font-size="9">stop; no new scanner meter.</text>
+  </g>
+  <g transform="translate(1198 552)">
+    <rect width="356" height="469" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#c3a77b" font-family="monospace" font-size="12" font-weight="bold">04 / SALVAGE YARD · HAULAGE</text>
+    <text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">HEAVY FRAME · CRATES / WRECK PLATE</text>
+    <rect x="12" y="63" width="332" height="204" fill="#202d30"/>
+    <path d="M12 210L52 193 92 203 136 181 180 205 222 188 266 204 304 185 344 201V240H12Z" fill="#465650"/>
+    <path d="M12 231H344" stroke="#c3a77b" stroke-width="4"/><path d="M12 235H344V267H12Z" fill="#393d39"/>
+    <path d="M54 230v-65h17v65m111 0v-65h17v65M62 165h128m-8 0v26h38" fill="none" stroke="#829184" stroke-width="5"/><path d="M174 190l19 0 9 13-15 5z" fill="#b8ab8a"/>
+    <path d="M90 229v-31h52v31z" fill="#344443" stroke="#83958a" stroke-width="2"/><path d="M99 205h14v17H99m20-17h14v17h-14" fill="#748276"/><path d="M239 229v-28h35v28z" fill="#344443" stroke="#83958a" stroke-width="2"/><path d="M246 207h21m-21 7h21m-21 7h21" stroke="#c3a77b" stroke-width="3"/>
+    <path d="M54 174h17m111 0h17" stroke="#e8ba79" stroke-width="3"/>
+    <text x="18" y="302" fill="#ddd1b6" font-family="monospace" font-size="10">A crane, parts racks, sorted plating</text><text x="18" y="321" fill="#ddd1b6" font-family="monospace" font-size="10">and a clear ore-drop/loading bay.</text>
+    <text x="18" y="371" fill="#92a69b" font-family="monospace" font-size="9">OPTIONAL UTILITY: sell/transmit ore</text><text x="18" y="390" fill="#92a69b" font-family="monospace" font-size="9">with a small fee or limited capacity.</text>
+  </g>
+  <path d="M47 1060H1553" stroke="#465751"/>
+  <text x="49" y="1087" fill="#d7caa9" font-family="monospace" font-size="10" letter-spacing="1">BUILDING IDEA: SELECT A TOWN KIT FOR EACH EMPTY SITE; SPEND EXISTING CREDITS + ORE, ADD NO NEW CRAFTING MATERIALS.</text>
+  <text x="49" y="1112" fill="#879a8e" font-family="monospace" font-size="10">Start with visual landmarks and one small field camp. Add utility only if surface travel needs a stronger reason.</text>
+</svg>

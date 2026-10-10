@@ -21,6 +21,16 @@ export function random(seed: number, x: number, y: number, salt = 0) {
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
+function routeFragmentRow(row: number, mapId: MapId, chart?: PlanetChartSize) {
+  if (mapId !== 'cryo-shelf' || !chart || chart.radiusRows >= 64) return row;
+  // Keep authored signal order and mirrored far-side placement when a new
+  // campaign uses the compact starter chart. Legacy 64-row saves retain
+  // their exact original tile coordinates.
+  const scale = chart.radiusRows / 64;
+  return row <= 64
+    ? Math.round(row * scale)
+    : chart.radiusRows * 2 - Math.round((128 - row) * scale);
+}
 // Chunks are deterministic and disposable; excavation and exploration are separate durable state.
 export class TileWorld {
   chunks = new Map<string, Tile[]>();
@@ -72,14 +82,16 @@ export class TileWorld {
     // This makes the hemisphere flip physically require a core crossing while
     // preserving old saves that may have marked this row as excavated.
     if (y === coreRow) return { ...tile, type: 'boundary', hardness: Infinity, ore: undefined };
-    const fragment = this.mapId === 'cryo-shelf' ? ROUTE_FRAGMENTS.find((entry) => entry.x === x && entry.row === y) : undefined;
+    const fragment = this.mapId === 'cryo-shelf'
+      ? ROUTE_FRAGMENTS.find((entry) => entry.x === x && routeFragmentRow(entry.row, this.mapId, this.planetChart) === y)
+      : undefined;
     if (fragment) return { ...tile, fragmentId: fragment.id, landmarkId: fragment.id, tint: 0x91dfd2, hardness: Math.max(0.8, b.hardness), ore: undefined };
     if (this.mapId === 'cryo-shelf') {
       const chamber = ROUTE_FRAGMENTS.find((entry) =>
         Math.abs(x - entry.x) <= entry.chamber.halfWidth &&
-        Math.abs(y - entry.row) <= entry.chamber.halfHeight &&
+        Math.abs(y - routeFragmentRow(entry.row, this.mapId, this.planetChart)) <= entry.chamber.halfHeight &&
         (x - entry.x) ** 2 / (entry.chamber.halfWidth + 0.5) ** 2 +
-          (y - entry.row) ** 2 / (entry.chamber.halfHeight + 0.5) ** 2 <= 1,
+          (y - routeFragmentRow(entry.row, this.mapId, this.planetChart)) ** 2 / (entry.chamber.halfHeight + 0.5) ** 2 <= 1,
       );
       if (chamber) return { ...tile, type: 'empty', ore: undefined, fragmentId: undefined, landmarkId: chamber.id, tint: 0x668f91 };
     }

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1180" viewBox="0 0 1600 1180" role="img" aria-labelledby="title desc">
+  <title id="title">Build Mode exact UI states for surface placement</title>
+  <desc id="desc">Four coding mockups define catalog, valid preview, invalid overlap, and globe picker states for placing structures on a spherical planet.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#172326"/><stop offset="1" stop-color="#10191c"/></linearGradient>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#182629"/><stop offset="1" stop-color="#253235"/></linearGradient>
+    <linearGradient id="rock" x2="0" y2="1"><stop stop-color="#8b6851"/><stop offset="1" stop-color="#473a35"/></linearGradient>
+    <g id="hut"><path d="M-25 0v-24l9-10h32l9 10V0z" fill="#344443" stroke="#c1c6ae" stroke-width="2"/><path d="M-20-29h40v5h-40z" fill="#758178"/><path d="M-17-19h34v13h-34z" fill="#202e30"/><path d="M-12-17h9v9h-9zm15 0h9v9H3z" fill="#e8ba79"/><path d="M-29 2h58" stroke="#273631" stroke-width="4"/></g>
+    <g id="turret"><path d="M-14 0v-16l7-9h14l7 9V0z" fill="#344443" stroke="#e8ba79" stroke-width="2"/><path d="M-7-20h14v-7H-7z" fill="#758178" stroke="#c1c6ae" stroke-width="1.5"/><path d="M0-27v-18m0 7 14-6" stroke="#e8ba79" stroke-width="3"/></g>
+    <g id="scene">
+      <rect width="710" height="330" rx="4" fill="url(#sky)"/>
+      <circle cx="375" cy="507" r="345" fill="url(#rock)" stroke="#d19b6b" stroke-width="5"/>
+      <path d="M6 229q65-38 122-8t119-10q71-38 130-3t130-5q62-32 124-4t89-13" fill="none" stroke="#a47a5c" stroke-width="6"/>
+      <path d="M8 253q58-10 112 13t110 5q67-10 110 16t109 8q70-19 132-3t116-2" fill="none" stroke="#654e42" stroke-width="8"/>
+      <g transform="translate(243 243) scale(.67)"><use href="#hut"/></g>
+      <g transform="translate(294 232) scale(.62)"><use href="#hut"/></g>
+      <g transform="translate(348 247) scale(.65)"><use href="#turret"/></g>
+      <path d="M335 199Q385 174 418 213Q437 246 416 273Q381 293 347 277Q322 254 330 221Z" fill="none" stroke="#e8ba79" stroke-width="2" stroke-dasharray="5 5"/>
+    </g>
+    <g id="bar"><rect x="0" y="0" width="710" height="45" rx="3" fill="#10191c" stroke="#52645b"/><text x="16" y="19" fill="#8be1cf" font-family="monospace" font-size="9" font-weight="bold">REPAIR BAY</text><text x="16" y="36" fill="#d7caa9" font-family="monospace" font-size="12" font-weight="bold">3 × 2 TILES · $240 + 2 IRON</text><rect x="523" y="7" width="88" height="31" rx="2" fill="#d9b67f"/><text x="542" y="27" fill="#182326" font-family="monospace" font-size="10" font-weight="bold">PLACE</text><rect x="618" y="7" width="77" height="31" rx="2" fill="#202d2e" stroke="#52645b"/><text x="634" y="27" fill="#d7caa9" font-family="monospace" font-size="10" font-weight="bold">CANCEL</text></g>
+  </defs>
+  <rect width="1600" height="1180" fill="url(#bg)"/>
+  <text x="46" y="49" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">BUILD MODE · CODING MOCKUPS</text>
+  <text x="47" y="78" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">SAME CAMERA · FOUR STATES · NO COST SPENT UNTIL VALID CONFIRMATION</text>
+  <path d="M46 99H1554" stroke="#465751"/>
+  <!-- State A catalog -->
+  <g transform="translate(46 122)"><rect width="738" height="466" rx="5" fill="#202d2e" stroke="#435551"/><text x="22" y="31" fill="#e8ba79" font-family="monospace" font-size="12" font-weight="bold">A / CATALOG · SELECTING DOES NOT SPEND</text>
+    <g transform="translate(14 52)"><use href="#scene"/></g>
+    <rect x="405" y="82" width="350" height="325" rx="3" fill="#172326" stroke="#73847a"/>
+    <text x="425" y="111" fill="#e8ddc3" font-family="monospace" font-size="12" font-weight="bold">BUILD YARD</text>
+    <rect x="421" y="125" width="318" height="72" fill="#263638" stroke="#8be1cf" stroke-width="2"/><g transform="translate(451 177) scale(.45)"><use href="#hut"/></g><text x="478" y="151" fill="#d7caa9" font-family="monospace" font-size="10" font-weight="bold">REPAIR BAY</text><text x="478" y="170" fill="#92a69b" font-family="monospace" font-size="9">3×2 · HULL SERVICE · $240 + 2 IRON</text>
+    <rect x="421" y="204" width="318" height="72" fill="#202d2e" stroke="#465751"/><g transform="translate(451 256) scale(.45)"><use href="#hut"/></g><text x="478" y="230" fill="#d7caa9" font-family="monospace" font-size="10" font-weight="bold">ORE EXCHANGE</text><text x="478" y="249" fill="#92a69b" font-family="monospace" font-size="9">4×3 · SELL ORE · $320 + 3 COPPER</text>
+    <rect x="421" y="283" width="318" height="72" fill="#202d2e" stroke="#465751"/><g transform="translate(451 335) scale(.45)"><use href="#turret"/></g><text x="478" y="309" fill="#d7caa9" font-family="monospace" font-size="10" font-weight="bold">STARTER TURRET</text><text x="478" y="328" fill="#92a69b" font-family="monospace" font-size="9">1 HIT · 5-TILE RANGE · $180</text>
+    <text x="22" y="435" fill="#92a69b" font-family="monospace" font-size="9">Catalog is anchored beside the service; it does not cover the current pod or build area.</text>
+    <g transform="translate(14 407)"><use href="#bar"/></g>
+  </g>
+  <!-- State B valid placement -->
+  <g transform="translate(816 122)"><rect width="738" height="466" rx="5" fill="#202d2e" stroke="#435551"/><text x="22" y="31" fill="#8be1cf" font-family="monospace" font-size="12" font-weight="bold">B / VALID · TANGENT GHOST + EXACT ANCHOR</text>
+    <g transform="translate(14 52)"><use href="#scene"/></g>
+    <g transform="translate(448 262)" opacity=".75"><use href="#hut"/></g><rect x="402" y="265" width="92" height="17" fill="none" stroke="#8be1cf" stroke-width="2" stroke-dasharray="5 3"/><circle cx="448" cy="283" r="8" fill="#172326" stroke="#8be1cf" stroke-width="2.5"/><circle cx="448" cy="283" r="2.5" fill="#8be1cf"/>
+    <rect x="506" y="254" width="139" height="22" rx="2" fill="#172326" stroke="#8be1cf"/><text x="515" y="269" fill="#a4eadb" font-family="monospace" font-size="8" font-weight="bold">ANCHOR · +7 TILES</text>
+    <text x="390" y="230" fill="#8be1cf" font-family="monospace" font-size="9" font-weight="bold">VALID SITE</text>
+    <g transform="translate(14 407)"><use href="#bar"/></g>
+  </g>
+  <!-- State C invalid overlap -->
+  <g transform="translate(46 610)"><rect width="738" height="466" rx="5" fill="#202d2e" stroke="#435551"/><text x="22" y="31" fill="#df947e" font-family="monospace" font-size="12" font-weight="bold">C / INVALID · KEEP GHOST, EXPLAIN WHY</text>
+    <g transform="translate(14 52)"><use href="#scene"/></g>
+    <g transform="translate(298 237) scale(.7)" opacity=".38"><use href="#hut"/></g><rect x="269" y="239" width="58" height="14" fill="none" stroke="#e28470" stroke-width="2" stroke-dasharray="4 3"/><circle cx="298" cy="255" r="7" fill="#172326" stroke="#e28470" stroke-width="2"/><path d="M289 246l18 18m0-18-18 18" stroke="#e28470" stroke-width="2"/>
+    <rect x="334" y="222" width="94" height="24" rx="2" fill="#3b2929" stroke="#d87b68"/><text x="344" y="238" fill="#f0a18d" font-family="monospace" font-size="9" font-weight="bold">OCCUPIED</text>
+    <g opacity=".38"><rect x="537" y="414" width="88" height="31" rx="2" fill="#48504a"/></g><text x="540" y="434" fill="#df947e" font-family="monospace" font-size="8">PLACE DISABLED</text>
+    <g transform="translate(14 407)"><use href="#bar"/></g>
+  </g>
+  <!-- State D globe picker -->
+  <g transform="translate(816 610)"><rect width="738" height="466" rx="5" fill="#202d2e" stroke="#435551"/><text x="22" y="31" fill="#c5b8d5" font-family="monospace" font-size="12" font-weight="bold">D / GLOBE PICKER · CHOOSE A DISTANT LONGITUDE</text>
+    <g transform="translate(14 52)"><use href="#scene"/></g>
+    <rect x="95" y="74" width="414" height="376" rx="4" fill="#10191c" stroke="#9a8db0" stroke-width="2"/>
+    <text x="116" y="101" fill="#e8ddc3" font-family="monospace" font-size="11" font-weight="bold">PLANET SURFACE · SELECT SITE</text>
+    <circle cx="301" cy="265" r="126" fill="#705548" stroke="#dfbd89" stroke-width="5"/><circle cx="301" cy="265" r="111" fill="#515451" stroke="#829184" stroke-width="2"/>
+    <path d="M190 222q39-20 78 1t77-4q38-21 67 4M186 286q38-24 75-1t72 1q39-17 75 0M220 345q31-16 60 1t58-3" fill="none" stroke="#a77c60" stroke-width="7"/>
+    <path d="M254 144A126 126 0 0 1 426 265" fill="none" stroke="#8be1cf" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="290" cy="142" r="7" fill="#e8ba79" stroke="#172326" stroke-width="2"/><text x="305" y="145" fill="#e8ba79" font-family="monospace" font-size="8">YOU</text>
+    <circle cx="420" cy="238" r="7" fill="#8be1cf" stroke="#172326" stroke-width="2"/><text x="429" y="235" fill="#8be1cf" font-family="monospace" font-size="8">CANDIDATE</text>
+    <circle cx="323" cy="149" r="5" fill="#c5b8d5"/><circle cx="338" cy="154" r="5" fill="#c5b8d5"/><path d="M323 149q10-8 15 5" fill="none" stroke="#c5b8d5" stroke-width="2" stroke-dasharray="2 3"/>
+    <text x="116" y="421" fill="#92a69b" font-family="monospace" font-size="9">Click crust · arrows nudge one tile · M returns to close-up preview.</text>
+    <rect x="531" y="91" width="192" height="319" rx="3" fill="#172326" stroke="#52645b"/>
+    <text x="549" y="119" fill="#d7caa9" font-family="monospace" font-size="10" font-weight="bold">SITE SUMMARY</text>
+    <text x="549" y="155" fill="#92a69b" font-family="monospace" font-size="8">PLANET</text><text x="549" y="173" fill="#e8ddc3" font-family="monospace" font-size="10">CRYO SHELF</text>
+    <text x="549" y="205" fill="#92a69b" font-family="monospace" font-size="8">HEMISPHERE</text><text x="549" y="223" fill="#e8ddc3" font-family="monospace" font-size="10">FAR / LOWER ARC</text>
+    <text x="549" y="255" fill="#92a69b" font-family="monospace" font-size="8">RELATIVE POSITION</text><text x="549" y="273" fill="#e8ddc3" font-family="monospace" font-size="10">+126 TILES FROM POD</text>
+    <text x="549" y="305" fill="#92a69b" font-family="monospace" font-size="8">STATUS</text><text x="549" y="323" fill="#8be1cf" font-family="monospace" font-size="10" font-weight="bold">CLEAR · NO COST YET</text>
+    <rect x="545" y="351" width="164" height="40" rx="2" fill="#d9b67f"/><text x="565" y="376" fill="#182326" font-family="monospace" font-size="10" font-weight="bold">PREVIEW SITE</text>
+  </g>
+  <path d="M46 1101H1554" stroke="#465751"/>
+  <text x="48" y="1131" fill="#d7caa9" font-family="monospace" font-size="10" letter-spacing="1">INPUT: POINTER MOVE · ARROWS ±1 TILE · SHIFT+ARROWS ±5 TILES · M GLOBE PICKER · ENTER / LEFT CLICK PLACE · ESC / RIGHT CLICK CANCEL</text>
+  <text x="48" y="1154" fill="#879a8e" font-family="monospace" font-size="9">Validation runs during preview and again on confirm; currency and durable world state change only once after a valid confirmation.</text>
+</svg>

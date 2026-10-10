@@ -3,10 +3,10 @@ async (page) => {
   const baseURL = new URL(page.url()).origin;
   const chart = { columns: 471, radiusRows: 150 };
   const destroyed = [];
-  for (let x = 23; x <= 25; x++) for (let y = 0; y <= 20; y++) destroyed.push(`${x},${y}`);
+  for (let x = 28; x <= 30; x++) for (let y = 0; y <= 20; y++) destroyed.push(`${x},${y}`);
   const save = {
     version: 20, planetChart: chart, campaignSeed: 60291, activeMap: 'cryo-shelf',
-    maps: { 'cryo-shelf': { seed: 60291, x: 980, y: -22, maxDepth: 0, destroyed, discovered: [], drops: [], activeCharge: null, structures: [], planetChart: chart } },
+    maps: { 'cryo-shelf': { seed: 60291, x: 1180, y: -22, maxDepth: 0, destroyed, discovered: [], drops: [], activeCharge: null, structures: [], planetChart: chart } },
     money: 780, levels: { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 },
     fuel: 140, hull: 1, cargo: { copper: 2, iron: 0, silver: 0, gold: 0, diamond: 0 }, maxDepth: 0,
     artifact: false, milestones: [], shipComponents: [], routeFragments: [], charges: 0,
@@ -55,6 +55,7 @@ async (page) => {
   if (Object.values(rescued.state.cargo).some(Boolean) || rescued.save.pilotEscaping || rescued.save.escapeSuit)
     throw Error('Surface rescue should consume the suit and forfeit unsold ore');
   if (!rescued.toast.includes('PILOT SAFE')) throw Error(`Surface rescue was not acknowledged: ${rescued.toast}`);
+  if (Math.abs(rescued.state.x - ejected.state.x) > 1) throw Error(`Surface rescue snapped back to the landing pad instead of staying at the rescue longitude: ${rescued.state.x}`);
   await page.screenshot({ path: 'output/playwright/escape-suit-rescued.png' });
   return {
     purchase: { money: saved.money, packed: saved.escapeSuit },

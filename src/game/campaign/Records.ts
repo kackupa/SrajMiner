@@ -50,7 +50,7 @@ export function collectCoreRelic(
   return relic;
 }
 
-/** Reveal each core record only after recovery, and the complete finding only when all four are logged. */
+/** Reveal each core record only after recovery, and the complete finding only when every world is logged. */
 export function coreSurveyProgress(milestones: readonly string[]) {
   const records = CORE_RELICS.map((relic) => ({ relic, recovered: milestones.includes(relic.id) }));
   const complete = records.every((entry) => entry.recovered);
@@ -61,7 +61,7 @@ export function coreSurveyProgress(milestones: readonly string[]) {
   } as const;
 }
 
-/** The four optional regional logs close the crew mystery; their existing milestone IDs are the durable state. */
+/** Optional regional logs close the crew mystery; their existing milestone IDs are the durable state. */
 export function crewArchiveRestored(milestones: readonly string[]): boolean {
   return NAVIGATION_HASHES.every((hash) => milestones.includes(hash.id));
 }

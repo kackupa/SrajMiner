@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1320" role="img" aria-labelledby="title desc">
+  <title id="title">Populated planet environments and walking citizen designs</title>
+  <desc id="desc">Three original inhabited planet styles, with layered cities wrapping round the globe, small pedestrians crossing walkways, and a continuous cutaway into underground mine and colony levels. A magnified citizen sprite key shows walk-cycle poses at gameplay scale.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#19282d"/><stop offset="1" stop-color="#0a1317"/></linearGradient>
+    <linearGradient id="skyWarm" x2="0" y2="1"><stop stop-color="#46656a"/><stop offset="1" stop-color="#b88465"/></linearGradient>
+    <linearGradient id="skyIce" x2="0" y2="1"><stop stop-color="#2b5264"/><stop offset="1" stop-color="#9dc6c8"/></linearGradient>
+    <linearGradient id="skyAsh" x2="0" y2="1"><stop stop-color="#242b35"/><stop offset="1" stop-color="#8b5744"/></linearGradient>
+    <linearGradient id="rock" x2="0" y2="1"><stop stop-color="#354448"/><stop offset="1" stop-color="#11191c"/></linearGradient>
+    <pattern id="stars" width="83" height="71" patternUnits="userSpaceOnUse"><circle cx="8" cy="15" r="1" fill="#edf0df" opacity=".55"/><circle cx="57" cy="49" r=".8" fill="#a5d4c7" opacity=".6"/><circle cx="37" cy="4" r=".7" fill="#f4d49b" opacity=".55"/></pattern>
+    <pattern id="strata" width="90" height="34" patternUnits="userSpaceOnUse"><path d="M0 8q24-9 50 1t40 0M0 25q22 7 47-1t43 1" fill="none" stroke="#9aab9d" stroke-opacity=".11" stroke-width="2"/></pattern>
+    <g id="walker" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="0" cy="-8" r="3" fill="#f0c88a"/>
+      <path d="M0-4v7m0-5l-4 3m4-3 4 2m-4 3-3 5m3-5 4 4" fill="none" stroke="#a9d9c9" stroke-width="2.3"/>
+      <path d="M-2-10q2-3 4 0" fill="none" stroke="#e5b875" stroke-width="1.2"/>
+    </g>
+    <g id="walk2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="0" cy="-8" r="3" fill="#f0c88a"/>
+      <path d="M0-4v7m0-5l-4 2m4-2 4 3m-4 2 4 6m-4-6-4 3" fill="none" stroke="#a9d9c9" stroke-width="2.3"/>
+      <path d="M-2-10q2-3 4 0" fill="none" stroke="#e5b875" stroke-width="1.2"/>
+    </g>
+    <g id="tower">
+      <path d="M0 0v-92l17-20 17 20v92z" fill="#283b3c" stroke="#a8ae98" stroke-width="2"/>
+      <path d="M5-10h24M5-27h24M5-44h24M5-61h24M5-78h24" stroke="#c5a978" stroke-width="2"/>
+      <path d="M10-17h4v5h-4m9-5h4v5h-4m-9-21h4v5h-4m9-5h4v5h-4m-9-22h4v5h-4m9-5h4v5h-4" fill="#91d8c5"/>
+      <path d="M14-112v-13h6v13" fill="#d0b07a" stroke="#d0b07a"/>
+    </g>
+    <clipPath id="crownGlobeClip"><circle cx="0" cy="0" r="50"/></clipPath>
+    <clipPath id="nacreGlobeClip"><circle cx="0" cy="0" r="50"/></clipPath>
+    <clipPath id="hiveGlobeClip"><circle cx="0" cy="0" r="50"/></clipPath>
+    <g id="crownGlobe">
+      <circle r="52" fill="#101a1d" stroke="#e1c087" stroke-width="2"/>
+      <g clip-path="url(#crownGlobeClip)">
+        <circle r="49" fill="#6f6450"/><path d="M-50-30Q0-53 50-30v18Q0-34-50-12z" fill="#927d5c"/><path d="M-50-10Q0-30 50-10v18Q0-3-50 8z" fill="#b68d60"/><path d="M-50 14Q0-4 50 14v19Q0 19-50 33z" fill="#957753"/><path d="M-50 35Q0 22 50 35v18h-100z" fill="#594e40"/>
+        <path d="M-50-12Q0-34 50-12M-50 8Q0-3 50 8M-50 33Q0 19 50 33" fill="none" stroke="#e0c28b" stroke-width="3"/>
+        <g fill="#b9e0c9"><path d="M-34-25h5v7h-5m15-10h5v7h-5m18-9h5v7h-5m17 2h5v7h-5m-45 24h5v7h-5m17-5h5v7h-5m20-8h5v7h-5m17 7h5v7h-5m-20 19h5v7h-5"/></g>
+        <path d="M-2-50h4v14h-4m-2 44h4v21h-4" fill="#f0cf91"/><path d="M0-13v48" stroke="#e8c17e" stroke-width="2" stroke-dasharray="3 3"/>
+      </g>
+      <circle r="50" fill="none" stroke="#f0d39d" stroke-opacity=".7"/>
+    </g>
+    <g id="nacreGlobe">
+      <circle r="52" fill="#101a1d" stroke="#a9e2dc" stroke-width="2"/>
+      <g clip-path="url(#nacreGlobeClip)">
+        <circle r="49" fill="#48717a"/><path d="M-50-30Q0-53 50-30v18Q0-34-50-12z" fill="#85b7b5"/><path d="M-50-10Q0-30 50-10v18Q0-3-50 8z" fill="#b4d5c9"/><path d="M-50 14Q0-4 50 14v19Q0 19-50 33z" fill="#81aead"/><path d="M-50 35Q0 22 50 35v18h-100z" fill="#40656d"/>
+        <path d="M-50-12Q0-34 50-12M-50 8Q0-3 50 8M-50 33Q0 19 50 33" fill="none" stroke="#d2eee0" stroke-width="3"/>
+        <g fill="#d1f5e9"><path d="M-34-25h5v7h-5m15-10h5v7h-5m18-9h5v7h-5m17 2h5v7h-5m-45 24h5v7h-5m17-5h5v7h-5m20-8h5v7h-5m17 7h5v7h-5m-20 19h5v7h-5"/></g>
+        <path d="M-2-50h4v14h-4m-2 44h4v21h-4" fill="#e5f4df"/><path d="M0-13v48" stroke="#d6eee0" stroke-width="2" stroke-dasharray="3 3"/>
+      </g>
+      <circle r="50" fill="none" stroke="#d8f1e6" stroke-opacity=".75"/>
+    </g>
+    <g id="hiveGlobe">
+      <circle r="52" fill="#101a1d" stroke="#edae76" stroke-width="2"/>
+      <g clip-path="url(#hiveGlobeClip)">
+        <circle r="49" fill="#534642"/><path d="M-50-30Q0-53 50-30v18Q0-34-50-12z" fill="#795845"/><path d="M-50-10Q0-30 50-10v18Q0-3-50 8z" fill="#ab704e"/><path d="M-50 14Q0-4 50 14v19Q0 19-50 33z" fill="#805743"/><path d="M-50 35Q0 22 50 35v18h-100z" fill="#443b38"/>
+        <path d="M-50-12Q0-34 50-12M-50 8Q0-3 50 8M-50 33Q0 19 50 33" fill="none" stroke="#e5a66d" stroke-width="3"/>
+        <g fill="#ffc18a"><path d="M-34-25h5v7h-5m15-10h5v7h-5m18-9h5v7h-5m17 2h5v7h-5m-45 24h5v7h-5m17-5h5v7h-5m20-8h5v7h-5m17 7h5v7h-5m-20 19h5v7h-5"/></g>
+        <path d="M-2-50h4v14h-4m-2 44h4v21h-4" fill="#ffd08a"/><path d="M0-13v48" stroke="#ffc078" stroke-width="2" stroke-dasharray="3 3"/>
+      </g>
+      <circle r="50" fill="none" stroke="#f3bd89" stroke-opacity=".75"/>
+    </g>
+  </defs>
+  <rect width="1800" height="1320" fill="url(#bg)"/>
+  <text x="54" y="57" fill="#e7c58a" font-family="monospace" font-size="14" letter-spacing="5">COLD SIGNAL / INHABITED WORLDS STUDY 01</text>
+  <text x="54" y="113" fill="#edf3e8" font-family="Arial,sans-serif" font-size="42" font-weight="700">The city is alive above the mine.</text>
+  <text x="56" y="147" fill="#9eafa8" font-family="monospace" font-size="13" letter-spacing="1">ORIGINAL INDUSTRIAL SCI-FI · CITIES FOLLOW THE GLOBE · SMALL WALKERS GIVE THEM SCALE</text>
+
+  <!-- Three populated-world identities, each with multiple skyline tiers and tiny pedestrians. -->
+  <g fill="#10191e" stroke="#50645e"><rect x="48" y="177" width="548" height="350" rx="5"/><rect x="626" y="177" width="548" height="350" rx="5"/><rect x="1204" y="177" width="548" height="350" rx="5"/></g>
+  <g font-family="monospace" font-size="12" letter-spacing="1.5">
+    <text x="72" y="207" fill="#e8c68b">01 / VESPER CROWN · TRADE AND CIVIC</text>
+    <text x="650" y="207" fill="#b6e6df">02 / NACRE MOON · POLAR HABITATS</text>
+    <text x="1228" y="207" fill="#f1b27e">03 / CINDER HIVE · INDUSTRIAL HIVE</text>
+  </g>
+  <!-- Full wrapped globes make these planet designs the primary reference; panorama below is only the local view. -->
+  <g transform="translate(184 349)"><use href="#crownGlobe"/></g>
+  <g transform="translate(762 349)"><use href="#nacreGlobe"/></g>
+  <g transform="translate(1340 349)"><use href="#hiveGlobe"/></g>
+  <g fill="#e9d5aa" font-family="monospace" font-size="9" text-anchor="middle" letter-spacing=".7"><text x="184" y="414">FULL GLOBE / CITY WRAPS ALL SIDES</text><text x="762" y="414">FULL GLOBE / CITY WRAPS ALL SIDES</text><text x="1340" y="414">FULL GLOBE / CITY WRAPS ALL SIDES</text></g>
+  <g>
+    <rect x="64" y="220" width="516" height="252" fill="url(#skyWarm)"/><rect x="64" y="220" width="516" height="252" fill="url(#stars)"/>
+    <circle cx="477" cy="270" r="34" fill="#d6ae78" opacity=".74"/><path d="M64 433q130-67 240-8t276-34v81H64z" fill="#435354"/>
+    <!-- Vesper layered transit city -->
+    <path d="M64 423h516v49H64z" fill="#253436"/><path d="M77 412V348h44v64m10 0v-86h52v86m8 0V338h40v74m16 0V315h58v97m12 0v-71h49v71m13 0V330h56v82m11 0v-98h43v98m14 0v-62h54v62" fill="#344746" stroke="#aeb39d" stroke-width="2"/>
+    <path d="M65 389h510v10H65zM65 423h510v8H65z" fill="#be9868"/><path d="M96 412v-19m89 19v-19m101 19v-19m112 19v-19m92 19v-19" stroke="#e2c285" stroke-width="3"/>
+    <g fill="#a9dfcd"><path d="M85 365h7v9h-7m19 0h7v9h-7m45-49h8v9h-8m19 0h8v9h-8m48 3h7v9h-7m20-44h7v9h-7m56-9h8v9h-8m20 0h8v9h-8m33 6h8v9h-8m24-49h8v9h-8m20 0h8v9h-8m54 7h8v9h-8m20 0h8v9h-8m27-38h7v9h-7m55 19h7v9h-7m-20 0h7v9h-7"/></g>
+    <path d="M90 382H542" stroke="#e6c98f" stroke-width="3"/><path d="M110 382v10m78-10v10m91-10v10m95-10v10m100-10v10" stroke="#e6c98f" stroke-width="2"/>
+    <g transform="translate(151 378) scale(.8)"><use href="#walker"/></g><g transform="translate(235 378) scale(.8)"><use href="#walk2"/></g><g transform="translate(336 418) scale(.8)"><use href="#walker"/></g><g transform="translate(470 418) scale(.8)"><use href="#walk2"/></g>
+    <path d="M64 472q128 8 258 0t258 0" fill="none" stroke="#e5ba75" stroke-width="3"/>
+  </g>
+  <g>
+    <rect x="642" y="220" width="516" height="252" fill="url(#skyIce)"/><rect x="642" y="220" width="516" height="252" fill="url(#stars)"/>
+    <path d="M642 337q90-74 170 4t164-24q87-68 182 31v124H642z" fill="#a3c8c7" opacity=".62"/>
+    <!-- Nacre domes and enclosed elevated corridors -->
+    <path d="M642 425h516v47H642z" fill="#273f49"/>
+    <path d="M666 425v-50q0-36 45-36t45 36v50m22 0v-75q0-45 55-45t55 45v75m14 0v-50q0-34 42-34t42 34v50m26 0v-91q0-43 51-43t51 43v91m16 0v-57q0-32 41-32t41 32v57m16 0v-72q0-39 47-39t47 39v72" fill="#587980" stroke="#c6e4d9" stroke-width="2"/>
+    <path d="M666 399h475v9H666zM660 430h490v8H660z" fill="#c0d9cd"/><path d="M688 399v-16m91 16v-21m111 21v-10m87 10v-22m102 22v-16" stroke="#d8ede2" stroke-width="2"/>
+    <path d="M681 425v-59m123 59v-84m126 84v-57m112 57v-96m101 96v-64" stroke="#7bafb1" stroke-width="4"/>
+    <g fill="#bff1e4"><circle cx="712" cy="389" r="3"/><circle cx="760" cy="389" r="3"/><circle cx="858" cy="373" r="3"/><circle cx="906" cy="373" r="3"/><circle cx="1040" cy="377" r="3"/><circle cx="1088" cy="377" r="3"/></g>
+    <g transform="translate(735 395) scale(.8)"><use href="#walk2"/></g><g transform="translate(840 426) scale(.8)"><use href="#walker"/></g><g transform="translate(1003 395) scale(.8)"><use href="#walker"/></g><g transform="translate(1104 426) scale(.8)"><use href="#walk2"/></g>
+    <path d="M642 472q128 8 258 0t258 0" fill="none" stroke="#a5e5df" stroke-width="3"/>
+  </g>
+  <g>
+    <rect x="1220" y="220" width="516" height="252" fill="url(#skyAsh)"/><rect x="1220" y="220" width="516" height="252" fill="url(#stars)"/>
+    <circle cx="1661" cy="264" r="25" fill="#db8a5d" opacity=".74"/><path d="M1220 389q130-57 261-10t255-49v99H1220z" fill="#433b3b"/>
+    <!-- Cinder industrial hive stacks -->
+    <path d="M1220 428h516v44h-516z" fill="#252c31"/>
+    <path d="M1234 428V312h50v116m5 0V340h56v88m10 0V295h72v133m8 0V325h47v103m8 0V278h75v150m8 0V329h53v99m7 0V306h65v122m7 0V347h51v81" fill="#333c40" stroke="#a99881" stroke-width="2"/>
+    <path d="M1235 380h493v9h-493zM1224 431h510v8h-510z" fill="#9b684e"/><path d="M1270 428v-17m82 17v-17m95 17v-17m93 17v-17m105 17v-17m58 17v-17" stroke="#e2a36a" stroke-width="3"/>
+    <g fill="#edb57c"><path d="M1247 333h7v9h-7m18 0h7v9h-7m44 3h7v9h-7m24 0h7v9h-7m33-36h8v9h-8m20 0h8v9h-8m50 8h8v9h-8m18-45h8v9h-8m55 6h8v9h-8m19 0h8v9h-8m50-44h8v9h-8m20 0h8v9h-8m49 16h8v9h-8m24 0h8v9h-8m30-27h7v9h-7m41 20h7v9h-7"/></g>
+    <path d="M1250 392H1710" stroke="#e6a36a" stroke-width="3"/><path d="M1290 392v15m112-15v15m104-15v15m110-15v15m86-15v15" stroke="#e6a36a" stroke-width="2"/>
+    <g transform="translate(1332 388) scale(.8)"><use href="#walker"/></g><g transform="translate(1453 388) scale(.8)"><use href="#walk2"/></g><g transform="translate(1579 428) scale(.8)"><use href="#walker"/></g><g transform="translate(1680 428) scale(.8)"><use href="#walk2"/></g>
+    <path d="M1220 472q128 8 258 0t258 0" fill="none" stroke="#edaa70" stroke-width="3"/>
+  </g>
+  <g font-family="Arial,sans-serif" fill="#dce5dc" font-size="13">
+    <text x="72" y="503">LOCAL SURFACE VIEW: boulevards · bridges · civic towers</text><text x="650" y="503">LOCAL SURFACE VIEW: domes · warm corridors · iceworks</text><text x="1228" y="503">LOCAL SURFACE VIEW: worker blocks · freight decks · foundry stacks</text>
+  </g>
+
+  <!-- One continuous world cross-section: inhabited decks over underground colony and mining. -->
+  <g fill="#10191e" stroke="#50645e"><rect x="48" y="551" width="1117" height="573" rx="5"/><rect x="1190" y="551" width="562" height="573" rx="5"/></g>
+  <text x="74" y="584" fill="#e8c68b" font-family="monospace" font-size="12" letter-spacing="1.5">A CITY WORLD IS STILL A MINE WORLD / SINGLE CONTINUOUS CUTAWAY</text>
+  <rect x="66" y="606" width="1081" height="481" fill="#25373a"/>
+  <rect x="66" y="606" width="1081" height="481" fill="url(#stars)" opacity=".6"/>
+  <!-- distant curved skyline plane -->
+  <path d="M66 794q260-84 540-13t541-7v98H66z" fill="#46595a" opacity=".62"/>
+  <g fill="#334648" stroke="#a8ad96" stroke-width="2">
+    <path d="M79 793v-83h52v83m12 0v-130h63v130m15 0v-104h51v104m12 0v-158h73v158m12 0v-116h49v116m12 0v-179h82v179m13 0v-121h62v121m11 0v-152h76v152m12 0v-114h51v114m13 0v-172h75v172m13 0v-128h63v128m12 0v-99h55v99"/>
+  </g>
+  <g stroke="#c5aa77" stroke-width="8" fill="none"><path d="M66 745q250-26 517 0t564-4"/><path d="M66 790q267 18 525-3t556 5"/></g>
+  <g stroke="#e0c48d" stroke-width="2"><path d="M126 738v38m100-39v43m117-42v43m121-42v37m126-35v35m118-36v43m122-43v39m112-39v38m115-38v42"/></g>
+  <g fill="#adddc9"><path d="M89 720h8v10h-8m20 0h8v10h-8m48-64h8v10h-8m19 0h8v10h-8m48 27h8v10h-8m74-81h8v10h-8m22 0h8v10h-8m41 15h8v10h-8m79-110h8v10h-8m20 0h8v10h-8m56 37h8v10h-8m89-52h8v10h-8m19 0h8v10h-8m36 38h8v10h-8m90-98h8v10h-8m20 0h8v10h-8m40 50h8v10h-8m89 6h8v10h-8m29-87h8v10h-8m52 39h8v10h-8m93-57h8v10h-8m19 0h8v10h-8m39 40h8v10h-8m48 26h8v10h-8"/></g>
+  <!-- pedestrians on upper public decks and a moving transit shuttle -->
+  <g transform="translate(214 740) scale(.9)"><use href="#walker"/></g><g transform="translate(281 740) scale(.9)"><use href="#walk2"/></g><g transform="translate(497 789) scale(.9)"><use href="#walker"/></g><g transform="translate(578 789) scale(.9)"><use href="#walk2"/></g><g transform="translate(822 740) scale(.9)"><use href="#walker"/></g><g transform="translate(908 740) scale(.9)"><use href="#walk2"/></g>
+  <path d="M410 729h45l14 10-14 10h-45z" fill="#d1b17b" stroke="#f0d49e" stroke-width="2"/><rect x="423" y="734" width="8" height="5" fill="#9de5d2"/><rect x="437" y="734" width="8" height="5" fill="#9de5d2"/>
+  <!-- crust and surface facilities -->
+  <path d="M66 807q205 16 420 0t397 0t264 0v27q-245-15-463 0t-618 0z" fill="#b29366" stroke="#e4c38a" stroke-width="2"/>
+  <path d="M66 834h1081v253H66z" fill="url(#rock)"/><path d="M66 834h1081v253H66z" fill="url(#strata)"/>
+  <path d="M66 834q260 11 540 0t541 0" fill="none" stroke="#c0a173" stroke-width="3"/>
+  <!-- entrances and underground service settlement -->
+  <path d="M258 834v80h122v-80m-103 80v-45h84v45" fill="#35494a" stroke="#a2b09d" stroke-width="3"/><path d="M269 864h99" stroke="#deb97b" stroke-width="3"/><circle cx="319" cy="857" r="4" fill="#9de5d2"/>
+  <path d="M507 834v70h143v-70m-118 70v-36h94v36" fill="#3b4d4e" stroke="#a2b09d" stroke-width="3"/><path d="M519 870h117" stroke="#deb97b" stroke-width="3"/><rect x="566" y="846" width="24" height="16" fill="#9bd9c7"/>
+  <path d="M731 834v88h156v-88m-132 88v-50h108v50" fill="#35494a" stroke="#a2b09d" stroke-width="3"/><path d="M747 872h124" stroke="#deb97b" stroke-width="3"/>
+  <text x="272" y="932" fill="#b8c5b8" font-family="monospace" font-size="11">UNDERCITY SERVICE DECK</text><text x="523" y="932" fill="#b8c5b8" font-family="monospace" font-size="11">PLAYER-BUILT HAB / EXCHANGE</text><text x="750" y="932" fill="#b8c5b8" font-family="monospace" font-size="11">CARGO / TRANSIT LEVEL</text>
+  <!-- playable ore shafts and richer deep strata -->
+  <path d="M130 834v199q0 22 25 22h126m63-221v146q0 23 25 23h105m-3-169v-40m192 40v211q0 17 24 17h96m120-228v120q0 16 21 16h109" fill="none" stroke="#141d20" stroke-width="26" stroke-linecap="round"/>
+  <path d="M130 834v199q0 22 25 22h126m63-221v146q0 23 25 23h105m-3-169v-40m192 40v211q0 17 24 17h96m120-228v120q0 16 21 16h109" fill="none" stroke="#66766e" stroke-width="2" stroke-dasharray="7 7"/>
+  <g fill="#8fe1cd" stroke="#d1f3df" stroke-width="2"><path d="M432 1000l9-14 9 14-9 15z"/><path d="M453 1008l7-11 7 11-7 12z"/><path d="M1003 972l9-14 9 14-9 15z"/><path d="M1022 980l7-11 7 11-7 12z"/></g>
+  <g fill="#e0bd7b" font-family="monospace" font-size="10"><text x="80" y="1070">COMMON ORE</text><text x="401" y="1055">DEEP VEIN</text><text x="966" y="1025">RARE DEPOSIT</text></g>
+  <g fill="#9eafa8" font-family="monospace" font-size="11"><text x="88" y="858">PUBLIC SURFACE / WALKABLE CITY</text><text x="90" y="984">NATURAL CAVES + MINED TUNNELS</text></g>
+
+  <!-- Citizen spritesheet and gameplay-scale guidance -->
+  <text x="1216" y="585" fill="#e8c68b" font-family="monospace" font-size="12" letter-spacing="1.5">CITIZENS / TINY SPRITE, CLEAR MOTION</text>
+  <rect x="1210" y="606" width="522" height="235" fill="#19272b" stroke="#435650"/>
+  <path d="M1230 790H1712" stroke="#887b61" stroke-width="5"/>
+  <g transform="translate(1290 787) scale(2.5)"><use href="#walker"/></g>
+  <g transform="translate(1384 787) scale(2.5)"><use href="#walk2"/></g>
+  <g transform="translate(1478 787) scale(2.5)"><use href="#walker"/></g>
+  <g transform="translate(1572 787) scale(2.5)"><use href="#walk2"/></g>
+  <g transform="translate(1666 787) scale(2.5)"><use href="#walker"/></g>
+  <g fill="#aebbb1" font-family="monospace" font-size="10" text-anchor="middle"><text x="1290" y="820">PLANT</text><text x="1384" y="820">STEP</text><text x="1478" y="820">PASS</text><text x="1572" y="820">STEP</text><text x="1666" y="820">PLANT</text></g>
+  <g fill="#dce5dc" font-family="Arial,sans-serif" font-size="13">
+    <text x="1218" y="874">Gameplay scale: 6–9 px tall, 2–3 px wide.</text>
+    <text x="1218" y="897">Two-pose walk loop; 6–8 frames/sec, offset</text><text x="1218" y="917">each person so crowds don't march in sync.</text>
+    <text x="1218" y="951">Use 3 readable silhouettes: worker, resident,</text><text x="1218" y="971">service crew. Color blocks identify role; tiny</text><text x="1218" y="991">face detail is unnecessary at normal zoom.</text>
+    <text x="1218" y="1025">Walk on the upper promenade and transit decks.</text><text x="1218" y="1045">Keep the miner path and landing site unobstructed.</text>
+    <text x="1218" y="1079">At orbital zoom: reduce to sparse moving dots.</text>
+  </g>
+  <path d="M1180 570v535" stroke="#425650"/>
+  <text x="70" y="1158" fill="#e8c68b" font-family="monospace" font-size="12" letter-spacing="1.5">WORLD RULE</text>
+  <text x="70" y="1191" fill="#dce5dc" font-family="Arial,sans-serif" font-size="15">Follow the same city layers around the curved planet; pedestrians move on world-anchored walkways. Mining tunnels, colony rooms, and ore veins continue beneath that city.</text>
+  <text x="70" y="1220" fill="#9eafa8" font-family="monospace" font-size="11" letter-spacing="1">VISUAL MOCKUP ONLY · NO NPC PATHING OR CITY WORLD HAS BEEN IMPLEMENTED</text>
+</svg>

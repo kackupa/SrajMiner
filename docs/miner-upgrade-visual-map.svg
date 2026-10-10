@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Miner appearance progression across purchased upgrades</title>
+  <desc id="desc">A visual handoff mapping the five existing drill tiers, four levels of six other upgrades, and optional equipment to visible miner parts, with a small starter pod evolving into a larger advanced mining machine.</desc>
+  <defs>
+    <linearGradient id="bg" x2="0" y2="1"><stop stop-color="#17242a"/><stop offset="1" stop-color="#0b1217"/></linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#9fb4a8" stroke-opacity=".055"/></pattern>
+    <linearGradient id="hull" x2="0" y2="1"><stop stop-color="#edcb91"/><stop offset="1" stop-color="#927a58"/></linearGradient>
+    <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#b1f0df"/><stop offset="1" stop-color="#397b78"/></linearGradient>
+    <g id="pilot"><circle r="7" fill="#c98768" stroke="#eed8b8" stroke-width="1.5"/><path d="M-5-1q5-6 10 0v3h-10z" fill="#173238" stroke="#8fe5d0" stroke-width="1"/></g>
+    <g id="pod">
+      <!-- drill nose, points up -->
+      <path d="M0-45V-75" stroke="#d6c59c" stroke-width="5"/><path d="M-5-72l5-11 5 11z" fill="#8fe5d0" stroke="#d4f3e5" stroke-width="1.5"/>
+      <!-- hull shell / cargo bay -->
+      <path d="M-22-34l-16 13v39l16 17h44L38 18v-39L22-34z" fill="url(#hull)" stroke="#f0d49e" stroke-width="2"/>
+      <path d="M-14-24q14-10 28 0v13q-14 10-28 0z" fill="url(#glass)" stroke="#cbf1df" stroke-width="1.5"/><use href="#pilot" transform="translate(0 -17)"/>
+      <path d="M-16 10h32v13h-32z" fill="#364846" stroke="#85978a" stroke-width="1.5"/>
+      <circle cx="-25" cy="-18" r="2.5" fill="#e8c682"/><circle cx="25" cy="-18" r="2.5" fill="#8fe5d0"/>
+      <path d="M-30 29v9m60-9v9M-35 38h12m46 0h12" stroke="#9da89a" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </defs>
+  <rect width="1600" height="1080" fill="url(#bg)"/><rect width="1600" height="1080" fill="url(#grid)"/>
+  <text x="48" y="54" fill="#f0d5a6" font-family="monospace" font-size="14" letter-spacing="5">COLD SIGNAL / MINER VISUAL PROGRESSION 02</text>
+  <text x="48" y="110" fill="#edf3e8" font-family="Arial,sans-serif" font-size="40" font-weight="700">Every upgrade should leave a mark on the machine.</text>
+  <text x="50" y="143" fill="#9eafa8" font-family="monospace" font-size="13" letter-spacing="1">STARTER POD → WORKING RIG → DEEP-PLANET MACHINE / SAME PILOT AND COLLISION CAPSULE</text>
+
+  <!-- hero silhouette progression; each adds visible mass/components -->
+  <g fill="#10191e" stroke="#52665f"><rect x="48" y="174" width="1504" height="252" rx="4"/></g>
+  <g font-family="monospace" font-size="11" letter-spacing="1" fill="#9eafa8"><text x="76" y="203">LEVEL 1 / BARE STARTER</text><text x="548" y="203">MID-CAMPAIGN / BUILT OUT</text><text x="1070" y="203">LEVEL 5 / ADVANCED DEEP RIG</text></g>
+  <g transform="translate(260 319) scale(.78)"><use href="#pod"/></g>
+  <g transform="translate(741 319) scale(1.08)">
+    <path d="M-42-27h-13v58h13m84-58h13v58H42" fill="none" stroke="#a6b2a2" stroke-width="5"/>
+    <rect x="-56" y="-28" width="12" height="47" rx="4" fill="#465957" stroke="#9aa99a" stroke-width="2"/><rect x="44" y="-28" width="12" height="47" rx="4" fill="#465957" stroke="#9aa99a" stroke-width="2"/>
+    <path d="M-9-40h18v-20h-18z" fill="#51615b" stroke="#d2bd8e" stroke-width="2"/><path d="M-36 4h72v30h-72z" fill="#4d5d57" stroke="#acb19a" stroke-width="2"/>
+    <path d="M-8-71h16v16H-8z" fill="#314348" stroke="#8fe5d0" stroke-width="2"/>
+    <use href="#pod"/>
+  </g>
+  <g transform="translate(1275 319) scale(1.42)">
+    <path d="M-48-34l-30-19v-20l36 11m90 28 30-19v-20l-36 11" fill="none" stroke="#aeb49d" stroke-width="6"/>
+    <path d="M-58 4h-18v39h18m116-39h18v39H58" fill="none" stroke="#c6a96f" stroke-width="7"/>
+    <rect x="-76" y="-34" width="18" height="54" rx="5" fill="#425654" stroke="#aab5a2" stroke-width="2"/><rect x="58" y="-34" width="18" height="54" rx="5" fill="#425654" stroke="#aab5a2" stroke-width="2"/>
+    <path d="M-41 3h-27v38h27m82-38h27v38H41" fill="#594f41" stroke="#cfb878" stroke-width="3"/>
+    <path d="M-13-45h26v-25h-26z" fill="#4e5e59" stroke="#dfc58a" stroke-width="3"/>
+    <path d="M-14-74h28l-7-13h-14z" fill="#83dcca" stroke="#d4f3e5" stroke-width="2"/>
+    <path d="M-7-42h14" stroke="#8fe5d0" stroke-width="5"/>
+    <use href="#pod"/>
+    <circle cx="-72" cy="30" r="5" fill="#e6bf7b"/><circle cx="72" cy="30" r="5" fill="#8fe5d0"/>
+  </g>
+  <g font-family="Arial,sans-serif" text-anchor="middle">
+    <text x="260" y="398" fill="#dce5dc" font-size="14">Pilot + hull + short contact bit</text>
+    <text x="741" y="398" fill="#dce5dc" font-size="14">Longer drill, tank, cargo tray, scanner</text>
+    <text x="1275" y="398" fill="#dce5dc" font-size="14">Braced laser, armor, large hold, recovery kit</text>
+  </g>
+
+  <text x="50" y="472" fill="#e8c68b" font-family="monospace" font-size="13" letter-spacing="2">EXACT VISUAL LANGUAGE FOR EXISTING UPGRADES</text>
+  <g fill="#10191e" stroke="#52665f"><rect x="48" y="492" width="1504" height="440" rx="4"/></g>
+  <g font-family="monospace" font-size="12" letter-spacing="1" fill="#e6d3a8">
+    <text x="76" y="529">UPGRADE / LEVEL</text><text x="310" y="529">WHAT CHANGES ON THE MINER</text><text x="1070" y="529">VISUAL RAMP</text>
+  </g>
+  <g stroke="#334640"><path d="M70 545H1530M70 599H1530M70 653H1530M70 707H1530M70 761H1530M70 815H1530M70 869H1530"/></g>
+  <g font-family="Arial,sans-serif" fill="#dce5dc" font-size="15">
+    <text x="76" y="579">Drill / 1–5</text><text x="310" y="579">Nose module grows and changes: contact bit → auger rails → coil → brace → laser head + heat fins.</text><text x="1070" y="579" fill="#a9d8ca">Major, unmistakable front silhouette change at every tier.</text>
+    <text x="76" y="633">Cargo / 1–5</text><text x="310" y="633">Rear hold starts flush; adds side bins, then a broad ribbed ore cassette and loading lights.</text><text x="1070" y="633" fill="#a9d8ca">Most obvious width / rear mass growth.</text>
+    <text x="76" y="687">Fuel tank / 1–5</text><text x="310" y="687">One small rear canister grows into paired tanks with level bands and valve collars.</text><text x="1070" y="687" fill="#a9d8ca">Clear rear profile, kept distinct from ore storage.</text>
+    <text x="76" y="741">Hull / 1–5</text><text x="310" y="741">Layered armor plates over the shell; reinforced corners and larger landing skids.</text><text x="1070" y="741" fill="#a9d8ca">Visual toughness without enlarging collision.</text>
+    <text x="76" y="795">Engine / 1–5</text><text x="310" y="795">Small exhausts become twin vector nozzles with larger shrouds and lit thrust cores.</text><text x="1070" y="795" fill="#a9d8ca">Changes rear/side view; animates only while thrusting.</text>
+    <text x="76" y="849">Scanner / 1–5</text><text x="310" y="849">Roof antenna → paired dish → compact sensor mast with distinct scanning sweep.</text><text x="1070" y="849" fill="#a9d8ca">Readable equipment, never an oversized radar dish.</text>
+    <text x="76" y="903">Auto grapple / 1–5</text><text x="310" y="903">Side hook sockets → paired launcher housings → reinforced cable drums as range improves.</text><text x="1070" y="903" fill="#a9d8ca">Hook fires only on catch; upgrades build from the same sockets.</text>
+  </g>
+
+  <g fill="#10191e" stroke="#52665f"><rect x="48" y="956" width="1504" height="90" rx="4"/></g>
+  <text x="76" y="989" fill="#e8c68b" font-family="monospace" font-size="12" letter-spacing="1">PURCHASED ADD-ONS ALSO APPEAR</text>
+  <text x="76" y="1020" fill="#dce5dc" font-family="Arial,sans-serif" font-size="14">Salvage magnet: twin pickup coils · Stasis: belly stabilizer ring · Surface winch: top-mounted spool + anchor cable · Escape suit: visible side pod, removed on ejection</text>
+  <text x="76" y="1067" fill="#9eafa8" font-family="monospace" font-size="11" letter-spacing="1">COSMETIC PAINT / DECALS / PROFILE REMAIN SEPARATE. SPECIALIZATION IS A LOADOUT CHOICE, NOT A PERMANENT BODY CHANGE. COLLIDER DOES NOT GROW.</text>
+</svg>

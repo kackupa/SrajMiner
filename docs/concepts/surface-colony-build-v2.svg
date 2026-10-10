@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Compact player-built surface colony systems for Mars Miner</title>
+  <desc id="desc">A globe-aware design sheet for a permanent broken lander, closely packed colony buildings, a local five-tile one-shot turret, openable walls and gates, and surface threats.</desc>
+  <defs>
+    <linearGradient id="board" x2="0" y2="1"><stop stop-color="#1b292b"/><stop offset="1" stop-color="#111b1e"/></linearGradient>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#253638"/><stop offset="1" stop-color="#6a5148"/></linearGradient>
+    <clipPath id="globe"><circle cx="300" cy="315" r="194"/></clipPath>
+    <g id="module"><path d="M-34 0V-28L-24-39H24L34-28V0Z" fill="#344443" stroke="#83958a" stroke-width="2"/><path d="M-28-33H28V-27H-28Z" fill="#758178"/><path d="M-25-21H25V-6H-25Z" fill="#202e30"/><path d="M-18-19H-7V-8H-18Zm16 0H9V-8H-2Zm14 0h10V-8H12Z" fill="#8be1cf"/><path d="M-40 3H40" stroke="#273631" stroke-width="4"/></g>
+    <g id="pod"><path d="M-12 5-9-9Q0-21 9-9l3 14z" fill="#d6c896" stroke="#263330" stroke-width="2"/><path d="M-6-9Q0-16 6-9L4-2H-4Z" fill="#8be1cf"/><path d="M-11 4-15 8m26-4 4 4" stroke="#e8ba79" stroke-width="2"/></g>
+  </defs>
+  <rect width="1600" height="1120" fill="url(#board)"/>
+  <text x="46" y="48" fill="#e8ddc3" font-family="monospace" font-size="25" font-weight="bold" letter-spacing="3">BUILD A COLONY ON THE GLOBE</text>
+  <text x="47" y="76" fill="#92a69b" font-family="monospace" font-size="11" letter-spacing="2">STARTING WORLD: PERMANENT WRECK · NEW WORLDS: FARADAY LANDS INTACT · BUILD ANYWHERE VALID</text>
+  <path d="M46 97H1554" stroke="#465751"/>
+
+  <!-- Surface placement is freeform along the circular crust, not a row of fixed towns. -->
+  <rect x="46" y="118" width="1508" height="405" rx="5" fill="#172326" stroke="#435551"/>
+  <text x="70" y="151" fill="#d7caa9" font-family="monospace" font-size="12" letter-spacing="2">PLACE AROUND THE CIRCUMFERENCE · NOT SCREEN-LOCKED</text>
+  <g clip-path="url(#globe)">
+    <circle cx="300" cy="315" r="194" fill="#b07957"/>
+    <circle cx="300" cy="315" r="169" fill="#554949"/>
+    <circle cx="300" cy="315" r="141" fill="#465452"/>
+    <circle cx="300" cy="315" r="112" fill="#3c4b50"/>
+    <circle cx="300" cy="315" r="80" fill="#273a41"/>
+    <path d="M132 229l34-15 20 12 20-8 22 16 28-10 21 15 25-9 25 16 24-10 29 19 29-11 23 16 27-4 26 16-7 20-22-8-20 12-24-11-24 14-25-13-23 10-28-16-21 12-25-16-24 11-26-17-30 9-22-16-32 6-21-18Z" fill="#d29770"/>
+    <path d="M131 359l32-16 28 12 21-17 24 15 25-12 28 15 26-14 22 16 27-12 24 16 29-13 30 17 24-8 26 17-9 20-22-10-23 14-28-16-25 11-27-15-22 13-26-16-24 11-23-14-25 10-26-13-31 12-22-17-32 6-20-18Z" fill="#916959"/>
+    <path d="M124 282q38 22 72 4t66 9q39 26 75 0t76 7" fill="none" stroke="#e0a776" stroke-width="7"/>
+    <path d="M137 330q35-23 67-3t69-4q34-22 70 1t66-4" fill="none" stroke="#8be1cf" stroke-width="6" stroke-dasharray="3 12"/>
+  </g>
+  <circle cx="300" cy="315" r="194" fill="none" stroke="#e1bd89" stroke-width="5"/>
+  <circle cx="300" cy="315" r="169" fill="none" stroke="#7a8b81" stroke-width="2"/><circle cx="300" cy="315" r="141" fill="none" stroke="#687b74" stroke-width="2"/><circle cx="300" cy="315" r="112" fill="none" stroke="#5d716c" stroke-width="2"/><circle cx="300" cy="315" r="80" fill="none" stroke="#63766e" stroke-width="2"/>
+  <!-- The starting lander is fixed and protected. Build-anywhere allows site choice; defenses remain local. -->
+  <path d="M300 121A194 194 0 0 1 494 315A194 194 0 0 1 300 509A194 194 0 0 1 106 315A194 194 0 0 1 300 121Z" fill="none" stroke="#e8c787" stroke-width="2" stroke-dasharray="4 9" opacity=".7"/>
+  <g transform="translate(300 121)">
+    <path d="M-20 2V-16L-11-24H9L20-16V2Z" fill="#344443" stroke="#e8ba79" stroke-width="2"/><path d="M-10-17 0-22 10-17v8h-20z" fill="#8be1cf"/><path d="M-22 4h44" stroke="#83958a" stroke-width="3"/><path d="M-7-24l7-9 8 9" fill="none" stroke="#8e5140" stroke-width="3"/>
+    <circle cx="0" cy="-4" r="31" fill="none" stroke="#e8ba79" stroke-width="2" stroke-dasharray="3 5"/>
+  </g>
+  <!-- Demonstrate close-packed colony buildings beside the lander; the surrounding globe stays open for future compact outposts. -->
+  <g transform="translate(365 205) scale(.62)"><use href="#module"/></g>
+  <g transform="translate(404 225) scale(.62)"><use href="#module"/></g>
+  <g transform="translate(431 263) scale(.62)"><use href="#module"/></g>
+  <g transform="translate(388 288) scale(.62)"><use href="#module"/></g>
+  <g transform="translate(350 274) scale(.62)"><use href="#module"/></g>
+  <path d="M352 165Q421 158 462 216Q482 270 444 318Q395 351 339 323Q306 294 314 235Q321 191 352 165Z" fill="none" stroke="#e8ba79" stroke-width="2" stroke-dasharray="4 5" opacity=".9"/>
+  <path d="M444 203 458 176 472 203Z" fill="#344443" stroke="#e8ba79" stroke-width="2"/><path d="M451 197h14m-9-6h5" stroke="#f0b866" stroke-width="2"/>
+  <text x="535" y="245" fill="#8be1cf" font-family="monospace" font-size="10" font-weight="bold">COMPACT BASE CLUSTER</text><text x="535" y="263" fill="#94a69b" font-family="monospace" font-size="9">modules pack together near the ship</text>
+  <text x="334" y="469" fill="#c5b8d5" font-family="monospace" font-size="10" font-weight="bold">OPEN GLOBE FOR MORE BUILD SITES</text><path d="M370 458 337 401" stroke="#c5b8d5"/>
+  <text x="71" y="244" fill="#c4a77d" font-family="monospace" font-size="10" font-weight="bold">LOCAL TURRET COVERAGE</text><path d="M181 251 318 285" stroke="#c4a77d"/>
+  <text x="334" y="130" fill="#e8ba79" font-family="monospace" font-size="10" font-weight="bold">STARTER WRECK · START WORLD ONLY</text><path d="M325 134 307 120" stroke="#e8ba79"/>
+  <text x="690" y="193" fill="#dfd3b5" font-family="monospace" font-size="13" font-weight="bold">BUILD ANYWHERE THE CRUST ALLOWS</text>
+  <text x="690" y="226" fill="#9db0a4" font-family="monospace" font-size="11">• Place modules at any clear, supported surface point.</text>
+  <text x="690" y="253" fill="#9db0a4" font-family="monospace" font-size="11">• Pack buildings closely; leave room to walk and drive.</text>
+  <text x="690" y="280" fill="#9db0a4" font-family="monospace" font-size="11">• Build sites are freeform; defenses only cover nearby ground.</text>
+  <text x="690" y="307" fill="#9db0a4" font-family="monospace" font-size="11">• The near and far hemispheres use the same placement rules.</text>
+  <text x="690" y="334" fill="#9db0a4" font-family="monospace" font-size="11">• Wreck stays only at home; Faraday lands intact elsewhere.</text>
+  <text x="690" y="361" fill="#9db0a4" font-family="monospace" font-size="11">• Existing credits and ore buy modules; no recipes or new meter.</text>
+  <path d="M686 387H1495" stroke="#435551"/>
+  <text x="690" y="418" fill="#d1c3a4" font-family="monospace" font-size="10">Start with the ship and free placement. Add attacks after the placement / save loop is stable.</text>
+  <text x="690" y="444" fill="#82968b" font-family="monospace" font-size="10">This placement map is conceptual; the final build preview must match the live planet projection.</text>
+
+  <text x="47" y="562" fill="#e8ddc3" font-family="monospace" font-size="15" font-weight="bold" letter-spacing="2">THE COLONY LOOP · FOUR DESIGN PARTS</text>
+  <!-- 1. Ship home -->
+  <g transform="translate(46 584)">
+    <rect width="362" height="426" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#e8ba79" font-family="monospace" font-size="12" font-weight="bold">01 / STARTER WRECK</text><text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">STARTING WORLD ONLY · PROTECTED FOREVER</text>
+    <rect x="12" y="63" width="338" height="178" fill="url(#sky)"/><path d="M12 199L50 180 89 192 131 171 167 194 208 179 249 193 297 175 350 192V215H12Z" fill="#775347"/><path d="M12 215H350" stroke="#e0a776" stroke-width="4"/><path d="M12 219H350V241H12Z" fill="#443532"/>
+    <!-- grounded ship silhouette -->
+    <path d="M100 202l11-61 21-28h98l25 28 9 61-24 13H122Z" fill="#344443" stroke="#85948a" stroke-width="3"/>
+    <path d="M144 122h70l12 19h-94z" fill="#53615a"/><path d="M155 125h48v12h-48z" fill="#8be1cf" opacity=".75"/>
+    <path d="M112 166h150v25H112z" fill="#283532"/><path d="M122 171h24v12h-24m35-12h24v12h-24m35-12h24v12h-24" fill="#e8ba79"/>
+    <path d="M126 202l-12 17m122-17 12 17M134 210h101" stroke="#8a5143" stroke-width="5"/>
+    <path d="M90 213h180m-164 4h148" stroke="#7f8b7e" stroke-width="2"/>
+    <path d="M103 149l-22-10m175 8 22-15m-149 9-13 4" stroke="#8a5143" stroke-width="4"/>
+    <path d="M44 213v-43m-8 0h16" stroke="#71847b" stroke-width="3"/><circle cx="44" cy="166" r="6" fill="none" stroke="#8be1cf" stroke-width="2"/>
+    <text x="18" y="277" fill="#ddd1b6" font-family="monospace" font-size="10">SELL ORE: request an orbital pickup;</text><text x="18" y="296" fill="#ddd1b6" font-family="monospace" font-size="10">beam lifts cargo and credits arrive.</text>
+    <text x="18" y="327" fill="#92a69b" font-family="monospace" font-size="9">TOP UP: restore existing FUEL / CHARGE stat.</text>
+    <text x="18" y="346" fill="#92a69b" font-family="monospace" font-size="9">REPAIR: use the onboard hull tools for a cost.</text>
+    <text x="18" y="385" fill="#8be1cf" font-family="monospace" font-size="9">Broken launch systems; no takeoff. Never targeted.</text>
+  </g>
+  <!-- 2. Buildings -->
+  <g transform="translate(430 584)">
+    <rect width="362" height="426" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#8be1cf" font-family="monospace" font-size="12" font-weight="bold">02 / BUY &amp; PLACE MODULES</text><text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">EXPAND SERVICES WHERE YOU WANT THEM</text>
+    <rect x="12" y="63" width="338" height="178" fill="#243237"/><path d="M12 204L54 182 93 195 135 175 178 198 225 179 268 199 305 181 350 199V215H12Z" fill="#58605a"/><path d="M12 215H350" stroke="#8be1cf" stroke-width="4"/><path d="M12 219H350V241H12Z" fill="#394541"/>
+    <g transform="translate(79 214) scale(.84)"><use href="#module"/></g><g transform="translate(172 214) scale(.84)"><use href="#module"/></g><g transform="translate(265 214) scale(.84)"><use href="#module"/></g>
+    <path d="M54 212v-35h50v35z" fill="#344443" stroke="#8be1cf" stroke-width="2"/><path d="M64 182h30m-26 8h22" stroke="#e8ba79" stroke-width="3"/>
+    <path d="M147 212v-44h52v44z" fill="#344443" stroke="#8be1cf" stroke-width="2"/><path d="M155 174h36v8h-36z" fill="#d1d7c2"/><path d="M163 185v20m-8-6 8 8 8-8" fill="none" stroke="#8be1cf" stroke-width="3"/>
+    <path d="M239 212v-38h55v38z" fill="#344443" stroke="#c5b8d5" stroke-width="2"/><path d="M247 178h40v5h-40m8-8v-10m23 10v-10" stroke="#c5b8d5" stroke-width="3"/>
+    <text x="18" y="277" fill="#ddd1b6" font-family="monospace" font-size="10">ORE EXCHANGE · REPAIR BAY · WORKSHOP</text><text x="18" y="296" fill="#ddd1b6" font-family="monospace" font-size="10">Buy with credits and gathered ore.</text>
+    <text x="18" y="327" fill="#92a69b" font-family="monospace" font-size="9">Each has a different roof / light silhouette.</text><text x="18" y="346" fill="#92a69b" font-family="monospace" font-size="9">Upgrade the miner only after the module exists.</text>
+    <text x="18" y="385" fill="#8be1cf" font-family="monospace" font-size="9">Placement is freeform but needs flat, clear ground.</text>
+  </g>
+  <!-- 3. Walls and gate -->
+  <g transform="translate(814 584)">
+    <rect width="362" height="426" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#c4a77d" font-family="monospace" font-size="12" font-weight="bold">03 / WALL · GATE · TURRET</text><text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">LOCAL COVERAGE · UPGRADEABLE FIRE RATE</text>
+    <rect x="12" y="63" width="338" height="178" fill="#202d30"/><path d="M12 204L54 182 93 195 135 175 178 198 225 179 268 199 305 181 350 199V215H12Z" fill="#465650"/><path d="M12 215H350" stroke="#c3a77b" stroke-width="4"/><path d="M12 219H350V241H12Z" fill="#393d39"/>
+    <!-- stacked wall blocks either side, central gate swings up -->
+    <g fill="#344443" stroke="#829184" stroke-width="2"><path d="M48 214v-21h31v21zm0-24v-21h31v21zm-5-48h41v5H43z"/><path d="M285 214v-21h31v21zm0-24v-21h31v21zm-5-48h41v5h-41z"/></g>
+    <path d="M67 168v-24m236 24v-24m-236 0h236" stroke="#8b9a8d" stroke-width="4"/>
+    <path d="M114 211v-35h22v35m0-35h41m-41 0v-14" fill="none" stroke="#8be1cf" stroke-width="4"/>
+    <path d="M129 177l17-22m-16 22 19 6" fill="none" stroke="#8be1cf" stroke-width="4"/><path d="M126 161l7-11 6 11" fill="#8be1cf"/>
+    <path d="M112 148h22v-10h-22z" fill="#344443" stroke="#83958a" stroke-width="2"/>
+    <path d="M301 142v-23l12-11 12 11v23z" fill="#344443" stroke="#c4a77d" stroke-width="2"/><path d="M305 120h16m-14 7h12" stroke="#e8ba79" stroke-width="2"/>
+    <circle cx="312" cy="155" r="27" fill="none" stroke="#e8ba79" stroke-width="1.5" stroke-dasharray="3 4"/>
+    <g transform="translate(198 214) scale(.66)"><use href="#pod"/></g><path d="M183 214h31" stroke="#e8ba79" stroke-width="2" stroke-dasharray="3 3"/>
+    <text x="18" y="277" fill="#ddd1b6" font-family="monospace" font-size="10">Starter turret: one hit · 5-tile surface radius.</text><text x="18" y="296" fill="#ddd1b6" font-family="monospace" font-size="10">Upgrade spotting/range, then machine-gun cadence.</text>
+    <text x="18" y="327" fill="#92a69b" font-family="monospace" font-size="9">Coverage wraps the globe locally, never planet-wide.</text><text x="18" y="346" fill="#92a69b" font-family="monospace" font-size="9">Pod nears gate → raises → passes → gate shuts.</text>
+    <text x="18" y="385" fill="#8be1cf" font-family="monospace" font-size="9">Preview range so a compact colony fits inside cover.</text>
+  </g>
+  <!-- 4. Surface enemy and protection -->
+  <g transform="translate(1198 584)">
+    <rect width="356" height="426" rx="4" fill="#202d2e" stroke="#465751"/>
+    <text x="17" y="28" fill="#e7a07c" font-family="monospace" font-size="12" font-weight="bold">04 / SURFACE PRESSURE</text><text x="17" y="47" fill="#93a79b" font-family="monospace" font-size="9">THREATS ATTACK PLAYER BUILDS, NEVER THE SHIP</text>
+    <rect x="12" y="63" width="332" height="178" fill="#292832"/><path d="M12 204L54 182 93 195 135 175 178 198 225 179 268 199 305 181 344 199V215H12Z" fill="#51434a"/><path d="M12 215H344" stroke="#d07955" stroke-width="4"/><path d="M12 219H344V241H12Z" fill="#3d3038"/>
+    <g fill="#344443" stroke="#83958a" stroke-width="2"><path d="M66 214v-25h35v25zm0-28v-25h35v25z"/><path d="M271 214v-25h35v25zm0-28v-25h35v25z"/></g>
+    <path d="M276 161v-13l11-10 12 10v13z" fill="#344443" stroke="#c4a77d" stroke-width="2"/><circle cx="288" cy="148" r="5" fill="#f0b866"/>
+    <path d="M284 150 221 177" stroke="#e8ba79" stroke-width="3"/><path d="M214 173l11 4-7 9z" fill="#e8ba79"/>
+    <!-- simple surface crawler -->
+    <path d="M140 203l5-20 13-11 18 5 10 17-9 9z" fill="#8d5b48" stroke="#e7a07c" stroke-width="2"/><circle cx="149" cy="203" r="5" fill="#28302e"/><circle cx="172" cy="203" r="5" fill="#28302e"/><path d="M169 181l9-11m-18 5 2-10" stroke="#e7a07c" stroke-width="3"/><circle cx="176" cy="176" r="2" fill="#f0b866"/>
+    <path d="M118 188h10m-14 10h12m86-12h10" stroke="#e7a07c" stroke-width="2" stroke-dasharray="2 3"/>
+    <text x="18" y="277" fill="#ddd1b6" font-family="monospace" font-size="10">Enemy gives a warning, then targets a module.</text><text x="18" y="296" fill="#ddd1b6" font-family="monospace" font-size="10">Player drills it; installed turrets fire.</text>
+    <text x="18" y="327" fill="#92a69b" font-family="monospace" font-size="9">Damage has readable stages and repair costs.</text><text x="18" y="346" fill="#92a69b" font-family="monospace" font-size="9">No attacks or damage to the starting lander.</text>
+    <text x="18" y="385" fill="#8be1cf" font-family="monospace" font-size="9">Never allow a raid to soft-lock required upgrades.</text>
+  </g>
+  <path d="M47 1047H1553" stroke="#465751"/>
+  <text x="49" y="1073" fill="#d7caa9" font-family="monospace" font-size="10" letter-spacing="1">PHASES: STARTER WRECK → BUILD FARADAY → LAND &amp; TRADE ON NEW WORLDS → BUILD / DEFEND → UNDERGROUND CITIES (LATER).</text>
+  <text x="49" y="1096" fill="#879a8e" font-family="monospace" font-size="10">Charge is the existing fuel resource under a new name. Keep it the only energy / survival meter.</text>
+</svg>

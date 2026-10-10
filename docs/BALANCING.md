@@ -45,7 +45,7 @@ Pilot suit palettes are optional visual rewards priced at $160 / $320 / $520 aft
 
 Base drilling times are 0.30 s for dirt, 0.60 s for basalt, 1.05 s below 300 m, 1.50 s below 600 m, and 1.90 s below 1,000 m. Divide by drill output. Traversal between tiles adds time. Level 2 drill is intentionally conspicuous.
 
-Drill and cargo levels also grow the rendered pod by 4% and 5.5% per tier above level 1, capped at 1.38×. This is visual progression only; the 26×32 px collision body is unchanged and the maximum hull width remains below the 40 px tile width.
+Drill, cargo, fuel, hull, engine, scanner, and grapple levels each grow the rendered pod, capped at 1.72× when all seven tracks reach level 5. This is visual progression only; the 26×32 px collision body is unchanged. The enlarged art may extend beyond one tile, while collision remains compact for tunnels.
 
 ## Damage tuning from playtesting
 

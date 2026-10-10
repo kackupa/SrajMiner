@@ -1,4 +1,4 @@
-// Exercise low-fuel auto recovery and confirmed hull repair from version-20 fixtures.
+// Exercise deliberate stranded recovery and confirmed hull recovery from version-20 fixtures.
 async (page) => {
   const baseURL = new URL(page.url()).origin;
   await page.goto('about:blank');
@@ -28,11 +28,16 @@ async (page) => {
   await page.keyboard.up('s');
   await page.waitForTimeout(500);
   const fuelFailure = await page.evaluate(() => window.__mars);
-  if (fuelFailure.depth !== 0 || fuelFailure.fuel < 139 || fuelFailure.fuel > 140 || fuelFailure.hull !== 100 ||
-    Object.values(fuelFailure.cargo).some(Boolean) || fuelFailure.money !== base.money ||
+  if (fuelFailure.depth <= 0 || fuelFailure.fuel !== 0 || fuelFailure.hull !== 100 ||
+    fuelFailure.cargo.copper !== 2 || fuelFailure.money !== base.money ||
     fuelFailure.levels.drill !== base.levels.drill)
-    throw Error(`Fuel recovery regression: ${JSON.stringify(fuelFailure)}`);
+    throw Error(`Fuel should strand the miner in place and preserve unsold ore: ${JSON.stringify(fuelFailure)}`);
   await page.screenshot({ path: 'output/playwright/08-fuel-recovery.png' });
+  await page.locator('#recover-stranded').click();
+  await page.waitForFunction(() => window.__mars.depth === 0 && window.__mars.fuel === 140);
+  const fuelRecovered = await page.evaluate(() => window.__mars);
+  if (Object.values(fuelRecovered.cargo).some(Boolean) || fuelRecovered.money !== base.money)
+    throw Error(`Confirmed fuel recovery should forfeit only unsold cargo: ${JSON.stringify(fuelRecovered)}`);
 
   const hullFixture = { ...base, maps: { ...base.maps, 'cryo-shelf': mapState(980, 24) }, fuel: 190,
     hull: 1, cargo: { copper: 0, iron: 2, silver: 0, gold: 0, diamond: 0 } };
@@ -50,7 +55,8 @@ async (page) => {
     hullFailure.levels.drill !== base.levels.drill)
     throw Error(`Hull recovery regression: ${JSON.stringify(hullFailure)}`);
   return { fuelFailure: { depth: fuelFailure.depth, fuel: fuelFailure.fuel, hull: fuelFailure.hull,
-    cargoLost: true, upgradesRetained: fuelFailure.levels.drill === base.levels.drill },
+    cargoRetainedWhileStranded: fuelFailure.cargo.copper, recoveredOnlyOnChoice: true,
+    upgradesRetained: fuelRecovered.levels.drill === base.levels.drill },
     hullFailure: { depth: hullFailure.depth, fuel: hullFailure.fuel, hull: hullFailure.hull,
       cargoLost: true, upgradesRetained: hullFailure.levels.drill === base.levels.drill } };
 }

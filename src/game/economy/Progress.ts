@@ -1,6 +1,7 @@
 import {
   ORES,
   ORE_KEYS,
+  CORE_RELICS,
   SERVICE,
   SHIP_COMPONENTS,
   CHARGE,
@@ -9,6 +10,7 @@ import {
   ESCAPE_SUIT,
   RETURN_WINCH,
   upgradeCost,
+  upgradeGateMet,
   POD_PAINTS,
   PILOT_SUITS,
   POD_DECALS,
@@ -26,7 +28,9 @@ import {
   type PodDecal,
   type PodProfile,
   type Specialization,
+  type MapId,
 } from '../config';
+import { contractReady, marketContract } from './MarketContracts';
 export type Cargo = Record<Ore, number>;
 export const emptyCargo = (): Cargo => ({ copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 });
 export class Progress {
@@ -200,12 +204,23 @@ export class Progress {
     this.cargo = emptyCargo();
     return amount;
   }
+  claimMarketContract(mapId: MapId, atTradingPost: boolean) {
+    const current = marketContract(mapId, this.milestones), order = current.order;
+    if (current.complete || !contractReady(this.cargo, this.milestones, mapId, atTradingPost)) return 0;
+    this.milestones.push(order.id);
+    this.money += order.reward;
+    return order.reward;
+  }
   cost(key: Upgrade) {
     return upgradeCost(key, this.levels[key]);
   }
+  canBuyUpgrade(key: Upgrade) {
+    const coreRecords = CORE_RELICS.filter((relic) => this.milestones.includes(relic.id)).map((relic) => relic.id);
+    return upgradeGateMet(this.levels[key] + 1, { shipComplete: this.shipComplete, coreRelics: coreRecords });
+  }
   buy(key: Upgrade) {
     const cost = this.cost(key);
-    if (this.money < cost || !Number.isSafeInteger(this.levels[key] + 1)) return false;
+    if (this.money < cost || !Number.isSafeInteger(this.levels[key] + 1) || !this.canBuyUpgrade(key)) return false;
     const old = this.max(key);
     this.money -= cost;
     this.levels[key]++;

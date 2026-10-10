@@ -4,7 +4,7 @@ export const CAVE_ATMOSPHERE = {
   spawnAttemptsPerSecond: 100,
   wakePerSecond: 18,
   lightRadius: 260,
-  colors: { 'cryo-shelf': 0xc8e9ef, 'hull-graveyard': 0xd5ad82, 'prism-fault': 0xcdb6ed, 'mars-frontier': 0xd49776 },
+  colors: { 'cryo-shelf': 0xc8e9ef, 'hull-graveyard': 0xd5ad82, 'prism-fault': 0xcdb6ed, 'mars-frontier': 0xd49776, 'cinder-vale': 0xf08a58, 'vesper-9': 0xb2e98e },
 } as const;
 // Music follows the current local depth, with a shallower reset point to avoid
 // restarting the transition when the pod moves around its trigger depth.
@@ -23,6 +23,10 @@ export const FAR_SURFACE_Y = CORE_WORLD_Y * 2;
 export const FAR_SURFACE_ROW = FAR_SURFACE_Y / WORLD.tile;
 export const LEGACY_PLANET_CHART = { radiusRows: FAR_SURFACE_ROW / 2, columns: Math.round(Math.PI * FAR_SURFACE_ROW / 2) } as const;
 export const PLANET_CHART = { radiusRows: 150, columns: Math.round(Math.PI * 150) } as const;
+/** The first deployment is deliberately compact so new pilots can reach the core quickly. */
+export const STARTER_PLANET_CHART = { radiusRows: 40, columns: Math.round(Math.PI * 40) } as const;
+/** Preserve geometry for campaigns created before the compact starter revision. */
+export const PREVIOUS_STARTER_PLANET_CHART = { radiusRows: 64, columns: Math.round(Math.PI * 64) } as const;
 export const coreWorldYFor = (chart?: PlanetChartSize) => chart ? chart.radiusRows * WORLD.tile : CORE_WORLD_Y;
 export const farSurfaceRowFor = (chart?: PlanetChartSize) => chart ? chart.radiusRows * 2 : FAR_SURFACE_ROW;
 export const farSurfaceYFor = (chart?: PlanetChartSize) => farSurfaceRowFor(chart) * WORLD.tile;
@@ -55,9 +59,33 @@ export const UNDERGROUND_BUILDING = {
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
   service: { credits: 420, materials: { iron: 3, silver: 2 }, widthTiles: 5, uniquePerMap: true },
   turret: { credits: 560, materials: { iron: 2, silver: 2, gold: 1 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
-  maxStructuresPerMap: 16,
+  'trade-post': { credits: 1100, materials: { copper: 4, iron: 4, gold: 2 }, widthTiles: 5, maxPerMap: 1 },
+  habitat: { credits: 900, materials: { copper: 4, iron: 2, silver: 1 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
+  warehouse: { credits: 360, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1 },
+  wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1, maxPerMap: 12 },
+  gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3, maxPerMap: 3 },
+  maxStructuresPerMap: 20,
   serviceRadius: 100,
 } as const;
+export const SURFACE_RAID = {
+  firstWarningSeconds: 55,
+  repeatWarningSeconds: 82,
+  telegraphSeconds: 7,
+  approachSpeed: 52,
+  interceptRange: 440,
+  integrity: 2,
+  drillHitsToRepel: 2,
+  drillHitRadius: 24,
+  drillCooldownSeconds: 0.28,
+  repairCredits: 180,
+} as const;
+export const TRADE_NETWORK = { saleBonusPerRemotePost: 0.1, maxSaleBonus: 0.4, relaySaleBonus: 0.05 } as const;
+export function tradeNetworkPremium(saleValue: number, connectedPosts: number, hasLocalPost: boolean, relayOnline = false) {
+  if (!Number.isFinite(saleValue) || !Number.isFinite(connectedPosts) || !hasLocalPost || connectedPosts < 2) return 0;
+  const rate = Math.min(TRADE_NETWORK.maxSaleBonus + (relayOnline ? TRADE_NETWORK.relaySaleBonus : 0),
+    (Math.floor(connectedPosts) - 1) * TRADE_NETWORK.saleBonusPerRemotePost + (relayOnline ? TRADE_NETWORK.relaySaleBonus : 0));
+  return Math.floor(Math.max(0, saleValue) * rate);
+}
 // Warn early enough to brake before reaching the damaging landing threshold.
 export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.6;
 export const FALL_CAMERA_LOOKAHEAD = 96;
@@ -211,6 +239,26 @@ export const MAPS = {
     oreFactors: { copper: 0.6, iron: 0.8, silver: 1.5, gold: 1.25, diamond: 1.4 },
     surface: { sky: [0x171629, 0x242344, 0x373764, 0x565480], ground: 0x655f82, edge: 0xb3b1ed, mountains: [0x2d2b4b, 0x3d3b62, 0x535273], moon: 0xc3c7ed },
   },
+  'cinder-vale': {
+    name: 'Cinder Vale',
+    shortName: 'EMBER WORLD / CINDER VALE',
+    strata: ['ASHGLASS COAST', 'OBSIDIAN RIFT', 'SULFUR VEIL', 'SEALED MAGMA', 'EMBER HEART'],
+    palette: [0x79534c, 0x5d4548, 0x51414a, 0x453a42, 0x382d3c],
+    caveChance: 0.16,
+    geodeChance: 0.04,
+    oreFactors: { copper: 1.25, iron: 1.15, silver: 0.9, gold: 1.2, diamond: 1.1 },
+    surface: { sky: [0x1c1720, 0x30212a, 0x59383a, 0x8e5140], ground: 0x694640, edge: 0xf08a58, mountains: [0x332a34, 0x4b3439, 0x70433c], moon: 0xe8a36c },
+  },
+  'vesper-9': {
+    name: 'Vesper-9',
+    shortName: 'RETURN WORLD / VESPER-9',
+    strata: ['LANTERN GROVE', 'ROOTED SHELF', 'ECHO REEF', 'DUSK MANTLE', 'HANDSHAKE CORE'],
+    palette: [0x426f65, 0x375c5c, 0x344d59, 0x303e55, 0x27354a],
+    caveChance: 0.23,
+    geodeChance: 0.08,
+    oreFactors: { copper: 0.65, iron: 0.8, silver: 1.25, gold: 1.3, diamond: 1.55 },
+    surface: { sky: [0x101b27, 0x172c3a, 0x315957, 0x64836b], ground: 0x426d5d, edge: 0xb2dc9a, mountains: [0x243d42, 0x31534d, 0x476b55], moon: 0xc0dca5 },
+  },
 } as const;
 // Region signature finds are generated from the map seed and tile coordinate, so
 // cached chunks can be discarded without adding feature state to player saves.
@@ -219,17 +267,24 @@ export const CORE_RELICS = [
   { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the Faraday’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 600 },
   { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 600 },
   { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 600 },
-  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'All four pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call.', bounty: 600 },
+  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the Faraday’s signal is a path home, not a distress call. One final key remains.', bounty: 600 },
+  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the Faraday can reach them.', bounty: 900 },
+  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the Faraday finally has a home port.', bounty: 1200 },
 ] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
 export const CORE_SURVEY_CONCLUSION = {
-  title: 'A route home, carried through four worlds',
-  transcript: 'The Faraday did not vanish beneath Vesper-9. The crew scattered its return key across these planetary cores, then sent a handshake only their miner could rebuild. The signal has been waiting for the whole route.',
+  title: 'A route home, carried through six worlds',
+  transcript: 'The Faraday did not vanish beneath Vesper-9. The crew scattered its return key across five planetary cores, then built a living settlement around the final handshake. The signal has been waiting for the whole route.',
 } as const;
 export type CoreRelicId = (typeof CORE_RELICS)[number]['id'];
 export const coreSurveyComplete = (milestones: readonly string[]) => CORE_RELICS.every((relic) => milestones.includes(relic.id));
+/** Vesper-9 is the follow-up chapter unlocked after the original five-world ledger. */
+export const VESPER_CHAPTER_CORE_IDS = CORE_RELICS.filter((relic) => relic.mapId !== 'vesper-9').map((relic) => relic.id);
+export const vesperChapterUnlocked = (milestones: readonly string[]) => VESPER_CHAPTER_CORE_IDS.every((id) => milestones.includes(id));
 export const REGION_FINDS = {
   'mars-frontier': { chance: 0.012, units: 2, tint: 0xffa66a, name: 'THERMAL SEAM', detail: 'WARM CORE VEIN · GUARANTEED 2 UNITS' },
   'hull-graveyard': { chance: 0.018, units: 2, tint: 0xa7d9bd, name: 'HULL SALVAGE', detail: 'ARK ALLOY CACHE · GUARANTEED 2 UNITS' },
+  'cinder-vale': { chance: 0.016, units: 2, tint: 0xff9460, name: 'EMBER GEODE', detail: 'SEALED THERMAL CRYSTAL · GUARANTEED 2 UNITS' },
+  'vesper-9': { chance: 0.02, units: 3, tint: 0xb2e98e, name: 'LANTERN BLOOM', detail: 'LIVING CRYSTAL CLUSTER · GUARANTEED 3 UNITS' },
 } as const satisfies Partial<Record<MapId, { chance: number; units: number; tint: number; name: string; detail: string }>>;
 export const stratumAt = (depth: number, mapId: MapId) => {
   const index = depth >= 1000 ? 4 : depth >= 600 ? 3 : depth >= 300 ? 2 : depth >= 100 ? 1 : 0;
@@ -296,6 +351,25 @@ export const UPGRADES = {
 export type Upgrade = keyof typeof UPGRADES;
 export type Levels = Record<Upgrade, number>;
 export const UPGRADE_KEYS = Object.keys(UPGRADES) as Upgrade[];
+export const UPGRADE_MILESTONE_GATES = [
+  { firstLevel: 6, label: 'FARADAY ASSEMBLED', requirement: 'ship' },
+  { firstLevel: 11, label: '2 PLANETARY CORES LOGGED', requirement: 'two-cores' },
+  { firstLevel: 16, label: 'ALL PLANETARY CORES LOGGED', requirement: 'all-cores' },
+] as const;
+export type UpgradeGateState = { shipComplete: boolean; coreRelics: readonly string[] };
+export function upgradeGateForLevel(level: number) {
+  return [...UPGRADE_MILESTONE_GATES].reverse().find((gate) => level >= gate.firstLevel);
+}
+export function upgradeGateMet(level: number, state: UpgradeGateState) {
+  const gate = upgradeGateForLevel(level);
+  if (!gate) return true;
+  if (gate.requirement === 'ship') return state.shipComplete;
+  if (gate.requirement === 'two-cores') return state.coreRelics.length >= 2;
+  return CORE_RELICS.every((relic) => state.coreRelics.includes(relic.id));
+}
+export function upgradeGateLabel(level: number) {
+  return upgradeGateForLevel(level)?.label;
+}
 export const SPECIALIZATIONS = {
   balanced: { name: 'Balanced', description: 'No bonus, no trade-off. Change paths freely while docked.', rockDrillMultiplier: 1, scanRadiusBonus: 0, cargoMultiplier: 1 },
   seamCutter: { name: 'Seam Cutter', description: 'Cut hard rock 20% faster once the deep strata begin.', rockDrillMultiplier: 1.2, scanRadiusBonus: 0, cargoMultiplier: 1 },
@@ -342,10 +416,17 @@ export const DRILL_TIERS = [
   { name: 'Laser Miner', module: 'LASER EMITTER' },
 ] as const;
 export const LASER_THERMAL = { heatSeconds: 4.5, ventSeconds: 1.15, coolPerSecond: 0.42 } as const;
-export const POD_SIZE = { drillPerLevel: 0.04, cargoPerLevel: 0.055, maxScale: 1.38 };
-export const podVisualScale = (drillLevel: number, cargoLevel: number) =>
-  Math.min(POD_SIZE.maxScale, 1 + (Math.max(1, drillLevel) - 1) * POD_SIZE.drillPerLevel +
-    (Math.max(1, cargoLevel) - 1) * POD_SIZE.cargoPerLevel);
+export const POD_SIZE = {
+  drillPerLevel: 0.05, cargoPerLevel: 0.06, fuelPerLevel: 0.02, hullPerLevel: 0.02,
+  enginePerLevel: 0.02, scannerPerLevel: 0.015, grapplePerLevel: 0.015, maxScale: 1.72,
+} as const;
+export const podVisualScale = (levels: Pick<Levels, 'drill' | 'cargo' | 'fuel' | 'hull' | 'engine' | 'scanner' | 'grapple'>) => {
+  const tierGrowth = (key: keyof typeof POD_SIZE, level: number) => Math.max(0, level - 1) * POD_SIZE[key];
+  return Math.min(POD_SIZE.maxScale, 1 + tierGrowth('drillPerLevel', levels.drill) +
+    tierGrowth('cargoPerLevel', levels.cargo) + tierGrowth('fuelPerLevel', levels.fuel) +
+    tierGrowth('hullPerLevel', levels.hull) + tierGrowth('enginePerLevel', levels.engine) +
+    tierGrowth('scannerPerLevel', levels.scanner) + tierGrowth('grapplePerLevel', levels.grapple));
+};
 export const SERVICE = { fuelPrice: 0.3, hullPrice: 0.45 };
 
 export const CHARGE = { packCost: 180, packSize: 3, fuseSeconds: 1.2, blastRadius: 2, pickupRadius: 28, gravity: 560, maxFallSpeed: 360, radius: 6 };
@@ -357,14 +438,17 @@ export const estimateWinchReturnFuel = (standardReturnEstimate: number) =>
   Math.ceil(Math.max(0, standardReturnEstimate) * RETURN_WINCH.fuelMultiplier / RETURN_WINCH.pullMultiplier);
 export const AUTO_GRAPPLE = { fallSpeed: 205, impactWindowSeconds: 1.5, predictionStepSeconds: 1 / 30, minRise: 26, hangSeconds: 0.85, cooldownSeconds: [7, 6, 5, 4, 3] };
 export const ROCK_SWIMMER = {
-  firstDepth: 240,
-  firstArrivalSeconds: 11,
-  repeatSeconds: 42,
+  firstDepth: 420,
+  firstArrivalSeconds: 18,
+  repeatSeconds: 58,
   swimSeconds: 24,
   speed: 48,
   warningRadius: 190,
   contactRadius: 27,
   hullDamage: 8,
+  drillHitsToDefeat: 3,
+  drillHitCooldownSeconds: 0.3,
+  drillHitRadius: 18,
 } as const;
 export const POD_PAINTS = {
   hab: { name: 'Hab Standard', description: 'The hard-wearing outpost finish.', cost: 0, hull: 0xeac781, trim: 0xffdfa0, light: 0xfff0bc },

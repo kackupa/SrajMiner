@@ -1,24 +1,31 @@
 import Phaser from 'phaser';
-import { CORE, PLANET_CHART, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { tradeNetworkPremium } from './config';
+import { CORE, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SURVEY_REWARDS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type ShipComponent, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
-import { Progress } from './economy/Progress';
-import { MiningSystem, aimedDrillTarget, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
+import { Progress, emptyCargo, type Cargo } from './economy/Progress';
+import { tradeRouteEdges } from './economy/TradeNetwork';
+import { transferWarehouseOre, type WarehouseDirection } from './economy/Warehouse';
+import { advanceMarketDemand, marketDemandBonus } from './economy/MarketContracts';
+import { contributeVesperRelay, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
+import { MiningSystem, aimedDrillTarget, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
 import { AudioSystem } from './audio/AudioSystem';
 import { HUD } from './ui/HUD';
 import { getDialogFocusables } from './ui/focus';
-import { STATIONS, TOWN_TIER_HEIGHTS, atSurface, dockedOnSurface, surfaceGroundY, surfaceTownTier } from './surface/SurfaceStation';
+import { STATIONS, TOWN_TIER_HEIGHTS, atSurface, dockedOnSurface, onPlanetSurface, surfaceGroundY, surfaceTownTier } from './surface/SurfaceStation';
 import { drawPlanetSurfaceOutpost, drawSurfaceTown } from './surface/SurfaceTown';
+import { drawSurfaceLandmarks, surfaceLandmarkColor, surfaceLandmarks, type SurfaceLandmark } from './surface/PlanetScenery';
 import { restoreMapState, snapshotMapState } from './campaign/MapState';
 import { collectCoreRelic, crewArchiveRestored } from './campaign/Records';
 import { RockSwimmer } from './world/RockSwimmer';
+import { SurfaceRaid } from './world/SurfaceRaid';
 import { CaveAtmosphere } from './world/CaveAtmosphere';
-import { cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, orbitalOverviewMinZoom, planetCameraFrameAngle } from './world/Projection';
+import { advanceOrbitalTransition, cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, GLOBE_HANDOFF_ZOOM, orbitalOverviewMinZoom, planetCameraFrameAngle } from './world/Projection';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartLocalOffset, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetTile } from './world/PlanetChart';
 import type { PlanetChartSize } from './world/PlanetChart';
-import { canAffordStructure, findBuildSite, nearbyServiceStation, type StructureKind, type UndergroundStructure } from './building/UndergroundStructures';
+import { canAffordStructure, findBuildSite, findSurfaceBarrierSite, findSurfaceHabitatSite, findSurfaceTradePostSite, findSurfaceTurretSite, findSurfaceWarehouseSite, globeSurfaceDistance, nearbyGlobeSurfaceStructure, nearbyServiceStation, repairSurfaceStructure, surfaceArcCoordinate, surfaceArcPoint, validateSurfaceStructureSite, type StructureKind, type SurfaceStructureKind, type UndergroundStructure } from './building/UndergroundStructures';
 type Particle = {
   x: number;
   y: number;
@@ -34,21 +41,30 @@ type Particle = {
 export class MiningScene extends Phaser.Scene {
   world!: TileWorld;
   mapId: MapId = 'cryo-shelf';
-  campaignChart: PlanetChartSize = PLANET_CHART;
+  campaignChart: PlanetChartSize = STARTER_PLANET_CHART;
+  failureReason: 'fuel' | 'hull' | 'impact' = 'impact';
+  stranded = false;
+  private pendingPositionNotice = false;
+  private pendingPositionWarning = false;
   campaignSeed = 0;
   mapStates: Partial<Record<MapId, WorldSave>> = {};
   structures: UndergroundStructure[] = [];
+  surfaceFeatures: SurfaceLandmark[] = [];
+  warehouseCargo: Cargo = emptyCargo();
   oreDrops: OreDrop[] = [];
   activeCharge?: ActiveCharge;
   pod!: PlayerPod;
   progress = new Progress();
   mining!: MiningSystem;
   aimTile?: Tile;
+  mouseAimActive = false;
   drillAimX = 0;
   drillAimY = 1;
   drillRecoil = 0;
   laserThermal: LaserThermalState = { heat: 0, vent: 0 };
   rockSwimmer!: RockSwimmer;
+  surfaceRaid!: SurfaceRaid;
+  surfacePlacement?: { kind: SurfaceStructureKind; x: number; y: number };
   saves = new SaveManager();
   soundFx = new AudioSystem();
   ui!: HUD;
@@ -57,6 +73,7 @@ export class MiningScene extends Phaser.Scene {
   keys!: Record<string, Phaser.Input.Keyboard.Key>;
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
+  buildPlacementLabel!: Phaser.GameObjects.Text;
   cameraFlipLabel!: Phaser.GameObjects.Text;
   orbitalLabel!: Phaser.GameObjects.Text;
   landmarkLabels = new Map<string, Phaser.GameObjects.Text>();
@@ -75,6 +92,8 @@ export class MiningScene extends Phaser.Scene {
   cameraZoom = 1;
   cameraZoomTarget = 1;
   orbitalOverviewActive = false;
+  orbitalTransition = 0;
+  globeViewRequested = false;
   hemisphereFar = false;
   readonly cameraFlipDuration = 1.15;
   tick = 0;
@@ -189,7 +208,7 @@ export class MiningScene extends Phaser.Scene {
     const pod = planetChartToCartesian(
       { u: this.pod.x / WORLD.tile, v: cameraY / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile,
     );
-    const orbit = Phaser.Math.SmoothStep(Phaser.Math.Clamp((0.36 - this.cameraZoom) / 0.14, 0, 1), 0, 1);
+    const orbit = Phaser.Math.SmoothStep(this.orbitalTransition, 0, 1);
     return { x: pod.x * (1 - orbit), y: pod.y * (1 - orbit) };
   }
 
@@ -228,15 +247,18 @@ export class MiningScene extends Phaser.Scene {
     this.progress.pilotEscaping = saved?.pilotEscaping ?? false;
     this.mapId = saved?.activeMap ?? 'cryo-shelf';
     this.mapStates = saved?.maps ?? {};
-    this.campaignChart = saved?.planetChart ?? PLANET_CHART;
+    this.campaignChart = saved?.planetChart ?? STARTER_PLANET_CHART;
     this.campaignSeed = saved?.campaignSeed ?? crypto.getRandomValues(new Uint32Array(1))[0];
     const savedMapState = this.mapStates[this.mapId];
-    const mapState = restoreMapState(savedMapState, this.mapId, this.seedForMap(this.mapId), this.campaignChart);
+    const mapState = restoreMapState(savedMapState, this.mapId, this.seedForMap(this.mapId), this.chartForUnvisitedMap(this.mapId));
     this.structures = mapState.structures;
+    this.warehouseCargo = mapState.warehouse;
     this.oreDrops = mapState.drops;
     this.activeCharge = mapState.activeCharge;
     this.world = mapState.world;
+    this.surfaceFeatures = surfaceLandmarks(this.world, this.mapId);
     this.rockSwimmer = new RockSwimmer(this.world.seed, this.mapId);
+    this.surfaceRaid = new SurfaceRaid(this.world.seed, this.mapId);
     this.pod = new PlayerPod(this.world, this.progress);
     this.pod.structures = this.structures;
     if (savedMapState) {
@@ -247,7 +269,21 @@ export class MiningScene extends Phaser.Scene {
       const restoredFrame = this.world.planetChart
         ? planetCameraFrameAngle(savedMapState.x / WORLD.tile, savedMapState.y / WORLD.tile, this.world.planetChart) ?? 0
         : 0;
-      if (this.pod.overlaps(savedMapState.x, savedMapState.y, restoredFrame).length) this.pod.reset();
+      if (this.pod.overlaps(savedMapState.x, savedMapState.y, restoredFrame).length) {
+        const safe = this.nearestClearPodPosition(savedMapState.x, savedMapState.y, restoredFrame);
+        if (safe) {
+          this.pod.x = safe.x;
+          this.pod.y = safe.y;
+          this.pod.docked = false;
+          this.pendingPositionNotice = true;
+        } else {
+          // Never silently discard an underground save by resetting it to the
+          // surface. A wide local search normally finds a clear pocket; if an
+          // edited save is completely solid, keep its location visible for QA
+          // and let the player choose recovery explicitly.
+          this.pendingPositionWarning = true;
+        }
+      }
     }
     this.hemisphereFar = this.pod.y >= this.world.coreWorldY;
     this.cameraFlip = this.hemisphereFar ? 1 : 0;
@@ -274,11 +310,21 @@ export class MiningScene extends Phaser.Scene {
           if (!this.canService) return false;
           const ok = this.progress.serviceAll();
           if (ok) {
+            if (this.stranded) {
+              this.stranded = false;
+              this.ui.close();
+            }
             this.soundFx.reward();
             this.save();
             this.ui.toast('Refueled and repaired. Ready to depart.');
           }
           return ok;
+        },
+        recoverStranded: () => {
+          if (!this.stranded) return false;
+          this.fail(true, this.failureReason);
+          this.ui.close();
+          return true;
         },
         resume: () => this.ui.close(),
         save: () => {
@@ -286,13 +332,21 @@ export class MiningScene extends Phaser.Scene {
           this.ui.toast(this.saves.warning || 'Expedition saved. Your tunnels are here to stay.');
         },
         sell: () => {
-          if (!this.surface) return 0;
-          const n = this.progress.sell();
+          if (!this.sellAccess) return 0;
+          const soldCargo = { ...this.progress.cargo };
+          const hasLocalPost = !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post'),
+            contract = this.progress.claimMarketContract(this.mapId, hasLocalPost),
+            sale = this.progress.sell(), connectedPosts = this.tradeNetworkCount(),
+            bonus = tradeNetworkPremium(sale, connectedPosts, hasLocalPost, this.progress.milestones.includes(VESPER_RELAY_PROJECT.completionMilestone)), demandBonus = marketDemandBonus(soldCargo, this.mapId, this.progress.milestones, hasLocalPost),
+            n = sale + bonus + demandBonus + contract;
+          this.progress.money += bonus + demandBonus;
+          if (sale > 0) advanceMarketDemand(this.progress.milestones, this.mapId, hasLocalPost, sale);
           if (n) {
             this.soundFx.reward();
             this.float(`+$${n}`, this.pod.x, this.pod.y - 45, '#f5ca78');
             this.burst(this.pod.x, this.pod.y, 0xf5ca78, 28);
-            this.ui.toast(`+$${n} banked. Another piece of the Faraday recovered.`);
+            const rewards = [bonus ? `+$${bonus} LINKED-WORLD PREMIUM` : '', demandBonus ? `+$${demandBonus} LOCAL DEMAND` : '', contract ? `+$${contract} PLANETARY ORDER` : ''].filter(Boolean).join(' · ');
+            this.ui.toast(rewards ? `+$${n} banked · ${rewards}.` : `+$${n} banked. Another piece of the Faraday recovered.`);
             this.save();
           }
           return n;
@@ -430,18 +484,35 @@ export class MiningScene extends Phaser.Scene {
         },
         buildShipComponent: (key: ShipComponent) => {
           if (!this.surface) return false;
+          const wasComplete = this.progress.shipComplete;
           const ok = this.progress.buyShipComponent(key);
           if (ok) {
             this.soundFx.reward();
-            this.ui.toast(`${key.toUpperCase()} installed at the shipyard.`);
+            this.ui.toast(!wasComplete && this.progress.shipComplete
+              ? 'FARADAY ASSEMBLED · UPGRADE MILESTONE UNLOCKED: LEVEL 6+'
+              : `${key.toUpperCase()} installed at the shipyard.`);
             this.save();
           }
           return ok;
         },
         buildStructure: (kind: StructureKind) => this.buildUndergroundStructure(kind),
+        warehouseStock: () => ({ ...this.warehouseCargo }),
+        transferWarehouse: (ore, direction, units) => this.transferWarehouse(ore, direction, units),
+        contributeSystemProject: () => this.contributeSystemProject(),
+        atWarehouse: () => !!this.nearbyWarehouse,
+        placementActive: () => !!this.surfacePlacement,
         structures: () => this.structures,
-        surfaceAccess: () => this.surface,
+        tradeNetworkCount: () => this.tradeNetworkCount(),
+        tradePostMaps: () => this.tradePostMaps(),
+        hasTradePost: () => this.structures.some((entry) => entry.kind === 'trade-post'),
+        atTradePost: () => !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post'),
+        habitatCount: () => this.structures.filter((entry) => entry.kind === 'habitat').length,
+        repairStructure: (id) => this.repairStructure(id),
+        surfaceAccess: () => this.planetSurface,
+        planetSurfaceAccess: () => this.planetSurface,
+        sellAccess: () => this.sellAccess,
         serviceAccess: () => this.canService,
+        failureReason: () => this.failureReason,
         travelMap: (id: MapId) => this.travelToMap(id),
         exportSave: () => this.save(),
         importSave: (data: SaveData) => {
@@ -481,15 +552,20 @@ export class MiningScene extends Phaser.Scene {
       },
     );
     this.ui.setMap(this.mapId);
+    if (this.pendingPositionNotice) {
+      this.ui.toast(this.pendingPositionWarning
+        ? 'SAVE POSITION IS BLOCKED · USE PAUSE → EMERGENCY RECOVERY TO MOVE THE POD'
+        : 'POD REPOSITIONED BESIDE YOUR SAVED TUNNEL · ROCK CLEARED AROUND THE CABIN');
+      this.pendingPositionNotice = false;
+      this.pendingPositionWarning = false;
+    }
     document.querySelector('#game')!.appendChild(this.game.canvas);
     const resize = () => {
       const el = document.querySelector('#viewport')!;
       const previousWidth = this.scale.width, previousHeight = this.scale.height,
-        radius = this.world.planetChart ? this.world.planetChart.radiusRows * WORLD.tile : 0,
-        wasFullyZoomedOut = radius > 0 && previousWidth > 0 && previousHeight > 0 &&
-          this.cameraZoomTarget <= orbitalOverviewMinZoom(previousWidth, previousHeight, radius) + 0.00001;
+        wasFullyZoomedOut = !!this.world.planetChart && previousWidth > 0 && previousHeight > 0 && this.globeViewRequested;
       this.scale.resize(el.clientWidth, el.clientHeight);
-      if (wasFullyZoomedOut) this.cameraZoomTarget = this.minimumCameraZoom;
+      if (wasFullyZoomedOut) this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
     };
     resize();
     window.addEventListener('resize', resize);
@@ -503,23 +579,39 @@ export class MiningScene extends Phaser.Scene {
     this.syncInput(this.ui.paused);
     this.input.keyboard!.on('keydown-ESC', () => {
       if (this.ui.hasStarted) {
-        this.ui.modal ? this.ui.close() : this.pause();
+        if (this.surfacePlacement) this.cancelSurfacePlacement();
+        else this.ui.modal ? this.ui.close() : this.pause();
       }
     });
+    this.input.keyboard!.on('keydown-ENTER', () => this.confirmSurfacePlacement());
+    for (const key of ['LEFT', 'RIGHT', 'UP', 'DOWN']) this.input.keyboard!.on(`keydown-${key}`, (event: KeyboardEvent) => {
+      if (!this.surfacePlacement || this.ui.modal) return;
+      event.preventDefault();
+      const direction = key === 'LEFT' || key === 'UP' ? -1 : 1;
+      this.nudgeSurfacePlacement((event.shiftKey ? 5 : 1) * WORLD.tile * direction);
+    });
     this.input.keyboard!.on('keydown-E', () => {
-      if (!this.ui.hasStarted || this.ui.modal) return;
-      if (this.surface) this.ui.open('sell');
+      if (!this.ui.hasStarted || this.ui.modal || this.surfacePlacement) return;
+      const habitat = this.planetSurface && nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'habitat'),
+        post = this.planetSurface && nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post'),
+        warehouse = this.planetSurface && nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'warehouse'),
+        nearby = [habitat, post, warehouse].filter((entry): entry is UndergroundStructure => !!entry)
+          .sort((a, b) => globeSurfaceDistance(this.world, this.pod.x, this.pod.y, a.x, a.y) - globeSurfaceDistance(this.world, this.pod.x, this.pod.y, b.x, b.y))[0];
+      if (nearby?.kind === 'warehouse') this.ui.open('warehouse');
+      else if (nearby?.kind === 'habitat') this.ui.open('service');
+      else if (nearby?.kind === 'trade-post') this.ui.open('sell');
+      else if (this.surface) this.ui.open('sell');
       else if (nearbyServiceStation(this.structures, this.pod.x, this.pod.y)) this.ui.open('service');
     });
     this.input.keyboard!.on('keydown-B', () => {
-      if (this.ui.hasStarted && !this.ui.modal && !this.surface && this.depth >= UNDERGROUND_BUILDING.minimumDepthMeters && this.depth <= 3400)
+      if (this.ui.hasStarted && !this.ui.modal && !this.surfacePlacement && (this.planetSurface || this.depth >= UNDERGROUND_BUILDING.minimumDepthMeters && this.depth <= 3400))
         this.ui.open('construction');
     });
     this.input.keyboard!.on('keydown-M', () => {
-      if (this.ui.hasStarted && !this.ui.modal) this.ui.toggleMap();
+      if (this.ui.hasStarted && !this.ui.modal && !this.surfacePlacement) this.ui.toggleMap();
     });
     this.input.keyboard!.on('keydown-Q', () => {
-      if (this.ui.hasStarted && !this.ui.modal) this.deployCharge();
+      if (this.ui.hasStarted && !this.ui.modal && !this.surfacePlacement) this.deployCharge();
     });
     const handleVisibilityChange = () => {
       if (document.hidden && this.ui.hasStarted) {
@@ -573,6 +665,10 @@ export class MiningScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '9px', color: '#d9f5df',
       backgroundColor: '#142023dd', padding: { x: 6, y: 4 }, align: 'center',
     }).setOrigin(0.5).setVisible(false);
+    this.buildPlacementLabel = this.add.text(0, 0, '', {
+      fontFamily: 'monospace', fontSize: '11px', color: '#d9f5df',
+      backgroundColor: '#142023ee', padding: { x: 10, y: 7 }, align: 'center',
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(1100).setVisible(false);
     this.orbitalLabel = this.add.text(0, 0, 'ORBITAL CUTAWAY  ·  WHEEL TO RETURN', {
       fontFamily: 'monospace', fontSize: '10px', color: '#d9f5df',
       backgroundColor: '#142023dd', padding: { x: 9, y: 6 }, align: 'center',
@@ -588,7 +684,36 @@ export class MiningScene extends Phaser.Scene {
       deltaY: number,
     ) => {
       if (!this.ui.hasStarted || this.ui.paused || this.ui.modal) return;
-      this.cameraZoomTarget = Phaser.Math.Clamp(this.cameraZoomTarget * Math.exp(-deltaY * 0.001), this.minimumCameraZoom, 1.8);
+      const nextZoom = this.cameraZoomTarget * Math.exp(-deltaY * 0.001);
+      if (this.world.planetChart) {
+        if (nextZoom < GLOBE_HANDOFF_ZOOM) {
+          this.globeViewRequested = true;
+          this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
+        } else {
+          this.globeViewRequested = false;
+          this.cameraZoomTarget = Phaser.Math.Clamp(nextZoom, GLOBE_HANDOFF_ZOOM, 1.8);
+        }
+      } else this.cameraZoomTarget = Phaser.Math.Clamp(nextZoom, this.minimumCameraZoom, 1.8);
+    });
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.button === 0 && this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.surfacePlacement)
+        this.mouseAimActive = true;
+      if (!this.surfacePlacement || this.ui.paused || this.ui.modal) return;
+      if (pointer.button === 2) {
+        this.cancelSurfacePlacement();
+        return;
+      }
+      this.updateSurfacePlacementFromPointer(pointer.x, pointer.y);
+      this.confirmSurfacePlacement();
+    });
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.surfacePlacement) this.mouseAimActive = true;
+      if (this.surfacePlacement && !this.ui.paused && !this.ui.modal)
+        this.updateSurfacePlacementFromPointer(pointer.x, pointer.y);
+    });
+    this.scale.on('resize', () => this.updateSurfacePlacementLabel());
+    this.game.canvas.addEventListener('contextmenu', (event) => {
+      if (this.surfacePlacement) event.preventDefault();
     });
     this.landmarkLabels = new Map(ROUTE_FRAGMENTS.map((fragment) => [
       fragment.id,
@@ -608,7 +733,8 @@ export class MiningScene extends Phaser.Scene {
         ),
     );
     this.revealAroundPod();
-    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy, this.farHemisphere, false, this.world.coreDepthMeters);
+    this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, this.pod.vy, this.farHemisphere, false, this.world.coreDepthMeters,
+      false, false, false, 0, 0, false, this.planetSurface);
     if (import.meta.env.DEV)
       Object.defineProperty(window, '__mars', {
         configurable: true,
@@ -636,11 +762,14 @@ export class MiningScene extends Phaser.Scene {
           scannerRadius: Math.min(this.world.widthTiles, this.progress.max('scanner') + SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus),
           cargoCapacity: this.progress.max('cargo'),
           surveyedCells: this.world.discovered.size,
-          podScale: podVisualScale(this.progress.levels.drill, this.progress.levels.cargo),
+          podScale: podVisualScale(this.progress.levels),
           camera: { x: this.camX, y: this.camY },
           cameraRotation: this.viewRotation,
           cameraTurnLabelRemaining: this.cameraTurnLabelRemaining,
           cameraZoom: this.cameraZoom,
+          cameraZoomTarget: this.cameraZoomTarget,
+          orbitalTransition: this.orbitalTransition,
+          orbitalOverviewActive: this.orbitalOverviewActive,
           winchCableConnected: !!this.surfaceWinchCable(),
           winchCablePointCount: this.surfaceWinchCable()?.points.length ?? 0,
           snapshot: () => new Promise<string>((resolve) =>
@@ -683,6 +812,7 @@ export class MiningScene extends Phaser.Scene {
           paused: this.ui.paused,
           docked: this.pod.docked,
           overlaps: this.pod.overlaps(this.pod.x, this.pod.y).length,
+          placement: this.surfacePlacement ? { ...this.surfacePlacement, valid: this.surfacePlacementCheck()?.valid ?? false } : null,
         }),
       });
   }
@@ -692,20 +822,219 @@ export class MiningScene extends Phaser.Scene {
   get surface() {
     return atSurface(this.pod.x, this.pod.y, this.world.planetChart);
   }
+  get planetSurface() {
+    return onPlanetSurface(this.pod.x, this.pod.y, this.world.planetChart);
+  }
+  get sellAccess() {
+    return this.surface || this.planetSurface && !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'trade-post');
+  }
   get canService() {
-    return this.surface || !!nearbyServiceStation(this.structures, this.pod.x, this.pod.y);
+    return this.surface || this.planetSurface && !!nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'habitat') ||
+      !!nearbyServiceStation(this.structures, this.pod.x, this.pod.y);
+  }
+  get nearbyWarehouse() {
+    return this.planetSurface && nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'warehouse');
+  }
+  tradeNetworkCount() {
+    return this.tradePostMaps().length;
+  }
+  transferWarehouse(ore: Ore, direction: WarehouseDirection, units: number) {
+    if (!this.nearbyWarehouse) return 0;
+    const transfer = transferWarehouseOre(this.progress.cargo, this.warehouseCargo, ore, direction, units, this.progress.max('cargo'));
+    if (!transfer.moved) return 0;
+    const oldCargo = this.progress.cargo, oldWarehouse = this.warehouseCargo;
+    this.progress.cargo = transfer.cargo;
+    this.warehouseCargo = transfer.warehouse;
+    if (!this.save()) {
+      this.progress.cargo = oldCargo;
+      this.warehouseCargo = oldWarehouse;
+      this.rememberCurrentMap();
+      this.ui.toast('STORAGE FAILED · ORE TRANSFER ROLLED BACK.');
+      return 0;
+    }
+    this.soundFx.tone(direction === 'store' ? 540 : 420, 0.08, 'sine', 0.025, direction === 'store' ? 760 : 620);
+    this.ui.toast(`${direction === 'store' ? 'STORED' : 'RETRIEVED'} ${transfer.moved} ${ore.toUpperCase()} · ${MAPS[this.mapId].name.toUpperCase()} WAREHOUSE.`);
+    return transfer.moved;
+  }
+  contributeSystemProject() {
+    if (!this.nearbyWarehouse) return false;
+    const oldWarehouse = { ...this.warehouseCargo }, oldMilestones = [...this.progress.milestones], oldMoney = this.progress.money,
+      result = contributeVesperRelay(this.progress.milestones, this.mapId, this.warehouseCargo);
+    if (!result.contributed) return false;
+    if (result.completed) this.progress.money += VESPER_RELAY_PROJECT.rewardCredits;
+    if (!this.save()) {
+      this.warehouseCargo = oldWarehouse;
+      this.progress.milestones = oldMilestones;
+      this.progress.money = oldMoney;
+      this.rememberCurrentMap();
+      this.ui.toast('PROJECT SAVE FAILED · MATERIALS RESTORED.');
+      return false;
+    }
+    const stage = result.stage!;
+    this.soundFx.reward();
+    this.ui.toast(result.completed
+      ? `VESPER RELAY ONLINE · +$${VESPER_RELAY_PROJECT.rewardCredits} · LINKED EXCHANGE PREMIUM +5%.`
+      : `${MAPS[stage.mapId].name.toUpperCase()} RELAY WORK COMPLETE · ${stage.units} ${stage.ore.toUpperCase()} COMMITTED.`);
+    return true;
+  }
+  tradePostMaps() {
+    return (Object.keys(MAPS) as MapId[]).filter((id) => {
+      const structures = id === this.mapId ? this.structures : this.mapStates[id]?.structures;
+      return structures?.some((entry) => entry.kind === 'trade-post') ?? false;
+    });
+  }
+  beginSurfacePlacement(kind: SurfaceStructureKind) {
+    if (!this.planetSurface || !this.world.planetChart) return false;
+    const baseArc = surfaceArcCoordinate(this.world, this.pod.x, this.pod.y),
+      surfaceY = this.pod.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
+      obstacles: UndergroundStructure[] = [...this.structures, ...STATIONS.map((station, index) => ({
+        id: `station:${index}`, kind: 'platform' as const, x: station.x, y: surfaceY,
+      }))];
+    let site = surfaceArcPoint(this.world, baseArc + WORLD.tile * 5);
+    for (let step = 5; step <= 48; step += 1) {
+      const candidate = surfaceArcPoint(this.world, baseArc + WORLD.tile * step),
+        check = validateSurfaceStructureSite(this.world, kind, candidate, obstacles, this.progress.cargo, this.progress.money);
+      site = candidate;
+      if (check.valid || check.reason !== 'OCCUPIED') break;
+    }
+    this.surfacePlacement = { kind, ...site };
+    this.updateSurfacePlacementLabel();
+    return true;
+  }
+  updateSurfacePlacementFromPointer(screenX: number, screenY: number) {
+    const placement = this.surfacePlacement, chart = this.world.planetChart;
+    if (!placement || !chart) return;
+    const point = this.screenPointToWorld(screenX, screenY, this.scale.width, this.scale.height),
+      polar = planetChartToCartesian({ u: point.x / WORLD.tile, v: point.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile),
+      radius = Math.hypot(polar.x, polar.y);
+    if (radius < 1) return;
+    const surfacePolar = { x: polar.x * chart.radiusRows * WORLD.tile / radius, y: polar.y * chart.radiusRows * WORLD.tile / radius },
+      chartPoint = planetCartesianToChart(surfacePolar, chart.columns, chart.radiusRows, WORLD.tile),
+      row = chartPoint.v < chart.radiusRows ? 0 : this.world.farSurfaceY,
+      site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row));
+    this.surfacePlacement = { ...placement, ...site };
+    this.updateSurfacePlacementLabel();
+  }
+  nudgeSurfacePlacement(delta: number) {
+    const placement = this.surfacePlacement;
+    if (!placement) return;
+    const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta);
+    this.surfacePlacement = { ...placement, ...site };
+    this.updateSurfacePlacementLabel();
+  }
+  surfacePlacementCheck() {
+    const placement = this.surfacePlacement;
+    if (!placement) return undefined;
+    const stations: UndergroundStructure[] = STATIONS.map((station, index) => ({
+      id: `station:${index}`, kind: 'platform', x: station.x,
+      y: placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
+    }));
+    return validateSurfaceStructureSite(this.world, placement.kind, placement, [...this.structures, ...stations], this.progress.cargo, this.progress.money);
+  }
+  updateSurfacePlacementLabel() {
+    const placement = this.surfacePlacement;
+    if (!placement) {
+      this.buildPlacementLabel?.setVisible(false);
+      return;
+    }
+    const check = this.surfacePlacementCheck(), rule = UNDERGROUND_BUILDING[placement.kind],
+      resources = Object.entries(rule.materials).map(([ore, count]) => `${count} ${ore.slice(0, 2).toUpperCase()}`).join(' / '),
+      status = check?.valid ? 'SITE CLEAR' : check?.reason ?? 'SITE BLOCKED';
+    this.buildPlacementLabel.setText(`${placement.kind.replace('-', ' ').toUpperCase()} · ${rule.widthTiles} TILES · $${rule.credits} + ${resources}  |  ${status}  |  CLICK / ENTER · ESC`)
+      .setColor(check?.valid ? '#d9f5df' : '#ffc0a8')
+      .setPosition(this.scale.width / 2, this.scale.height - 56)
+      .setVisible(true);
+  }
+  cancelSurfacePlacement() {
+    if (!this.surfacePlacement) return;
+    this.surfacePlacement = undefined;
+    this.buildPlacementLabel.setVisible(false);
+    this.ui.toast('BUILD CANCELLED · No materials or credits spent.');
+  }
+  confirmSurfacePlacement() {
+    const placement = this.surfacePlacement;
+    if (!placement || this.ui.modal || this.ui.paused) return false;
+    const check = this.surfacePlacementCheck();
+    if (!check?.valid) {
+      this.updateSurfacePlacementLabel();
+      this.soundFx.tone(170, 0.07, 'square', 0.02, 120);
+      return false;
+    }
+    const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo },
+      structure: UndergroundStructure = {
+        id: `${placement.kind}:${Math.round(placement.x)}:${Math.round(placement.y)}`,
+        kind: placement.kind, x: placement.x, y: placement.y, integrity: SURFACE_RAID.integrity,
+      };
+    this.progress.money -= cost.credits;
+    for (const [ore, units] of Object.entries(cost.materials)) this.progress.cargo[ore as Ore] -= units;
+    this.structures.push(structure);
+    if (!this.save()) {
+      this.structures.pop();
+      this.progress.money = oldMoney;
+      Object.assign(this.progress.cargo, oldCargo);
+      this.ui.toast('SAVE FAILED · BUILD NOT PLACED · NOTHING SPENT.');
+      this.updateSurfacePlacementLabel();
+      return false;
+    }
+    this.surfacePlacement = undefined;
+    this.buildPlacementLabel.setVisible(false);
+    this.burst(structure.x, structure.y, structure.kind === 'turret' ? 0xf0b779 : 0xa4efd9, 18);
+    this.float(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT`, structure.x, structure.y - 42, '#9ce4cf');
+    this.soundFx.reward();
+    this.ui.toast(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT · PLANETARY SITE SAVED.`);
+    return true;
   }
   buildUndergroundStructure(kind: StructureKind) {
     const cost = UNDERGROUND_BUILDING[kind], p = this.progress;
+    if (this.planetSurface && this.world.planetChart &&
+      (kind === 'habitat' || kind === 'turret' || kind === 'trade-post' || kind === 'warehouse' || kind === 'wall' || kind === 'gate'))
+      return this.beginSurfacePlacement(kind);
+    if (kind === 'trade-post' || kind === 'habitat' || kind === 'warehouse' || kind === 'wall' || kind === 'gate' || kind === 'turret' && this.surface) {
+      const site = this.surface
+        ? kind === 'trade-post'
+          ? findSurfaceTradePostSite(this.world, this.pod.x, this.pod.y, this.structures)
+          : kind === 'habitat'
+            ? findSurfaceHabitatSite(this.world, this.pod.x, this.pod.y, this.structures)
+            : kind === 'warehouse'
+              ? findSurfaceWarehouseSite(this.world, this.pod.x, this.pod.y, this.structures)
+              : kind === 'wall' || kind === 'gate'
+                ? findSurfaceBarrierSite(this.world, this.pod.x, this.pod.y, this.structures, kind)
+              : findSurfaceTurretSite(this.world, this.pod.x, this.pod.y, this.structures)
+        : undefined;
+      if (!site || !canAffordStructure(kind, p.cargo, p.money)) return false;
+      p.money -= cost.credits;
+      for (const [ore, units] of Object.entries(cost.materials)) p.cargo[ore as Ore] -= units;
+      this.structures.push({ id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site, integrity: SURFACE_RAID.integrity });
+      this.soundFx.reward();
+      this.float(`${kind.toUpperCase()} ONLINE`, site.x, site.y - 54, '#9ce4cf');
+      if (kind === 'trade-post') this.ui.toast('TRADE POST ONLINE · BUILD ON ANOTHER PLANET TO LINK THE NETWORK.');
+      else if (kind === 'habitat') this.ui.toast('COLONY HABITAT ONLINE · LOCAL SERVICE BAY READY.');
+      else if (kind === 'warehouse') this.ui.toast('ORE WAREHOUSE ONLINE · PRESS E BESIDE IT TO STORE SELECTED ORE.');
+      else if (kind === 'wall' || kind === 'gate') this.ui.toast(kind === 'wall' ? 'PERIMETER WALL ONLINE · RAIDERS MUST BREACH IT.' : 'SECURITY GATE ONLINE · IT OPENS FOR YOUR MINER.');
+      else this.ui.toast('SURFACE SENTINEL ONLINE · ROCK SWIMMERS IN RANGE WILL BE INTERCEPTED.');
+      this.save();
+      return true;
+    }
     const site = findBuildSite(this.world, this.pod.x, this.pod.y, this.world.gravitySign(this.pod.y), kind, this.structures);
-    if (this.surface || this.depth < UNDERGROUND_BUILDING.minimumDepthMeters || this.depth > 3400 || !site || !canAffordStructure(kind, p.cargo, p.money)) return false;
+    if (this.planetSurface || this.depth < UNDERGROUND_BUILDING.minimumDepthMeters || this.depth > 3400 || !site || !canAffordStructure(kind, p.cargo, p.money)) return false;
     p.money -= cost.credits;
     for (const [ore, units] of Object.entries(cost.materials)) p.cargo[ore as Ore] -= units;
-    const structure: UndergroundStructure = { id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site };
+    const structure: UndergroundStructure = { id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site, integrity: SURFACE_RAID.integrity };
     this.structures.push(structure);
     this.pod.structures = this.structures;
     this.soundFx.reward();
     this.float(kind === 'service' ? 'REFUEL BEACON BUILT' : kind === 'turret' ? 'DEFENSE TURRET BUILT' : 'ANCHOR DECK BUILT', site.x, site.y, '#9ce4cf');
+    this.save();
+    return true;
+  }
+  repairStructure(id: string) {
+    const structure = this.structures.find((entry) => entry.id === id);
+    const repair = structure && repairSurfaceStructure(structure, this.progress.money);
+    if (!this.surface || !structure || !repair) return false;
+    this.progress.money = repair.credits;
+    structure.integrity = repair.integrity;
+    this.soundFx.reward();
+    this.float('COLONY MODULE REPAIRED', structure.x, structure.y - 45, '#9ce4cf');
     this.save();
     return true;
   }
@@ -741,24 +1070,52 @@ export class MiningScene extends Phaser.Scene {
   rememberCurrentMap() {
     this.mapStates[this.mapId] = snapshotMapState(
       this.mapStates[this.mapId], this.world, this.pod.x, this.pod.y, this.depth,
-      this.oreDrops, this.activeCharge, this.structures,
+      this.oreDrops, this.activeCharge, this.structures, this.warehouseCargo,
     );
+  }
+  chartForUnvisitedMap(id: MapId): PlanetChartSize {
+    if (this.campaignChart.radiusRows === LEGACY_PLANET_CHART.radiusRows) return LEGACY_PLANET_CHART;
+    return id === 'cryo-shelf' ? STARTER_PLANET_CHART : PLANET_CHART;
+  }
+  nearestClearPodPosition(x: number, y: number, frame: number) {
+    const chart = this.world.planetChart, maxX = this.world.widthTiles * WORLD.tile - 16,
+      maxY = this.world.farSurfaceY - 16;
+    for (let radius = 16; radius <= WORLD.tile * 18; radius += 10) {
+      for (let i = 0; i < 48; i++) {
+        const angle = i * Math.PI / 24, candidateX = x + Math.cos(angle) * radius,
+          candidateY = y + Math.sin(angle) * radius;
+        if (candidateX < 16 || candidateX > maxX || candidateY < 16 || candidateY > maxY) continue;
+        const candidateFrame = chart
+          ? planetCameraFrameAngle(candidateX / WORLD.tile, candidateY / WORLD.tile, chart) ?? frame
+          : frame;
+        if (!this.pod.overlaps(candidateX, candidateY, candidateFrame).length) return { x: candidateX, y: candidateY };
+      }
+    }
+    return undefined;
   }
   travelToMap(id: MapId) {
     if (!this.surface || id === this.mapId) return false;
-    const unlocked = id === 'cryo-shelf' || id === this.mapId || this.progress.shipComplete;
+    const unlocked = id === 'cryo-shelf' || id === this.mapId || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
     if (!unlocked) return false;
     this.rememberCurrentMap();
     this.mapId = id;
-    const state = restoreMapState(this.mapStates[id], id, this.seedForMap(id), this.campaignChart);
+    const state = restoreMapState(this.mapStates[id], id, this.seedForMap(id), this.chartForUnvisitedMap(id));
     this.structures = state.structures;
+    this.warehouseCargo = state.warehouse;
     this.world = state.world;
+    this.surfaceFeatures = surfaceLandmarks(this.world, id);
     this.rockSwimmer = new RockSwimmer(this.world.seed, id);
+    this.surfaceRaid = new SurfaceRaid(this.world.seed, id);
     this.oreDrops = state.drops;
     this.activeCharge = state.activeCharge;
     this.pod.world = this.world;
     this.pod.structures = this.structures;
     this.pod.reset();
+    this.cameraZoom = this.cameraZoomTarget = 1;
+    this.orbitalTransition = 0;
+    this.globeViewRequested = false;
+    this.orbitalOverviewActive = false;
+    this.ui.setOrbitalOverview(false);
     this.hemisphereFar = false;
     this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
     this.cameraFlipElapsed = 0;
@@ -783,8 +1140,8 @@ export class MiningScene extends Phaser.Scene {
     const p = this.progress;
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 20,
-      planetChart: { ...this.campaignChart },
+      version: 24,
+      planetChart: { ...(this.world.planetChart ?? this.campaignChart) },
       campaignSeed: this.campaignSeed,
       activeMap: this.mapId,
       maps: this.mapStates,
@@ -820,16 +1177,28 @@ export class MiningScene extends Phaser.Scene {
     if (!ok) this.ui.toast(this.saves.warning);
     return ok ? data : null;
   }
-  fail(recovery = false) {
+  fail(recovery = false, reason: 'fuel' | 'hull' | 'impact' = 'impact') {
+    if (!recovery) {
+      this.stranded = true;
+      this.failureReason = reason;
+      this.mining.target = undefined;
+      this.mining.ratio = 0;
+      this.ui.open('failure');
+      this.ui.toast(reason === 'fuel' ? 'FUEL EMPTY · Miner secured in place. Choose a recovery option.' : 'MINER DISABLED · Choose a recovery option to return to the surface.');
+      this.save();
+      return;
+    }
     this.progress.pilotEscaping = false;
     this.progress.rescue();
     this.pod.reset();
+    this.stranded = false;
     this.hemisphereFar = false;
     this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
     this.cameraFlipElapsed = 0;
     this.mining.target = undefined;
     this.mining.ratio = 0;
     this.camY = this.surfaceCameraY;
+    this.failureReason = recovery ? 'impact' : reason;
     this.ui.open('failure');
     this.ui.toast(
       recovery
@@ -855,15 +1224,23 @@ export class MiningScene extends Phaser.Scene {
     this.save();
   }
   completePilotEscape(atBeacon: boolean) {
+    const rescueLongitude = this.pod.x, rescueHemisphereY = this.pod.y,
+      dockY = surfaceDockYAt(rescueHemisphereY, this.world.planetChart);
     this.progress.pilotEscaping = false;
     this.progress.rescue();
-    this.pod.reset();
-    this.hemisphereFar = false;
-    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.pod.x = rescueLongitude;
+    this.pod.y = dockY;
+    this.pod.vx = this.pod.vy = 0;
+    this.pod.docked = true;
+    this.pod.thrusting = this.pod.stasisActive = this.pod.reeling = false;
+    this.pod.grappleAnchor = undefined;
+    this.hemisphereFar = dockY >= this.world.coreWorldY;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = this.hemisphereFar ? 1 : 0;
     this.cameraFlipElapsed = 0;
+    this.camX = this.pod.x - this.scale.width / 2;
     this.camY = this.surfaceCameraY;
     this.wasSurface = this.surface;
-    this.ui.toast(atBeacon ? 'BEACON REACHED · RESCUE CREW DISPATCHED · ORE LOST' : 'SURFACE REACHED · PILOT SAFE · MINER AND ORE LOST');
+    this.ui.toast(atBeacon ? 'BEACON RESCUE · RETURNED TO THIS SIDE OF THE PLANET · ORE LOST' : 'SURFACE REACHED · PILOT SAFE · LANDED HERE · MINER AND ORE LOST');
     this.soundFx.reward();
     this.save();
   }
@@ -1003,24 +1380,35 @@ export class MiningScene extends Phaser.Scene {
   }
   recordCoreRelic(tile: Tile, persist = true) {
     if (!tile.coreRelicId) return false;
+    const previousCoreCount = CORE_RELICS.filter((entry) => this.progress.milestones.includes(entry.id)).length;
     const relic = collectCoreRelic(this.progress, tile.coreRelicId);
     if (!relic) return false;
     this.soundFx.playLandmarkCue('archive');
     this.soundFx.reward();
     const complete = CORE_RELICS.every((entry) => this.progress.milestones.includes(entry.id));
+    const chartedChapter = relic.mapId !== 'vesper-9' && previousCoreCount < CORE_RELICS.length - 1 && vesperChapterUnlocked(this.progress.milestones);
+    const milestoneToast = complete
+      ? 'LEVEL 16+ UPGRADE MILESTONE UNLOCKED'
+      : previousCoreCount < 2 && CORE_RELICS.filter((entry) => this.progress.milestones.includes(entry.id)).length >= 2
+        ? 'LEVEL 11+ UPGRADE MILESTONE UNLOCKED'
+        : '';
     this.ui.toast(complete
-      ? `PLANETARY CORE LEDGER COMPLETE · ${relic.name.toUpperCase()} RECOVERED · +$${relic.bounty} CLAIM`
-      : `${relic.name.toUpperCase()} RECOVERED · +$${relic.bounty} ARCHIVE CLAIM`);
+      ? `PLANETARY CORE LEDGER COMPLETE · ${relic.name.toUpperCase()} · ${milestoneToast} · +$${relic.bounty}`
+      : chartedChapter
+        ? `VESPER-9 CHARTED · NEW PLANET CHAPTER UNLOCKED · ${relic.name.toUpperCase()} · +$${relic.bounty}`
+        : milestoneToast
+          ? `${relic.name.toUpperCase()} RECOVERED · ${milestoneToast} · +$${relic.bounty} CLAIM`
+          : `${relic.name.toUpperCase()} RECOVERED · +$${relic.bounty} ARCHIVE CLAIM`);
     this.float(`+$${relic.bounty} CORE CLAIM`, tile.x * WORLD.tile + 20, tile.y * WORLD.tile, `#${relic.tint.toString(16).padStart(6, '0')}`);
     if (persist) this.save();
     return true;
   }
   deployCharge() {
-    if (this.world.planetChart && this.cameraZoom <= 0.22) {
+    if (this.world.planetChart && this.orbitalTransition >= 0.5) {
       this.ui.toast('Zoom in to the planet surface before deploying a charge.');
       return;
     }
-    if (this.surface) {
+    if (this.planetSurface) {
       this.ui.toast('Mining charges only arm below the surface.');
       return;
     }
@@ -1107,7 +1495,7 @@ export class MiningScene extends Phaser.Scene {
           escapePack: this.progress.pilotEscaping,
         };
       const wasGrappled = !!this.pod.grappleAnchor, wasDocked = this.pod.docked;
-      const target = this.pod.update(dt, input, (damage) => {
+      const target = this.stranded || this.surfacePlacement ? undefined : this.pod.update(dt, input, (damage) => {
         if (this.progress.pilotEscaping || this.progress.hull <= 0) return;
         this.progress.hull = Math.max(0, this.progress.hull - damage);
         this.shake = 5;
@@ -1151,8 +1539,12 @@ export class MiningScene extends Phaser.Scene {
       const lookAheadTarget = fallCameraLookAhead(this.pod.vy, this.world.gravitySign(this.pod.y));
       this.cameraLookAhead += (lookAheadTarget - this.cameraLookAhead) * (1 - Math.exp(-5 * dt));
       const pointer = this.input.activePointer;
-      const orbitalView = !!this.world.planetChart && this.cameraZoom <= 0.22;
-      const mouseDrilling = !orbitalView && !this.progress.pilotEscaping && pointer.leftButtonDown() && this.ui.hasStarted && !this.ui.modal && !this.pod.docked && this.pod.y > 0;
+      const orbitalView = !!this.world.planetChart && this.orbitalTransition >= 0.5;
+      const mouseAimAvailable = !this.surfacePlacement && !orbitalView && !this.progress.pilotEscaping &&
+        this.ui.hasStarted && !this.ui.modal && !this.pod.docked && this.pod.y > 0;
+      const mouseDrilling = mouseAimAvailable && pointer.leftButtonDown();
+      const pointerAiming = mouseAimAvailable && (pointer.leftButtonDown() ||
+        this.mouseAimActive && !input.down && !input.left && !input.right);
       const aimWorld = this.screenPointToWorld(pointer.x, pointer.y, this.scale.width, this.scale.height),
         aimWorldX = aimWorld.x,
         aimWorldY = aimWorld.y;
@@ -1161,14 +1553,19 @@ export class MiningScene extends Phaser.Scene {
         aimWorldX, aimWorldY,
         WORLD.tile * drillReachTiles(this.progress.levels.drill),
       );
-      const previewingMouseAim = !!this.aimTile && !input.down && !input.left && !input.right && !input.up;
-      const directionTarget = mouseDrilling || previewingMouseAim ? this.aimTile : target ?? this.mining.target;
-      if (directionTarget) {
-        const dx = directionTarget.x * WORLD.tile + WORLD.tile / 2 - this.pod.x;
-        const dy = directionTarget.y * WORLD.tile + WORLD.tile / 2 - this.pod.y;
-        const length = Math.hypot(dx, dy) || 1;
-        this.drillAimX = dx / length;
-        this.drillAimY = dy / length;
+      const directionTarget = pointerAiming ? this.aimTile : target ?? this.mining.target;
+      if (pointerAiming) {
+        const aim = pointerDrillDirection(this.world, this.pod.x, this.pod.y, aimWorldX, aimWorldY);
+        if (aim) {
+          this.drillAimX = aim.x;
+          this.drillAimY = aim.y;
+        }
+      } else if (directionTarget) {
+          const dx = directionTarget.x * WORLD.tile + WORLD.tile / 2 - this.pod.x;
+          const dy = directionTarget.y * WORLD.tile + WORLD.tile / 2 - this.pod.y;
+          const length = Math.hypot(dx, dy) || 1;
+          this.drillAimX = dx / length;
+          this.drillAimY = dy / length;
       } else if (input.down) {
         this.drillAimX = 0;
         this.drillAimY = 1;
@@ -1194,6 +1591,41 @@ export class MiningScene extends Phaser.Scene {
         this.soundFx.tone(160, 0.16, 'sine', 0.04, 80);
         this.save();
       }
+      const raidEvent = this.surfaceRaid.update(dt, this.surface, this.world, this.structures, (x, y) => {
+        this.soundFx.tone(680, 0.11, 'square', 0.03, 220);
+        this.float('COLONY DEFENSE FIRE', x, y - 36, '#f0b779');
+      }, this.surface ? { x: this.pod.x, y: this.pod.y } : undefined);
+      if (raidEvent?.type === 'warning') {
+        this.ui.toast('COLONY ALERT · A raider is targeting your outpost. Drill it or let a pylon intercept.');
+        this.soundFx.tone(440, 0.12, 'triangle', 0.035, 660);
+      } else if (raidEvent?.type === 'intercepted') {
+        this.ui.toast('RAIDER REPELLED · DEFENSE PYLON HELD THE COLONY.');
+        this.float('RAIDER INTERCEPTED', raidEvent.x, raidEvent.y - 34, '#a4efd9');
+      } else if (raidEvent?.type === 'damaged' || raidEvent?.type === 'destroyed') {
+        const lost = raidEvent.type === 'destroyed';
+        this.float(lost ? 'COLONY MODULE LOST' : 'COLONY MODULE DAMAGED', raidEvent.target.x, raidEvent.target.y - 45, '#ff987e');
+        this.ui.toast(lost ? 'COLONY MODULE LOST · Rebuild it from the surface yard.' : 'COLONY MODULE DAMAGED · Repair it from the surface yard for $180.');
+        this.save();
+      }
+      const drillIsHeld = mouseDrilling || input.down || input.left || input.right;
+      const swimmerPosition = this.rockSwimmer.active ? { x: this.rockSwimmer.active.x, y: this.rockSwimmer.active.y } : undefined;
+      if (drillIsHeld && this.rockSwimmer.hitByDrill(
+        this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
+        WORLD.tile * drillReachTiles(this.progress.levels.drill),
+      )) {
+        this.burst(swimmerPosition?.x ?? this.pod.x, swimmerPosition?.y ?? this.pod.y, 0x9ce4cf, 10);
+        this.ui.toast('ROCK SWIMMER DRIVEN OFF · DRILL EFFECTIVE');
+        this.soundFx.tone(520, 0.12, 'triangle', 0.035, 180);
+      }
+      const raiderPosition = this.surfaceRaid.active ? { x: this.surfaceRaid.active.x, y: this.surfaceRaid.active.y } : undefined;
+      if (drillIsHeld && this.surfaceRaid.hitByDrill(
+        this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
+        WORLD.tile * drillReachTiles(this.progress.levels.drill),
+      )) {
+        this.burst(raiderPosition?.x ?? this.pod.x, raiderPosition?.y ?? this.pod.y, 0xf0b779, 12);
+        this.ui.toast('SURFACE RAIDER DRIVEN OFF · COLONY SAFE');
+        this.soundFx.tone(540, 0.12, 'triangle', 0.035, 200);
+      }
       this.updateOreDrops(dt);
       let drillTarget = orbitalView ? undefined : mouseDrilling ? this.aimTile : target;
       const laserTier = drillVisualTier(this.progress.levels.drill) === 5;
@@ -1204,13 +1636,11 @@ export class MiningScene extends Phaser.Scene {
         this.laserThermal = advanceLaserThermal(this.laserThermal, dt, !!drillTarget && !venting && drillHeld, drillHeld);
         laserVenting = venting || this.laserThermal.vent > 0;
       } else this.laserThermal = { heat: 0, vent: 0 };
-      const drillVectorX = aimWorldX - this.pod.x;
-      const drillVectorY = aimWorldY - this.pod.y;
       const mouseOrientation = mouseDrilling
-        ? { x: drillVectorX, y: drillVectorY }
+        ? { x: this.drillAimX, y: this.drillAimY }
         : input.down ? 'vertical' as const : input.left || input.right ? 'horizontal' as const : 'vertical' as const;
-      const protectedTiles = new Set(this.pod.overlaps(this.pod.x, this.pod.y, this.viewRotation).map((cell) => keyOf(cell.x, cell.y)));
-      if (!this.progress.pilotEscaping && !laserVenting) this.mining.update(dt, drillTarget, (tile, collected, dropped) => {
+      const protectedTiles = drillProtection(this.pod.overlaps(this.pod.x, this.pod.y, this.viewRotation), drillTarget);
+      if (!this.progress.pilotEscaping && !laserVenting && !this.stranded && !this.surfacePlacement) this.mining.update(dt, drillTarget, (tile, collected, dropped) => {
         if (dropped > 0 && this.spawnOreDrop(tile, dropped)) this.save();
         this.broken(tile, collected, dropped > 0);
         this.recordFragment(tile);
@@ -1228,21 +1658,16 @@ export class MiningScene extends Phaser.Scene {
         }
       }
       if (newMilestone) this.save();
-      if (!this.progress.pilotEscaping && (this.progress.hull <= 0 || (this.progress.fuel <= 0 && this.pod.y >= 0))) {
-        this.fail();
+      if (!this.progress.pilotEscaping && this.progress.hull <= 0) {
+        this.fail(false, 'hull');
         return;
       }
-      if (!this.progress.pilotEscaping && this.progress.fuel <= 0 && this.pod.y < 0) {
-        this.progress.rescue();
-        this.pod.reset();
-        this.hemisphereFar = false;
-        this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
-        this.cameraFlipElapsed = 0;
-        this.ui.toast('Outpost recovery: fresh fuel, cargo forfeited.');
-        this.save();
+      if (!this.progress.pilotEscaping && !this.stranded && this.progress.fuel <= 0 && !this.planetSurface) {
+        this.fail(false, 'fuel');
+        return;
       }
-      if (this.progress.pilotEscaping && (this.surface || nearbyServiceStation(this.structures, this.pod.x, this.pod.y))) {
-        this.completePilotEscape(!this.surface);
+      if (this.progress.pilotEscaping && (this.planetSurface || nearbyServiceStation(this.structures, this.pod.x, this.pod.y))) {
+        this.completePilotEscape(!this.planetSurface);
       }
       if (this.surface && !this.wasSurface) {
         this.save();
@@ -1289,10 +1714,21 @@ export class MiningScene extends Phaser.Scene {
       );
     if (this.world.planetChart) this.updatePlanetCameraFrame(dt);
     else this.updateCameraFlip(dt);
-      this.cameraZoomTarget = Math.max(this.cameraZoomTarget, this.minimumCameraZoom);
-      this.cameraZoom = this.reducedMotion
-        ? this.cameraZoomTarget
-        : this.cameraZoom + (this.cameraZoomTarget - this.cameraZoom) * (1 - Math.exp(-7 * dt));
+      const localZoomFloor = this.world.planetChart ? GLOBE_HANDOFF_ZOOM : this.minimumCameraZoom,
+        zoomToGlobe = !!this.world.planetChart && this.globeViewRequested,
+        atHandoffZoom = Math.abs(this.cameraZoom - GLOBE_HANDOFF_ZOOM) <= 0.0005;
+      this.cameraZoomTarget = Math.max(this.cameraZoomTarget, localZoomFloor);
+      if (this.reducedMotion) {
+        this.cameraZoom = this.cameraZoomTarget;
+        this.orbitalTransition = advanceOrbitalTransition(this.orbitalTransition, dt, zoomToGlobe, true);
+      } else if (this.orbitalTransition > 0 && !zoomToGlobe) {
+        // Finish the animated return to the local surface before growing its camera again.
+        this.cameraZoom = GLOBE_HANDOFF_ZOOM;
+        this.orbitalTransition = advanceOrbitalTransition(this.orbitalTransition, dt, false);
+      } else {
+        this.cameraZoom += (this.cameraZoomTarget - this.cameraZoom) * (1 - Math.exp(-7 * dt));
+        this.orbitalTransition = advanceOrbitalTransition(this.orbitalTransition, dt, zoomToGlobe && atHandoffZoom);
+      }
     this.camX += (goalX - this.camX) * (1 - Math.exp(-6 * dt));
     this.camY += (goalY - this.camY) * (1 - Math.exp(-6 * dt));
     this.drillRecoil *= Math.exp(-18 * dt);
@@ -1326,7 +1762,7 @@ export class MiningScene extends Phaser.Scene {
     if (this.uiClock > 0.08) {
       this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), this.pod.vy, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
         this.progress.returnWinch, this.pod.reeling, !!this.surfaceWinchCable(), this.laserThermal.heat, this.laserThermal.vent,
-        drillVisualTier(this.progress.levels.drill) === 5);
+        drillVisualTier(this.progress.levels.drill) === 5, this.planetSurface);
       this.ui.drawMap(this.world, this.pod);
       this.uiClock = 0;
     }
@@ -1349,8 +1785,10 @@ export class MiningScene extends Phaser.Scene {
       g.fillStyle(0xb2ded5, 0.12 + random(this.world.seed, i, 643) * 0.24);
       g.fillCircle(x, y, 0.7 + random(this.world.seed, i, 644) * 1.1);
     }
-    const center = this.worldPointToScreen(chart.columns / 2 * WORLD.tile, chart.radiusRows * WORLD.tile, w, h);
-    const radius = chart.radiusRows * WORLD.tile * this.cameraZoom;
+    const overviewZoom = this.minimumCameraZoom,
+      overviewPoint = (x: number, y: number) => cameraZoomPoint(this.worldPointToLocal(x, y, w, h), w, h, overviewZoom),
+      center = overviewPoint(chart.columns / 2 * WORLD.tile, chart.radiusRows * WORLD.tile);
+    const radius = chart.radiusRows * WORLD.tile * overviewZoom;
     if (radius < 2) return;
     const surface = MAPS[this.mapId].surface;
     g.fillStyle(surface.ground, 0.95);
@@ -1367,7 +1805,12 @@ export class MiningScene extends Phaser.Scene {
     g.fillCircle(center.x, center.y, Math.max(5, radius * 0.105));
     g.lineStyle(Math.max(1, radius * 0.006), 0xc4e3d5, 0.92);
     g.strokeCircle(center.x, center.y, radius);
-    const surfacePoint = (u: number, v: number) => this.worldPointToScreen(u * WORLD.tile, v * WORLD.tile, w, h);
+    const surfacePoint = (u: number, v: number) => overviewPoint(u * WORLD.tile, v * WORLD.tile);
+    for (const feature of this.surfaceFeatures) {
+      const point = surfacePoint(feature.x / WORLD.tile, feature.y / WORLD.tile);
+      g.fillStyle(surfaceLandmarkColor(this.mapId, feature.kind), 0.96);
+      g.fillCircle(point.x, point.y, Math.max(1.5, radius * 0.014 * feature.scale));
+    }
     const halves = [0, chart.radiusRows * 2];
     for (const row of halves) {
       let previous: { x: number; y: number } | undefined;
@@ -1397,7 +1840,7 @@ export class MiningScene extends Phaser.Scene {
       const point = surfacePoint(tileX + 0.5, tileY + 0.5);
       if (point.x < 0 || point.x > w || point.y < 0 || point.y > h) continue;
       g.fillStyle(0xc2e7d9, 0.82);
-      g.fillCircle(point.x, point.y, Math.max(0.8, WORLD.tile * this.cameraZoom * 0.3));
+      g.fillCircle(point.x, point.y, Math.max(0.8, WORLD.tile * overviewZoom * 0.3));
     }
     const discoveryStride = Math.max(1, Math.ceil(this.world.discovered.size / 900));
     index = 0;
@@ -1410,7 +1853,7 @@ export class MiningScene extends Phaser.Scene {
       if (point.x < 0 || point.x > w || point.y < 0 || point.y > h) continue;
       const color = tile.signalHashId ? 0x91f5e2 : tile.coreRelicId ? 0xffd78b : tile.geode ? 0xd1b9ff : tile.regionFind ? 0xa6ffe3 : ORES[tile.ore!].color;
       g.fillStyle(color, 0.95);
-      g.fillCircle(point.x, point.y, Math.max(1.1, WORLD.tile * this.cameraZoom * (tile.geode || tile.regionFind || tile.coreRelicId ? 0.38 : 0.24)));
+      g.fillCircle(point.x, point.y, Math.max(1.1, WORLD.tile * overviewZoom * (tile.geode || tile.regionFind || tile.coreRelicId ? 0.38 : 0.24)));
     }
     for (const row of [0, chart.radiusRows * 2]) {
       const hab = surfacePoint(WORLD.homeColumn + 0.5, row);
@@ -1447,10 +1890,8 @@ export class MiningScene extends Phaser.Scene {
       viewSign = 1,
       cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, angle),
       surfaceStyle = MAPS[this.mapId].surface;
-    const orbitBlend = this.world.planetChart
-      ? Phaser.Math.SmoothStep(Phaser.Math.Clamp((0.36 - this.cameraZoom) / 0.14, 0, 1), 0, 1)
-      : 0;
-    const orbitalView = !!this.world.planetChart && this.cameraZoom <= 0.22;
+    const orbitBlend = this.world.planetChart ? Phaser.Math.SmoothStep(this.orbitalTransition, 0, 1) : 0;
+    const orbitalView = !!this.world.planetChart && this.orbitalTransition >= 1;
     if (this.orbitalOverviewActive !== orbitalView) {
       this.orbitalOverviewActive = orbitalView;
       this.ui.setOrbitalOverview(orbitalView);
@@ -1505,6 +1946,7 @@ export class MiningScene extends Phaser.Scene {
       g.fillRect(0, 0, w, h);
       const farSurface = this.pod.y >= this.world.coreWorldY;
       const surfaceRow = farSurface ? this.world.farSurfaceRow : 0;
+      drawSurfaceLandmarks(g, this.surfaceFeatures, this.mapId, localProject, (x, y) => isOnScreen(x, y, 260));
       for (let i = 0; i < STATIONS.length; i++) {
         const station = STATIONS[i], label = this.labels[i];
         const point = screenProject(station.x, (surfaceRow + (farSurface ? 110 : -110)) * T);
@@ -1887,6 +2329,7 @@ export class MiningScene extends Phaser.Scene {
         surfaceTownTier(this.progress.shipComponents, coreRecords),
         this.tick,
         this.reducedMotion,
+        this.mapId,
       );
     }
     if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), (x) => project(x, this.pod.y).x, (y) => project(this.pod.x, y).y, false);
@@ -1911,6 +2354,90 @@ export class MiningScene extends Phaser.Scene {
           g.lineStyle(lineWidth, color, alpha);
           g.strokePoints(points, true);
         };
+        if (structure.kind === 'wall') {
+          rectangle(0, 0, 38, 48, 0x59635f);
+          rectangle(0, 5, 28, 37, 0x303b39);
+          rectangle(0, 7, 7, 33, 0xc0a978);
+          rectangle(-15, 0, 5, 12, 0x9faeb5);
+          rectangle(15, 0, 5, 12, 0x9faeb5);
+          if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+            g.lineStyle(3, 0xff987e, 0.95);
+            const a = pointAt(-12, 39), b = pointAt(4, 23), c = pointAt(-3, 8);
+            g.lineBetween(a.x, a.y, b.x, b.y); g.lineBetween(b.x, b.y, c.x, c.y);
+          }
+          continue;
+        }
+        if (structure.kind === 'gate') {
+          const open = this.surface && globeSurfaceDistance(this.world, this.pod.x, this.pod.y, structure.x, structure.y) <= WORLD.tile * 2.5,
+            panelOutward = open ? 52 : 5;
+          rectangle(-48, 0, 12, 52, 0x4d5855);
+          rectangle(48, 0, 12, 52, 0x4d5855);
+          rectangle(-48, 0, 18, 6, 0xf0b779);
+          rectangle(48, 0, 18, 6, 0xf0b779);
+          rectangle(0, panelOutward, 88, 9, open ? 0x8be1cf : 0x9faeb5);
+          rectangle(0, panelOutward + 2, 58, 3, 0x263332);
+          if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+            g.lineStyle(3, 0xff987e, 0.95);
+            const a = pointAt(-48, 43), b = pointAt(-40, 24);
+            g.lineBetween(a.x, a.y, b.x, b.y);
+          }
+          continue;
+        }
+        if (structure.kind === 'habitat') {
+          rectangle(0, 0, 210, 11, 0x263332);
+          rectangle(0, 11, 132, 61, 0x475d55);
+          rectangle(0, 16, 116, 48, 0x253936);
+          rectangle(-42, 25, 24, 20, 0x9bcbbb, 0.86);
+          rectangle(0, 25, 24, 20, 0x9bcbbb, 0.86);
+          rectangle(42, 25, 24, 20, 0x9bcbbb, 0.86);
+          rectangle(0, 48, 30, 15, 0x172526);
+          rectangle(0, 62, 180, 5, 0xe4b877);
+          rectangle(-87, 15, 15, 45, 0x344540);
+          rectangle(87, 15, 15, 45, 0x344540);
+          g.lineStyle(2, 0xa4efd9, 0.9);
+          const antenna = pointAt(93, 62), antennaTip = pointAt(93, 85);
+          g.lineBetween(antenna.x, antenna.y, antennaTip.x, antennaTip.y);
+          g.fillStyle(0xa4efd9, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 3) * 0.2);
+          g.fillCircle(antennaTip.x, antennaTip.y, 3.5);
+          if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+            g.lineStyle(3, 0xff987e, 0.95);
+            const crackA = pointAt(-25, 58), crackB = pointAt(-12, 40), crackC = pointAt(-19, 24);
+            g.lineBetween(crackA.x, crackA.y, crackB.x, crackB.y);
+            g.lineBetween(crackB.x, crackB.y, crackC.x, crackC.y);
+          }
+          continue;
+        }
+        if (structure.kind === 'trade-post') {
+          rectangle(0, 0, 130, 9, 0x263332);
+          rectangle(0, 9, 88, 54, 0x3d625b);
+          rectangle(0, 14, 72, 42, 0x273b39);
+          rectangle(-23, 22, 19, 18, 0x95d6c5, 0.8);
+          rectangle(23, 22, 19, 18, 0x95d6c5, 0.8);
+          rectangle(0, 9, 10, 34, 0x182526);
+          rectangle(0, 51, 56, 5, 0xf0c47f);
+          g.lineStyle(2, 0xa4efd9, 0.9);
+          const mast = pointAt(34, 63), mastTop = pointAt(34, 87);
+          g.lineBetween(mast.x, mast.y, mastTop.x, mastTop.y);
+          g.fillStyle(0xa4efd9, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 4) * 0.2);
+          g.fillCircle(mastTop.x, mastTop.y, 4);
+          ring(34, 87, this.reducedMotion ? 10 : 10 + Math.sin(this.tick * 4) * 2, 0xa4efd9, 0.6, 1.5);
+          continue;
+        }
+        if (structure.kind === 'warehouse') {
+          rectangle(0, 0, 112, 9, 0x263332);
+          rectangle(0, 9, 76, 40, 0x756044);
+          rectangle(0, 14, 64, 30, 0x3b3930);
+          rectangle(-21, 18, 20, 24, 0xc58c4e);
+          rectangle(4, 18, 20, 24, 0x8eaa91);
+          rectangle(0, 9, 82, 5, 0xe4b877);
+          rectangle(-37, 49, 12, 9, 0xc58c4e);
+          rectangle(37, 49, 12, 9, 0x8eaa91);
+          g.lineStyle(2, 0xf0c47f, 0.9);
+          const sign = pointAt(0, 60);
+          g.strokeRect(sign.x - 11, sign.y - 7, 22, 14);
+          g.lineBetween(sign.x - 5, sign.y, sign.x + 5, sign.y);
+          continue;
+        }
         const deckTop = [], deckBottom = [];
         for (let index = 0; index <= 16; index++) {
           const tangent = -100 + index * 12.5;
@@ -1941,10 +2468,105 @@ export class MiningScene extends Phaser.Scene {
           g.fillStyle(0xf0b779);
           g.fillCircle(muzzle.x, muzzle.y, 5);
           ring(0, 17, UNDERGROUND_BUILDING.turret.range, 0xf0b779, 0.12);
+          if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+            g.lineStyle(3, 0xff987e, 0.95);
+            const crackA = pointAt(-10, 20), crackB = pointAt(2, 10);
+            g.lineBetween(crackA.x, crackA.y, crackB.x, crackB.y);
+          }
         }
         continue;
       }
       const gravity = this.world.gravitySign(structure.y), x = sx(structure.x), deckY = sy(structure.y);
+      if (structure.kind === 'wall') {
+        g.fillStyle(0x303b39, 1);
+        g.fillRect(x - 18, deckY - gravity * 48, 36, 48);
+        g.fillStyle(0xc0a978, 1);
+        g.fillRect(x - 3, deckY - gravity * 41, 6, 33);
+        g.fillStyle(0x9faeb5, 1);
+        g.fillRect(x - 15, deckY - gravity * 8, 5, 8); g.fillRect(x + 10, deckY - gravity * 8, 5, 8);
+        if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+          g.lineStyle(3, 0xff987e, 0.95); g.lineBetween(x - 12, deckY - gravity * 40, x + 4, deckY - gravity * 23);
+        }
+        continue;
+      }
+      if (structure.kind === 'gate') {
+        const open = this.surface && globeSurfaceDistance(this.world, this.pod.x, this.pod.y, structure.x, structure.y) <= WORLD.tile * 2.5,
+          panelY = deckY - gravity * (open ? 52 : 5);
+        g.fillStyle(0x4d5855, 1);
+        g.fillRect(x - 54, deckY - gravity * 52, 12, 52); g.fillRect(x + 42, deckY - gravity * 52, 12, 52);
+        g.fillStyle(0xf0b779, 1);
+        g.fillRect(x - 57, deckY - gravity * 6, 18, 6); g.fillRect(x + 39, deckY - gravity * 6, 18, 6);
+        g.fillStyle(open ? 0x8be1cf : 0x9faeb5, 1);
+        g.fillRect(x - 44, panelY, 88, 9);
+        g.fillStyle(0x263332, 1); g.fillRect(x - 29, panelY + 3, 58, 3);
+        if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+          g.lineStyle(3, 0xff987e, 0.95); g.lineBetween(x - 48, deckY - gravity * 43, x - 40, deckY - gravity * 24);
+        }
+        continue;
+      }
+      if (structure.kind === 'habitat') {
+        const top = sy(structure.y - gravity * 76);
+        g.fillStyle(0x263332, 1);
+        g.fillRect(x - 105, deckY - gravity * 11, 210, 11);
+        g.fillStyle(0x475d55, 1);
+        g.fillRoundedRect(x - 66, Math.min(top, deckY), 132, Math.max(40, Math.abs(deckY - top)), 5);
+        g.fillStyle(0x253936, 1);
+        g.fillRoundedRect(x - 58, Math.min(top, deckY) + 7, 116, Math.max(28, Math.abs(deckY - top) - 13), 4);
+        g.fillStyle(0x9bcbbb, 0.86);
+        for (const offset of [-42, 0, 42]) g.fillRect(x + offset - 12, top + gravity * 20, 24, 20);
+        g.fillStyle(0xe4b877, 1);
+        g.fillRect(x - 90, deckY - gravity * 25, 180, 5);
+        g.lineStyle(2, 0xa4efd9, 0.9);
+        g.lineBetween(x + 93, top + gravity * 4, x + 93, top + gravity * 25);
+        g.fillStyle(0xa4efd9, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 3) * 0.2);
+        g.fillCircle(x + 93, top + gravity * 4, 3.5);
+        if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+          g.lineStyle(3, 0xff987e, 0.95);
+          g.lineBetween(x - 25, top + gravity * 58, x - 12, top + gravity * 40);
+          g.lineBetween(x - 12, top + gravity * 40, x - 19, top + gravity * 24);
+        }
+        continue;
+      }
+      if (structure.kind === 'trade-post') {
+        const top = sy(structure.y - gravity * 62);
+        g.fillStyle(0x263332, 1);
+        g.fillRect(x - 65, deckY - gravity * 9, 130, 9);
+        g.fillStyle(0x3d625b, 1);
+        g.fillRoundedRect(x - 44, Math.min(top, deckY - gravity * 9), 88, Math.abs(deckY - gravity * 9 - top), 4);
+        g.fillStyle(0x273b39, 1);
+        g.fillRect(x - 36, Math.min(top, deckY - gravity * 9) + 6, 72, Math.max(18, Math.abs(deckY - gravity * 9 - top) - 12));
+        g.fillStyle(0x95d6c5, 0.85);
+        g.fillRect(x - 32, top + gravity * 17, 18, 18);
+        g.fillRect(x + 14, top + gravity * 17, 18, 18);
+        g.fillStyle(0xf0c47f, 1);
+        g.fillRect(x - 28, deckY - gravity * 22, 56, 5);
+        g.lineStyle(2, 0xa4efd9, 0.9);
+        g.lineBetween(x + 34, top + gravity * 2, x + 34, top + gravity * 26);
+        g.fillStyle(0xa4efd9, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 4) * 0.2);
+        g.fillCircle(x + 34, top + gravity * 2, 4);
+        g.lineStyle(1, 0xa4efd9, 0.65);
+        g.strokeCircle(x + 34, top + gravity * 2, this.reducedMotion ? 10 : 10 + Math.sin(this.tick * 4) * 2);
+        continue;
+      }
+      if (structure.kind === 'warehouse') {
+        const top = sy(structure.y - gravity * 48);
+        g.fillStyle(0x263332, 1);
+        g.fillRect(x - 56, deckY - gravity * 9, 112, 9);
+        g.fillStyle(0x756044, 1);
+        g.fillRoundedRect(x - 38, Math.min(top, deckY - gravity * 9), 76, Math.abs(deckY - gravity * 9 - top), 4);
+        g.fillStyle(0x3b3930, 1);
+        g.fillRect(x - 32, Math.min(top, deckY - gravity * 9) + 6, 64, Math.max(16, Math.abs(deckY - gravity * 9 - top) - 12));
+        g.fillStyle(0xc58c4e, 1);
+        g.fillRect(x - 25, top + gravity * 13, 20, 24);
+        g.fillStyle(0x8eaa91, 1);
+        g.fillRect(x + 5, top + gravity * 13, 20, 24);
+        g.fillStyle(0xe4b877, 1);
+        g.fillRect(x - 41, deckY - gravity * 21, 82, 5);
+        g.lineStyle(2, 0xf0c47f, 0.9);
+        g.strokeRect(x - 11, top + gravity * 38, 22, 14);
+        g.lineBetween(x - 5, top + gravity * 45, x + 5, top + gravity * 45);
+        continue;
+      }
       const deckA = sx(structure.x - 100), deckB = sx(structure.x + 100), deckLeft = Math.min(deckA, deckB), deckWidth = Math.abs(deckB - deckA);
       g.fillStyle(0x131a1b, 0.9);
       g.fillRect(deckLeft, deckY - 4, deckWidth, 8);
@@ -1972,8 +2594,46 @@ export class MiningScene extends Phaser.Scene {
         g.fillCircle(x, baseY - side * 21, 5);
         g.lineStyle(1, 0xf0b779, 0.12);
         g.strokeCircle(x, baseY - side * 21, UNDERGROUND_BUILDING.turret.range);
+        if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
+          g.lineStyle(3, 0xff987e, 0.95);
+          g.lineBetween(x - 10, baseY - side * 20, x + 2, baseY - side * 10);
+        }
       }
     }
+    if (this.surfacePlacement) {
+      const placement = this.surfacePlacement, check = this.surfacePlacementCheck(),
+        valid = !!check?.valid, color = valid ? 0x86e0c4 : 0xff987e,
+        halfWidth = UNDERGROUND_BUILDING[placement.kind].widthTiles * WORLD.tile / 2,
+        pointAt = (tangent: number, outward: number) => localProject(placement.x, placement.y, tangent, outward),
+        footprint = [pointAt(-halfWidth, 0), pointAt(halfWidth, 0), pointAt(halfWidth, 8), pointAt(-halfWidth, 8)],
+        anchor = pointAt(0, 0);
+      g.fillStyle(color, 0.16);
+      g.fillPoints(footprint, true);
+      g.lineStyle(2, color, 0.95);
+      g.strokePoints(footprint, true);
+      if (placement.kind === 'turret') {
+        const range = Array.from({ length: 49 }, (_, i) => {
+          const angle = Math.PI * 2 * i / 48;
+          return pointAt(Math.cos(angle) * UNDERGROUND_BUILDING.turret.range, Math.sin(angle) * UNDERGROUND_BUILDING.turret.range);
+        });
+        g.lineStyle(1, 0xf0b779, 0.48);
+        g.strokePoints(range, true);
+      }
+      const bodyWidth = placement.kind === 'habitat' ? 86 : placement.kind === 'trade-post' ? 62 : placement.kind === 'warehouse' ? 76 : placement.kind === 'gate' ? 120 : placement.kind === 'wall' ? 38 : 26,
+        bodyHeight = placement.kind === 'habitat' ? 48 : placement.kind === 'trade-post' ? 42 : placement.kind === 'warehouse' ? 38 : placement.kind === 'gate' || placement.kind === 'wall' ? 48 : 24,
+        ghost = [pointAt(-bodyWidth / 2, 8), pointAt(bodyWidth / 2, 8), pointAt(bodyWidth / 2, bodyHeight + 8), pointAt(-bodyWidth / 2, bodyHeight + 8)];
+      g.fillStyle(placement.kind === 'turret' || placement.kind === 'gate' ? 0xf0b779 : placement.kind === 'warehouse' ? 0xc58c4e : placement.kind === 'wall' ? 0x9faeb5 : 0xa4efd9, 0.36);
+      g.fillPoints(ghost, true);
+      g.lineStyle(1, 0xe5f6eb, 0.85);
+      g.strokePoints(ghost, true);
+      g.lineStyle(3, 0x101b1c, 0.95);
+      g.strokeCircle(anchor.x, anchor.y, 9);
+      g.lineStyle(1.5, color, 1);
+      g.strokeCircle(anchor.x, anchor.y, 7);
+      g.lineBetween(anchor.x - 12, anchor.y, anchor.x + 12, anchor.y);
+      g.lineBetween(anchor.x, anchor.y - 12, anchor.x, anchor.y + 12);
+      this.buildPlacementLabel.setPosition(w / 2, h - 56).setVisible(true);
+    } else this.buildPlacementLabel.setVisible(false);
     for (const drop of this.oreDrops) {
       if (!isOnScreen(drop.x, drop.y, 24)) continue;
       const x = sx(drop.x), y = sy(drop.y), color = ORES[drop.ore].color;
@@ -1990,13 +2650,33 @@ export class MiningScene extends Phaser.Scene {
         g.lineBetween(x, y, sx(this.pod.x), sy(this.pod.y));
       }
     }
+    const raider = this.surfaceRaid.active;
+    if (raider && isOnScreen(raider.x, raider.y, 60)) {
+      const x = sx(raider.x), y = sy(raider.y), pulse = this.reducedMotion ? 1 : 0.82 + Math.sin(this.tick * 9 + raider.phase) * 0.18;
+      const target = this.structures.find((entry) => entry.id === raider.targetId);
+      if (target && isOnScreen(target.x, target.y, 140)) {
+        const tx = sx(target.x), ty = sy(target.y);
+        g.lineStyle(2, 0xf0a477, 0.48);
+        g.lineBetween(x, y, tx, ty);
+        g.lineStyle(2, 0xff987e, 0.88);
+        g.strokeCircle(tx, ty, 30 + (this.reducedMotion ? 0 : Math.sin(this.tick * 8) * 4));
+        g.lineBetween(tx - 9, ty - 9, tx + 9, ty + 9);
+        g.lineBetween(tx + 9, ty - 9, tx - 9, ty + 9);
+      }
+      g.fillStyle(0xff987e, 0.22 * pulse);
+      g.fillCircle(x, y, 24);
+      g.fillStyle(raider.hitFlash > 0 ? 0xffffff : 0xf0b779, 0.96);
+      g.fillPoints([{ x: x + 14, y }, { x: x + 6, y: y - 8 }, { x: x - 10, y: y - 6 }, { x: x - 15, y }, { x: x - 7, y: y + 8 }, { x: x + 8, y: y + 7 }], true);
+      g.lineStyle(2, 0xff987e, 0.9);
+      g.strokeCircle(x, y, 19 + (this.reducedMotion ? 0 : 3 * pulse));
+    }
     const swimmer = this.rockSwimmer.active;
     if (swimmer) {
       const tileDistance = Math.hypot((swimmer.x - this.pod.x) / T, (swimmer.y - this.pod.y) / T);
       if (tileDistance <= this.pod.scannerRadius * 1.25 && isOnScreen(swimmer.x, swimmer.y, T)) {
         const sxw = sx(swimmer.x), syw = sy(swimmer.y), angle = Math.atan2(swimmer.vy, swimmer.vx);
         const ux = Math.cos(angle), uy = Math.sin(angle), pulse = this.reducedMotion ? 1 : 0.8 + Math.sin(this.tick * 7 + swimmer.phase) * 0.2;
-        const color = tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
+        const color = swimmer.hitFlash > 0 ? 0xffffff : tileDistance * T < ROCK_SWIMMER.warningRadius ? 0xf0b779 : 0x83e5d3;
         g.fillStyle(color, 0.16 * pulse);
         g.fillCircle(sxw, syw, 27);
         for (let i = 3; i >= 0; i--) {
@@ -2053,7 +2733,7 @@ export class MiningScene extends Phaser.Scene {
     const x = sx(this.pod.x),
       y = sy(this.pod.y),
       f = this.pod.facing,
-      vehicleScale = podVisualScale(this.progress.levels.drill, this.progress.levels.cargo),
+      vehicleScale = podVisualScale(this.progress.levels),
       px = (offset: number) => x + offset * vehicleScale * viewSign,
       py = (offset: number) => y + offset * vehicleScale * viewSign;
     const winchCable = this.surfaceWinchCable();
@@ -2184,6 +2864,118 @@ export class MiningScene extends Phaser.Scene {
     g.fillStyle(0x24373b);
     g.fillRect(px(-19), py(8), 8 * vehicleScale, 7 * vehicleScale);
     g.fillRect(px(11), py(8), 8 * vehicleScale, 7 * vehicleScale);
+    // Earned chassis upgrades add visible hardware without changing the compact collider.
+    const hullLevel = this.progress.levels.hull,
+      fuelLevel = this.progress.levels.fuel,
+      engineLevel = this.progress.levels.engine,
+      scannerLevel = this.progress.levels.scanner,
+      grappleLevel = this.progress.levels.grapple;
+    if (hullLevel > 1) {
+      const plateColor = hullLevel >= 4 ? 0x9ba99a : 0x71837c;
+      g.fillStyle(0x26383a, 0.96);
+      g.fillPoints([
+        { x: px(-19), y: py(-8) }, { x: px(-14), y: py(-12) }, { x: px(-11), y: py(9) }, { x: px(-18), y: py(12) },
+      ], true);
+      g.fillPoints([
+        { x: px(19), y: py(-8) }, { x: px(14), y: py(-12) }, { x: px(11), y: py(9) }, { x: px(18), y: py(12) },
+      ], true);
+      g.fillStyle(plateColor, 1);
+      g.fillPoints([
+        { x: px(-17), y: py(-7) }, { x: px(-13), y: py(-10) }, { x: px(-11), y: py(8) }, { x: px(-16), y: py(10) },
+      ], true);
+      g.fillPoints([
+        { x: px(17), y: py(-7) }, { x: px(13), y: py(-10) }, { x: px(11), y: py(8) }, { x: px(16), y: py(10) },
+      ], true);
+      if (hullLevel >= 3) {
+        g.lineStyle((hullLevel >= 5 ? 3 : 2) * vehicleScale, 0xc4b58e, 0.95);
+        g.lineBetween(px(-17), py(-5), px(-17), py(7));
+        g.lineBetween(px(17), py(-5), px(17), py(7));
+      }
+      if (hullLevel >= 5) {
+        g.fillStyle(0xf0ca82, 0.95);
+        g.fillCircle(px(-15), py(-7), 1.8 * vehicleScale);
+        g.fillCircle(px(15), py(-7), 1.8 * vehicleScale);
+      }
+    }
+    if (fuelLevel > 1) {
+      // A separate rear fuel spine keeps the upgrade distinguishable from the cargo hold.
+      const tanks = fuelLevel >= 4 ? [-8, 8] : [0];
+      for (const offset of tanks) {
+        const radius = (fuelLevel >= 3 ? 4.2 : 3.2) * vehicleScale;
+        g.fillStyle(0x142326, 1);
+        g.fillRoundedRect(px(offset - radius - 1), py(14), (radius + 1) * 2, (fuelLevel >= 4 ? 11 : 9) * vehicleScale, radius);
+        g.fillStyle(fuelLevel >= 5 ? 0x91d8c2 : 0x758b7d, 1);
+        g.fillRoundedRect(px(offset - radius), py(14), radius * 2, (fuelLevel >= 4 ? 9 : 7) * vehicleScale, radius);
+        g.lineStyle(1 * vehicleScale, 0xe4c783, 0.9);
+        g.lineBetween(px(offset - radius + 1), py(17), px(offset + radius - 1), py(17));
+      }
+    }
+    if (engineLevel > 1) {
+      const nozzleSize = (2.5 + Math.min(2, engineLevel - 2) * 0.6) * vehicleScale;
+      for (const side of [-1, 1]) {
+        const nx = px(side * (engineLevel >= 4 ? 11 : 8));
+        g.fillStyle(0x172326, 1);
+        g.fillRoundedRect(nx - nozzleSize - vehicleScale, py(21), (nozzleSize + vehicleScale) * 2, 5 * vehicleScale, 2 * vehicleScale);
+        g.fillStyle(engineLevel >= 5 ? 0x91ead4 : 0xeaa15e, 0.95);
+        g.fillTriangle(nx - nozzleSize, py(24), nx + nozzleSize, py(24), nx, py(29 + (this.pod.thrusting && !this.reducedMotion ? Math.sin(this.tick * 40) * 2 : 0)));
+      }
+    }
+    if (scannerLevel > 1) {
+      const mastTop = py(-13 - Math.min(9, (scannerLevel - 1) * 2.1));
+      g.lineStyle((scannerLevel >= 4 ? 2 : 1.4) * vehicleScale, 0x9bb4a9, 0.96);
+      g.lineBetween(px(0), py(-13), px(0), mastTop);
+      if (scannerLevel === 2) {
+        g.lineBetween(px(-5), py(-17), px(5), py(-17));
+      } else if (scannerLevel >= 3) {
+        g.lineBetween(px(-5 - (scannerLevel - 3)), mastTop + 2 * vehicleScale, px(5 + (scannerLevel - 3)), mastTop + 2 * vehicleScale);
+        g.fillStyle(scannerLevel >= 5 ? 0x9bf0dc : 0xeac781, 1);
+        g.fillCircle(px(0), mastTop, (2 + (scannerLevel >= 5 ? 0.5 : 0)) * vehicleScale);
+      }
+      if (scannerLevel >= 4 && !this.reducedMotion && !this.ui.paused) {
+        const sweep = (this.tick * 0.9) % (Math.PI * 2), sweepX = Math.cos(sweep) * 11 * vehicleScale,
+          sweepY = mastTop + Math.sin(sweep) * 4 * vehicleScale;
+        g.lineStyle(1 * vehicleScale, 0x8fe5d0, 0.48);
+        g.lineBetween(px(0), mastTop, px(0) + sweepX, sweepY);
+      }
+    }
+    if (grappleLevel > 1) {
+      const socketSize = (2 + Math.min(2, grappleLevel - 2) * 0.45) * vehicleScale;
+      for (const side of [-1, 1]) {
+        const gx = px(side * (grappleLevel >= 4 ? 17 : 14));
+        g.fillStyle(0x19282a, 1);
+        g.fillCircle(gx, py(5), socketSize + 1.2 * vehicleScale);
+        g.lineStyle(1.3 * vehicleScale, grappleLevel >= 5 ? 0xa4ecd9 : 0xb8aa83, 0.95);
+        g.strokeCircle(gx, py(5), socketSize);
+        if (grappleLevel >= 3) {
+          g.lineStyle(1.3 * vehicleScale, 0xd6c89e, 0.9);
+          g.lineBetween(gx, py(5), gx + side * (2 + grappleLevel * 0.45) * vehicleScale, py(8));
+        }
+      }
+    }
+    if (this.progress.salvageMagnet) {
+      g.lineStyle(1.6 * vehicleScale, 0x83d7c5, 0.95);
+      g.strokeCircle(px(-15), py(1), 3 * vehicleScale);
+      g.strokeCircle(px(15), py(1), 3 * vehicleScale);
+      g.lineStyle(2 * vehicleScale, 0xa5e7d6, 0.85);
+      g.lineBetween(px(-15), py(1), px(-15), py(-3));
+      g.lineBetween(px(15), py(1), px(15), py(-3));
+    }
+    if (this.progress.stasisModule) {
+      g.lineStyle(1.8 * vehicleScale, 0x83c9bc, 0.88);
+      g.strokeEllipse(x, py(8), 26 * vehicleScale, 10 * vehicleScale);
+      g.fillStyle(0x9ce8d7, 0.9);
+      g.fillCircle(px(-12), py(8), 1.5 * vehicleScale);
+      g.fillCircle(px(12), py(8), 1.5 * vehicleScale);
+    }
+    if (this.progress.returnWinch) {
+      const spoolY = py(-16);
+      g.fillStyle(0x25383a, 1);
+      g.fillRoundedRect(px(-5), spoolY - 2 * vehicleScale, 10 * vehicleScale, 5 * vehicleScale, 2 * vehicleScale);
+      g.lineStyle(1.3 * vehicleScale, 0xd7c18f, 0.95);
+      g.strokeCircle(px(0), spoolY, 3 * vehicleScale);
+      g.lineStyle(1 * vehicleScale, 0xa7b5a7, 0.9);
+      g.lineBetween(px(-3), spoolY, px(3), spoolY);
+    }
     const profile = POD_PROFILES[this.progress.selectedProfile];
     if (profile.style === 'antenna') {
       g.lineStyle(2, 0x9cbdb3, 0.95);
