@@ -10,7 +10,8 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 29;
+  version: 30;
+  deliveries: Record<string, number>;
   productionUpdatedAt: number;
   solarPosition: { x: number; y: number } | null;
   planetChart: PlanetChartSize;
@@ -89,7 +90,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 29 && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
+    d.version === 30 && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
     (d.solarPosition === null || !!d.solarPosition && finite(d.solarPosition.x) && finite(d.solarPosition.y) && Math.abs(d.solarPosition.x) < 100000000 && Math.abs(d.solarPosition.y) < 100000000 && d.mothershipBoarded) && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
@@ -147,7 +148,7 @@ export function validateSave(s: unknown): s is SaveData {
     typeof d.artifact === 'boolean' && !!d.levels && UPGRADE_KEYS.every(
       (k) => Number.isSafeInteger(d.levels[k]) && d.levels[k] >= 1,
     ) && !!d.cargo && ORE_KEYS.every((k) => finite(d.cargo[k]) && d.cargo[k] >= 0 && Number.isInteger(d.cargo[k] * 2)) &&
-    Array.isArray(d.milestones) && d.milestones.every((v) => ['first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
+    Array.isArray(d.milestones) && d.milestones.every((v) => ['mothership-origin', 'first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
     Array.isArray(d.shipComponents) && d.shipComponents.every((v) => ['frame', 'propulsion', 'navigation', 'life-support'].includes(v)) &&
     Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v)) &&
     finite(d.coreFuel) && d.coreFuel >= 0 && d.coreFuel <= 100000 &&
@@ -167,6 +168,17 @@ export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 29) {
+    const old = s as Record<string, unknown>;
+    const maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, unknown> : {};
+    return migrateSave({ ...old, version: 30, deliveries: {},
+      cargo: old.cargo && typeof old.cargo === 'object' ? { ...emptyCargo(), ...old.cargo } : old.cargo,
+      maps: Object.fromEntries(Object.entries(maps).map(([id, raw]) => {
+        if (!raw || typeof raw !== 'object') return [id, raw];
+        const map = raw as Record<string, unknown>;
+        return [id, { ...map, warehouse: map.warehouse && typeof map.warehouse === 'object' ? { ...emptyCargo(), ...map.warehouse } : map.warehouse }];
+      })) });
+  }
   if (version === 28) {
     const old = s as Record<string, unknown>, maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, unknown> : {};
     return migrateSave({ ...old, version: 29, productionUpdatedAt: Date.now(), maps: Object.fromEntries(Object.entries(maps).map(([id, value]) => {
@@ -353,6 +365,7 @@ export class SaveManager {
     }
   }
   restore(p: Progress, d: SaveData) {
+    p.deliveries = { ...d.deliveries };
     p.money = d.money;
     p.levels = { ...d.levels };
     p.grappleOwned = d.grappleOwned;

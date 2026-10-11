@@ -1,0 +1,58 @@
+// Playwright CLI run-code --filename tests/browser-expedition-ui.js, isolated browser only.
+async (page) => {
+  const errors=[]; page.on('pageerror', error=>errors.push(error.message));
+  await page.goto('http://127.0.0.1:5180');
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator('#intro-atlas').click();
+  if(await page.locator('.atlas-world').count()!==6)throw Error('Missing mining worlds');
+  await page.locator('[data-world="prism-fault"]').click();
+  if(!(await page.locator('#atlas-title').innerText()).includes('Prism'))throw Error('Atlas selection failed');
+  await page.screenshot({path:'output/playwright/expedition-atlas-desktop.png'});
+  await page.locator('#intro-back').click(); await page.locator('#launch').click();
+  await page.waitForFunction(()=>!document.querySelector('.intro'));
+  await page.keyboard.press('Escape'); await page.locator('#open-codex').click();
+  await page.locator('#codex-search').fill('battery');
+  await page.locator('.codex-index [data-codex="fuel"]').click();
+  if(!(await page.locator('.codex-article').innerText()).includes('chemically'))throw Error('Battery entry missing');
+  await page.screenshot({path:'output/playwright/expedition-codex-desktop.png'});
+  await page.locator('[data-codex="ore-cobalt"]').first().click();
+  if(!(await page.locator('.codex-hero').innerText()).includes('Cobalt'))throw Error('Codex cross-link failed');
+  let save=await page.evaluate(()=>JSON.parse(localStorage.getItem('mars-miner.v1')));
+  save.money=800;save.levels.cargo=5;save.cargo={...save.cargo,copper:30,iron:5,silver:2,nickel:4};save.deliveries={};
+  const map=save.maps[save.activeMap];map.x=680;map.y=-22;map.warehouse={...map.warehouse,copper:10};
+  map.structures=[{id:'habitat:1000:0',kind:'habitat',x:1000,y:0,integrity:2},{id:'trade-post:1400:0',kind:'trade-post',x:1400,y:0,integrity:2}];
+  save.mothershipBoarded=false;
+  const install=async(value)=>{await page.addInitScript(({value,key})=>{if(!sessionStorage.getItem(key)){localStorage.setItem('mars-miner.v1',JSON.stringify(value));sessionStorage.setItem(key,'1')}},{value,key:'expedition-fixture-'+Math.random()});await page.reload();await page.locator('#launch').click();};
+  await install(save);
+  await page.locator('#open-sell').click();
+  await page.locator('#trade-plan').selectOption('warehouse');await page.locator('#trade-surplus').click();
+  if(await page.locator('#shipment-iron').inputValue()!=='2'||await page.locator('#shipment-silver').inputValue()!=='1')throw Error('Building reserves not protected');
+  for(const ore of ['iron','silver','nickel']){await page.locator('#shipment-'+ore).fill('0');await page.locator('#shipment-'+ore).press('Tab');}
+  await page.locator('#shipment-copper').fill('24');await page.locator('#shipment-copper').press('Tab');
+  await page.screenshot({path:'output/playwright/expedition-trade-desktop.png'});
+  await page.locator('#ship-selected').click();
+  let settled=await page.evaluate(()=>JSON.parse(localStorage.getItem('mars-miner.v1')));
+  if(settled.money!==1383||settled.cargo.copper!==6||settled.maps[settled.activeMap].warehouse.copper!==10||settled.deliveries['helion:copper']!==24)throw Error('Shipment totals or stock incorrect');
+  if(!(await page.locator('.buyer-brief').innerText()).includes('Harbour rail'))throw Error('Buyer project did not advance');
+  await page.reload();await page.locator('#launch').click();await page.locator('#open-sell').click();
+  if(!(await page.locator('.buyer-brief').innerText()).includes('Harbour rail'))throw Error('Buyer progress lost on reload');
+  await page.setViewportSize({width:960,height:720});await page.screenshot({path:'output/playwright/expedition-trade-compact.png'});
+  await page.locator('#camp-nav-codex').click();await page.screenshot({path:'output/playwright/expedition-codex-compact.png'});
+  await page.setViewportSize({width:1440,height:1000});
+  settled=await page.evaluate(()=>JSON.parse(localStorage.getItem('mars-miner.v1')));
+  settled.mothershipBoarded=true;settled.coreFuel=4;settled.milestones=[...new Set([...settled.milestones,'core-cryo'])];
+  settled.maps[settled.activeMap].x=555;settled.maps[settled.activeMap].y=-22;
+  await install(settled);await page.keyboard.down('w');
+  await page.locator('.expedition-flight').waitFor({timeout:60000});
+  await page.keyboard.up('w');
+  await page.locator('[data-civil-world="helion"]').click();
+  if(await page.locator('#flight-depart').isEnabled())throw Error('Civilian world offered mining travel');
+  await page.locator('.expedition-flight [data-world="mars-frontier"]').click();
+  await page.screenshot({path:'output/playwright/expedition-flight-deck.png'});
+  await page.locator('#flight-depart').click();await page.locator('#skip-journey').click();
+  await page.waitForFunction(()=>window.__mars.mapId==='mars-frontier');
+  const travelled=await page.evaluate(()=>JSON.parse(localStorage.getItem('mars-miner.v1')));
+  if(!(travelled.coreFuel<4&&travelled.coreFuel>0)||travelled.deliveries['helion:copper']!==24)throw Error('Travel fuel or persistent shipments incorrect');
+  if(errors.length)throw Error(errors.join('\n'));
+  return {atlas:true,codexSearch:true,crossLinks:true,reserves:true,shipment:583,persistentProject:true,travel:true,errors};
+}

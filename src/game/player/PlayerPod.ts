@@ -150,6 +150,7 @@ export class PlayerPod {
   }
   private townPlatformCrossing(x: number, fromY: number, toY: number, gravitySign: number, dropThrough: boolean) {
     if (dropThrough || x < 430 || x > 1540 || Math.abs(toY - fromY) < 0.00001) return undefined;
+    if (this.progress.milestones.includes('mothership-origin')) return undefined;
     const tier = surfaceTownTier(this.progress.shipComponents, this.progress.milestones.filter((id) => id.startsWith('core-')));
     for (let level = 0; level <= tier; level++) {
     const deckY = surfaceYAt(fromY, this.world.planetChart) - gravitySign * (132 + level * 94);
@@ -264,7 +265,7 @@ export class PlayerPod {
     const escapePack = !!input.escapePack;
     this.stasisActive = requestStasis;
     this.reeling = requestWinch;
-    this.thrusting = (input.up || requestWinch) && (p.fuel > 0 || escapePack || !!input.mothership) && !this.stasisActive;
+    this.thrusting = (input.up || requestWinch) && (input.mothership ? p.coreFuel > 0 && p.shipComplete : p.fuel > 0 || escapePack) && !this.stasisActive;
     if (screenDir) this.facing = screenDir;
     // Center a vertical cut gently, so landing near a grid edge does not drill two shafts.
     if (input.down && !screenDir && this.vy * gravitySign >= 0) {
@@ -380,14 +381,15 @@ export class PlayerPod {
         (this.y < this.world.coreWorldY && ny >= this.world.coreWorldY || this.y > this.world.coreWorldY && ny <= this.world.coreWorldY);
       const landingY = crossedCoreThroughPassage ? undefined : platformY ?? builtDeckY;
       if (landingY !== undefined && this.vy * stepGravity > 0) {
-        if (Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
+        // Camp decks absorb landings, including their outer edges beyond the service zone.
+        if (platformY === undefined && !atSurface(this.x, landingY, this.world.planetChart) && Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
         this.y = landingY;
         this.vy = 0;
       } else
       if (hitsY.length) {
         if (this.vy * stepGravity > 0) {
           if (input.down) target = hitsY.find((t) => t.type !== 'boundary');
-          if (Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
+          if (!atSurface(this.x, this.y, this.world.planetChart) && Math.abs(this.vy) > P.safeImpact) onImpact((Math.abs(this.vy) - P.safeImpact) * P.damageScale);
         }
         const top = Math.min(...hitsY.map((t) => t.y * WORLD.tile)),
           bottom = Math.max(...hitsY.map((t) => (t.y + 1) * WORLD.tile));

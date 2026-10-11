@@ -1,4 +1,4 @@
-import { CORE, WORLD, ORES, ORE_KEYS, bandAt, coreDepthMetersFor, coreWorldYFor, depthAtWorldY, farSurfaceRowFor, farSurfaceYFor, MAPS, CORE_RELICS, REGION_FINDS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, gravityDirectionAt, type Ore, type MapId, type CoreRelicId } from '../config';
+import { STARTER_MATERIAL_SEAMS, CORE, WORLD, ORES, ORE_KEYS, bandAt, coreDepthMetersFor, coreWorldYFor, depthAtWorldY, farSurfaceRowFor, farSurfaceYFor, MAPS, CORE_RELICS, REGION_FINDS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, gravityDirectionAt, type Ore, type MapId, type CoreRelicId } from '../config';
 import { planetChartCellIntersectsCoreRadius, wrapPlanetTile, type PlanetChartSize } from './PlanetChart';
 export type Tile = {
   x: number;
@@ -33,6 +33,7 @@ function routeFragmentRow(row: number, mapId: MapId, chart?: PlanetChartSize) {
 }
 // Chunks are deterministic and disposable; excavation and exploration are separate durable state.
 export class TileWorld {
+  miningOnly = false;
   chunks = new Map<string, Tile[]>();
   destroyed = new Set<string>();
   discovered = new Set<string>();
@@ -85,7 +86,7 @@ export class TileWorld {
     const fragment = this.mapId === 'cryo-shelf'
       ? ROUTE_FRAGMENTS.find((entry) => entry.x === x && routeFragmentRow(entry.row, this.mapId, this.planetChart) === y)
       : undefined;
-    if (fragment) return { ...tile, fragmentId: fragment.id, landmarkId: fragment.id, tint: 0x91dfd2, hardness: Math.max(0.8, b.hardness), ore: undefined };
+    if (fragment && !this.miningOnly) return { ...tile, fragmentId: fragment.id, landmarkId: fragment.id, tint: 0x91dfd2, hardness: Math.max(0.8, b.hardness), ore: undefined };
     if (this.mapId === 'cryo-shelf') {
       const chamber = ROUTE_FRAGMENTS.find((entry) =>
         Math.abs(x - entry.x) <= entry.chamber.halfWidth &&
@@ -127,6 +128,8 @@ export class TileWorld {
       tile.ore = 'copper';
       tile.oreUnits = 1;
     }
+    const starter = this.miningOnly && this.mapId === 'cryo-shelf' && STARTER_MATERIAL_SEAMS.find(seam => x >= seam.left && x <= seam.right && y >= seam.top && y <= seam.bottom);
+    if (starter) { tile.type = 'dirt'; tile.hardness = Math.min(tile.hardness, 0.8); tile.ore = starter.ore; tile.oreUnits = 1; }
     if (
       y > 5 &&
       !tile.ore &&
@@ -134,7 +137,7 @@ export class TileWorld {
     )
       tile.type = 'empty';
     const signalHash = NAVIGATION_HASHES.find((entry) => entry.mapId === this.mapId && entry.x === x && entry.row === y);
-    if (signalHash) {
+    if (signalHash && !this.miningOnly) {
       tile.signalHashId = signalHash.id;
       if (tile.type === 'empty') tile.type = 'rock';
     }

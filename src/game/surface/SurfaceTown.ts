@@ -20,8 +20,11 @@ export function drawPlanetSurfaceOutpost(
     points.map(({ x, height }) => at(x, height)), true,
   );
   const line = (x1: number, h1: number, x2: number, h2: number) => {
-    const a = at(x1, h1), b = at(x2, h2);
-    g.lineBetween(a.x, a.y, b.x, b.y);
+    const count = Math.max(1, Math.ceil(Math.abs(x2 - x1) / 40));
+    g.strokePoints(Array.from({ length: count + 1 }, (_, index) => {
+      const t = index / count;
+      return at(x1 + (x2 - x1) * t, h1 + (h2 - h1) * t);
+    }), false);
   };
   const box = (x: number, width: number, bottom: number, height: number, color: number, alpha = 1) => {
     g.fillStyle(color, alpha);
@@ -53,15 +56,32 @@ export function drawPlanetSurfaceOutpost(
   // Service huts and the ship frame use curved corners, so their feet track the globe.
   for (const station of STATIONS) {
     const color = station.color;
-    box(station.x, station.width + 18, 8, 59, 0x352e2c);
-    box(station.x, station.width, 8, 50, 0x39413e);
-    box(station.x, station.width - 10, 52, 5, 0x69736a);
-    box(station.x, station.width - 22, 16, 34, 0x202e30);
-    box(station.x, station.width - 32, 47, 3, color, 0.92);
+    const half = station.width / 2;
+    // Beveled pressure shell, recessed service bay, ribbed roof and cast feet.
+    box(station.x, station.width + 24, 3, 7, 0x14232d);
+    g.fillStyle(0x788a88);
+    poly([{ x: station.x - half - 7, height: 10 }, { x: station.x + half + 7, height: 10 },
+      { x: station.x + half + 7, height: 47 }, { x: station.x + half - 9, height: 67 },
+      { x: station.x - half + 9, height: 67 }, { x: station.x - half - 7, height: 47 }]);
+    box(station.x, station.width - 4, 10, 42, 0x314450);
+    box(station.x, station.width - 22, 16, 32, 0x152630);
+    box(station.x, station.width - 23, 54, 5, 0xafb8a6);
+    box(station.x, station.width - 32, 48, 2, color, 0.92);
+    for (const side of [-1, 1]) {
+      box(station.x + side * (half - 2), 7, 8, 36, 0x556e73);
+      box(station.x + side * (half - 2), 14, 5, 7, 0x9aa899);
+      box(station.x + side * (half - 9), 3, 39, 6, warm);
+    }
+    g.lineStyle(1, 0x30434d, 0.8);
+    for (let rib = -half + 18; rib < half - 10; rib += 12) line(station.x + rib, 60, station.x + rib + 4, 65);
+    g.fillStyle(color, 0.055);
+    poly([{ x: station.x - half + 10, height: 46 }, { x: station.x + half - 10, height: 46 },
+      { x: station.x + half + 20, height: 1 }, { x: station.x - half - 20, height: 1 }]);
     for (let window = -2; window <= 2; window++) {
-      const wx = station.x + window * 17, p = at(wx, 34);
-      g.fillStyle(window === 0 ? 0xf3d29a : color, window === 0 ? 0.85 : 0.42);
-      g.fillRect(p.x - 4, p.y - 5, 8, 10);
+      const wx = station.x + window * 17;
+      box(wx, 11, 25, 15, 0x0c1c25);
+      box(wx, 7, 28, 10, window === 0 ? 0xf3d29a : color, window === 0 ? 0.85 : 0.65);
+      box(wx - 1, 2, 30, 7, 0xe3efe0, 0.32);
     }
   }
 
@@ -123,26 +143,6 @@ export function drawPlanetSurfaceOutpost(
     const drawer = at(workshop.x - 42, drawerY);
     g.fillStyle(0xd0b9d7, 0.92);
     g.fillRect(drawer.x - 2, drawer.y - 1, 4, 2);
-  }
-
-  // Launch frame remains a distinct campaign objective at either surface.
-  const shipX = 555;
-  g.lineStyle(2, 0x9aab9a, 0.7);
-  line(shipX - 43, 9, shipX - 43, 47);
-  line(shipX + 43, 9, shipX + 43, 47);
-  line(shipX - 43, 47, shipX + 43, 47);
-  if (tier > 0) {
-    g.fillStyle(0x98a79a, 0.95);
-    poly([{ x: shipX, height: 150 }, { x: shipX + 15, height: 124 }, { x: shipX + 12, height: 22 },
-      { x: shipX - 12, height: 22 }, { x: shipX - 15, height: 124 }]);
-    box(shipX, 18, 63, 20, 0x203239);
-  } else {
-    g.lineStyle(3, 0x38413e, 1);
-    line(490, 8, 490, 138); line(468, 8, 490, 98); line(512, 8, 490, 98);
-    g.lineStyle(2, 0xabac91, 1);
-    const mast = at(490, 138);
-    g.strokeCircle(mast.x, mast.y, 15);
-    line(469, 117, 511, 159);
   }
 
   // Tiered walkways are made from short chords; their projected ends follow the arc.

@@ -3,7 +3,7 @@ async (page) => {
   const intro = page.locator('.intro');
   await intro.waitFor();
   const opening = await intro.innerText();
-  if (!opening.includes('THE MOTHERSHIP') || !opening.includes('Drive out') || !opening.includes('planetary core'))
+  if (!opening.includes('THE MOTHERSHIP') || !opening.includes('Teletrade') || !opening.includes('mining camp'))
     throw Error(`Fresh start should introduce the mothership and core-fuel goal: ${opening}`);
 
   await page.locator('#intro-atlas').click();
@@ -21,9 +21,10 @@ async (page) => {
   if (fresh.mapId !== 'cryo-shelf' || fresh.money !== 80 || fresh.shipComplete || fresh.coreFuel !== 0 || fresh.mothershipBoarded)
     throw Error(`A clean Cryo deployment should begin before core recovery: ${JSON.stringify(fresh)}`);
 
-  await page.locator('#open-shipyard').click();
+  await page.locator('#open-full-services').click();
+  await page.locator('#camp-nav-shipyard').click();
   const drive = await page.locator('#modal-layer').innerText();
-  if (!drive.includes('Mine this planet’s core') || !drive.includes('separate from the miner'))
+  if (!drive.includes('planet’s core') || !drive.includes('separate from the miner'))
     throw Error(`Core drive panel should explain the first core and separate fuel pools: ${drive}`);
   await page.locator('#close').click();
   await page.locator('#open-destinations').click();
@@ -34,5 +35,5 @@ async (page) => {
   if (!board.includes('5 CORES REQUIRED') || !board.includes('CORE FUEL'))
     throw Error(`Destination board should explain jump fuel and the hidden-world gate: ${board}`);
   await page.screenshot({ path: 'output/playwright/core-fuel-destination-gate.png' });
-  return { mapId: fresh.mapId, firstGoal: 'mine the Cryo core', coreFuel: fresh.coreFuel, interplanetaryTravelLocked: true };
+  return { mapId: fresh.mapId, firstGoal: 'store ore, Teletrade surplus, build the camp', coreFuel: fresh.coreFuel, interplanetaryTravelLocked: true };
 };

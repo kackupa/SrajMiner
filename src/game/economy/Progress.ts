@@ -33,8 +33,9 @@ import {
 } from '../config';
 import { contractReady, marketContract } from './MarketContracts';
 export type Cargo = Record<Ore, number>;
-export const emptyCargo = (): Cargo => ({ copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 });
+export const emptyCargo = (): Cargo => Object.fromEntries(ORE_KEYS.map(ore => [ore, 0])) as Cargo;
 export class Progress {
+  deliveries: Record<string, number> = {};
   money = 80;
   levels: Levels = { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 };
   grappleOwned = false;

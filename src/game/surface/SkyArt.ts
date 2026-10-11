@@ -1,0 +1,36 @@
+import type Phaser from 'phaser';
+import { MAPS, type MapId } from '../config';
+import { random } from '../world/TileWorld';
+
+/** Original celestial backdrop. Screen-space sky is intentionally infinitely distant. */
+export function drawSkyArt(g: Phaser.GameObjects.Graphics, map: MapId,
+  bounds: { x: number; y: number; width: number; height: number }) {
+  const { x, y, width: w, height: h } = bounds, accent = MAPS[map].surface.edge;
+  for (let i = 0; i < 52; i++) {
+    const sx = x + random(827, i, map.length, 1) * w,
+      sy = y + random(827, i, map.length, 2) * h * 0.75,
+      size = i % 9 === 0 ? 1.3 : 0.65;
+    g.fillStyle(0xd3e6df, i % 9 === 0 ? 0.65 : 0.24);
+    g.fillCircle(sx, sy, size);
+  }
+  const cx = x + w * 0.73, cy = y + h * 0.24, radius = Math.min(w * 0.065, h * 0.13);
+  for (let i = 5; i > 0; i--) {
+    g.fillStyle(accent, 0.008);
+    g.fillCircle(cx, cy, radius + i * 9);
+  }
+  if (map === 'cryo-shelf' || map === 'prism-fault') {
+    g.lineStyle(5, accent, 0.13);
+    g.strokeEllipse(cx, cy, radius * 3.6, radius * 0.65);
+    g.lineStyle(1, 0xe6d5b9, 0.22);
+    g.strokeEllipse(cx, cy, radius * 3.85, radius * 0.74);
+  }
+  g.fillStyle(0x142735, 0.96);
+  g.fillCircle(cx, cy, radius);
+  g.fillStyle(accent, 0.32);
+  g.fillCircle(cx, cy, radius * 0.97);
+  // An offset dark disc gives the body a readable illuminated crescent.
+  g.fillStyle(0x172b3a, 0.94);
+  g.fillCircle(cx - radius * 0.24, cy - radius * 0.1, radius * 0.73);
+  g.lineStyle(1, accent, 0.2);
+  g.strokeCircle(cx, cy, radius);
+}

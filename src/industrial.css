@@ -1,0 +1,52 @@
+/* Cold Signal — enamel instruments, warm service lights, blue-black space. */
+:root { --amber: #f1c184; --mint: #a1d3c7; --muted: #9cadaa; --line: #a8c5c21c; }
+.topbar, footer { background: #0d1920; }
+.topbar { border-bottom: 1px solid #8ea6a529; }
+.brand-mark { border-width: 1px; color: #f1c184; }
+.brand { letter-spacing: 2.4px; }
+.top-actions button { color: #c0cdca; }
+.telemetry {
+  width: 174px; padding: 13px 15px; left: 20px; top: 24px;
+  background: linear-gradient(120deg, #10202bf0, #10202bbd);
+  border: 1px solid #9dbbb52b; border-top: 2px solid #d9b580;
+  border-radius: 3px; box-shadow: 0 5px 22px #02090c24;
+}
+.telemetry .eyebrow { margin-bottom: 12px; color: #b1c3be; font-size: 8px; }
+.meter-head { margin-top: 11px; color: #c0ceca; }
+.meter { height: 4px; background: #d5ede115; }
+.meter i { box-shadow: 0 0 9px #f1c18424; }
+.depth-panel { right: 22px; text-shadow: 0 2px 12px #081019; }
+.depth-value { color: #f2e5cd; }
+.mission-tip { background: #10202bdb; border-left: 2px solid #d9b580; border-radius: 2px; }
+.station-dock { background: linear-gradient(135deg, #142530f5, #0e1b25f5); border: 1px solid #b6c5b732; border-top: 2px solid #d9b580; border-radius: 3px; }
+.station-dock button { color: #e6e7d9; }
+.station-dock button:hover { background: #d7c39210; }
+/* The legacy last-button rule otherwise creates a second row in both groups. */
+.station-dock .dock-main-actions button:last-child,
+.station-dock .dock-more-actions button:last-child { grid-column: auto; }
+footer .controls { min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+footer .controls kbd { flex-shrink: 0; }
+footer .controls > span:not(:empty) { width: auto; flex-shrink: 0; }
+footer .bank { flex-shrink: 0; margin-left: 16px; }
+.modal:not(.intro):not(.pause-screen) { background: #12232d; border-color: #a8c5b738; box-shadow: 0 24px 90px #020a1066; }
+.location-label { color: #c3d1cc; text-shadow: 0 1px 8px #07121b; }
+@media (max-width: 650px) {
+  .telemetry { left: 10px; top: 12px; width: 145px; padding: 10px; }
+  .depth-panel { right: 12px; }
+}
+@media (max-height: 600px) {
+  .telemetry { top: 10px; padding: 9px 12px; }
+  .telemetry .eyebrow { margin-bottom: 6px; }
+  .meter-head { margin-top: 8px; }
+}
+
+/* Keep the descriptive game name and all controls visible on narrow screens. */
+@media (max-width: 600px) {
+  .topbar { padding-left: 10px; padding-right: 10px; gap: 8px; }
+  .brand { font-size: 16px; letter-spacing: 1px; gap: 7px; }
+  .brand > span:last-child { white-space: nowrap; }
+  .brand small { font-size: 6px; letter-spacing: 1px; }
+  .brand-mark { width: 25px; min-width: 25px; font-size: 23px; }
+  .top-actions { gap: 1px; }
+  .top-actions button { font-size: 8px; padding: 4px; }
+}

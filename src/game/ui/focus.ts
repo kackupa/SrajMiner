@@ -1,5 +1,6 @@
 const FOCUSABLE_SELECTOR = [
   'a[href]',
+  'summary',
   'area[href]',
   'button:not(:disabled)',
   'input:not(:disabled):not([type="hidden"])',

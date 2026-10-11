@@ -1,0 +1,55 @@
+.touch-controls { display: none; }
+.touch-controls [hidden] { display: none !important; }
+@media (any-pointer: coarse) {
+  body { overscroll-behavior: none; }
+  .topbar { height: 48px; padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); }
+  .brand { font-size: 18px; }
+  .brand small, .brand-mark, .topbar .coordinates, footer { display: none; }
+  .top-actions { gap: 5px; }
+  .top-actions button { min-width: 44px; min-height: 44px; padding: 8px; }
+  #viewport { height: calc(100dvh - 48px); min-height: 0; }
+  #game canvas { touch-action: none; }
+  .touch-controls:not([hidden]) { display: block; position: absolute; inset: 0; z-index: 20; pointer-events: none; user-select: none; -webkit-user-select: none; }
+  .touch-controls button { pointer-events: auto; touch-action: none; min-width: 48px; min-height: 48px; padding: 8px; border-radius: 12px; background: #102531eb; color: #eee5d4; border: 1px solid #a8c5c26b; font-size: 10px; }
+  .touch-controls button.held { background: #467a77; border-color: #f1c184; }
+  .touch-pad { position: absolute; bottom: max(12px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(3, 52px); gap: 5px; }
+  .touch-pad span { grid-column: 1 / -1; text-align: center; font: 9px 'Space Mono', monospace; text-shadow: 0 2px 3px #000; }
+  .touch-pad button { font-size: 24px; height: 52px; }
+  .touch-pad button:nth-of-type(1) { grid-column: 2; }
+  .touch-pad button:nth-of-type(2) { grid-row: 3; grid-column: 1; }
+  .touch-pad button:nth-of-type(3) { grid-row: 3; grid-column: 3; }
+  .touch-flight { left: max(12px, env(safe-area-inset-left)); }
+  .touch-drill { right: max(12px, env(safe-area-inset-right)); }
+  .touch-tools { position: absolute; right: max(12px, env(safe-area-inset-right)); top: 60px; display: flex; gap: 5px; max-width: calc(100% - 24px); overflow-x: auto; pointer-events: auto; }
+  .touch-tools button { flex: 0 0 auto; }
+  .touch-rotate { display: none; }
+  .telemetry { top: 6px; left: max(10px, env(safe-area-inset-left)); width: 280px; padding: 5px 8px; transform: none; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px 10px; pointer-events: none; }
+  .telemetry > .eyebrow, .telemetry > .meter, .telemetry > .return-estimate, .cargo-blocks, .cargo-worth, .core-fuel-readout, .tool-stock { display: none !important; }
+  .telemetry .meter-head, .telemetry .cargo-line { margin: 0; padding: 0; font-size: 9px; display: flex; flex-direction: column; gap: 3px; border: 0; }
+  .telemetry .meter-head strong, .telemetry .cargo-line strong { font-size: 12px; }
+  .depth-panel { top: 6px; right: max(12px, env(safe-area-inset-right)); transform: none; }
+  .depth-panel .eyebrow { font-size: 8px; }
+  .depth-value { font-size: 25px; line-height: 1.1; }
+  .depth-panel :is(.record, .depth-rule, #depth-note, #gravity-note), .location-label, .mission-tip { display: none; }
+  .station-dock.camp-dock { display: none !important; }
+  .drill-target { top: 118px; bottom: auto; max-width: 210px; left: 50%; transform: translateX(-50%); pointer-events: none; }
+  #viewport #toast { top: 115px; max-width: min(90%, 420px); pointer-events: none; }
+  #low-warning { bottom: 145px; }
+  #modal-layer:not(:empty) { position: fixed; inset: 0; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); z-index: 100; }
+  .modal:not(.camp-screen) { max-height: 100%; width: 100%; max-width: 100%; overflow-y: auto; }
+  .modal button, .modal select, .modal input { min-height: 44px; }
+  .modal input, .modal select { font-size: 16px; }
+  .route-map-panel { max-height: calc(100% - 110px); overflow: auto; z-index: 30; }
+}
+@media (any-pointer: coarse) and (orientation: portrait) {
+  .touch-rotate { display: block; position: absolute; bottom: 150px; width: 100%; text-align: center; font-size: 11px; color: #c3d2cc; }
+  .telemetry { width: 245px; }
+  .touch-tools { top: 65px; }
+}
+@media (any-pointer: coarse) and (max-height: 500px) {
+  .modal.camp-screen:not(.intro) { height: 100dvh; grid-template-rows: 54px minmax(0, 1fr) 24px; }
+  .camp-rig { display: none; }
+  .camp-sidebar { overflow-y: auto; }
+  .camp-main { padding: 12px; }
+  .intro { padding: 16px; }
+}

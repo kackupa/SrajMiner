@@ -10,15 +10,21 @@ import Phaser from 'phaser';
 import { MiningScene } from './game/MiningScene';
 import './style.css';
 import './presentation.css';
+import './industrial.css';
+import './camp.css';
 document.querySelector('#app')!.innerHTML = '<div id="game"></div>';
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#131c20',
-  pixelArt: true,
-  antialias: false,
+  pixelArt: false,
+  antialias: true,
   scale: { mode: Phaser.Scale.NONE, width: window.innerWidth, height: window.innerHeight - 142 },
   scene: [MiningScene],
-  render: { roundPixels: true },
+  render: { roundPixels: false },
   audio: { noAudio: true },
 });
+
+import './expedition.css';
+
+import './mobile.css';

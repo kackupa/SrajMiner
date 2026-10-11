@@ -17,7 +17,6 @@ export const CORE = {
   physicalPassageRadius: 72,
   drillAssistRadius: 220,
   drillAssistReach: 160,
-  firstCrossingReward: 2200,
 };
 export const CORE_WORLD_Y = CORE.depthMeters / WORLD.meters * WORLD.tile;
 export const CORE_CROSSING_CLEARANCE = CORE.passageRadius * WORLD.tile;
@@ -63,8 +62,8 @@ export const UNDERGROUND_BUILDING = {
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
   service: { credits: 420, materials: { iron: 3, silver: 2 }, widthTiles: 5, uniquePerMap: true },
   turret: { credits: 560, materials: { iron: 2, silver: 2, gold: 1 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
-  'trade-post': { credits: 1100, materials: { copper: 4, iron: 4, gold: 2 }, widthTiles: 5, maxPerMap: 1 },
-  habitat: { credits: 900, materials: { copper: 4, iron: 2, silver: 1 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
+  'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5, maxPerMap: 1 },
+  habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
   warehouse: { credits: 360, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
   extractor: { credits: 220, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 2, 6, 12], upgradeCredits: [0, 0, 680, 1800] },
   automation: { offlineCapSeconds: 43200 },
@@ -172,6 +171,10 @@ export const ORES = {
     max: Infinity,
     rarity: 0.085,
   },
+  nickel: { name: 'Nickel', value: 72, color: 0xb9c58c, hex: '#b9c58c', min: 180, max: 1800, rarity: 0.12 },
+  titanium: { name: 'Titanium', value: 155, color: 0xa5bdf0, hex: '#a5bdf0', min: 600, max: Infinity, rarity: 0.095 },
+  cobalt: { name: 'Cobalt', value: 125, color: 0x6e98ff, hex: '#6e98ff', min: 360, max: 2400, rarity: 0.09 },
+  cryocrystal: { name: 'Cryocrystal', value: 210, color: 0xd5f8ff, hex: '#d5f8ff', min: 288, max: 600, rarity: 0.075 },
 } as const;
 export type Ore = keyof typeof ORES;
 export const ORE_KEYS = Object.keys(ORES) as Ore[];
@@ -180,7 +183,7 @@ export const ORE_SILHOUETTES = {
   iron: 'bars',
   silver: 'spires',
   gold: 'nuggets',
-  diamond: 'facets',
+  diamond: 'facets', nickel: 'bars', titanium: 'spires', cobalt: 'nuggets', cryocrystal: 'facets',
 } as const satisfies Record<Ore, string>;
 export const BANDS = [
   {
@@ -229,7 +232,7 @@ export const MAPS = {
     palette: [0x855043, 0x65504b, 0x51424a, 0x363e49, 0x273f42],
     caveChance: 0.12,
     geodeChance: 0,
-    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 1, diamond: 1 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 1, diamond: 1, nickel: 1.1, titanium: 1.2, cobalt: 0.6, cryocrystal: 0 },
     surface: { sky: [0x17252c, 0x17252c, 0x8c6356, 0x8c6356], ground: 0xba805c, edge: 0xe0a776, mountains: [0x594f4e, 0x79594e, 0x9c6851], moon: 0xc6b4a2 },
   },
   'cryo-shelf': {
@@ -239,7 +242,7 @@ export const MAPS = {
     palette: [0x527884, 0x415e70, 0x37495f, 0x293c54, 0x25344b],
     caveChance: 0.17,
     geodeChance: 0,
-    oreFactors: { copper: 0.75, iron: 1.05, silver: 1.1, gold: 0.9, diamond: 1.05 },
+    oreFactors: { copper: 0.75, iron: 1.05, silver: 1.1, gold: 0.9, diamond: 1.05, nickel: 0.7, titanium: 0, cobalt: 0.8, cryocrystal: 1.5 },
     surface: { sky: [0x101b29, 0x152c3b, 0x315564, 0x59838c], ground: 0x638995, edge: 0xa9d5d5, mountains: [0x293e50, 0x365669, 0x4a6d79], moon: 0xa4d1d3 },
   },
   'hull-graveyard': {
@@ -249,7 +252,7 @@ export const MAPS = {
     palette: [0x596d68, 0x495b5c, 0x464b55, 0x373c48, 0x28353d],
     caveChance: 0.21,
     geodeChance: 0,
-    oreFactors: { copper: 0.65, iron: 1.5, silver: 0.9, gold: 0.8, diamond: 0.7 },
+    oreFactors: { copper: 0.65, iron: 1.5, silver: 0.9, gold: 0.8, diamond: 0.7, nickel: 1.7, titanium: 1.3, cobalt: 1.2, cryocrystal: 0 },
     surface: { sky: [0x101b21, 0x1d3035, 0x34464a, 0x647b77], ground: 0x596c69, edge: 0xa1b3a2, mountains: [0x25373a, 0x354647, 0x4e625c], moon: 0xb2c8c0 },
   },
   'prism-fault': {
@@ -259,7 +262,7 @@ export const MAPS = {
     palette: [0x645b80, 0x564f79, 0x43486f, 0x345569, 0x244f5c],
     caveChance: 0.09,
     geodeChance: 0.12,
-    oreFactors: { copper: 0.6, iron: 0.8, silver: 1.5, gold: 1.25, diamond: 1.4 },
+    oreFactors: { copper: 0.6, iron: 0.8, silver: 1.5, gold: 1.25, diamond: 1.4, nickel: 0.5, titanium: 0.6, cobalt: 0.8, cryocrystal: 0 },
     surface: { sky: [0x171629, 0x242344, 0x373764, 0x565480], ground: 0x655f82, edge: 0xb3b1ed, mountains: [0x2d2b4b, 0x3d3b62, 0x535273], moon: 0xc3c7ed },
   },
   'cinder-vale': {
@@ -269,17 +272,17 @@ export const MAPS = {
     palette: [0x79534c, 0x5d4548, 0x51414a, 0x453a42, 0x382d3c],
     caveChance: 0.16,
     geodeChance: 0.04,
-    oreFactors: { copper: 1.25, iron: 1.15, silver: 0.9, gold: 1.2, diamond: 1.1 },
+    oreFactors: { copper: 1.25, iron: 1.15, silver: 0.9, gold: 1.2, diamond: 1.1, nickel: 1.1, titanium: 1.5, cobalt: 1.4, cryocrystal: 0 },
     surface: { sky: [0x1c1720, 0x30212a, 0x59383a, 0x8e5140], ground: 0x694640, edge: 0xf08a58, mountains: [0x332a34, 0x4b3439, 0x70433c], moon: 0xe8a36c },
   },
   'vesper-9': {
     name: 'Vesper-9',
     shortName: 'RETURN WORLD / VESPER-9',
-    strata: ['LANTERN GROVE', 'ROOTED SHELF', 'ECHO REEF', 'DUSK MANTLE', 'HANDSHAKE CORE'],
+    strata: ['LANTERN GROVE', 'ROOTED SHELF', 'ECHO REEF', 'DUSK MANTLE', 'CRYSTAL CORE'],
     palette: [0x426f65, 0x375c5c, 0x344d59, 0x303e55, 0x27354a],
     caveChance: 0.23,
     geodeChance: 0.08,
-    oreFactors: { copper: 0.65, iron: 0.8, silver: 1.25, gold: 1.3, diamond: 1.55 },
+    oreFactors: { copper: 0.65, iron: 0.8, silver: 1.25, gold: 1.3, diamond: 1.55, nickel: 0.6, titanium: 0.8, cobalt: 1, cryocrystal: 0 },
     surface: { sky: [0x101b27, 0x172c3a, 0x315957, 0x64836b], ground: 0x426d5d, edge: 0xb2dc9a, mountains: [0x243d42, 0x31534d, 0x476b55], moon: 0xc0dca5 },
   },
 } as const;
@@ -287,18 +290,18 @@ export const MAPS = {
 // cached chunks can be discarded without adding feature state to player saves.
 export type MapId = keyof typeof MAPS;
 export const CORE_RELICS = [
-  { id: 'core-mars', mapId: 'mars-frontier', name: 'Sunstone Heart', tint: 0xffb66e, detail: 'A thermal memory shard carrying the frontier’s magnetic pulse.', record: 'The pulse matches the mothership’s abandoned launch telemetry. Its course was set for Vesper-9.', bounty: 3000 },
-  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo Anchor Lens', tint: 0x9bf1e2, detail: 'An ice-grown lens preserves the first stable route through the shelf.', record: 'The buried signal answers the lens with a return handshake. The route was designed to be found from the other side.', bounty: 3000 },
-  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Reactor Witness', tint: 0xa7d9bd, detail: 'A reactor witness crystal records the final ark-core discharge.', record: 'The wreck’s final discharge was a controlled separation, not a reactor failure. Its manifest was altered after the crew escaped.', bounty: 3000 },
-  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism Seed', tint: 0xc5a7ff, detail: 'A living crystal seed refracts the fault’s deep-field signature.', record: 'The recovered pulses resolve to the same coordinate: the mothership’s signal is a path home, not a distress call. One final key remains.', bounty: 3000 },
-  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Ember Heart', tint: 0xff9460, detail: 'A glassy core filament stores the last pulse of a world that cooled from the outside in.', record: 'The final key resolves the crew’s scattered signal. They are alive beyond Vesper-9, and the mothership can reach them.', bounty: 4500 },
-  { id: 'core-vesper', mapId: 'vesper-9', name: 'Return Bloom', tint: 0xb2e98e, detail: 'A living crystal opens around the exact handshake hidden in the crew’s scattered signals.', record: 'The crew survived on Vesper-9. They answer your signal from a settlement grown around the core, and the mothership finally has a home port.', bounty: 6000 },
+  { id: 'core-mars', mapId: 'mars-frontier', name: 'Mars core', tint: 0xffb66e, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
+  { id: 'core-cryo', mapId: 'cryo-shelf', name: 'Cryo core', tint: 0x9bf1e2, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
+  { id: 'core-hull', mapId: 'hull-graveyard', name: 'Iron core', tint: 0xa7d9bd, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
+  { id: 'core-prism', mapId: 'prism-fault', name: 'Prism core', tint: 0xc5a7ff, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
+  { id: 'core-cinder', mapId: 'cinder-vale', name: 'Cinder core', tint: 0xff9460, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
+  { id: 'core-vesper', mapId: 'vesper-9', name: 'Vesper core', tint: 0xb2e98e, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
 ] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
 /** A recovered planetary core powers several interplanetary jumps; this is separate from pod flight fuel. */
 export const CORE_FUEL = { unitsPerCore: 4, jumpCost: 1, legacyReserve: 6 } as const;
 export const CORE_SURVEY_CONCLUSION = {
-  title: 'A route home, carried through six worlds',
-  transcript: 'The mothership did not vanish beneath Vesper-9. The crew scattered its return key across five planetary cores, then built a living settlement around the final handshake. The signal has been waiting for the whole route.',
+  title: 'Six planetary cores extracted',
+  transcript: 'All six planets are logged. Expand your mining camps and trade network.',
 } as const;
 export type CoreRelicId = (typeof CORE_RELICS)[number]['id'];
 export const coreSurveyComplete = (milestones: readonly string[]) => CORE_RELICS.every((relic) => milestones.includes(relic.id));
@@ -325,11 +328,11 @@ export const UPGRADES = {
     icon: '↧',
   },
   fuel: {
-    name: 'Fuel tank',
+    name: 'Battery',
     description: 'Stay out a little longer.',
     values: [140, 190, 260, 350, 480],
     costs: [120, 320, 750, 1600],
-    unit: ' L capacity',
+    unit: ' charge capacity',
     icon: '◒',
   },
   cargo: {
@@ -453,7 +456,7 @@ export const podVisualScale = (levels: Pick<Levels, 'drill' | 'cargo' | 'fuel' |
     tierGrowth('scannerPerLevel', levels.scanner) + tierGrowth('grapplePerLevel', levels.grapple) +
     Math.max(0, Math.min(Object.keys(SHIP_COMPONENTS).length, Math.floor(shipParts))) * POD_SIZE.shipPartBonus);
 };
-export const SERVICE = { fuelPrice: 0.3, hullPrice: 0.45 };
+export const SERVICE = { fuelPrice: 0, hullPrice: 0.45 };
 
 export const CHARGE = { packCost: 180, packSize: 3, fuseSeconds: 1.2, blastRadius: 2, pickupRadius: 28, gravity: 560, maxFallSpeed: 360, radius: 6 };
 export const SALVAGE_MAGNET = { cost: 420, radius: 190, acceleration: 620, maxSpeed: 260 };
@@ -496,7 +499,7 @@ export const HULL_SCRAPPER = {
 } as const;
 export const POD_PAINTS = {
   hab: { name: 'Hab Standard', description: 'The hard-wearing outpost finish.', cost: 0, hull: 0xeac781, trim: 0xffdfa0, light: 0xfff0bc },
-  polar: { name: 'Polar Signal', description: 'High-visibility ice-runner enamel.', cost: 180, hull: 0x62c7c7, trim: 0xb0f1e4, light: 0xe1fff0 },
+  polar: { name: 'Polar White', description: 'High-visibility ice-runner enamel.', cost: 180, hull: 0x62c7c7, trim: 0xb0f1e4, light: 0xe1fff0 },
   ark: { name: 'Ark Salvage', description: 'Deep green, recovered from the old hull.', cost: 360, hull: 0x83b88e, trim: 0xc8e8ad, light: 0xe8ffd1 },
   prism: { name: 'Prism Bloom', description: 'Violet lacquer with a crystal-bright edge.', cost: 600, hull: 0xb59ae8, trim: 0xe1caff, light: 0xf2e8ff },
 } as const;
@@ -520,7 +523,7 @@ export type PodDecal = keyof typeof POD_DECALS;
 export const POD_DECAL_KEYS = Object.keys(POD_DECALS) as PodDecal[];
 export const POD_PROFILES = {
   standard: { name: 'Hab Runner', description: 'Balanced outpost frame · warm cabin glow.', cost: 0, style: 'standard', cabin: 0x93d4cc },
-  antenna: { name: 'Signal Scout', description: 'Beacon mast and sensor vane · mint cabin glow.', cost: 220, style: 'antenna', cabin: 0xa5f1d1 },
+  antenna: { name: 'Survey Scout', description: 'Beacon mast and sensor vane · mint cabin glow.', cost: 220, style: 'antenna', cabin: 0xa5f1d1 },
   stabilizers: { name: 'Cavern Surveyor', description: 'Twin landing fins · ice-blue cabin glow.', cost: 360, style: 'stabilizers', cabin: 0x94dfff },
   armor: { name: 'Ark Bulwark', description: 'Recovered side rails · amber cabin glow.', cost: 540, style: 'armor', cabin: 0xffca86 },
 } as const;
@@ -528,29 +531,29 @@ export type PodProfile = keyof typeof POD_PROFILES;
 export const POD_PROFILE_KEYS = Object.keys(POD_PROFILES) as PodProfile[];
 
 export const CAMPAIGN_MILESTONES = [
-  { id: 'first-core-sample', depth: 90, title: 'First core sample', detail: 'A warm signal in the basalt points toward the buried strata.' },
+  { id: 'first-core-sample', depth: 90, title: 'Shallow strata surveyed', detail: 'Copper and iron occur below the surface.' },
   { id: 'basalt-vein', depth: 300, title: 'Basalt vein mapped', detail: 'The survey reveals a sealed pocket below the iron shelf.' },
-  { id: 'deep-scan', depth: 600, title: 'Deep scan recovered', detail: 'An old navigation pulse repeats beneath the dark layer.' },
-  { id: 'route-signal', depth: 1050, title: 'Unknown route signal', detail: 'The transmission carries fragments of a route beyond this world.' },
+  { id: 'deep-scan', depth: 600, title: 'Deep scan recovered', detail: 'Harder rock lies beneath the upper mineral seams.' },
+  { id: 'route-signal', depth: 1050, title: 'Deep strata surveyed', detail: 'The lower strata contain denser mineral deposits.' },
 ] as const;
 export const ROUTE_FRAGMENTS = [
   { id: 'fragment-1', milestoneId: 'first-core-sample', row: 8, x: 24, title: 'Warm core sample', landmark: 'Thermal Observatory', chamber: { halfWidth: 4, halfHeight: 2 }, detail: 'A live thermal trace reveals a safe fracture through the shelf.' },
-  { id: 'fragment-2', milestoneId: 'basalt-vein', row: 27, x: 24, title: 'Basalt route key', landmark: 'Basalt Engine Hall', chamber: { halfWidth: 5, halfHeight: 2 }, detail: 'The key maps a service passage through the iron veil.' },
-  { id: 'fragment-3', milestoneId: 'deep-scan', row: 52, x: 24, title: 'Deep navigation shard', landmark: 'Ark Signal Gallery', chamber: { halfWidth: 6, halfHeight: 3 }, detail: 'A ship coordinate points into the old wreck field.' },
-  { id: 'fragment-4', milestoneId: 'route-signal', row: 90, x: 24, title: 'Mothership route beacon', landmark: 'Mothership Beacon Vault', chamber: { halfWidth: 7, halfHeight: 3 }, detail: 'The final beacon reconstructs the long-range route.' },
+  { id: 'fragment-2', milestoneId: 'basalt-vein', row: 27, x: 24, title: 'Basalt sample', landmark: 'Basalt Engine Hall', chamber: { halfWidth: 5, halfHeight: 2 }, detail: 'A sample of iron-bearing basalt.' },
+  { id: 'fragment-3', milestoneId: 'deep-scan', row: 52, x: 24, title: 'Deep mineral sample', landmark: 'Deep rock cavern', chamber: { halfWidth: 6, halfHeight: 3 }, detail: 'A mineral sample from a deep fracture.' },
+  { id: 'fragment-4', milestoneId: 'route-signal', row: 90, x: 24, title: 'Lower strata sample', landmark: 'Lower rock cavern', chamber: { halfWidth: 7, halfHeight: 3 }, detail: 'A sample from the lower geological layer.' },
 ] as const;
 // Optional, offline archive collectibles; these fictional hashes have no value or exchange path.
 export const NAVIGATION_HASHES = [
-  { id: 'hash-cryo', mapId: 'cryo-shelf', x: 12, row: 16, name: 'ICEBOUND ECHO', hash: '7C1A·09EF·B44D', crew: 'Asha Vale', role: 'Signal Officer', transcript: 'The echo is not a beacon. It is a handshake waiting for our key. Someone below knows we are here.', detail: 'A shipyard checksum, signed before the mothership left orbit.' },
-  { id: 'hash-hull', mapId: 'hull-graveyard', x: 12, row: 22, name: 'WRECK REGISTER', hash: 'A308·F11C·620B', crew: 'Orrin Bale', role: 'Flight Recorder', transcript: 'The manifest says no survivors. I watched the landing crew walk away from the wreck. The record was changed after we split up.', detail: 'An ark manifest that lists a crew no surviving log remembers.' },
-  { id: 'hash-prism', mapId: 'prism-fault', x: 36, row: 32, name: 'PRISM KEY', hash: 'D9E2·44A7·C015', crew: 'Imani Cho', role: 'Navigator', transcript: 'The beacon bends through the fault, but the coordinates resolve cleanly. This route points back to the first signal: not deeper into the ice.', detail: 'A navigation key refracted through an abandoned survey beacon.' },
-  { id: 'hash-mars', mapId: 'mars-frontier', x: 9, row: 20, name: 'RED DUST INDEX', hash: '51B7·C82D·A903', crew: 'Sol Reyes', role: 'Surface Lead', transcript: 'We found the mothership’s launch telemetry beneath this shelf. Its last destination was Vesper-9. The crew were not marked lost. They were marked passengers.', detail: 'A checksum from the first surface team, preserved under the frontier.' },
+  { id: 'hash-cryo', mapId: 'cryo-shelf', x: 12, row: 16, name: 'ICE SAMPLE', hash: '7C1A·09EF·B44D', crew: 'Asha Vale', role: 'Survey technician', transcript: 'Archived geological reading. This legacy record is kept with the expedition save.', detail: 'A shipyard checksum, signed before the mothership left orbit.' },
+  { id: 'hash-hull', mapId: 'hull-graveyard', x: 12, row: 22, name: 'WRECK REGISTER', hash: 'A308·F11C·620B', crew: 'Orrin Bale', role: 'Flight Recorder', transcript: 'Archived geological reading. This legacy record is kept with the expedition save.', detail: 'A preserved survey record.' },
+  { id: 'hash-prism', mapId: 'prism-fault', x: 36, row: 32, name: 'CRYSTAL SAMPLE', hash: 'D9E2·44A7·C015', crew: 'Imani Cho', role: 'Navigator', transcript: 'Archived geological reading. This legacy record is kept with the expedition save.', detail: 'An archived reading from the crystal strata.' },
+  { id: 'hash-mars', mapId: 'mars-frontier', x: 9, row: 20, name: 'RED DUST INDEX', hash: '51B7·C82D·A903', crew: 'Sol Reyes', role: 'Surface Lead', transcript: 'Archived geological reading. This legacy record is kept with the expedition save.', detail: 'A checksum from the first surface team, preserved under the frontier.' },
 ] as const;
 export const CREW_ARCHIVE_CONCLUSION = {
-  title: 'THE SIGNAL WAS A HANDSHAKE',
+  title: 'LEGACY SURVEY RECORDS',
   author: 'Asha Vale',
-  role: 'Signal Officer · Final annotation',
-  transcript: 'The mothership reached Vesper-9. We scattered the access keys across the survey beacons so the ship could not be followed. The signal below the shelf is the return handshake. Someone is waiting to be let home.',
+  role: 'Survey technician · Final annotation',
+  transcript: 'Archived geological reading. This legacy record is kept with the expedition save.',
 } as const;
 export type NavigationHashId = (typeof NAVIGATION_HASHES)[number]['id'];
 export type RouteFragmentId = (typeof ROUTE_FRAGMENTS)[number]['id'];
@@ -580,3 +583,33 @@ export const SOLAR_SYSTEM = {
     'vesper-9': { x: 485, y: -215 },
   },
 } as const;
+
+export const MOTHERSHIP = { x: 555, serviceRadius: 190, storageCapacity: 24 };
+
+export const STARTER_MATERIAL_SEAMS = [
+  { ore: 'copper', left: 16, right: 19, top: 0, bottom: 2 },
+  { ore: 'iron', left: 16, right: 19, top: 3, bottom: 4 },
+  { ore: 'silver', left: 16, right: 19, top: 8, bottom: 9 },
+] as const;
+
+export const CIVILISATIONS = {
+  helion: { name: 'Helion', title: 'The inhabited world', buyer: 'Helion Municipal Works', color: '#eac27d', kind: 'city', population: '8.4 billion',
+    description: 'A planet of linked coastal cities. Its night side traces the old continental railways in amber light.',
+    history: 'Helion grew around water, not mines. Its cities agreed to leave their watershed mountains intact and buy industrial metals from expedition crews. The Municipal Works charter still requires every shipment to name the district it serves.',
+    projects: [{ name: 'Eastern power grid', ore: 'copper', units: 24 }, { name: 'Harbour rail extension', ore: 'iron', units: 32 }, { name: 'Stormproof substations', ore: 'cobalt', units: 12 }] },
+  kepler: { name: 'Kepler Reach', title: 'The shipbuilding world', buyer: 'Kepler Orbital Yards', color: '#b2bce9', kind: 'shipyard', population: '640 million',
+    description: 'Drydocks encircle a steel-blue ocean. Freighters wait above the terminator for their final hull plates.',
+    history: 'Kepler began as a repair stop for vessels that could not make the next crossing. Dockworkers assembled the first permanent ring from abandoned freighter frames. Today the yards still reserve one berth for a stranded ship, regardless of its captain’s ability to pay.',
+    projects: [{ name: 'Freighter repair berths', ore: 'nickel', units: 18 }, { name: 'Long-haul hull programme', ore: 'titanium', units: 16 }, { name: 'Navigation contacts', ore: 'gold', units: 10 }] },
+  verdant: { name: 'Verdant', title: 'The garden world', buyer: 'Verdant Growers Cooperative', color: '#a4cf96', kind: 'garden', population: '1.2 billion',
+    description: 'Greenhouse belts follow the warm latitudes. Reservoir mirrors flash between farms and small settlements.',
+    history: 'The first harvest on Verdant fed three other colonies before it fed a city of its own. Growers built their cooperative around that obligation. Imported metal becomes pumps, rails and cold stores: the quiet machinery that keeps food moving between worlds.',
+    projects: [{ name: 'Northern irrigation ring', ore: 'iron', units: 20 }, { name: 'Greenhouse distribution', ore: 'copper', units: 28 }, { name: 'Cold-store controls', ore: 'silver', units: 12 }] },
+  lyra: { name: 'Lyra Station', title: 'The research world', buyer: 'Lyra Survey Institute', color: '#c9b4ee', kind: 'research', population: '38 million',
+    description: 'Observatories occupy the high plateaus. Small laboratory cities shelter beneath pale atmospheric bands.',
+    history: 'Lyra’s founders shared a telescope before they shared a government. Their institute treats field miners as collaborators: a labelled sample from a difficult seam can matter more than a polished instrument. The survey archive keeps the name of the expedition that supplied each new study.',
+    projects: [{ name: 'Precision instrument array', ore: 'silver', units: 18 }, { name: 'Deep-pressure laboratory', ore: 'diamond', units: 8 }, { name: 'Cryogenic resonator study', ore: 'cryocrystal', units: 12 }] },
+} as const;
+export type CivilisationId = keyof typeof CIVILISATIONS;
+export const CIVILISATION_KEYS = Object.keys(CIVILISATIONS) as CivilisationId[];
+export const CIVILIAN_DEMAND = { premium: 0.35 } as const;

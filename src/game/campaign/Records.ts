@@ -46,7 +46,7 @@ export function collectCoreRelic(
   const relic = CORE_RELICS.find((entry) => entry.id === id);
   if (!relic || progress.milestones.includes(id)) return undefined;
   progress.milestones.push(id);
-  progress.money += relic.bounty;
+  // Cores power travel. Credits come from selling ore through a Market uplink.
   progress.coreFuel += CORE_FUEL.unitsPerCore;
   return relic;
 }

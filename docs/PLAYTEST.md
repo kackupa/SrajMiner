@@ -4,7 +4,7 @@ Use this with the campaign already in your browser. Keep your current save; do n
 
 ## During play
 
-At each return to Hab 07, jot down the trip length, deepest depth, cargo near return, fuel and hull on landing, and whether you chose to return or were forced to. If you lose cargo or recover the pod, note what led to it and whether the warning gave you a fair chance to react.
+At each return to the mothership, jot down the trip length, deepest depth, cargo near return, battery charge and hull on landing, and whether you chose to return or were forced to. If you lose cargo or recover the pod, note what led to it and whether the warning gave you a fair chance to react.
 
 Notice when a valuable vein or regional find appears: did you recognize what it was, understand its extra value, and feel glad you found it? If you use a charge or the salvage magnet, note whether it saved time or ore and whether the cost, fuse, and pickup behavior felt fair. Visit another region only if travel is already available; do not grind solely to reach it for this test.
 
@@ -14,7 +14,7 @@ If you have the Laser Miner, hold the drill through a few blocks, then release i
 
 If convenient, try a different pilot path while docked. Note whether its benefit is clear, whether it changes the next trip's decisions, and whether the workshop explains any cargo restriction before you select it.
 
-If you reach the core, note whether you can coast through in both directions, understand when gravity has reversed, and return to the home outpost after crossing. The automated round-trip uses a prepared shaft; your normal route will also tell us how the drilling and fuel cost feel.
+If you reach the core, note whether you can coast through in both directions, understand when gravity has reversed, and return to the mothership after crossing. The automated round-trip uses a prepared shaft; your normal route will also tell us how the drilling and battery use feel.
 
 Check three grapple situations without changing your save: drop onto a safe ledge, fall through a long open shaft with a reachable anchor, then approach a hard floor fast enough to risk impact. The hook should stay off for the first two and catch before the damaging impact in the third, leaving time to brake. If an obstructed anchor is nearby, note whether it is ignored. The hook is a paid upgrade, so install it only if you already own it or want to spend the credits.
 
@@ -26,7 +26,7 @@ Copy this small form into chat and fill only what you noticed:
 Time played / region(s):
 Trips (approximate):
 Deepest depth / best haul:
-Fuel and hull on landing:
+Battery charge and hull on landing:
 Returned by choice, or forced back? Why?
 Any damage, lost cargo, or confusing warning?
 Most exciting find or moment:
@@ -42,3 +42,13 @@ Anything else:
 ```
 
 The most useful balance evidence is a few ordinary trips and the reason behind one early return, one greedy extra descent, or one recovery. Do not change economy or damage numbers from a single unusually lucky or unlucky run; compare the notes with the existing automated campaign runs first.
+
+## 2026-10-11 — Mothership-first start
+
+Fresh campaigns land and deploy before play, with no automatic camp buildings or invisible town platforms. Browser-verified a real 47 m mining descent and safe return to the mothership. Verified boarding, the 24-unit starter hold, selective storage and withdrawal, sale of carried surplus without touching stored copper, and a zero-core-fuel takeoff attempt remaining grounded. A warehouse purchase consumed iron/silver and persisted alongside stored ore through reload. Separate funded fixtures placed a habitat and trading post and verified their exact combined $2,000 and ore costs. No browser page errors in the storage/build test. Screenshots are under `output/playwright/mothership-*.png`.
+
+`npm install`, 173 system tests, atmosphere tests and solar-route tests passed. Production build passed with the existing bundle-size advisory. Fixtures funded construction to avoid a long grind; a full earn-every-building campaign, core recovery, and multi-world completion were not replayed. Older saves retain established camp progression; new starts use the existing milestone field without a schema change.
+
+## Current progression check — Interplanetary Miner
+
+For a fresh expedition, check that the $0 start is understandable: mine 6 copper and 4 iron for the Mining camp, then 4 copper, 4 iron and 2 silver for the Market uplink. Both use materials only. Check that the uplink unlocks sales and upgrades, the mothership recharges the rig free, and camp repair stations cannot recharge. Cores and core crossings give no cash; cores supply ship fuel. Compare the rig battery and ship fuel labels for clarity. The earlier dated results above describe the previous economy.
