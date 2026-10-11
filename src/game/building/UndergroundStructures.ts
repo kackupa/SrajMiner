@@ -125,6 +125,21 @@ export function canAffordStructure(kind: StructureKind, cargo: Record<Ore, numbe
   return credits >= cost.credits && Object.entries(cost.materials).every(([ore, units]) => cargo[ore as Ore] >= units);
 }
 
+/** Fill the first empty layer of a column; do not jump over missing supports. */
+export function nextWallStackSite(world: TileWorld, site: { x: number; y: number }, structures: readonly UndergroundStructure[]) {
+  const surfaceY = site.y < world.coreWorldY ? 0 : world.farSurfaceY;
+  const gravity = world.gravitySign(surfaceY);
+  const column = structures.filter(entry => entry.kind === 'wall' &&
+    globeSurfaceDistance(world, site.x, surfaceY, entry.x, entry.y) <= WORLD.tile / 2)
+    .sort((a, b) => globeSurfaceDistance(world, site.x, surfaceY, a.x, a.y) - globeSurfaceDistance(world, site.x, surfaceY, b.x, b.y))[0];
+  const x = column?.x ?? site.x;
+  let layer = 0;
+  while (layer < UNDERGROUND_BUILDING.wall.maxPerMap && structures.some(entry =>
+    entry.kind === 'wall' && globeSurfaceDistance(world, x, surfaceY, entry.x, entry.y) < 1 &&
+    Math.abs(entry.y - (surfaceY - gravity * layer * WORLD.tile)) < 1)) layer++;
+  return { x, y: surfaceY - gravity * layer * WORLD.tile };
+}
+
 export function repairSurfaceStructure(structure: UndergroundStructure, credits: number) {
   const maximum = structureIntegrity(structure.kind);
   if (!['habitat', 'turret', 'wall', 'gate', 'fort'].includes(structure.kind) ||

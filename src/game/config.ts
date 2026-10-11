@@ -183,7 +183,7 @@ export const ORE_SILHOUETTES = {
   iron: 'bars',
   silver: 'spires',
   gold: 'nuggets',
-  diamond: 'facets', nickel: 'bars', titanium: 'spires', cobalt: 'nuggets', cryocrystal: 'facets',
+  diamond: 'facets', nickel: 'hexagons', titanium: 'needles', cobalt: 'crosses', cryocrystal: 'snowflakes',
 } as const satisfies Record<Ore, string>;
 export const BANDS = [
   {
@@ -261,7 +261,7 @@ export const MAPS = {
     strata: ['GLASS CRUST', 'PRISM BED', 'SILVER FAULT', 'LUMEN VEIN', 'CORE GEODE'],
     palette: [0x645b80, 0x564f79, 0x43486f, 0x345569, 0x244f5c],
     caveChance: 0.09,
-    geodeChance: 0.12,
+    geodeChance: 0.08,
     oreFactors: { copper: 0.6, iron: 0.8, silver: 1.5, gold: 1.25, diamond: 1.4, nickel: 0.5, titanium: 0.6, cobalt: 0.8, cryocrystal: 0 },
     surface: { sky: [0x171629, 0x242344, 0x373764, 0x565480], ground: 0x655f82, edge: 0xb3b1ed, mountains: [0x2d2b4b, 0x3d3b62, 0x535273], moon: 0xc3c7ed },
   },

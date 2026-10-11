@@ -4,7 +4,7 @@
   body { overscroll-behavior: none; }
   .topbar { height: 48px; padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left)); }
   .brand { font-size: 18px; }
-  .brand small, .brand-mark, .topbar .coordinates, footer { display: none; }
+  .brand small, .brand-mark, .topbar .coordinates, .topbar .expedition, footer { display: none; }
   .top-actions { gap: 5px; }
   .top-actions button { min-width: 44px; min-height: 44px; padding: 8px; }
   #viewport { height: calc(100dvh - 48px); min-height: 0; }
@@ -42,6 +42,8 @@
   .route-map-panel { max-height: calc(100% - 110px); overflow: auto; z-index: 30; }
 }
 @media (any-pointer: coarse) and (orientation: portrait) {
+  .brand { font-size: 14px; letter-spacing: 0; }
+  .top-actions #audio, .top-actions #map-toggle { display: none; }
   .touch-rotate { display: block; position: absolute; bottom: 150px; width: 100%; text-align: center; font-size: 11px; color: #c3d2cc; }
   .telemetry { width: 245px; }
   .touch-tools { top: 65px; }
@@ -53,3 +55,5 @@
   .camp-main { padding: 12px; }
   .intro { padding: 16px; }
 }
+
+.touch-controls.placing .touch-pad, .touch-controls.placing .touch-rotate { display: none; }

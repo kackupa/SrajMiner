@@ -61,3 +61,10 @@
 @media(prefers-reduced-motion:reduce) { .planet-clouds,.orbital-traffic,.journey-ship { animation:none; }.system-atlas .atlas-world .planet-art { transition:none; } }
 @media(max-width:700px) { .atlas-map { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:16px; height:auto; min-height:0; }.system-atlas .atlas-world { position:static; transform:none; width:100%; min-height:145px; }.system-star,.system-orbits { display:none; } }
 .grounded-status { padding:16px 20px; border-left:3px solid #d3ad70; background:#223940; margin-bottom:20px; }.grounded-status p { color:#b9cbd0; line-height:1.6; margin-bottom:0; }
+.trade-terminal input,.trade-terminal select,.codex-index input { color:#e6eeee; background:#0e242d; border:1px solid #56717a; border-radius:5px; font:inherit; padding:10px; color-scheme:dark; }
+.codex-index input::placeholder { color:#a3bac1; }
+.trade-terminal .shipment-checkout { min-height:110px; height:auto; flex-shrink:0; }
+.camp-shell * { scrollbar-color:#55727b #172e37; scrollbar-width:thin; }
+.solar-flight.expedition-flight { font-family:'DM Sans',sans-serif; letter-spacing:normal; scrollbar-color:#55727b #172e37; }
+.solar-flight.expedition-flight .flight-header h1 { font:600 clamp(32px,4vw,52px) 'Barlow Condensed',sans-serif; letter-spacing:normal; }
+.solar-flight.expedition-flight .flight-route { position:sticky; bottom:0; z-index:2; height:auto; min-height:100px; flex-shrink:0; background:#17303a; box-shadow:0 -12px 30px #081720b0; }

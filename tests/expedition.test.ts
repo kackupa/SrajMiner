@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { CIVILISATION_KEYS, ORE_KEYS, ORES, MAPS } from '../src/game/config';
+import { CIVILISATION_KEYS, ORE_KEYS, ORES, MAPS, PLANET_CHART } from '../src/game/config';
+import { migrateSave, validateSave, SaveManager } from '../src/game/save/SaveManager';
 import { Progress, emptyCargo } from '../src/game/economy/Progress';
 import { quoteCivilianShipment, settleCivilianShipment, civilisationProject } from '../src/game/economy/Civilisations';
 import { TileWorld } from '../src/game/world/TileWorld';
@@ -31,4 +32,18 @@ for(const map of ['cryo-shelf','mars-frontier'] as const){
  }
 }
 assert.ok(crystal>0);assert.ok(titanium>0);
+const p=new Progress(), legacyOre={copper:12.5,iron:4,silver:2,gold:0,diamond:1};
+const migrated=migrateSave({...p,version:29,productionUpdatedAt:1,solarPosition:null,planetChart:PLANET_CHART,
+ campaignSeed:1,activeMap:'cryo-shelf',mothershipBoarded:false,cargo:legacyOre,
+ maps:{'cryo-shelf':{seed:1,x:680,y:-22,maxDepth:0,destroyed:[],discovered:[],drops:[],activeCharge:null,structures:[],warehouse:{...legacyOre,copper:40}}}});
+assert.ok(migrated,'legacy five-ore inventory remains loadable');
+assert.deepEqual(migrated.cargo,{...emptyCargo(),...legacyOre});
+assert.equal(migrated.maps['cryo-shelf']?.warehouse.copper,40);
+assert.equal(migrated.maps['cryo-shelf']?.warehouse.cryocrystal,0);
+assert.deepEqual(migrated.deliveries,{});
+const delivered={...migrated,deliveries:{'helion:copper':24}};
+assert.ok(validateSave(delivered));
+const restored=new Progress();new SaveManager().restore(restored,delivered);
+assert.deepEqual(restored.deliveries,delivered.deliveries);
+assert.equal(validateSave({...delivered,deliveries:{'helion:copper':-1}}),false);
 console.log('PASS civilisation shipments, bounded premiums, immutable cargo, ore geography, and Codex links');

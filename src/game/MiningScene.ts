@@ -1,3 +1,4 @@
+import { WallBuilder } from './ui/WallBuilder';
 import { TouchControls } from './ui/TouchControls';
 import { settleCivilianShipment } from './economy/Civilisations';
 import { CIVILISATIONS, type CivilisationId } from './config';
@@ -37,7 +38,7 @@ import { CaveAtmosphere } from './world/CaveAtmosphere';
 import { advanceOrbitalTransition, cameraAngleDelta, cameraFocusY, cameraUnzoomPoint, cameraZoomPoint, crossedPlanetCore, GLOBE_HANDOFF_ZOOM, orbitalOverviewMinZoom, planetCameraFrameAngle, planetRadialVelocity } from './world/Projection';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartLocalOffset, planetChartToCartesian, planetChartVectorToCartesian, planetTileDecorationScale, wrapPlanetTile } from './world/PlanetChart';
 import type { PlanetChartSize } from './world/PlanetChart';
-import { structureIntegrity, upgradeTurret, upgradeWarehouse, upgradeExtractor, warehouseCapacity, turretStats, linkedFort, surfaceTurretRange, canAffordStructure, findBuildSite, findSurfaceBarrierSite, findSurfaceHabitatSite, findSurfaceTradePostSite, findSurfaceTurretSite, findSurfaceWarehouseSite, globeSurfaceDistance, nearbyGlobeSurfaceStructure, nearbyServiceStation, repairSurfaceStructure, surfaceArcCoordinate, surfaceArcPoint, validateSurfaceStructureSite, type StructureKind, type SurfaceStructureKind, type UndergroundStructure } from './building/UndergroundStructures';
+import { nextWallStackSite, structureIntegrity, upgradeTurret, upgradeWarehouse, upgradeExtractor, warehouseCapacity, turretStats, linkedFort, surfaceTurretRange, canAffordStructure, findBuildSite, findSurfaceBarrierSite, findSurfaceHabitatSite, findSurfaceTradePostSite, findSurfaceTurretSite, findSurfaceWarehouseSite, globeSurfaceDistance, nearbyGlobeSurfaceStructure, nearbyServiceStation, repairSurfaceStructure, surfaceArcCoordinate, surfaceArcPoint, validateSurfaceStructureSite, type StructureKind, type SurfaceStructureKind, type UndergroundStructure } from './building/UndergroundStructures';
 type Particle = {
   x: number;
   y: number;
@@ -99,6 +100,13 @@ export class MiningScene extends Phaser.Scene {
   floating: { text: Phaser.GameObjects.Text; x: number; y: number; life: number }[] = [];
   particles: Particle[] = [];
   atmosphere = new CaveAtmosphere();
+  wallBuilder?: WallBuilder;
+  wallAutoStack = true;
+  wallPulse?: { id: string; at: number };
+  placementFocus?: { x: number; y: number };
+  placementPointer?: { x: number; y: number; touch: boolean };
+  placementDrag?: { x: number; startX: number; startY: number; moved: boolean };
+  get cameraSubject() { return this.surfacePlacement && this.placementFocus ? this.placementFocus : this.pod; }
   camX = 0;
   camY = -300;
   cameraFlip = 0;
@@ -141,6 +149,8 @@ export class MiningScene extends Phaser.Scene {
   touch?: TouchControls;
   syncInput(paused: boolean) {
     this.touch?.clear();
+    this.placementPointer = undefined;
+    this.placementDrag = undefined;
     const keyboard = this.input.keyboard;
     if (!keyboard) return;
     keyboard.resetKeys();
@@ -170,7 +180,7 @@ export class MiningScene extends Phaser.Scene {
   updatePlanetCameraFrame(dt: number) {
     const chart = this.world.planetChart;
     if (!chart) return;
-    const target = planetCameraFrameAngle(this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, chart);
+    const target = planetCameraFrameAngle(this.cameraSubject.x / WORLD.tile, this.cameraSubject.y / WORLD.tile, chart);
     this.cameraTurnLabelRemaining = Math.max(0, this.cameraTurnLabelRemaining - dt);
     if (target === undefined) return;
     if (this.reducedMotion) {
@@ -208,8 +218,8 @@ export class MiningScene extends Phaser.Scene {
 
   worldPointToLocal(x: number, y: number, width: number, height: number) {
     const angle = this.viewRotation, cos = Math.cos(angle), sin = Math.sin(angle);
-    const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
-    let dx = x - this.pod.x, dy = y - cameraY;
+    const cameraY = cameraFocusY(this.cameraSubject.y, this.cameraLookAhead, this.viewRotation);
+    let dx = x - this.cameraSubject.x, dy = y - cameraY;
     if (this.world.planetChart) {
       const chart = this.world.planetChart, size = WORLD.tile;
       const point = planetChartToCartesian({ u: x / size, v: y / size }, chart.columns, chart.radiusRows, size);
@@ -224,10 +234,10 @@ export class MiningScene extends Phaser.Scene {
 
   planetCameraFocus() {
     const chart = this.world.planetChart;
-    if (!chart) return { x: this.pod.x, y: cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation) };
-    const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
+    if (!chart) return { x: this.cameraSubject.x, y: cameraFocusY(this.cameraSubject.y, this.cameraLookAhead, this.viewRotation) };
+    const cameraY = cameraFocusY(this.cameraSubject.y, this.cameraLookAhead, this.viewRotation);
     const pod = planetChartToCartesian(
-      { u: this.pod.x / WORLD.tile, v: cameraY / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile,
+      { u: this.cameraSubject.x / WORLD.tile, v: cameraY / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile,
     );
     const orbit = Phaser.Math.SmoothStep(this.orbitalTransition, 0, 1);
     return { x: pod.x * (1 - orbit), y: pod.y * (1 - orbit) };
@@ -247,8 +257,8 @@ export class MiningScene extends Phaser.Scene {
       return { x: chartPoint.u * WORLD.tile, y: chartPoint.v * WORLD.tile };
     }
     return {
-      x: this.pod.x + dx * cos - dy * sin,
-      y: cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation) + dx * sin + dy * cos,
+      x: this.cameraSubject.x + dx * cos - dy * sin,
+      y: cameraFocusY(this.cameraSubject.y, this.cameraLookAhead, this.viewRotation) + dx * sin + dy * cos,
     };
   }
 
@@ -695,7 +705,16 @@ export class MiningScene extends Phaser.Scene {
       MAP: () => this.ui.toggleMap(),
       CHARGE: () => this.deployCharge(),
       CANCEL: () => this.cancelSurfacePlacement(),
+      PLACE: () => this.confirmSurfacePlacement(),
     });
+    this.wallBuilder = new WallBuilder({
+      lower: () => this.nudgeSurfaceWallHeight(-1),
+      raise: () => this.nudgeSurfaceWallHeight(1),
+      auto: () => { this.wallAutoStack = !this.wallAutoStack; this.snapWallStack(); },
+      place: () => this.confirmSurfacePlacement(),
+      done: () => this.cancelSurfacePlacement(),
+    });
+    this.wallBuilder.root.addEventListener('pointerenter', () => { this.placementPointer = undefined; });
     this.input.keyboard!.on('keydown-B', () => {
       if (this.ui.hasStarted && !this.ui.modal && !this.surfacePlacement && (this.planetSurface || this.depth >= UNDERGROUND_BUILDING.minimumDepthMeters && this.depth <= 3400))
         this.ui.open('construction');
@@ -739,6 +758,7 @@ export class MiningScene extends Phaser.Scene {
     document.addEventListener('keydown', handleDialogTab);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.touch?.destroy();
+      this.wallBuilder?.destroy();
       window.removeEventListener('resize', resize);
       this.solarView?.destroy(); this.solarView = undefined;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -799,15 +819,40 @@ export class MiningScene extends Phaser.Scene {
         this.cancelSurfacePlacement();
         return;
       }
+      if (pointer.button !== 0) return;
+      this.placementDrag = { x: pointer.x, startX: pointer.x, startY: pointer.y, moved: false };
       this.updateSurfacePlacementFromPointer(pointer.x, pointer.y);
-      this.confirmSurfacePlacement();
     });
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.surfacePlacement) this.mouseAimActive = true;
-      if (this.surfacePlacement && !this.ui.paused && !this.ui.modal)
+      if (this.surfacePlacement && !this.ui.paused && !this.ui.modal) {
+        this.placementPointer = { x: pointer.x, y: pointer.y, touch: pointer.wasTouch };
+        const drag = this.placementDrag;
+        if (drag && pointer.isDown) {
+          drag.moved ||= Math.hypot(pointer.x - drag.startX, pointer.y - drag.startY) > 8;
+          if (drag.moved) this.panPlacement((drag.x - pointer.x) / this.cameraZoom);
+          drag.x = pointer.x;
+        }
         this.updateSurfacePlacementFromPointer(pointer.x, pointer.y);
+      }
     });
-    this.scale.on('resize', () => this.updateSurfacePlacementLabel());
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      const drag = this.placementDrag;
+      this.placementDrag = undefined;
+      if (!this.surfacePlacement || this.ui.paused || this.ui.modal || !drag) return;
+      if (!drag.moved && !pointer.wasTouch) {
+        this.updateSurfacePlacementFromPointer(pointer.x, pointer.y);
+        this.confirmSurfacePlacement();
+      }
+    });
+    const clearPlacementPointer = () => { this.placementPointer = undefined; this.placementDrag = undefined; };
+    this.game.canvas.addEventListener('pointerleave', clearPlacementPointer);
+    this.game.canvas.addEventListener('pointercancel', clearPlacementPointer);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.game.canvas.removeEventListener('pointerleave', clearPlacementPointer);
+      this.game.canvas.removeEventListener('pointercancel', clearPlacementPointer);
+    });
+    this.scale.on('resize', () => { clearPlacementPointer(); this.updateSurfacePlacementLabel(); });
     this.game.canvas.addEventListener('contextmenu', (event) => {
       if (this.surfacePlacement) event.preventDefault();
     });
@@ -923,6 +968,7 @@ export class MiningScene extends Phaser.Scene {
           paused: this.ui.paused,
           docked: this.pod.docked,
           overlaps: this.pod.overlaps(this.pod.x, this.pod.y).length,
+          placementCamera: this.surfacePlacement ? { ...this.cameraSubject } : null,
           placement: this.surfacePlacement ? { ...this.surfacePlacement, valid: this.surfacePlacementCheck()?.valid ?? false } : null,
         }),
       });
@@ -1130,9 +1176,26 @@ export class MiningScene extends Phaser.Scene {
       site = candidate;
       if (check.valid || check.reason !== 'OCCUPIED') break;
     }
+    this.placementFocus = { x: this.pod.x, y: this.pod.y };
+    this.placementPointer = undefined;
+    this.placementDrag = undefined;
+    this.wallAutoStack = true;
     this.surfacePlacement = { kind, ...site };
+    this.snapWallStack();
     this.updateSurfacePlacementLabel();
     return true;
+  }
+  snapWallStack() {
+    const placement = this.surfacePlacement;
+    if (placement?.kind === 'wall' && this.wallAutoStack)
+      this.surfacePlacement = { ...placement, ...nextWallStackSite(this.world, placement, this.structures) };
+    this.updateSurfacePlacementLabel();
+  }
+  panPlacement(distance: number) {
+    if (!this.surfacePlacement || !this.placementFocus) return;
+    const arc = surfaceArcCoordinate(this.world, this.placementFocus.x, this.placementFocus.y);
+    const site = surfaceArcPoint(this.world, arc + distance, false);
+    this.placementFocus = { x: site.x, y: site.y - this.world.gravitySign(site.y) * 22 };
   }
   updateSurfacePlacementFromPointer(screenX: number, screenY: number) {
     const placement = this.surfacePlacement, chart = this.world.planetChart;
@@ -1149,20 +1212,24 @@ export class MiningScene extends Phaser.Scene {
       site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row)),
       gravity = this.world.gravitySign(row);
     this.surfacePlacement = { ...placement, ...site, y: row - gravity * outwardOffset };
-    this.updateSurfacePlacementLabel();
+    this.snapWallStack();
   }
   nudgeSurfacePlacement(delta: number) {
     const placement = this.surfacePlacement;
     if (!placement) return;
     const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta);
     this.surfacePlacement = { ...placement, ...site };
+    this.placementFocus = { x: site.x, y: site.y - this.world.gravitySign(site.y) * 22 };
+    this.placementPointer = undefined;
     this.updateSurfacePlacementLabel();
   }
   nudgeSurfaceWallHeight(levelDelta: number) {
     const placement = this.surfacePlacement;
     if (!placement || placement.kind !== 'wall') return;
+    this.wallAutoStack = false;
+    this.placementPointer = undefined;
     const gravity = this.world.gravitySign(placement.y), surfaceY = placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
-      currentOffset = Math.abs(placement.y - surfaceY), nextOffset = Math.max(0, currentOffset + levelDelta * WORLD.tile);
+      currentOffset = Math.abs(placement.y - surfaceY), nextOffset = Math.min((UNDERGROUND_BUILDING.wall.maxPerMap - 1) * WORLD.tile, Math.max(0, currentOffset + levelDelta * WORLD.tile));
     this.surfacePlacement = { ...placement, y: surfaceY - gravity * nextOffset };
     this.updateSurfacePlacementLabel();
   }
@@ -1184,8 +1251,10 @@ export class MiningScene extends Phaser.Scene {
     }
     const check = this.surfacePlacementCheck(), rule = UNDERGROUND_BUILDING[placement.kind],
       resources = Object.entries(rule.materials).map(([ore, count]) => `${count} ${ore.slice(0, 2).toUpperCase()}`).join(' / '),
-      status = check?.valid ? 'SITE CLEAR' : check?.reason ?? 'SITE BLOCKED';
-    this.buildPlacementLabel.setText(`${placement.kind.replace('-', ' ').toUpperCase()} · ${rule.widthTiles} TILES · $${rule.credits} + ${resources}  |  ${status}  |  ${placement.kind === 'wall' ? '←/→ MOVE · ↑/↓ STACK · ' : ''}CLICK / ENTER · ESC`)
+      status = check?.valid ? 'SITE CLEAR' : check?.reason ?? 'SITE BLOCKED',
+      placementHelp = matchMedia('(any-pointer: coarse)').matches ? 'DRAG TO PAN · TAP SITE · PLACE / CANCEL' : 'DRAG / EDGE TO PAN · CLICK / ENTER · ESC';
+    this.buildPlacementLabel.setText(`${placement.kind.replace('-', ' ').toUpperCase()} · ${rule.widthTiles} TILES · $${rule.credits} + ${resources}  |  ${status}  |  ${placement.kind === 'wall' ? '←/→ MOVE · ↑/↓ STACK · ' : ''}${placementHelp}`)
+      .setWordWrapWidth(Math.max(200, this.scale.width - 32))
       .setColor(check?.valid ? '#d9f5df' : '#ffc0a8')
       .setPosition(this.scale.width / 2, this.scale.height - 56)
       .setVisible(true);
@@ -1194,7 +1263,8 @@ export class MiningScene extends Phaser.Scene {
     if (!this.surfacePlacement) return;
     this.surfacePlacement = undefined;
     this.buildPlacementLabel.setVisible(false);
-    this.ui.toast('BUILD CANCELLED · No materials or credits spent.');
+    this.wallBuilder?.update(false);
+    this.ui.toast('BUILD MODE CLOSED · Unplaced preview discarded.');
   }
   confirmSurfacePlacement() {
     const placement = this.surfacePlacement;
@@ -1220,6 +1290,20 @@ export class MiningScene extends Phaser.Scene {
       this.ui.toast('SAVE FAILED · BUILD NOT PLACED · NOTHING SPENT.');
       this.updateSurfacePlacementLabel();
       return false;
+    }
+    if (structure.kind === 'wall') {
+      const surfaceY = structure.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY;
+      const layer = 1 + Math.round(Math.abs(structure.y - surfaceY) / WORLD.tile);
+      this.wallAutoStack = true;
+      this.placementPointer = undefined;
+      this.wallPulse = { id: structure.id, at: this.tick };
+      this.surfacePlacement = { kind: 'wall', ...nextWallStackSite(this.world, structure, this.structures) };
+      this.placementFocus = { x: this.placementFocus?.x ?? structure.x, y: this.surfacePlacement.y - this.world.gravitySign(structure.y) * 22 };
+      this.burst(structure.x, structure.y, 0xffd58c, 12);
+      this.float(layer > 1 ? 'STACK ×' + layer : 'FOUNDATION LOCKED', structure.x, structure.y - this.world.gravitySign(structure.y) * 44, '#ffdc94');
+      this.soundFx.tone(220 + Math.min(layer, 12) * 55, 0.14, 'triangle', 0.06, 330 + Math.min(layer, 12) * 55);
+      this.updateSurfacePlacementLabel();
+      return true;
     }
     this.surfacePlacement = undefined;
     this.buildPlacementLabel.setVisible(false);
@@ -1837,10 +1921,21 @@ export class MiningScene extends Phaser.Scene {
   }
   update(_time: number, delta: number) {
     if (!this.ui) return;
+    document.getElementById('viewport')?.classList.toggle('surface-placement-active', !!this.surfacePlacement);
     this.touch?.update(this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.solarView);
     this.touch?.available('SERVICES', this.surface && !this.surfacePlacement);
     this.touch?.available('BUILD', !this.surfacePlacement && (this.planetSurface || this.depth >= UNDERGROUND_BUILDING.minimumDepthMeters && this.depth <= 3400));
     this.touch?.available('CANCEL', !!this.surfacePlacement);
+    this.touch?.available('PLACE', !!this.surfacePlacement);
+    this.touch?.root.classList.toggle('placing', !!this.surfacePlacement);
+    this.touch?.root.classList.toggle('wall-placing', this.surfacePlacement?.kind === 'wall');
+    const wall = this.surfacePlacement?.kind === 'wall' ? this.surfacePlacement : undefined;
+    const wallCheck = wall ? this.surfacePlacementCheck() : undefined;
+    const wallLayer = wall ? 1 + Math.round(Math.abs(wall.y - (wall.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY)) / WORLD.tile) : 1;
+    this.wallBuilder?.update(!!wall && !this.ui.paused && !this.ui.modal, wallLayer, this.wallAutoStack,
+      this.structures.filter(entry => entry.kind === 'wall').length, UNDERGROUND_BUILDING.wall.maxPerMap, !!wallCheck?.valid,
+      wallCheck?.valid ? 'Click to lock a block. Keep clicking to stack! Drag to pan · Done / Esc to finish.'
+      : wallCheck && !wallCheck.valid && wallCheck.reason === 'OCCUPIED' ? 'Needs a clear, supported layer. Try Auto-stack.' : wallCheck && !wallCheck.valid ? wallCheck.reason : '');
     this.touch?.available('CHARGE', this.progress.charges > 0 && !this.surfacePlacement);
     this.touch?.available('R', this.progress.returnWinch && !this.mothershipBoarded);
     this.touch?.available('G', this.progress.grappleOwned && !this.mothershipBoarded);
@@ -2189,8 +2284,19 @@ export class MiningScene extends Phaser.Scene {
             Phaser.Math.Clamp(this.pod.y / 400, 0, 1),
           ),
       );
+    if (this.surfacePlacement && !this.ui.paused && !this.ui.modal) {
+      const pointer = this.placementPointer;
+      if (pointer && !pointer.touch && !this.placementDrag) {
+        const margin = Math.min(70, this.scale.width * 0.12);
+        const edge = pointer.x < margin ? (pointer.x - margin) / margin
+          : pointer.x > this.scale.width - margin ? (pointer.x - this.scale.width + margin) / margin : 0;
+        if (edge) this.panPlacement(edge * 440 * dt / this.cameraZoom);
+      }
+    }
     if (this.world.planetChart) this.updatePlanetCameraFrame(dt);
-    else this.updateCameraFlip(dt);
+    if (this.surfacePlacement && this.placementPointer && !this.ui.paused && !this.ui.modal)
+      this.updateSurfacePlacementFromPointer(this.placementPointer.x, this.placementPointer.y);
+    if (!this.world.planetChart) this.updateCameraFlip(dt);
       const localZoomFloor = this.world.planetChart ? GLOBE_HANDOFF_ZOOM : this.minimumCameraZoom,
         zoomToGlobe = !!this.world.planetChart && (this.globeViewRequested || this.inOrbit),
         atHandoffZoom = Math.abs(this.cameraZoom - GLOBE_HANDOFF_ZOOM) <= 0.0005;
@@ -2210,7 +2316,7 @@ export class MiningScene extends Phaser.Scene {
     this.camY += (goalY - this.camY) * (1 - Math.exp(-6 * dt));
     this.drillRecoil *= Math.exp(-18 * dt);
     this.shake = Math.max(0, this.shake - dt * 15);
-    this.world.prune(this.pod.y, this.pod.x);
+    this.world.prune(this.cameraSubject.y, this.cameraSubject.x);
     this.atmosphere.update(this.world, dt, this.atmosphereView(), this.reducedMotion, this.ui.paused);
     for (const particle of this.particles) {
       particle.life -= dt;
@@ -2538,7 +2644,7 @@ export class MiningScene extends Phaser.Scene {
     let left: number, right: number, top: number, bottom: number;
     if (this.world.planetChart) {
       const span = Math.ceil(Math.max(w, h) / (2 * this.cameraZoom * T)) + 4,
-        centerX = Math.floor(this.pod.x / T), centerY = Math.floor(this.pod.y / T);
+        centerX = Math.floor(this.cameraSubject.x / T), centerY = Math.floor(this.cameraSubject.y / T);
       left = centerX - span; right = centerX + span;
       top = Math.max(0, centerY - span); bottom = Math.min(this.world.farSurfaceRow - 1, centerY + span);
     } else {
@@ -2656,7 +2762,19 @@ export class MiningScene extends Phaser.Scene {
               scale = (unitAmount >= 3 ? 1.45 : unitAmount >= 2 ? 1.2 : unitAmount < 1 ? 0.75 : 1) * markerScale,
               crystalX = markerX + (ox - 20) * markerScale, crystalY = markerY + (oy - 20) * markerScale;
             g.fillStyle(color, markerAlpha);
-            if (silhouette === 'facets')
+            if (silhouette === 'hexagons' || silhouette === 'snowflakes') {
+              const star=silhouette==='snowflakes', count=star?12:6;
+              g.fillPoints(Array.from({length:count},(_,j)=>{
+                const angle=j*Math.PI*2/count,r=(star&&j%2?2:5)*scale;
+                return {x:crystalX+Math.cos(angle)*r,y:crystalY+Math.sin(angle)*r};
+              }),true);
+            } else if(silhouette==='needles') {
+              g.fillRect(crystalX-4*scale,crystalY-5*scale,2*scale,10*scale);
+              g.fillRect(crystalX+2*scale,crystalY-2*scale,2*scale,7*scale);
+            } else if(silhouette==='crosses') {
+              g.fillRect(crystalX-5*scale,crystalY-scale,10*scale,2*scale);
+              g.fillRect(crystalX-scale,crystalY-5*scale,2*scale,10*scale);
+            } else if (silhouette === 'facets')
               g.fillPoints(
                 [
                   { x: crystalX, y: crystalY - 4 * scale },
@@ -2802,9 +2920,14 @@ export class MiningScene extends Phaser.Scene {
           g.strokePoints(points, true);
         };
         if (structure.kind === 'wall') {
-          rectangle(0, 0, 38, 48, 0x59635f);
-          rectangle(0, 5, 28, 37, 0x303b39);
-          rectangle(0, 7, 7, 33, 0xc0a978);
+          const layer = Math.round(Math.min(Math.abs(structure.y), Math.abs(structure.y - this.world.farSurfaceY)) / WORLD.tile);
+          rectangle(0, 0, 38, WORLD.tile, layer % 2 ? 0x657d7c : 0x59635f);
+          rectangle(0, 4, 28, 31, 0x253c40);
+          rectangle(0, 6, 6, 27, 0xc0a978);
+          rectangle(0, 36, 38, 4, 0xd3b97f);
+          for (let light = 0; light <= Math.min(layer, 5); light++) rectangle(-10 + light * 4, 29, 2, 3, 0x94ead2);
+          const pulse = this.wallPulse?.id === structure.id ? 1 - (this.tick - this.wallPulse.at) / 0.55 : 0;
+          if (pulse > 0 && !this.reducedMotion) rectangle(0, 0, 40, WORLD.tile, 0xffd58c, pulse * 0.55);
           rectangle(-15, 0, 5, 12, 0x9faeb5);
           rectangle(15, 0, 5, 12, 0x9faeb5);
           if ((structure.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity) {
@@ -3120,7 +3243,7 @@ export class MiningScene extends Phaser.Scene {
         g.strokePoints(range, true);
       }
       const bodyWidth = placement.kind === 'habitat' ? 86 : placement.kind === 'trade-post' ? 62 : placement.kind === 'warehouse' ? 76 : placement.kind === 'gate' ? 120 : placement.kind === 'wall' ? 38 : 26,
-        bodyHeight = placement.kind === 'habitat' ? 48 : placement.kind === 'trade-post' ? 42 : placement.kind === 'warehouse' ? 38 : placement.kind === 'gate' || placement.kind === 'wall' ? 48 : 24,
+        bodyHeight = placement.kind === 'wall' ? WORLD.tile - 8 : placement.kind === 'habitat' ? 48 : placement.kind === 'trade-post' ? 42 : placement.kind === 'warehouse' ? 38 : placement.kind === 'gate' ? 48 : 24,
         ghost = [pointAt(-bodyWidth / 2, 8), pointAt(bodyWidth / 2, 8), pointAt(bodyWidth / 2, bodyHeight + 8), pointAt(-bodyWidth / 2, bodyHeight + 8)];
       g.fillStyle(placement.kind === 'turret' || placement.kind === 'gate' ? 0xf0b779 : placement.kind === 'warehouse' ? 0xc58c4e : placement.kind === 'wall' ? 0x9faeb5 : 0xa4efd9, 0.36);
       g.fillPoints(ghost, true);
@@ -3132,7 +3255,7 @@ export class MiningScene extends Phaser.Scene {
       g.strokeCircle(anchor.x, anchor.y, 7);
       g.lineBetween(anchor.x - 12, anchor.y, anchor.x + 12, anchor.y);
       g.lineBetween(anchor.x, anchor.y - 12, anchor.x, anchor.y + 12);
-      this.buildPlacementLabel.setPosition(w / 2, h - 56).setVisible(true);
+      this.buildPlacementLabel.setPosition(w / 2, h - 56).setVisible(placement.kind !== 'wall');
     } else this.buildPlacementLabel.setVisible(false);
     for (const drop of this.oreDrops) {
       if (!isOnScreen(drop.x, drop.y, 24)) continue;

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { MAPS } from '../src/game/config';
 import { TileWorld, keyOf, type Tile } from '../src/game/world/TileWorld';
 import { RockSwimmer, swimmerKindForEncounter } from '../src/game/world/RockSwimmer';
 import { SurfaceRaid } from '../src/game/world/SurfaceRaid';
@@ -1556,6 +1557,16 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
   const currentSave = { ...version24Save, version: 30 as const, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, coreFuel: 0, mothershipBoarded: false };
   assert.equal(validateSave(version24Save), false, 'version-24 saves migrate before current validation');
   assert.equal(validateSave(currentSave), true);
+  const legacyOre = { copper: 12.5, iron: 4, silver: 2, gold: 0, diamond: 1 };
+  const expandedInventory = migrateSave({ ...currentSave, version: 29, deliveries: undefined, cargo: legacyOre,
+    maps: { 'cryo-shelf': { ...currentSave.maps['cryo-shelf'], warehouse: { ...legacyOre, copper: 40 } } } });
+  assert.ok(expandedInventory, 'v29 inventory migrates');
+  assert.deepEqual(expandedInventory.cargo, { ...emptyCargo(), ...legacyOre });
+  assert.equal(expandedInventory.maps['cryo-shelf']?.warehouse.copper, 40);
+  assert.equal(expandedInventory.maps['cryo-shelf']?.warehouse.cryocrystal, 0);
+  assert.deepEqual(expandedInventory.deliveries, {});
+  assert.equal(validateSave({ ...expandedInventory, deliveries: { 'helion:copper': 24 } }), true);
+  assert.equal(validateSave({ ...expandedInventory, deliveries: { 'helion:copper': -1 } }), false);
   const migratedMiningSave = migrateSave({ ...currentSave, version: 28, productionUpdatedAt: undefined,
     maps: { 'cryo-shelf': { ...currentSave.maps['cryo-shelf'], structures: [
       { id: 'warehouse:1000:0', kind: 'warehouse', x: 1000, y: 0 },
@@ -2026,9 +2037,9 @@ test('ore yields vary visibly and remain deterministic for the same tile', () =>
 });
 test('each ore maps to a distinct color-independent silhouette', () => {
   const silhouettes = ORE_KEYS.map((ore) => ORE_SILHOUETTES[ore]);
-  assert.equal(silhouettes.length, 5);
+  assert.equal(silhouettes.length, ORE_KEYS.length);
   assert.equal(new Set(silhouettes).size, silhouettes.length);
-  assert.deepEqual(silhouettes, ['chips', 'bars', 'spires', 'nuggets', 'facets']);
+  assert.deepEqual(silhouettes.slice(0,5), ['chips', 'bars', 'spires', 'nuggets', 'facets']);
 });
 test('survey map ore symbols have distinct canvas geometry without relying on color', () => {
   const signatures = ORE_KEYS.map((ore) => {

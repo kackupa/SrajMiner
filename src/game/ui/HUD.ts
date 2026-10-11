@@ -53,6 +53,21 @@ export function drawOreSymbol(ctx: CanvasRenderingContext2D, ore: keyof typeof O
   const half = size / 2;
   ctx.beginPath();
   switch (ORE_SILHOUETTES[ore]) {
+    case 'hexagons':
+    case 'snowflakes': {
+      const star=ore==='cryocrystal', count=star?12:6;
+      for(let i=0;i<count;i++) { const angle=i*Math.PI*2/count, r=star&&i%2?half*.35:half;
+        const px=x+Math.cos(angle)*r,py=y+Math.sin(angle)*r;
+        if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);
+      }
+      ctx.closePath();ctx.fill();break;
+    }
+    case 'needles':
+      ctx.fillRect(x-half,y-half,size*.25,size);
+      ctx.fillRect(x+size*.15,y-size*.25,size*.2,size*.65);break;
+    case 'crosses':
+      ctx.fillRect(x-half,y-size*.15,size,size*.3);
+      ctx.fillRect(x-size*.15,y-half,size*.3,size);break;
     case 'chips':
       ctx.fillRect(x - half, y - half, size * 0.42, size * 0.42);
       ctx.fillRect(x + size * 0.08, y + size * 0.08, size * 0.42, size * 0.42);
@@ -444,7 +459,7 @@ export class HUD {
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
     const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL · LAND IN ORBIT</span></div><div><kbd>W</kbd><span>THRUST UP · TAKE OFF ABOARD</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>NEARBY STATION · BOARD AT SHIP</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>G</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">Q MINING CHARGE · X STASIS · R SURFACE WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? controlsScreen : titleScreen}</section>`;
+      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? matchMedia('(any-pointer: coarse)').matches ? `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">TOUCH FIELD GUIDE</span></div><h2>Two thumbs. One expedition.</h2><p>Use the left arrows to steer and hold ↑ to thrust upward or brake a fall. Hold the right arrows to drill down or sideways. Sideways movement also drills when you meet rock.</p><p>You can thrust and drill together. Release a button to stop its action. Board the mothership for storage, recharge and repairs; Services opens the camp panels. Sell ore after building a Market uplink.</p><p>Landscape gives you the widest view. The top-right pause button stops the expedition. Rotate or switch apps safely: held controls clear automatically.</p><p class="intro-risk">WATCH YOUR BATTERY · LEAVE ENOUGH FOR THE RETURN.</p><div class="intro-detail-actions">${launchButton}</div></div>` : controlsScreen : titleScreen}</section>`;
     document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((node) => node.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((other) => {
         const selected = other === node;
@@ -759,7 +774,7 @@ export class HUD {
       if (this.actions.buildStructure('trade-post')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Move the pointer to a surface site. Click or press Enter to build; Escape cancels.');
+          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
           return;
         }
         this.toast('Trading post established. Build another on a different planet to link the exchange.');
@@ -770,7 +785,7 @@ export class HUD {
       if (this.actions.buildStructure('warehouse')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Move the pointer to a clear surface site. Click or press Enter to build; Escape cancels.');
+          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
           return;
         }
         this.toast('Ore warehouse online. Press E nearby to manage this planet’s stock.');
@@ -792,7 +807,7 @@ export class HUD {
       if (this.actions.buildStructure('habitat')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Move the pointer to a surface site. Click or press Enter to build; Escape cancels.');
+          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
           return;
         }
         this.toast('Colony habitat online. Press E nearby to service the miner.');
@@ -803,7 +818,7 @@ export class HUD {
       if (this.actions.buildStructure('turret')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Move the pointer to a surface site. Click or press Enter to build; Escape cancels.');
+          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
           return;
         }
         this.toast('Sentry online. It intercepts rock swimmers that enter range.');

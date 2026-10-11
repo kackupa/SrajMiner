@@ -11,7 +11,7 @@ export class TouchControls {
       `<button type="button" data-hold="${key}" aria-label="${label}">${text}</button>`;
     this.root.innerHTML = `<div class="touch-tools">${Object.keys(actions).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}${hold('R', 'Hold return winch', 'WINCH')}${hold('X', 'Hold stasis', 'STASIS')}${hold('G', 'Toggle grapple', 'GRAPPLE')}</div>
       <div class="touch-pad touch-flight"><span>MOVE / THRUST</span>${hold('W', 'Thrust upward', '↑')}${hold('A', 'Move left', '←')}${hold('D', 'Move right', '→')}</div>
-      <div class="touch-pad touch-drill"><span>HOLD TO DRILL</span>${hold('S', 'Drill down', '↓')}${hold('A', 'Drill left', '↙')}${hold('D', 'Drill right', '↘')}</div>
+      <div class="touch-pad touch-drill"><span>HOLD TO DRILL</span>${hold('S', 'Drill down', '↓')}${hold('A', 'Drill left', '←')}${hold('D', 'Drill right', '→')}</div>
       <small class="touch-rotate">Rotate for a wider view</small>`;
     document.querySelector('#viewport')!.append(this.root);
     const options = { signal: this.abort.signal };

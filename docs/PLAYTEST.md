@@ -1,5 +1,25 @@
 # 15-minute campaign playtest
 
+## Placement camera check — 2026-10-11
+
+- Desktop Chromium: edge-scrolled the placement camera from x=680 to x=1601, then dragged another 220 world units. The miner remained at (680, -22), with unchanged cargo and no structure created during the drag.
+- Clicked the previewed habitat site at x=1820, beyond the original viewport. Exactly 6 copper and 4 iron were deducted once; the remote camp and remaining materials survived reload. Cancelling a second panned placement cost nothing and reset the placement camera.
+- Pixel 7 touch emulation at 844×390: dragging advanced the camera without building. Tapping a site followed by PLACE built the habitat at x=980 and charged exactly one construction cost. Movement pads are hidden during placement to leave the map available for dragging.
+- Screenshots: `output/playwright/placement-pan-preview.png` and `output/playwright/placement-touch-preview.png`. Repeatable desktop regression: `tests/browser-placement-pan.js` (start with a funded habitat preview in an isolated save).
+- Real mobile hardware and a complete circumnavigation during placement remain untested.
+- `npm install` completed. The system suite passed the placement, collision and return checks, then stopped at the unrelated `geodes should remain a special find` assertion (`tests/systems.test.ts:2073`). This placement change does not modify geology or its balance data.
+
+## Mobile implementation check — 2026-10-11
+
+- Chromium with Pixel 7 touch emulation: landscape 844×390 and portrait 390×844 fit without horizontal document overflow. Screenshots are in ignored `output/playwright/mobile-*.png`.
+- Real emulated touch contacts drilled seven cells, collected 3 copper and 3 iron, and returned to the mothership with 100 hull and no overlap. Simultaneous thrust/drill contacts registered independently; cancelling cleared both.
+- Board opened the full-screen warehouse. A prebuilt Market uplink fixture enabled transaction testing without grinding the camp prerequisite. The genuine mined haul sold for 156 credits across two shipments. Reload preserved credits, empty cargo and all seven destroyed cells.
+- Rotation cleared held input. Pause hid the touch controls. A browser blur event paused the expedition and cleared held input; Resume restored controls.
+- Desktop Chromium at 1440×900 kept touch controls hidden; keyboard descent/mining and upward return passed with zero overlaps. The touch-specific How to play page also rendered without portrait overflow.
+- An initial test used an ambiguous CDP partial touch release and timed out during return. The corrected test explicitly cancels contacts before starting a new thrust gesture. Shipment fields require blur to commit their quantities before checkout.
+- `npm install` succeeded. Production build passed with the existing large-bundle warning. `npm test` stopped at the ore-generation test expecting five types but finding eight (`tests/systems.test.ts:2010`); mobile changes do not alter geology. Atmosphere, solar and expedition suites passed separately.
+- Not tested on physical iPhone/Android devices. Safari behavior, browser-bar/notch behavior on hardware, sustained performance, advanced equipment, all building-placement flows and extended interplanetary play remain unverified.
+
 Use this with the campaign already in your browser. Keep your current save; do not start a new expedition just for the test. Play normally for about 15 minutes and note anything that interrupts the mining loop. Rough estimates are useful: there is no need to measure with a stopwatch or open developer tools.
 
 ## During play
@@ -52,3 +72,14 @@ Fresh campaigns land and deploy before play, with no automatic camp buildings or
 ## Current progression check — Interplanetary Miner
 
 For a fresh expedition, check that the $0 start is understandable: mine 6 copper and 4 iron for the Mining camp, then 4 copper, 4 iron and 2 silver for the Market uplink. Both use materials only. Check that the uplink unlocks sales and upgrades, the mothership recharges the rig free, and camp repair stations cannot recharge. Cores and core crossings give no cash; cores supply ship fuel. Compare the rig battery and ship fuel labels for clarity. The earlier dated results above describe the previous economy.
+# 2026-10-11 — Trade, worlds and technology reading
+
+Final automated verification passed: 174 system tests plus atmosphere, route and expedition suites, production build and whitespace checks. The final route-label browser check passed with an explicit recovered-core fixture; selecting Mars leaves Cryo correctly labelled as the current world.
+
+Verified the new browser flow through a $583 selected copper shipment, preserved warehouse reserves, project progression after reload, Codex search/cross-links, physical mothership ascent and fuel-priced travel to Mars. The browser test uses funded/core-recovered fixtures; it does not replace a full fresh-campaign balance run. Check civilian stories from the buyer panel and technology explanations from the Workshop or pause menu. Screenshots are under `output/playwright/expedition-*.png`; detailed quantities and limitations are in QA.md.
+
+## 2026-10-11 — Wall stacking
+
+Browser-tested funded fixtures on desktop Chromium and emulated mobile touch. Three repeated canvas clicks built one column at y=0,-40,-80. The toolbar built five blocks, charged exactly $400 and 5 copper, blocked unsupported layers and further building at zero credits, and preserved all blocks and balances through reload. Touch Build block built three layers, charged $240, and Done closed placement. Screenshots: output/playwright/wall-stack-desktop.png and wall-stack-mobile.png. Physical phone hardware and a complete earned-resource campaign were not tested.
+
+The focused wall rules test covers both hemispheres, overlap prevention, neighboring foundations, legacy-column snapping, missing-support rebuilding and affordability. npm install, the full existing npm test suite and production build passed; the build retains its bundle-size advisory. The focused test is now included in npm test.

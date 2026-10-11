@@ -15,6 +15,16 @@ npm run build
 
 Vite prints the local game URL. Saves belong to that browser origin. The production build is written to `dist/`.
 
+## Mobile controls
+
+When placing a camp or another surface building, drag the map sideways or hold the mouse near the left/right screen edge to pan around the planet. Arrow-key placement also brings the selected site into view. A mouse click or Enter confirms; Escape/right-click cancels. On touch screens, drag to pan, tap a site, then tap **PLACE** (or **CANCEL**). Dragging never spends materials. Completing or cancelling placement returns the camera to the miner.
+
+The same game and save format support touch devices. Landscape is recommended; portrait remains playable. The left pad steers and thrusts upward, while the right pad drills down or sideways. Sideways steering also drills against rock, just as keyboard movement does. Multiple fingers can hold thrust and drilling together. Board/Disembark, Services, Build and Map are available on screen; equipment controls appear when owned. The pause button stays in the top bar.
+
+Touch inputs clear on rotation, menu entry, cancellation and loss of focus. Phone layouts use a compact battery/hull/cargo HUD, safe-area spacing and full-screen service panels. How to play shows touch instructions on touch devices. No mobile fork, backend or save migration is required.
+
+Verified with Chromium mobile emulation at 844×390 and 390×844, including mining, return, transactions and reload. Real iPhone Safari/Android hardware, thermal performance and extended interplanetary play still need device testing; this is not a claim of full mobile certification.
+
 ## The mining loop
 
 1. Deploy from the mothership on the Cryo Shelf. Mine copper and iron nearby.
@@ -41,7 +51,17 @@ At the mothership, **Quick services** provides common actions. **Full services**
 
 ## Saves and compatibility
 
-Campaigns remain under `mars-miner.v1`, save version 29. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field now represents rig battery charge, preserving its saved value and upgrades. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay. No new save fields are needed for this change.
+Campaigns remain under `mars-miner.v1`, save version 30. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
+
+## Worlds, customers and the Expedition Codex
+
+The planet atlas previews geology and expedition footholds. In orbit, the flight deck shows route fuel cost and remaining fuel before an explicit departure, with a skippable transit sequence. Civilian worlds are trading partners, not playable mining destinations.
+
+Teletrade offers four customers: Helion's municipal works, Kepler's shipyards, Verdant's growers and Lyra's research institute. Each has three development projects. Selected shipments earn a capped 35% premium on the current project's remaining ore requirement; completed projects persist and add lights to the world's artwork. Shipment quantities are separate from carried and stored inventory. Select surplus reserves materials for a chosen camp, uplink or warehouse.
+
+Nickel, titanium and cobalt expand planetary geology; cryocrystal occurs only on Cryo Shelf. Deposits obey depth and planet restrictions in `src/game/config.ts`.
+
+Open the Expedition Codex from pause, the mothership terminal, workshop technology links or resource names. Its 28 articles cover miner technology, resources, civilian histories and starting infrastructure, with original illustrations, related links and engineering references. Fictional technology and frontier histories are explicitly identified.
 
 ## Art and verification
 
@@ -52,3 +72,7 @@ See [QA](docs/QA.md) for measured playtests and limitations, [architecture](docs
 ## Publish
 
 The existing GitHub Actions workflow tests, builds and publishes `dist/` to GitHub Pages. `vite.config.ts` uses `/SrajMiner/` for production and `/` locally. Local changes are not a hosted deployment.
+
+## Stackable perimeter walls
+
+Choose Perimeter Wall in Build. Auto-stack snaps to an existing column and previews its next supported layer. Keep clicking the column or use Build block to raise a tower; use the layer buttons for manual placement and Done/Esc to finish. Drag or move the mouse toward the edge to pan while building. The camera follows rising stacks, with level lights, construction flashes and rising tones. Each block retains its $80 + 1 copper cost and the existing 12-wall limit per planet. Existing wall saves remain compatible.
