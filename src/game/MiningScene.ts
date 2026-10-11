@@ -2252,26 +2252,6 @@ export class MiningScene extends Phaser.Scene {
       g.fillStyle(surfaceLandmarkColor(this.mapId, feature.kind), 0.96);
       g.fillCircle(point.x, point.y, Math.max(1.5, radius * 0.014 * feature.scale));
     }
-    const halves = [0, chart.radiusRows * 2];
-    for (const row of halves) {
-      let previous: { x: number; y: number } | undefined;
-      for (let step = 0; step <= 48; step++) {
-        const current = surfacePoint(chart.columns * step / 48, row);
-        if (previous) {
-          g.lineStyle(Math.max(1, radius * 0.004), 0x9fcbbb, 0.6);
-          g.lineBetween(previous.x, previous.y, current.x, current.y);
-        }
-        previous = current;
-      }
-    }
-    for (let line = 0; line < 24; line++) {
-      const u = chart.columns * line / 24;
-      for (const row of [0, chart.radiusRows * 2]) {
-        const endpoint = surfacePoint(u, row);
-        g.lineStyle(1, 0xa7c7bb, 0.16);
-        g.lineBetween(center.x, center.y, endpoint.x, endpoint.y);
-      }
-    }
     const destroyedStride = Math.max(1, Math.ceil(this.world.destroyed.size / 3600));
     let index = 0;
     for (const key of this.world.destroyed) {
