@@ -1,42 +1,18 @@
 import assert from 'node:assert/strict';
-import {
-  flySolar,
-  distance,
-  planetPosition,
-  reachablePlanet,
-} from '../src/game/campaign/SolarSystem';
-import { SOLAR_SYSTEM } from '../src/game/config';
-const start = planetPosition('cryo-shelf');
-const straight = flySolar(start, 1, 0, 1, 4, []);
-const diagonal = flySolar(start, 1, 1, 1, 4, []);
-assert.ok(Math.abs(straight.fuel - diagonal.fuel) < 1e-10);
-assert.equal(flySolar(start, 0, 0, 60, 4, []).fuel, 4);
-assert.deepEqual(flySolar(start, 1, 0, 1, 0, []).position, start);
-let position = { ...start },
-  fuel = 0.2,
-  stopped = false;
-for (let i = 0; i < 200; i++) {
-  const next = flySolar(position, -1, 0, 0.05, fuel, []);
-  position = next.position;
-  fuel = next.fuel;
-  stopped ||= next.limited;
-  const home = planetPosition(reachablePlanet(position, []));
-  assert.ok(
-    Math.max(0, distance(position, home) - SOLAR_SYSTEM.landingRadius) <=
-      fuel * SOLAR_SYSTEM.distancePerFuel + 1e-6,
-  );
+import { distance, planetPosition, solarDestinationUnlocked, solarRouteFuel } from '../src/game/campaign/SolarSystem';
+import { MAPS, SOLAR_SYSTEM } from '../src/game/config';
+
+const cryo = planetPosition('cryo-shelf'), hull = planetPosition('hull-graveyard');
+assert.ok(Math.abs(solarRouteFuel(cryo, hull) - (Math.hypot(230, 255) - SOLAR_SYSTEM.landingRadius) / SOLAR_SYSTEM.distancePerFuel) < 1e-10);
+assert.equal(solarRouteFuel(cryo, cryo), 0);
+assert.equal(solarRouteFuel(cryo, hull), solarRouteFuel(hull, cryo));
+for (const id of Object.keys(MAPS) as (keyof typeof MAPS)[]) {
+  assert.equal(solarRouteFuel(planetPosition(id), planetPosition(id)), 0);
+  assert.ok(solarRouteFuel(cryo, planetPosition(id)) >= 0, `route to ${id} has a nonnegative cost`);
 }
-assert.ok(stopped, 'blocks flight that would consume landing reserve');
-for (let i = 0; i < 200 && distance(position, start) > SOLAR_SYSTEM.landingRadius; i++) {
-  const next = flySolar(position, start.x - position.x, start.y - position.y, 0.05, fuel, []);
-  position = next.position;
-  fuel = next.fuel;
-}
-assert.ok(
-  distance(position, start) <= SOLAR_SYSTEM.landingRadius,
-  'can return after hitting range limit',
-);
-assert.notEqual(reachablePlanet(planetPosition('vesper-9'), []), 'vesper-9');
-console.log(
-  'PASS solar flight distance fuel, normalized input, idle, empty tank, landing reserve and return',
-);
+assert.equal(solarDestinationUnlocked('cryo-shelf', 'cryo-shelf', false, []), true);
+assert.equal(solarDestinationUnlocked('mars-frontier', 'cryo-shelf', false, []), false);
+assert.equal(solarDestinationUnlocked('mars-frontier', 'cryo-shelf', true, []), true);
+assert.equal(solarDestinationUnlocked('vesper-9', 'cryo-shelf', true, []), false);
+assert.ok(distance(cryo, hull) > 0);
+console.log('PASS direct route pricing, current-world return, and destination unlock gates');

@@ -36,35 +36,20 @@ async (page) => {
     await page.waitForFunction(() => window.__mars?.inOrbit && !!document.querySelector('.solar-flight'), {}, { timeout: 30000 });
   } finally { await page.keyboard.up('w'); }
 
-  // Save and reload after moving away from Cryo Shelf but before entering another world.
-  await page.keyboard.down('d'); await page.keyboard.down('s');
-  try { await page.waitForFunction(() => {
-    const p = window.__mars?.solarPosition;
-    return !!p && Math.hypot(p.x + 420, p.y + 130) > 80;
-  }, {}, { timeout: 10000 }); }
-  finally { await page.keyboard.up('d'); await page.keyboard.up('s'); }
-  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
-  const beforeReload = await page.evaluate(() => ({ state: window.__mars, save: JSON.parse(localStorage.getItem('mars-miner.v1')) }));
-  if (!beforeReload.save.solarPosition || !beforeReload.save.mothershipBoarded)
-    throw Error(`Mid-flight position and boarded state should save: ${JSON.stringify(beforeReload.save)}`);
-  await page.reload();
-  await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();
-  await page.waitForFunction(() => !!window.__mars && !!document.querySelector('.solar-flight'));
-  const restoredFlight = await page.evaluate(() => window.__mars);
-  if (!restoredFlight.mothershipBoarded || !restoredFlight.solarPosition ||
-      Math.hypot(restoredFlight.solarPosition.x - beforeReload.save.solarPosition.x, restoredFlight.solarPosition.y - beforeReload.save.solarPosition.y) > 0.01 ||
-      restoredFlight.coreFuel !== beforeReload.save.coreFuel)
-    throw Error(`Space position and fuel should restore exactly: ${JSON.stringify(restoredFlight)}`);
-
-  await page.keyboard.down('d'); await page.keyboard.down('s');
-  try { await page.waitForFunction(() => {
-    const p = window.__mars?.solarPosition;
-    return !!p && Math.hypot(p.x + 190, p.y - 125) <= 44;
-  }, {}, { timeout: 20000 }); }
-  finally { await page.keyboard.up('d'); await page.keyboard.up('s'); }
-  if (!(await page.locator('.solar-flight button').isEnabled())) throw Error('Nearby Hull Graveyard should enable landing');
+  // The selector replaces manual star steering. WASD cannot move the ship or spend fuel here.
+  const beforeKeys = await page.evaluate(() => window.__mars);
+  await page.keyboard.down('d'); await page.keyboard.down('s'); await page.waitForTimeout(900);
+  await page.keyboard.up('d'); await page.keyboard.up('s');
+  const afterKeys = await page.evaluate(() => window.__mars);
+  if (JSON.stringify(afterKeys.solarPosition) !== JSON.stringify(beforeKeys.solarPosition) || afterKeys.coreFuel !== beforeKeys.coreFuel)
+    throw Error('WASD must not move the mothership or consume fuel on the destination map');
+  const hull = page.locator('.solar-planet-choice').filter({ hasText: 'Hull Graveyard' });
+  if (!(await hull.isEnabled())) throw Error('Hull Graveyard should be selectable after the ship is complete');
+  await hull.click();
+  const routeFuel = Number((await page.locator('.solar-status').textContent()).match(/ROUTE ([0-9.]+)/)[1]);
+  if (routeFuel <= 0 || routeFuel >= 1) throw Error(`Expected a direct Hull route under one fuel, got ${routeFuel}`);
   await page.screenshot({ path: 'output/playwright/campaign-travel.png' });
-  await page.locator('.solar-flight button').click();
+  await page.getByRole('button', { name: /TRAVEL TO HULL GRAVEYARD/ }).click();
   await page.waitForFunction(() => window.__mars?.mapId === 'hull-graveyard' && !document.querySelector('.solar-flight'));
   let state = await page.evaluate(() => window.__mars);
   if (state.coreFuel >= 4 || state.coreFuel <= 3 || !state.mothershipBoarded || !state.docked || state.fuel !== startingFuel)
@@ -82,14 +67,8 @@ async (page) => {
   await page.keyboard.down('w');
   try { await page.waitForFunction(() => window.__mars?.inOrbit && !!document.querySelector('.solar-flight'), {}, { timeout: 30000 }); }
   finally { await page.keyboard.up('w'); }
-  await page.keyboard.down('a'); await page.keyboard.down('w');
-  try { await page.waitForFunction(() => {
-    const p = window.__mars?.solarPosition;
-    return !!p && Math.hypot(p.x + 420, p.y + 130) <= 44;
-  }, {}, { timeout: 20000 }); }
-  finally { await page.keyboard.up('a'); await page.keyboard.up('w'); }
-  if (!(await page.locator('.solar-flight button').isEnabled())) throw Error('Return to Cryo Shelf should be landable');
-  await page.locator('.solar-flight button').click();
+  await page.locator('.solar-planet-choice').filter({ hasText: 'Cryo Shelf' }).click();
+  await page.getByRole('button', { name: /TRAVEL TO CRYO SHELF/ }).click();
   await page.waitForFunction(() => window.__mars?.mapId === 'cryo-shelf' && !document.querySelector('.solar-flight'));
   await page.reload();
   await page.getByRole('button', { name: /CONTINUE EXPEDITION/ }).click();

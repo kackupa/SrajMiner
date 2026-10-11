@@ -29,6 +29,15 @@ export function planetCameraFrameAngle(u: number, v: number, chart: PlanetChartS
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
+/** Convert a chart-space velocity into screen-radial speed for curved-planet cues. */
+export function planetRadialVelocity(vx: number, vy: number, u: number, v: number, chart: PlanetChartSize, tileSize = 1): number {
+  const theta = Math.PI * u / chart.columns,
+    radius = (chart.radiusRows - v) * tileSize,
+    angularVelocity = vx * Math.PI / chart.columns,
+    radialVelocity = -vy * tileSize;
+  return radialVelocity - angularVelocity * radius * Math.sin(theta);
+}
+
 /** Shortest signed turn from one camera angle to another. */
 export function cameraAngleDelta(from: number, to: number): number {
   return Math.atan2(Math.sin(to - from), Math.cos(to - from));

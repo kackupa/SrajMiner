@@ -1,4 +1,5 @@
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
+import { structureIntegrity } from '../building/UndergroundStructures';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import { CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, CORE_FUEL, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
@@ -9,7 +10,8 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 27;
+  version: 29;
+  productionUpdatedAt: number;
   solarPosition: { x: number; y: number } | null;
   planetChart: PlanetChartSize;
   campaignSeed: number;
@@ -87,7 +89,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 27 &&
+    d.version === 29 && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
     (d.solarPosition === null || !!d.solarPosition && finite(d.solarPosition.x) && finite(d.solarPosition.y) && Math.abs(d.solarPosition.x) < 100000000 && Math.abs(d.solarPosition.y) < 100000000 && d.mothershipBoarded) && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
@@ -103,10 +105,14 @@ export function validateSave(s: unknown): s is SaveData {
           !Array.isArray(m.structures) || m.structures.length > UNDERGROUND_BUILDING.maxStructuresPerMap ||
           !m.warehouse || ORE_KEYS.some((ore) => !finite(m.warehouse[ore]) || m.warehouse[ore] < 0 || !Number.isInteger(m.warehouse[ore] * 2)) || m.structures.some((structure) =>
           !structure || typeof structure.id !== 'string' || structure.id.length > 80 ||
-          !['platform', 'service', 'turret', 'trade-post', 'habitat', 'warehouse', 'wall', 'gate'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
+          !['platform', 'service', 'turret', 'trade-post', 'habitat', 'warehouse', 'extractor', 'wall', 'gate', 'fort'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
           !finite(structure.y) || structure.y < (structure.kind === 'wall' ? -UNDERGROUND_BUILDING.wall.maxPerMap * WORLD.tile : 0) || structure.y > 1e7 ||
+          (structure.kind === 'fort' && structure.y !== 0 && structure.y !== (chart?.radiusRows ?? LEGACY_PLANET_CHART.radiusRows) * WORLD.tile * 2) ||
+          (structure.level !== undefined && (!['turret', 'warehouse', 'extractor'].includes(structure.kind) || !Number.isInteger(structure.level) || structure.level < 1 || structure.level > (structure.kind === 'warehouse' ? 4 : 3))) ||
+          (structure.kind === 'extractor' && (structure.level ?? 1) > 3) ||
+          (structure.productionFraction !== undefined && (structure.kind !== 'extractor' || !finite(structure.productionFraction) || structure.productionFraction < 0 || structure.productionFraction >= 0.5)) ||
           (structure.reload !== undefined && (!finite(structure.reload) || structure.reload < 0 || structure.reload > UNDERGROUND_BUILDING.turret.reloadSeconds)) ||
-          (structure.integrity !== undefined && (!Number.isInteger(structure.integrity) || structure.integrity < 1 || structure.integrity > SURFACE_RAID.integrity))) ||
+          (structure.integrity !== undefined && (!Number.isInteger(structure.integrity) || structure.integrity < 1 || structure.integrity > structureIntegrity(structure.kind)))) ||
         new Set(m.structures.map((structure) => structure.id)).size !== m.structures.length ||
         m.structures.filter((structure) => structure.kind === 'service').length > 1 ||
         m.structures.filter((structure) => structure.kind === 'platform').length > 12 ||
@@ -114,7 +120,9 @@ export function validateSave(s: unknown): s is SaveData {
       if (m.structures.filter((structure) => structure.kind === 'trade-post').length > UNDERGROUND_BUILDING['trade-post'].maxPerMap) return false;
       if (m.structures.filter((structure) => structure.kind === 'habitat').length > UNDERGROUND_BUILDING.habitat.maxPerMap) return false;
       if (m.structures.filter((structure) => structure.kind === 'warehouse').length > UNDERGROUND_BUILDING.warehouse.maxPerMap) return false;
+      if (m.structures.filter((structure) => structure.kind === 'extractor').length > UNDERGROUND_BUILDING.extractor.maxPerMap) return false;
       if (m.structures.filter((structure) => structure.kind === 'wall').length > UNDERGROUND_BUILDING.wall.maxPerMap) return false;
+      if (m.structures.filter((structure) => structure.kind === 'fort').length > UNDERGROUND_BUILDING.fort.maxPerMap) return false;
       if (m.structures.filter((structure) => structure.kind === 'gate').length > UNDERGROUND_BUILDING.gate.maxPerMap) return false;
       const ids = new Set<string>();
       return m.drops.every((drop) => {
@@ -159,6 +167,19 @@ export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 28) {
+    const old = s as Record<string, unknown>, maps = old.maps && typeof old.maps === 'object' ? old.maps as Record<string, unknown> : {};
+    return migrateSave({ ...old, version: 29, productionUpdatedAt: Date.now(), maps: Object.fromEntries(Object.entries(maps).map(([id, value]) => {
+      if (!value || typeof value !== 'object') return [id, value];
+      const map = value as Record<string, unknown>, structures = Array.isArray(map.structures) ? map.structures.map((raw) => {
+        if (!raw || typeof raw !== 'object') return raw;
+        const structure = raw as Record<string, unknown>;
+        return structure.kind === 'warehouse' ? { ...structure, level: 1 } : structure.kind === 'extractor' ? { ...structure, level: 1, productionFraction: 0 } : structure;
+      }) : map.structures;
+      return [id, { ...map, structures }];
+    })) });
+  }
+  if (version === 27) return migrateSave({ ...(s as object), version: 28 });
   if (version === 26) return migrateSave({ ...(s as object), version: 27, solarPosition: null });
   if (version === 25) {
     const old = s as Record<string, unknown>, activeMap = old.activeMap as string,

@@ -71,6 +71,36 @@ async (page) => {
   const farReturned = await page.evaluate(() => window.__mars), farArrival = await page.locator('#toast').textContent();
   if (!farReturned.docked || farReturned.hull < 100 || farReturned.fuel >= farSide.fuel || !farArrival?.includes('DOCKING CLAMP ENGAGED'))
     throw Error(`Far-side winch return failed: ${JSON.stringify({ farReturned, farArrival })}`);
+  const curvedReturns = [];
+  for (const far of [false, true]) for (const obstacle of ['rock', 'service']) {
+    const bent = [];
+    const row = y => far ? 299 - y : y;
+    for (let y = 0; y <= 22; y++) if (obstacle === 'service' || y !== 10) bent.push(`27,${row(y)}`);
+    for (let y = 6; y <= 14; y++) for (let x = 24; x <= 26; x++) bent.push(`${x},${row(y)}`);
+    const fixture = { ...save, maps: { 'cryo-shelf': { ...map,
+      x: 1100, y: far ? 11400 : 600, destroyed: bent, maxDepth: 180,
+      structures: obstacle === 'service' ? [{ id: 'service:1100:400', kind: 'service', x: 1100, y: far ? 11600 : 400 }] : [],
+    } } };
+    await page.goto('about:blank');
+    await page.goto(baseURL);
+    await page.waitForFunction(() => !!window.__mars);
+    await page.evaluate(data => localStorage.setItem('mars-miner.v1', JSON.stringify(data)), fixture);
+    await page.reload();
+    await page.getByRole('button', { name: 'CONTINUE EXPEDITION ↗' }).click();
+    await page.waitForFunction(() => window.__mars?.winchCableConnected);
+    const start = await page.evaluate(() => window.__mars);
+    await page.keyboard.down('r');
+    try {
+      await page.waitForFunction(() => window.__mars?.x < 1080, null, { timeout: 10000 });
+      await page.screenshot({ path: `output/playwright/winch-bend-${obstacle}-${far ? 'far' : 'home'}-cable.png` });
+      await page.waitForFunction(() => window.__mars?.docked, null, { timeout: 20000 });
+    } finally { await page.keyboard.up('r'); }
+    const end = await page.evaluate(() => window.__mars);
+    if (end.hull !== 100 || end.overlaps !== 0 || end.fuel >= start.fuel || end.farHemisphere !== far)
+      throw Error(`Unsafe curved winch return: ${JSON.stringify(end)}`);
+    await page.screenshot({ path: `output/playwright/winch-bend-${obstacle}-${far ? 'far' : 'home'}.png` });
+    curvedReturns.push({ far, obstacle, fuelSpent: start.fuel - end.fuel, hull: end.hull, docked: end.docked });
+  }
   const pocketDestroyed = [];
   for (let x = 22; x <= 26; x++) pocketDestroyed.push(`${x},12`);
   const blockedSave = {
@@ -86,10 +116,11 @@ async (page) => {
   await page.waitForFunction(() => window.__mars?.depth >= 140);
   await page.waitForFunction(() => document.querySelector('#return-estimate')?.textContent?.includes('BLOCKED'));
   const blocked = await page.evaluate(() => window.__mars), blockedText = await page.locator('#return-estimate').textContent();
-  if (blocked.winchCableConnected || blockedText !== 'WINCH BLOCKED · CLEAR SHAFT')
+  if (blocked.winchCableConnected || blockedText !== 'WINCH BLOCKED · CLEAR TUNNEL ROUTE')
     throw Error(`Blocked shaft did not hide the cable and warn the player: ${JSON.stringify({ blocked, blockedText })}`);
   await page.screenshot({ path: 'output/playwright/winch-cable-blocked.png' });
   return {
+    curvedReturns,
     descending: { depth: descending.depth, cableConnected: descending.winchCableConnected, estimate: estimateText },
     returned: { depth: returned.depth, hull: returned.hull, fuelSpent: descending.fuel - returned.fuel, docked: returned.docked, arrival },
     farSide: { depth: farSide.depth, cableConnected: farSide.winchCableConnected, estimate: farEstimate,

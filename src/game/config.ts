@@ -65,12 +65,21 @@ export const UNDERGROUND_BUILDING = {
   turret: { credits: 560, materials: { iron: 2, silver: 2, gold: 1 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
   'trade-post': { credits: 1100, materials: { copper: 4, iron: 4, gold: 2 }, widthTiles: 5, maxPerMap: 1 },
   habitat: { credits: 900, materials: { copper: 4, iron: 2, silver: 1 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
-  warehouse: { credits: 360, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1 },
+  warehouse: { credits: 360, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
+  extractor: { credits: 220, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 2, 6, 12], upgradeCredits: [0, 0, 680, 1800] },
+  automation: { offlineCapSeconds: 43200 },
   wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1, maxPerMap: 12 },
   gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3, maxPerMap: 3 },
+  fort: { credits: 1400, materials: { iron: 6, silver: 3, gold: 2 }, widthTiles: 7, maxPerMap: 1, integrity: 4, linkRadius: 640, rangeBonus: 120 },
   maxStructuresPerMap: 20,
   serviceRadius: 100,
 } as const;
+export const EXTRACTOR_TIERS = [
+  { name: 'Basic Excavator', rate: 2, ores: ['copper', 'iron'] as const, upgradeCredits: 680, upgradeMaterials: { iron: 6, silver: 2 } },
+  { name: 'Industrial Drill', rate: 6, ores: ['copper', 'iron', 'silver'] as const, upgradeCredits: 1800, upgradeMaterials: { iron: 10, silver: 6, gold: 2 } },
+  { name: 'Deep-Core Extractor', rate: 12, ores: ['silver', 'gold', 'diamond'] as const, upgradeCredits: 0, upgradeMaterials: {} },
+] as const;
+export const WAREHOUSE_CAPACITY_TIERS = [40, 100, 200, 360] as const;
 export const SURFACE_RAID = {
   firstWarningSeconds: 55,
   repeatWarningSeconds: 82,
@@ -82,7 +91,16 @@ export const SURFACE_RAID = {
   drillHitRadius: 24,
   drillCooldownSeconds: 0.28,
   repairCredits: 180,
+  fortFirstWarningSeconds: 20,
+  fortRepeatWarningSeconds: 45,
+  arrivalDistance: 360,
+  visibleColonyRadius: 900,
 } as const;
+export const TURRET_TIERS = [
+  { range: 440, reloadSeconds: 1.4, upgradeCredits: 0 },
+  { range: 560, reloadSeconds: 1.05, upgradeCredits: 420 },
+  { range: 680, reloadSeconds: 0.8, upgradeCredits: 720 },
+] as const;
 export const TRADE_NETWORK = { saleBonusPerRemotePost: 0.1, maxSaleBonus: 0.4, relaySaleBonus: 0.05 } as const;
 export function tradeNetworkPremium(saleValue: number, connectedPosts: number, hasLocalPost: boolean, relayOnline = false) {
   if (!Number.isFinite(saleValue) || !Number.isFinite(connectedPosts) || !hasLocalPost || connectedPosts < 2) return 0;
@@ -90,8 +108,9 @@ export function tradeNetworkPremium(saleValue: number, connectedPosts: number, h
     (Math.floor(connectedPosts) - 1) * TRADE_NETWORK.saleBonusPerRemotePost + (relayOnline ? TRADE_NETWORK.relaySaleBonus : 0));
   return Math.floor(Math.max(0, saleValue) * rate);
 }
-// Warn early enough to brake before reaching the damaging landing threshold.
-  export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.4;
+// Leave enough speed margin for the pod's 980 px/s² thrust to cancel gravity
+// before reaching the hard-impact threshold. Warn at 35% of the safe threshold.
+export const DESCENT_WARNING_SPEED = PHYSICS.safeImpact * 0.35;
 export const FALL_CAMERA_LOOKAHEAD = 96;
 export const fallMotionCueIntensity = (vy: number, gravitySign: number) =>
   Math.max(0, Math.min(1, (vy * gravitySign - DESCENT_WARNING_SPEED) / (PHYSICS.safeImpact - DESCENT_WARNING_SPEED)));
@@ -551,7 +570,7 @@ export const ROUTE_SHIP_COMPONENTS: Record<RouteFragmentId, ShipComponent> = {
 export const ROUTE_PART_RECOVERY_BONUS = 200;
 
 export const SOLAR_SYSTEM = {
-  speed: 110, distancePerFuel: 400, landingRadius: 48,
+  distancePerFuel: 400, landingRadius: 48,
   planets: {
     'cryo-shelf': { x: -420, y: -130 },
     'hull-graveyard': { x: -190, y: 125 },

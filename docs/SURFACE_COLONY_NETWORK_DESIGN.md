@@ -243,7 +243,7 @@ Coordinate masks below use `#` for an occupied ground tile and `.` for open grou
 | Charge Depot | `## / ## / ##` | Two squat tanks, one valve/control block, mint Charge indicator |
 | Beacon | `## / ##` | Compact base, narrow mast, one distinctive signal lamp; no ore-like glow |
 | Starter Turret | `## / ##` | Low 2×2 base, rotating head, single barrel; sensor expands with range tiers |
-| Wall segment | `#` | One tile wide, two blocks high; end brace; connect seamlessly to neighbors |
+| Wall segment | `#` | One tile wide, two blocks high; end brace; connect edge-to-edge with neighbors |
 | Gate | `##` opening | Two side posts, raised sliding/lifting panel; opening remains two tiles clear |
 | Turret mount | `#` | Braced one-tile tower cap; same turret head attaches to top |
 | Landing Pad | `### / ###` | Flat three-tile deck, end lights and a short ramp; no obstructive canopy |

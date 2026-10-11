@@ -1,6 +1,6 @@
 import { SURFACE_RAID, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
-import { globeSurfaceDistance, surfaceArcCoordinate, surfaceArcPoint } from '../building/UndergroundStructures';
+import { globeSurfaceDistance, surfaceArcCoordinate, surfaceArcPoint, structureIntegrity, surfaceTurretRange, turretStats } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
 import { random } from './TileWorld';
 import { planetCartesianToChart, planetChartToCartesian, planetChartVectorToCartesian } from './PlanetChart';
@@ -26,6 +26,12 @@ export class SurfaceRaid {
   active?: SurfaceRaiderState;
   private wait: number = SURFACE_RAID.firstWarningSeconds;
   private encounter = 0;
+  private fortOnline = false;
+  get secondsUntilArrival() { return Math.max(0, Math.ceil(this.wait)); }
+
+  private resetWait() {
+    this.wait = this.fortOnline ? SURFACE_RAID.fortRepeatWarningSeconds : SURFACE_RAID.repeatWarningSeconds;
+  }
 
   constructor(private seed: number, private mapId: MapId) {}
 
@@ -38,21 +44,25 @@ export class SurfaceRaid {
     playerPosition?: { x: number; y: number },
   ): SurfaceRaidEvent | undefined {
     if (!playerAtSurface) return undefined;
+    const hasFort = structures.some(entry => entry.kind === 'fort');
+    if (hasFort && !this.fortOnline) this.wait = Math.min(this.wait, SURFACE_RAID.fortFirstWarningSeconds);
+    this.fortOnline = hasFort;
     if (!this.active) {
-      const targets = structures.filter((entry) => entry.kind === 'habitat' || entry.kind === 'turret');
+      const targets = structures.filter((entry) => ['habitat', 'turret', 'fort'].includes(entry.kind) &&
+        Math.min(Math.abs(entry.y), Math.abs(entry.y - world.farSurfaceY)) <= WORLD.tile * 4 &&
+        (!playerPosition || globeSurfaceDistance(world, entry.x, entry.y, playerPosition.x, playerPosition.y) <= SURFACE_RAID.visibleColonyRadius));
       if (!targets.length) {
-        this.wait = SURFACE_RAID.firstWarningSeconds;
         return undefined;
       }
       this.wait -= dt;
       if (this.wait > 0) return undefined;
       const encounter = this.encounter++;
-      const target = targets[Math.floor(random(this.seed, encounter, this.mapId.length, 801) * targets.length)]!;
+      const target = targets.find(entry => entry.kind === 'fort') ?? targets[Math.floor(random(this.seed, encounter, this.mapId.length, 801) * targets.length)]!;
       const sign = random(this.seed, encounter, this.mapId.length, 802) < 0.5 ? -1 : 1;
-      const targetOffset = Math.min(120, Math.max(48, Math.abs(target.x - WORLD.spawnX) * 0.6));
+      const arrival = surfaceArcPoint(world, surfaceArcCoordinate(world, target.x, target.y) - sign * SURFACE_RAID.arrivalDistance, false);
       this.active = {
-        x: target.x - sign * targetOffset,
-        y: target.y - world.gravitySign(target.y) * 26,
+        x: arrival.x,
+        y: arrival.y - world.gravitySign(arrival.y) * 26,
         targetId: target.id,
         health: SURFACE_RAID.drillHitsToRepel,
         timer: SURFACE_RAID.telegraphSeconds,
@@ -69,17 +79,18 @@ export class SurfaceRaid {
     const target = structures.find((entry) => entry.id === raider.targetId);
     if (!target) {
       this.active = undefined;
-      this.wait = SURFACE_RAID.repeatWarningSeconds;
+      this.resetWait();
       return undefined;
     }
 
     for (const turret of structures) {
       if (turret.kind !== 'turret' || turret.id === target.id || (turret.reload ?? 0) > 0) continue;
-      if (globeSurfaceDistance(world, turret.x, turret.y, raider.x, raider.y) > UNDERGROUND_BUILDING.turret.range) continue;
-      turret.reload = UNDERGROUND_BUILDING.turret.reloadSeconds;
+      if (Math.min(Math.abs(turret.y), Math.abs(turret.y - world.farSurfaceY)) > WORLD.tile * 4) continue;
+      if (globeSurfaceDistance(world, turret.x, turret.y, raider.x, raider.y) > surfaceTurretRange(world, turret, structures)) continue;
+      turret.reload = turretStats(turret).reloadSeconds;
       onTurretFire(turret.x, turret.y);
       this.active = undefined;
-      this.wait = SURFACE_RAID.repeatWarningSeconds;
+      this.resetWait();
       return { type: 'intercepted', x: turret.x, y: turret.y };
     }
 
@@ -98,15 +109,15 @@ export class SurfaceRaid {
         })
         .filter(({ entry, along, opensForPlayer }) => !opensForPlayer && along >= 0 && along <= Math.abs(routeDelta) + UNDERGROUND_BUILDING[entry.kind].widthTiles * WORLD.tile / 2)
         .sort((a, b) => a.along - b.along),
-      barrier = barriers.find(({ entry, along }) => along <= step + UNDERGROUND_BUILDING[entry.kind].widthTiles * WORLD.tile / 2);
+      barrier = barriers.find(({ entry, along }) => along <= step + UNDERGROUND_BUILDING[entry.kind].widthTiles * WORLD.tile / 2 + 8);
     if (barrier) {
       const stopArc = raiderArc + routeDirection * Math.max(0, barrier.along - UNDERGROUND_BUILDING[barrier.entry.kind].widthTiles * WORLD.tile / 2 - 8),
-        point = surfaceArcPoint(world, stopArc);
+        point = surfaceArcPoint(world, stopArc, false);
       raider.x = point.x;
       raider.y = point.y - world.gravitySign(point.y) * 26;
       raider.timer -= dt;
       if (raider.timer > 0) return undefined;
-      const integrity = barrier.entry.integrity ?? SURFACE_RAID.integrity;
+      const integrity = barrier.entry.integrity ?? structureIntegrity(barrier.entry.kind);
       raider.timer = 2.4;
       if (integrity > 1) {
         barrier.entry.integrity = integrity - 1;
@@ -117,24 +128,24 @@ export class SurfaceRaid {
       return { type: 'destroyed', target: barrier.entry };
     }
     if (step > 0) {
-      const point = surfaceArcPoint(world, raiderArc + routeDirection * step);
+      const point = surfaceArcPoint(world, raiderArc + routeDirection * step, false);
       raider.x = point.x;
       raider.y = point.y - world.gravitySign(point.y) * 26;
     }
     raider.timer -= dt;
-    if (raider.timer > 0) return undefined;
+    if (raider.timer > 0 || Math.abs(routeDelta) > step + UNDERGROUND_BUILDING[target.kind].widthTiles * WORLD.tile / 2) return undefined;
 
-    const integrity = target.integrity ?? SURFACE_RAID.integrity;
+    const integrity = target.integrity ?? structureIntegrity(target.kind);
     if (integrity > 1) {
       target.integrity = integrity - 1;
       this.active = undefined;
-      this.wait = SURFACE_RAID.repeatWarningSeconds;
+      this.resetWait();
       return { type: 'damaged', target };
     }
     const index = structures.findIndex((entry) => entry.id === target.id);
     if (index >= 0) structures.splice(index, 1);
     this.active = undefined;
-    this.wait = SURFACE_RAID.repeatWarningSeconds;
+    this.resetWait();
     return { type: 'destroyed', target };
   }
 
@@ -161,7 +172,7 @@ export class SurfaceRaid {
     raider.hitFlash = 0.14;
     if (raider.health > 0) return false;
     this.active = undefined;
-    this.wait = SURFACE_RAID.repeatWarningSeconds;
+    this.resetWait();
     return true;
   }
 }

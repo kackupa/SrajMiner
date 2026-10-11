@@ -33,7 +33,7 @@ Design every feature in planet coordinates first; make a close-up view from thos
 
 ### Planet-by-planet circumferential map
 
-These are placement concepts to make each globe coherent. Longitude fractions are approximate, wrap seamlessly, and do not define new gameplay regions.
+These are placement concepts to make each globe coherent. Longitude fractions are approximate, wrap around the longitude seam, and do not define new gameplay regions.
 
 | Planet | Circumference sequence | Globe signature | Local view landmark |
 | --- | --- | --- | --- |

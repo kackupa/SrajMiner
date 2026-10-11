@@ -1,3 +1,4 @@
+import { turretStats } from '../building/UndergroundStructures';
 import { HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
@@ -82,8 +83,8 @@ export class RockSwimmer {
     const distance = Math.hypot(dx, dy);
     for (const turret of structures) {
       if (turret.kind !== 'turret' || (turret.reload ?? 0) > 0) continue;
-      if (Math.hypot(turret.x - swimmer.x, turret.y - swimmer.y) <= UNDERGROUND_BUILDING.turret.range) {
-        turret.reload = UNDERGROUND_BUILDING.turret.reloadSeconds;
+      if (Math.hypot(turret.x - swimmer.x, turret.y - swimmer.y) <= turretStats(turret).range) {
+        turret.reload = turretStats(turret).reloadSeconds;
         onTurretFire(turret.x, turret.y);
         this.active = undefined;
         this.wait = ROCK_SWIMMER.repeatSeconds;

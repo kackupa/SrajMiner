@@ -35,9 +35,9 @@ async (page) => {
   state = await page.evaluate(() => window.__mars);
   if (!state.mothershipBoarded || state.coreFuel > 4 || state.coreFuel < 3.9 || state.fuel !== startingFuel || state.hull !== 100 || !state.solarPosition)
     throw Error(`Takeoff should enter solar flight, spending only the tiny distance flown during the handoff: ${JSON.stringify(state)}`);
-  if (!(await page.locator('.solar-flight button').isEnabled())) throw Error('The departure planet should be immediately landable');
+  if (!(await page.locator('.solar-planet-choice').filter({ hasText: 'Cryo Shelf' }).isEnabled())) throw Error('The departure planet should be selectable');
   await page.screenshot({ path: 'output/playwright/mothership-orbit.png' });
-  await page.locator('.solar-flight button').click();
+  await page.getByRole('button', { name: /RETURN TO CRYO SHELF/ }).click();
   await page.waitForFunction(() => !window.__mars?.inOrbit && !document.querySelector('.solar-flight'));
   state = await page.evaluate(() => window.__mars);
   if (!state.mothershipBoarded || !state.docked || state.y !== -22 || state.fuel !== startingFuel || state.coreFuel > 4 || state.coreFuel < 3.9)

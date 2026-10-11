@@ -19,7 +19,7 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
   backdrop-filter: none;
   padding: 24px;
 }
-#viewport:has(.pause-screen) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning) { visibility: hidden; }
+#viewport:has(.pause-screen) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #colony-alert) { visibility: hidden; }
 #app:has(.pause-screen) .expedition { opacity: .45; }
 #app:has(.pause-screen) footer .controls { display: none; }
 #app:has(.pause-screen) footer .bank { visibility: hidden; }
@@ -31,7 +31,7 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 #app:has(.intro) > .topbar,
 #app:has(.intro) > footer { display: none; }
 #app:has(.intro) #viewport { height: 100dvh; min-height: 100dvh; }
-#viewport:has(.intro) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #toast) { visibility: hidden; }
+#viewport:has(.intro) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #colony-alert, #toast) { visibility: hidden; }
 #modal-layer:has(.intro) { position: fixed; inset: 0; padding: clamp(24px, 7vw, 100px); background: radial-gradient(ellipse at 50% 43%, #18343bdf 0, #0b171deF 55%, #081116f5 100%); backdrop-filter: none; }
 .modal.intro { width: min(100%, 1100px); height: 100%; max-height: none; overflow: auto; display: grid; place-items: center; padding: clamp(24px, 5vw, 72px); border: 0; background: transparent; box-shadow: none; }
 .intro-screen { width: min(760px, 100%); margin: auto; text-align: center; }
@@ -294,7 +294,7 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
 #app:has(.outpost-tabs) > .topbar,
 #app:has(.outpost-tabs) > footer { display: none; }
 #app:has(.outpost-tabs) #viewport { height: 100dvh; min-height: 100dvh; }
-#viewport:has(.outpost-tabs) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #toast) { visibility: hidden; }
+#viewport:has(.outpost-tabs) > :is(.telemetry, .depth-panel, .station-dock, .mission-tip, .location-label, .drill-target, .route-map-panel, #low-warning, #colony-alert, #toast) { visibility: hidden; }
 #modal-layer:has(.outpost-tabs) {
   position: fixed;
   inset: 0;
@@ -396,11 +396,32 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
   .pause-progress { margin: 9px 0 6px; }
   .pause-credit { margin-top: 10px; padding-top: 8px; }
 }
-.solar-flight { position: fixed; inset: 0; z-index: 10000; background: #070e1c; color: #e0edf4; text-align: center; font-family: 'Space Mono', monospace; }
-.solar-flight header { padding: 18px 8px 0; }
-.solar-flight h1 { margin: 4px; letter-spacing: .2em; font-size: 26px; }
-.solar-flight p { margin: 10px; font-size: 12px; }
-.solar-flight small { color: #69ddba; letter-spacing: .2em; }
-.solar-flight canvas { display:block; }
-.solar-flight button { padding: 12px 24px; background:#173c3b; color:#bdffe8; border:1px solid #6ecab3; cursor:pointer; }
-.solar-flight button:disabled { opacity:.45; cursor:default; }
+.solar-flight { position: fixed; inset: 0; z-index: 10000; overflow:auto; background: radial-gradient(ellipse at 50% 35%,#132238,#070e1c 70%); color:#e0edf4; font-family:'Space Mono',monospace; padding:8px 20px 16px; box-sizing:border-box; }
+.solar-flight header { max-width:1100px; margin:auto; text-align:center; }
+.solar-flight h1 { margin:4px; letter-spacing:.16em; font-size:clamp(22px,3vw,32px); }
+.solar-flight header p { margin:6px; color:#9cb5c3; font-size:12px; }
+.solar-flight small { color:#69ddba; letter-spacing:.16em; }
+.solar-flight canvas { display:block; width:min(100%,1100px); height:auto; margin:6px auto; border:1px solid #26394d; border-radius:8px; cursor:crosshair; touch-action:manipulation; }
+.solar-planet-list { width:min(100%,1100px); margin:auto; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.solar-planet-choice { min-width:0; display:flex; align-items:center; gap:10px; padding:9px 12px; background:#111d2d; color:#dceaf1; border:1px solid #34475a; border-radius:6px; text-align:left; cursor:pointer; font:inherit; }
+.solar-planet-choice:hover,.solar-planet-choice.selected { border-color:#69ddba; background:#172b39; }
+.solar-planet-choice:disabled { opacity:.45; cursor:not-allowed; }
+.solar-planet-choice span:nth-child(2) { display:grid; gap:4px; min-width:0; flex:1; }
+.solar-planet-choice strong { font-size:12px; }
+.solar-planet-choice small { color:#90a9ba; font-size:9px; letter-spacing:.06em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.solar-planet-choice b { color:#9debd2; font-size:11px; white-space:nowrap; }
+.planet-dot { width:12px; height:12px; flex:none; border-radius:50%; background:var(--planet-color); box-shadow:0 0 12px var(--planet-color); }
+.solar-destination-detail { width:min(100%,1060px); margin:8px auto 3px; text-align:center; }
+.solar-destination-detail h2 { margin:4px; font-size:20px; }
+.solar-destination-detail > p,.solar-flight .solar-status { color:#9cb5c3; font-size:11px; }
+.solar-intel-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:8px 0; text-align:left; }
+.solar-intel-grid p { margin:0; padding:9px 11px; background:#0c1725; border:1px solid #26394d; border-radius:5px; color:#a8bdc8; font-size:10px; line-height:1.55; }
+.solar-intel-grid b { color:#69ddba; font-size:9px; letter-spacing:.08em; }
+.solar-flight > p { text-align:center; margin:7px; }
+.solar-flight .solar-travel-button { display:block; margin:8px auto 0; padding:12px 22px; background:#173c3b; color:#bdffe8; border:1px solid #6ecab3; border-radius:5px; cursor:pointer; font:inherit; font-weight:bold; }
+.solar-flight .solar-travel-button:disabled { opacity:.45; cursor:default; }
+.solar-flight button:focus-visible { outline:2px solid #b5f5dc; outline-offset:2px; }
+@media(max-width:650px) { .solar-flight { padding:8px 10px 18px; } .solar-planet-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; } .solar-planet-choice { padding:9px 7px; gap:6px; } .solar-planet-choice strong { font-size:10px; } .solar-planet-choice small { font-size:8px; } .solar-planet-choice b { font-size:9px; } .solar-intel-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+#colony-alert { margin-top: 12px; padding: 8px 0 0; border-top: 1px solid #f0b77980; color: #f0c47f; font: 10px 'Space Mono', monospace; line-height: 1.6; pointer-events: none; }
+#colony-alert:empty { display: none; }

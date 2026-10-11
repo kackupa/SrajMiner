@@ -1,4 +1,5 @@
-import { CORE, CORE_RELICS, CORE_FUEL, vesperChapterUnlocked, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, upgradeGateLabel, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, LASER_THERMAL, SURFACE_RAID, estimateWinchReturnFuel, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, drillReachTiles, drillVisualTier, DRILL_TIERS, UNDERGROUND_BUILDING, type Upgrade, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { CORE, CORE_RELICS, CORE_FUEL, EXTRACTOR_TIERS, vesperChapterUnlocked, ORES, ORE_KEYS, ORE_SILHOUETTES, UPGRADES, UPGRADE_KEYS, upgradeValue, upgradeGateLabel, SPECIALIZATIONS, SPECIALIZATION_KEYS, stratumAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, NAVIGATION_HASHES, CREW_ARCHIVE_CONCLUSION, SHIP_COMPONENTS, MAPS, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, RETURN_WINCH, DESCENT_WARNING_SPEED, LASER_THERMAL, SURFACE_RAID, TURRET_TIERS, estimateWinchReturnFuel, POD_PAINTS, POD_PAINT_KEYS, PILOT_SUITS, PILOT_SUIT_KEYS, POD_DECALS, POD_DECAL_KEYS, POD_PROFILES, POD_PROFILE_KEYS, drillWidth, drillReachTiles, drillVisualTier, DRILL_TIERS, UNDERGROUND_BUILDING, type Upgrade, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { extractorOreEligibility } from '../building/UndergroundStructures';
 import { parseSaveFile, type SaveData } from '../save/SaveManager';
 import { Progress, type Cargo } from '../economy/Progress';
 import type { SaleReceipt } from '../economy/Sale';
@@ -8,7 +9,7 @@ import type { PlayerPod } from '../player/PlayerPod';
 import type { AudioMix } from '../audio/AudioSystem';
 import { campaignMapRecords, coreSurveyProgress, crewArchiveRestored } from '../campaign/Records';
 import { surfaceTownTier } from '../surface/SurfaceStation';
-import { canAffordStructure, type StructureKind, type UndergroundStructure } from '../building/UndergroundStructures';
+import { structureIntegrity, turretStats, canAffordStructure, type StructureKind, type UndergroundStructure } from '../building/UndergroundStructures';
 import { ESCAPE_SUIT } from '../config';
 import { wrapPlanetTile } from '../world/PlanetChart';
 import { tradeNetworkPremium } from '../config';
@@ -45,15 +46,15 @@ export function campaignObjective(p: Progress, mapId: MapId, tradePostCount = 0,
   };
   if (inOrbit && !mothershipBoarded) return {
     title: 'RETURN TO THE MOTHERSHIP',
-    body: 'Hold S to land, then drive into the mothership and press E before opening WORLDS.',
+    body: 'Hold S to land, then drive into the mothership and press E to open the planet map.',
   };
   if (inOrbit) return {
     title: 'MOTHERSHIP IN ORBIT · CHOOSE A WORLD',
-    body: 'Fly with WASD on the solar system map. Approach a planet and select LAND.',
+    body: 'Choose a world on the planet map, review the core-fuel price, and confirm the route. WASD remains for mining movement.',
   };
   if (p.coreFuel === CORE_FUEL.unitsPerCore && CORE_RELICS.filter((record) => p.milestones.includes(record.id)).length === 1) return {
     title: 'INTERPLANETARY MINER · CORE DRIVE ONLINE',
-    body: `Drive into the mothership and press E. W takes off; approach a planet in space and select LAND. Core fuel limits flight distance; approach a planet to land.`,
+    body: 'Drive into the mothership and press E. W opens the planet selector. Choose a destination and confirm its core-fuel price.',
   };
   const core = CORE_RELICS.find((record) => record.mapId === mapId)!;
   if (!p.milestones.includes(core.id)) return {
@@ -146,7 +147,12 @@ export type UIActions = {
   setAtmosphereEnabled: (enabled: boolean) => void;
   travelMap: (id: MapId) => boolean;
   buildStructure: (kind: StructureKind) => boolean;
+  upgradeTurret: (id: string) => boolean;
+  buildExtractor: () => boolean;
+  upgradeExtractor: (id: string) => boolean;
+  upgradeWarehouse: () => boolean;
   warehouseStock: (mapId?: MapId) => Cargo;
+  warehouseCapacity: (mapId?: MapId) => number;
   warehouseMaps: () => MapId[];
   transferWarehouse: (ore: Ore, direction: WarehouseDirection, units: number, mapId?: MapId) => number;
   contributeSystemProject: () => boolean;
@@ -319,8 +325,8 @@ export class HUD {
     this.mapId = mapId;
     document.querySelector('#app')!.innerHTML = `
       <header class="topbar"><a class="brand" href="#" aria-label="Cold Signal"><span class="brand-mark">C<span>↧</span></span><span>COLD<span class="brand-light">SIGNAL</span><small>THE LOST ARK CAMPAIGN</small></span></a><div class="expedition"><i></i> PROSPECTOR ONLINE <span>/</span> <b id="zone">ICE MOON / CRYO SHELF</b></div><div class="top-actions"><button id="map-toggle" aria-label="Toggle explored map" title="Toggle explored map" aria-pressed="false">MAP</button><button id="audio" aria-label="Toggle sound" title="Toggle sound">SOUND ON</button><button id="audio-mix" aria-label="Open audio mixer" title="Open audio mixer">MIX</button><button id="pause" aria-label="Pause game">Ⅱ</button></div></header>
-      <main id="viewport"><div id="game" aria-label="Mining campaign. Use WASD or arrow keys to fly. Hold left mouse button to aim and drill." role="application" tabindex="0"></div>
-      <aside class="telemetry"><div class="eyebrow">POD TELEMETRY <span class="status-dot"></span></div><div class="meter-head"><span>FUEL</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-line"><span>▦ &nbsp;CARGO</span><strong id="cargo-label"></strong></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Interplanetary core fuel"><span>CORE FUEL · SPACE</span><b id="core-fuel-label">0</b></div></aside>
+      <main id="viewport"><div id="game" aria-label="Mining campaign. Use WASD or arrow keys to move. Hold left mouse button to aim and drill." role="application" tabindex="0"></div>
+      <aside class="telemetry"><div class="eyebrow">POD TELEMETRY <span class="status-dot"></span></div><div class="meter-head"><span>FUEL</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-line"><span>▦ &nbsp;CARGO</span><strong id="cargo-label"></strong></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Interplanetary core fuel"><span>CORE FUEL · SPACE</span><b id="core-fuel-label">0</b></div><div id="colony-alert" aria-label="Colony raid status"></div></aside>
       <aside class="depth-panel"><div class="eyebrow">CURRENT DEPTH</div><div class="depth-value"><span id="depth">0</span><small>m</small></div><div class="record">DEEPEST <span id="record">0m</span></div><div class="depth-rule"></div><div id="depth-note">SURFACE OPERATIONS</div><div id="gravity-note" aria-live="polite"></div></aside>
       <div class="location-label"><span class="eyebrow">ICE MOON / CRYO SHELF</span><span>VESPER-9 · Mothership HAB-07</span></div>
       <div id="tip" class="mission-tip hidden" aria-live="polite"><span class="tip-icon">✦</span><div><b id="mission-headline"></b><span id="mission-body"></span></div></div>
@@ -504,10 +510,11 @@ export class HUD {
       const turretCount = structures.filter((entry) => entry.kind === 'turret').length;
       const habitatCount = structures.filter((entry) => entry.kind === 'habitat').length;
       const warehouseCount = structures.filter((entry) => entry.kind === 'warehouse').length;
+      const extractorCount = structures.filter((entry) => entry.kind === 'extractor').length;
       const wallCount = structures.filter((entry) => entry.kind === 'wall').length;
       const gateCount = structures.filter((entry) => entry.kind === 'gate').length;
-      const damagedStructures = structures.filter((entry) => ['habitat', 'turret', 'wall', 'gate'].includes(entry.kind) &&
-        (entry.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity);
+      const damagedStructures = structures.filter((entry) => ['habitat', 'turret', 'wall', 'gate', 'fort'].includes(entry.kind) &&
+        (entry.integrity ?? structureIntegrity(entry.kind)) < structureIntegrity(entry.kind));
       const option = (kind: StructureKind, label: string, description: string, owned: boolean) => {
         const cost = UNDERGROUND_BUILDING[kind];
         const affordable = canAffordStructure(kind, p.cargo, p.money);
@@ -524,7 +531,11 @@ export class HUD {
           ? `LOCAL BUY ORDER · ${orderStatus}. Sell the required ore here in one visit.`
           : `NEXT BUY ORDER · ${orderStatus}. Build this planet’s Trading Post to deliver.`;
         const repairRows = this.nearSurface ? damagedStructures.map((entry) => `<article class="service-row"><div><b>REPAIR ${entry.kind.replace('-', ' ').toUpperCase()}</b><small>Restores full integrity · $${SURFACE_RAID.repairCredits}</small></div><button id="repair-${encodeURIComponent(entry.id)}" ${p.money < SURFACE_RAID.repairCredits ? 'disabled' : ''}>REPAIR</button></article>`).join('') : '';
-        content = `<p>Build colony modules anywhere on this globe. Surface raiders telegraph their target; drill them, let a pylon intercept, or hold them at a wall. Gates lift for your miner.</p><div class="network-status"><b>PLANETARY BUY ORDER</b><span>${orderCopy}</span></div>${repairRows ? `<div class="upgrade-list">${repairRows}</div>` : ''}<div class="upgrade-list">${option('habitat', 'COLONY HABITAT', `${habitatCount}/${UNDERGROUND_BUILDING.habitat.maxPerMap} built. A permanent surface shelter with a nearby repair and refuel bay.`, habitatCount >= UNDERGROUND_BUILDING.habitat.maxPerMap)}${option('turret', 'DEFENSE PYLON', `${turretCount}/${UNDERGROUND_BUILDING.turret.maxPerMap} built. Intercepts rock swimmers and colony raiders in its 440 px guard radius.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}${option('trade-post', 'TRADING POST', this.actions.hasTradePost() ? 'This colony is connected to the Vesper exchange.' : 'A surface exchange node. Protected from raids so the trade objective cannot be permanently lost.', this.actions.hasTradePost())}${option('warehouse', 'ORE WAREHOUSE', `${warehouseCount ? 'Built · ' : 'One per planet · '}store selected ore safely here and withdraw it later.`, warehouseCount >= UNDERGROUND_BUILDING.warehouse.maxPerMap)}${option('wall', 'PERIMETER WALL', `${wallCount}/${UNDERGROUND_BUILDING.wall.maxPerMap} built. Adjacent segments connect; raiders must breach each segment. Your miner can cross freely.`, wallCount >= UNDERGROUND_BUILDING.wall.maxPerMap)}${option('gate', 'SECURITY GATE', `${gateCount}/${UNDERGROUND_BUILDING.gate.maxPerMap} built. A raider-blocking gap that lifts when your miner approaches.`, gateCount >= UNDERGROUND_BUILDING.gate.maxPerMap)}</div><div class="network-status"><b>INTERPLANETARY EXCHANGE · ${networkCount}/${Object.keys(MAPS).length} POSTS</b><span>${premium}% LINKED-WORLD SALE PREMIUM · ${networkCount < 2 ? 'BUILD ON A SECOND PLANET TO OPEN THE ROUTE' : 'ROUTES ACTIVE ACROSS THE VESPER SYSTEM'}</span></div><p class="fine">Press E at a habitat for service, Trading Post for sales, or Warehouse for ore storage. ${this.nearSurface ? `Damaged habitats, pylons, walls and gates can be repaired here for $${SURFACE_RAID.repairCredits}.` : 'Return to Hab 07 to repair damaged colony buildings.'} Structures persist per planet; use MAPS after completing the Mothership to visit other worlds.</p>`;
+        const upgradeRows = this.nearSurface ? structures.filter(entry => entry.kind === 'turret').map(entry => {
+          const level = entry.level ?? 1, next = TURRET_TIERS[level], stats = turretStats(entry);
+          return `<article class="service-row"><div><b>PYLON LEVEL ${level}</b><small>${stats.range} px range · ${stats.reloadSeconds}s reload${next ? ` → ${next.range} px · ${next.reloadSeconds}s` : ' · Fully upgraded'}</small></div>${next ? `<button id="upgrade-turret-${encodeURIComponent(entry.id)}" ${p.money < next.upgradeCredits ? 'disabled' : ''}>UPGRADE · ${next.upgradeCredits}</button>` : ''}</article>`;
+        }).join('') : '';
+        content = `<p>Build colony modules anywhere on this globe. Surface raiders telegraph their target; drill them, let a pylon intercept, or hold them at a wall. Gates lift for your miner.</p><div class="network-status"><b>PLANETARY BUY ORDER</b><span>${orderCopy}</span></div>${repairRows ? `<div class="upgrade-list">${repairRows}</div>` : ''}${upgradeRows ? `<div class="upgrade-list">${upgradeRows}</div>` : ''}<div class="upgrade-list">${option('fort', 'COLONY FORT', `One per planet. Four-hit command bunker. Walls join its edges; pylons within ${UNDERGROUND_BUILDING.fort.linkRadius} px gain ${UNDERGROUND_BUILDING.fort.rangeBonus} px range. First raid after ${SURFACE_RAID.fortFirstWarningSeconds}s at the surface, then every ${SURFACE_RAID.fortRepeatWarningSeconds}s after an encounter.`, structures.some(entry => entry.kind === 'fort'))}${option('habitat', 'COLONY HABITAT', `${habitatCount}/${UNDERGROUND_BUILDING.habitat.maxPerMap} built. A permanent surface shelter with a nearby repair and refuel bay.`, habitatCount >= UNDERGROUND_BUILDING.habitat.maxPerMap)}${option('turret', 'DEFENSE PYLON', `${turretCount}/${UNDERGROUND_BUILDING.turret.maxPerMap} built. Intercepts rock swimmers and colony raiders in its 440 px guard radius.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}${option('trade-post', 'TRADING POST', this.actions.hasTradePost() ? 'This colony is connected to the Vesper exchange.' : 'A surface exchange node. Protected from raids so the trade objective cannot be permanently lost.', this.actions.hasTradePost())}${option('warehouse', 'ORE WAREHOUSE', `${warehouseCount ? 'Built · ' : 'One per planet · '}store selected ore safely here and withdraw it later.`, warehouseCount >= UNDERGROUND_BUILDING.warehouse.maxPerMap)}${warehouseCount ? `<article class="service-row"><div><b>AUTOMATED EXTRACTORS · ${extractorCount}/${UNDERGROUND_BUILDING.extractor.maxPerMap}</b><small>Build an excavator beside this depot, then upgrade its tier at the warehouse.</small></div><button id="build-extractor" ${extractorCount >= UNDERGROUND_BUILDING.extractor.maxPerMap || !this.actions.atWarehouse() ? 'disabled' : ''}>BUILD · $${UNDERGROUND_BUILDING.extractor.credits}</button></article>` : ''}${option('wall', 'PERIMETER WALL', `${wallCount}/${UNDERGROUND_BUILDING.wall.maxPerMap} built. Adjacent segments connect; raiders must breach each segment. Your miner can cross freely.`, wallCount >= UNDERGROUND_BUILDING.wall.maxPerMap)}${option('gate', 'SECURITY GATE', `${gateCount}/${UNDERGROUND_BUILDING.gate.maxPerMap} built. A raider-blocking gap that lifts when your miner approaches.`, gateCount >= UNDERGROUND_BUILDING.gate.maxPerMap)}</div><div class="network-status"><b>INTERPLANETARY EXCHANGE · ${networkCount}/${Object.keys(MAPS).length} POSTS</b><span>${premium}% LINKED-WORLD SALE PREMIUM · ${networkCount < 2 ? 'BUILD ON A SECOND PLANET TO OPEN THE ROUTE' : 'ROUTES ACTIVE ACROSS THE VESPER SYSTEM'}</span></div><p class="fine">Press E at a habitat for service, Trading Post for sales, or Warehouse for ore storage and extractor upgrades. ${this.nearSurface ? `Damaged forts, habitats, pylons, walls and gates can be repaired here for $${SURFACE_RAID.repairCredits}.` : 'Return to Hab 07 to repair damaged colony buildings.'} Structures persist per planet; use MAPS after completing the Mothership to visit other worlds.</p>`;
       } else {
         content = `<p>Build in a cleared cavern. Down drops through decks; local gravity decides which side catches you. Structures stay on this planet.</p><div class="upgrade-list">${option('platform', 'ANCHOR DECK', 'A five-tile landing and staging platform.', platformCount >= 12)}${option('service', 'REFUEL BEACON', 'One per planet. Press E nearby to refuel or repair at standard prices.', hasService)}${option('turret', 'SENTRY TURRET', `${turretCount}/3 built. Automatically intercepts rock swimmers in range.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}</div><p class="fine">Construction requires a 180 m+ site and open room around the build point.</p>`;
       }
@@ -574,7 +585,16 @@ export class HUD {
             : `NEXT · ${surveyStage?.label} AT ${surveyStage ? MAPS[surveyStage.mapId].name.toUpperCase() : 'THE NEXT COLONY'}.`,
         remoteSourcePicker = remoteWarehousesOnline && warehouseMaps.length > 1
           ? `<label class="warehouse-source-label" for="warehouse-source">WITHDRAW FROM</label><select id="warehouse-source">${warehouseMaps.map((id) => `<option value="${id}" ${id === selectedWarehouse ? 'selected' : ''}>${MAPS[id].name.toUpperCase()}${id === this.mapId ? ' · LOCAL' : ' · REMOTE'}</option>`).join('')}</select>` : '';
-      content = `<p>Choose an ore and move it between the miner and a secure planet store. Stored ore stays safe if the miner is lost. Store actions always use this colony; withdraw uses the selected warehouse.</p>${remoteSourcePicker}<div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b></div>`).join('')}</div><div class="warehouse-transfer"><label for="warehouse-ore">SELECT ORE</label><select id="warehouse-ore">${ORE_KEYS.map((ore) => `<option value="${ore}" ${ore === this.warehouseSelectedOre ? 'selected' : ''}>${ORES[ore].name.toUpperCase()}</option>`).join('')}</select><label for="warehouse-units">UNITS · HALF-UNIT STEPS</label><input id="warehouse-units" type="number" min="0.5" step="0.5" value="${this.warehouseUnits}" /></div><div class="warehouse-actions"><button id="warehouse-store">STORE SELECTED</button><button id="warehouse-store-all">STORE ALL</button><button id="warehouse-withdraw">TAKE SELECTED</button><button id="warehouse-withdraw-all">TAKE ALL</button></div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES</b><span>${tugCopy}</span>${!tug.complete && tugStage?.mapId === this.mapId ? `<button id="fund-tug" ${canFundTug ? '' : 'disabled'}>CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>LONG-RANGE SURVEY ARRAY · ${survey.completedStages}/${survey.totalStages} STAGES</b><span>${surveyCopy}</span>${!survey.complete && surveyStage?.mapId === this.mapId ? `<button id="fund-survey" ${canFundSurvey ? '' : 'disabled'}>CONTRIBUTE ${surveyStage.units} ${surveyStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">${remoteWarehousesOnline ? `Remote access is online · ${warehouseMaps.length}/${Object.keys(MAPS).length} colony depots connected.` : `This inventory belongs to ${MAPS[this.mapId].name}.`} Use a Trading Post to sell ore.</p>`;
+      const localCapacity = this.actions.warehouseCapacity(this.mapId), totalStored = ORE_KEYS.reduce((sum, ore) => sum + localStock[ore], 0), localFacilities = this.actions.structures().filter((entry) => entry.kind === 'extractor');
+      const facilityRows = localFacilities.map((entry) => {
+        const level = entry.level ?? 1, tier = EXTRACTOR_TIERS[level - 1]!,
+          materialsOk = EXTRACTOR_TIERS[level] && Object.entries(EXTRACTOR_TIERS[level]!.upgradeMaterials).every(([ore, units]) => p.cargo[ore as Ore] >= units),
+          next = EXTRACTOR_TIERS[level], cost = next?.upgradeCredits ?? 0;
+        return `<article class="service-row"><div><b>${tier.name.toUpperCase()} · ${tier.rate} ORE/H</b><small>${extractorOreEligibility(this.mapId, level).map((ore) => ore.toUpperCase()).join(' · ')}${next ? ` → ${next.name} · MATERIALS ${Object.entries(next.upgradeMaterials).map(([ore, count]) => `${count} ${ore.toUpperCase()}`).join(' + ') || 'NONE'}` : ' · MAX TIER'}</small></div>${next ? `<button id="upgrade-extractor-${encodeURIComponent(entry.id)}" ${p.money < cost || !materialsOk ? 'disabled' : ''}>UPGRADE · $${cost}</button>` : ''}</article>`;
+      }).join('');
+      const warehouse = this.actions.structures().find((entry) => entry.kind === 'warehouse'), warehouseLevel = warehouse?.level ?? 1, warehouseNextCost = UNDERGROUND_BUILDING.warehouse.capacityUpgrade[warehouseLevel],
+        capacityUpgrade = warehouseNextCost === undefined ? 'MAX CAPACITY' : `<button id="upgrade-warehouse" ${p.money < warehouseNextCost ? 'disabled' : ''}>UPGRADE · $${warehouseNextCost}</button>`;
+      content = `<p>Choose an ore and move it between the miner and a secure planet store. Stored ore stays safe if the miner is lost. Store actions always use this colony; withdraw uses the selected warehouse.</p>${remoteSourcePicker}<div class="network-status"><b>LOCAL STORAGE · ${totalStored} / ${localCapacity} ORE</b><span>Warehouse level ${warehouseLevel} · storage upgrades expand production capacity.</span>${capacityUpgrade}</div><div class="service-row"><div><b>BUILD BASIC EXCAVATOR</b><small>2 ore per hour · copper and iron · $${UNDERGROUND_BUILDING.extractor.credits} + ${Object.entries(UNDERGROUND_BUILDING.extractor.materials).map(([ore, n]) => `${n} ${ore}`).join(' + ')}</small></div><button id="warehouse-build-extractor" ${localFacilities.length >= UNDERGROUND_BUILDING.extractor.maxPerMap || p.money < UNDERGROUND_BUILDING.extractor.credits || Object.entries(UNDERGROUND_BUILDING.extractor.materials).some(([ore, n]) => p.cargo[ore as Ore] < n) ? 'disabled' : ''}>BUILD</button></div>${facilityRows ? `<div class="upgrade-list">${facilityRows}</div>` : ''}<div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b></div>`).join('')}</div><div class="warehouse-transfer"><label for="warehouse-ore">SELECT ORE</label><select id="warehouse-ore">${ORE_KEYS.map((ore) => `<option value="${ore}" ${ore === this.warehouseSelectedOre ? 'selected' : ''}>${ORES[ore].name.toUpperCase()}</option>`).join('')}</select><label for="warehouse-units">UNITS · HALF-UNIT STEPS</label><input id="warehouse-units" type="number" min="0.5" step="0.5" value="${this.warehouseUnits}" /></div><div class="warehouse-actions"><button id="warehouse-store">STORE SELECTED</button><button id="warehouse-store-all">STORE ALL</button><button id="warehouse-withdraw">TAKE SELECTED</button><button id="warehouse-withdraw-all">TAKE ALL</button></div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES</b><span>${tugCopy}</span>${!tug.complete && tugStage?.mapId === this.mapId ? `<button id="fund-tug" ${canFundTug ? '' : 'disabled'}>CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>LONG-RANGE SURVEY ARRAY · ${survey.completedStages}/${survey.totalStages} STAGES</b><span>${surveyCopy}</span>${!survey.complete && surveyStage?.mapId === this.mapId ? `<button id="fund-survey" ${canFundSurvey ? '' : 'disabled'}>CONTRIBUTE ${surveyStage.units} ${surveyStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">${remoteWarehousesOnline ? `Remote access is online · ${warehouseMaps.length}/${Object.keys(MAPS).length} colony depots connected.` : `This inventory belongs to ${MAPS[this.mapId].name}.`} Use a Trading Post to sell ore.</p>`;
     } else if (name === 'service') {
       title = 'Ready for another run.';
       sub = this.actions.structures().some((entry) => entry.kind === 'service') ? 'FUEL & REPAIR / LOCAL PIT STOP' : 'FUEL & REPAIR / OUTPOST 07';
@@ -646,7 +666,7 @@ export class HUD {
     } else if (name === 'shipyard') {
       title = p.shipComplete ? 'The mothership is ready.' : 'Power the mothership.';
       sub = 'MOTHERSHIP / CORE-POWERED FLIGHT';
-      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, W lifts the ship into space. Use WASD to fly, then approach a planet and select LAND. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, and space flight consumes fuel by distance. Core fuel is separate from the miner’s local fuel.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Route signals are optional survey records. Explore another planet to mine its core and replenish the jump reserve.</p>`;
+      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, W opens the planet selector. Review a route and confirm travel; core fuel is charged by distance. WASD remains for mining movement. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, separate from the miner’s local fuel.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Route signals are optional survey records. Explore another planet to mine its core and replenish the jump reserve.</p>`;
     } else if (name === 'destinations') {
       title = 'Choose the next descent.';
       sub = 'DESTINATION BOARD / LONG-RANGE CRAFT';
@@ -764,10 +784,22 @@ export class HUD {
       this.renderModal();
     });
     if (this.nearSurface) for (const structure of this.actions.structures().filter((entry) =>
-      ['habitat', 'turret', 'wall', 'gate'].includes(entry.kind) && (entry.integrity ?? SURFACE_RAID.integrity) < SURFACE_RAID.integrity)) {
+      ['habitat', 'turret', 'wall', 'gate', 'fort'].includes(entry.kind) && (entry.integrity ?? structureIntegrity(entry.kind)) < structureIntegrity(entry.kind))) {
       this.on(`repair-${encodeURIComponent(structure.id)}`, () => {
         if (this.actions.repairStructure(structure.id)) this.toast('COLONY DEFENSE REPAIRED · FULL INTEGRITY RESTORED.');
         else this.toast(`REPAIR NEEDS $${SURFACE_RAID.repairCredits} AND A SURFACE BUILD YARD.`);
+        this.renderModal();
+      });
+    }
+    this.on('build-fort', () => {
+      if (this.actions.buildStructure('fort')) {
+        this.close();
+        this.toast('FORT PLACEMENT · Choose a clear surface site. Enter builds; Escape cancels.');
+      } else this.toast('Fort requires a clear planetary surface site and the listed materials.');
+    });
+    if (this.nearSurface) for (const turret of this.actions.structures().filter(entry => entry.kind === 'turret')) {
+      this.on(`upgrade-turret-${encodeURIComponent(turret.id)}`, () => {
+        this.toast(this.actions.upgradeTurret(turret.id) ? 'PYLON UPGRADED · RANGE AND RELOAD IMPROVED.' : 'UPGRADE FAILED · CHECK CREDITS AND SAVE STORAGE.');
         this.renderModal();
       });
     }
@@ -884,6 +916,13 @@ export class HUD {
     this.on('warehouse-store-all', () => this.moveWarehouse('store', true));
     this.on('warehouse-withdraw', () => this.moveWarehouse('withdraw'));
     this.on('warehouse-withdraw-all', () => this.moveWarehouse('withdraw', true));
+    this.on('upgrade-warehouse', () => { this.toast(this.actions.upgradeWarehouse() ? 'WAREHOUSE CAPACITY UPGRADED.' : 'UPGRADE FAILED · CHECK CREDITS AND SAVE STORAGE.'); this.renderModal(); });
+    for (const extractor of this.actions.structures().filter((entry) => entry.kind === 'extractor')) this.on(`upgrade-extractor-${encodeURIComponent(extractor.id)}`, () => {
+      this.toast(this.actions.upgradeExtractor(extractor.id) ? 'EXTRACTOR UPGRADED · NEW ORES AND RATE ONLINE.' : 'UPGRADE FAILED · CHECK CREDITS, ORE AND SAVE STORAGE.'); this.renderModal();
+    });
+    const buildExtractor = () => { this.toast(this.actions.buildExtractor() ? 'BASIC EXCAVATOR BUILT.' : 'BUILD FAILED · CHECK COST / SITE.'); this.renderModal(); };
+    this.on('build-extractor', buildExtractor);
+    this.on('warehouse-build-extractor', buildExtractor);
     this.on('fund-relay', () => {
       this.actions.contributeSystemProject();
       this.renderModal();
@@ -960,6 +999,10 @@ export class HUD {
         document.querySelector('.modal button:not(.close):not(:disabled)') ??
         document.querySelector('.close')) as HTMLElement
     )?.focus();
+  }
+  setColonyAlert(text: string) {
+    const alert = document.getElementById('colony-alert');
+    if (alert && alert.textContent !== text) alert.textContent = text;
   }
   toast(text: string) {
     const el = document.querySelector('#toast')!;
@@ -1102,6 +1145,7 @@ export class HUD {
   }
   setInOrbit(active: boolean) {
     this.inOrbit = active;
+    if (active) this.setColonyAlert('');
   }
   setGrappleEnabled(enabled: boolean) {
     const control = document.querySelector<HTMLElement>('#grapple-control');

@@ -1,9 +1,51 @@
-import { UNDERGROUND_BUILDING, SURFACE_RAID, WORLD, depthAtWorldY, type Ore } from '../config';
+import { EXTRACTOR_TIERS, MAPS, UNDERGROUND_BUILDING, SURFACE_RAID, TURRET_TIERS, WAREHOUSE_CAPACITY_TIERS, WORLD, depthAtWorldY, type MapId, type Ore } from '../config';
+import type { Cargo } from '../economy/Progress';
 import type { TileWorld } from '../world/TileWorld';
 
-export type StructureKind = 'platform' | 'service' | 'turret' | 'trade-post' | 'habitat' | 'warehouse' | 'wall' | 'gate';
-export type SurfaceStructureKind = 'turret' | 'trade-post' | 'habitat' | 'warehouse' | 'wall' | 'gate';
-export type UndergroundStructure = { id: string; kind: StructureKind; x: number; y: number; reload?: number; integrity?: number };
+export type StructureKind = 'platform' | 'service' | 'turret' | 'trade-post' | 'habitat' | 'warehouse' | 'extractor' | 'wall' | 'gate' | 'fort';
+export type SurfaceStructureKind = Exclude<StructureKind, 'platform' | 'service'>;
+export type UndergroundStructure = { id: string; kind: StructureKind; x: number; y: number; reload?: number; integrity?: number; level?: number; productionFraction?: number };
+
+export const warehouseCapacity = (structures: readonly UndergroundStructure[]) => {
+  const warehouse = structures.find((entry) => entry.kind === 'warehouse');
+  return warehouse ? WAREHOUSE_CAPACITY_TIERS[Math.max(0, Math.min(WAREHOUSE_CAPACITY_TIERS.length - 1, (warehouse.level ?? 1) - 1))]! : 0;
+};
+export function upgradeWarehouse(structures: readonly UndergroundStructure[], credits: number) {
+  const warehouse = structures.find((entry) => entry.kind === 'warehouse'), level = warehouse?.level ?? 1,
+    cost = UNDERGROUND_BUILDING.warehouse.capacityUpgrade[level];
+  if (!warehouse || cost === undefined || credits < cost) return undefined;
+  return { credits: credits - cost, level: level + 1 };
+}
+export function upgradeExtractor(structure: UndergroundStructure, cargo: Cargo, credits: number) {
+  const level = structure.level ?? 1, next = EXTRACTOR_TIERS[level - 1];
+  if (structure.kind !== 'extractor' || !next || credits < next.upgradeCredits ||
+      Object.entries(next.upgradeMaterials).some(([ore, units]) => cargo[ore as Ore] < units)) return undefined;
+  const nextCargo = { ...cargo };
+  for (const [ore, units] of Object.entries(next.upgradeMaterials)) nextCargo[ore as Ore] -= units;
+  return { credits: credits - next.upgradeCredits, level: level + 1, cargo: nextCargo };
+}
+export function extractorOreEligibility(mapId: MapId, level: number): Ore[] {
+  const ores = EXTRACTOR_TIERS[Math.max(0, Math.min(EXTRACTOR_TIERS.length - 1, level - 1))]!.ores;
+  return [...ores].filter((ore) => MAP_ORE_FACTORS[mapId][ore] > 0);
+}
+const MAP_ORE_FACTORS = Object.fromEntries(Object.entries(MAPS).map(([id, map]) => [id, map.oreFactors])) as Record<MapId, Record<Ore, number>>;
+
+export const structureIntegrity = (kind: StructureKind) => kind === 'fort' ? UNDERGROUND_BUILDING.fort.integrity : kind === 'extractor' ? 1 : SURFACE_RAID.integrity;
+export const turretStats = (structure: UndergroundStructure) => TURRET_TIERS[Math.max(0, Math.min(TURRET_TIERS.length - 1, (structure.level ?? 1) - 1))]!;
+export function upgradeTurret(structure: UndergroundStructure, credits: number) {
+  const level = structure.level ?? 1, next = TURRET_TIERS[level];
+  if (structure.kind !== 'turret' || !next || credits < next.upgradeCredits) return undefined;
+  return { credits: credits - next.upgradeCredits, level: level + 1 };
+}
+
+export function linkedFort(world: TileWorld, structure: UndergroundStructure, structures: readonly UndergroundStructure[]) {
+  if (Math.min(Math.abs(structure.y), Math.abs(structure.y - world.farSurfaceY)) > WORLD.tile * 4) return undefined;
+  return structures.find(entry => entry.kind === 'fort' && globeSurfaceDistance(world, structure.x, structure.y, entry.x, entry.y) <= UNDERGROUND_BUILDING.fort.linkRadius);
+}
+
+export function surfaceTurretRange(world: TileWorld, turret: UndergroundStructure, structures: readonly UndergroundStructure[]) {
+  return turretStats(turret).range + (linkedFort(world, turret, structures) ? UNDERGROUND_BUILDING.fort.rangeBonus : 0);
+}
 
 export function surfaceArcCoordinate(world: TileWorld, x: number, y: number) {
   const circumference = world.widthTiles * WORLD.tile,
@@ -13,10 +55,10 @@ export function surfaceArcCoordinate(world: TileWorld, x: number, y: number) {
     : circumference + u * WORLD.tile;
 }
 
-export function surfaceArcPoint(world: TileWorld, coordinate: number) {
+export function surfaceArcPoint(world: TileWorld, coordinate: number, snap = true) {
   const half = world.widthTiles * WORLD.tile, full = half * 2,
     wrapped = ((coordinate % full) + full) % full,
-    s = Math.round(wrapped / WORLD.tile - 0.5) * WORLD.tile + WORLD.tile / 2;
+    s = snap ? Math.round(wrapped / WORLD.tile - 0.5) * WORLD.tile + WORLD.tile / 2 : wrapped;
   return s < half
     ? { x: s, y: 0 }
     : { x: s - half, y: world.farSurfaceY };
@@ -37,6 +79,8 @@ export function validateSurfaceStructureSite(
       kind === 'turret' && playerStructures.filter((entry) => entry.kind === 'turret').length >= rule.maxPerMap ||
       kind === 'trade-post' && playerStructures.some((entry) => entry.kind === 'trade-post') ||
       kind === 'warehouse' && playerStructures.some((entry) => entry.kind === 'warehouse') ||
+      kind === 'fort' && playerStructures.some((entry) => entry.kind === 'fort') ||
+      kind === 'extractor' && playerStructures.filter((entry) => entry.kind === 'extractor').length >= rule.maxPerMap ||
       (kind === 'wall' || kind === 'gate') && playerStructures.filter((entry) => entry.kind === kind).length >= rule.maxPerMap)
     return { valid: false, reason: 'LIMIT' };
   if (!canAffordStructure(kind, cargo, credits)) return { valid: false, reason: 'NEED MATERIALS / CREDITS' };
@@ -67,8 +111,8 @@ export function validateSurfaceStructureSite(
     if (!onSurface) continue;
     if (kind === 'wall' && candidateOutward >= WORLD.tile * 4) continue;
     const entryArc = surfaceArcCoordinate(world, entry.x, entry.y), entryHalfWidth = UNDERGROUND_BUILDING[entry.kind].widthTiles * WORLD.tile / 2;
-    const normalDistance = distanceOnGlobe(candidateArc, entryArc), modularJoin = (kind === 'wall' || kind === 'gate') &&
-      (entry.kind === 'wall' || entry.kind === 'gate');
+    const normalDistance = distanceOnGlobe(candidateArc, entryArc), modularJoin = ['wall', 'gate', 'fort'].includes(kind) &&
+      ['wall', 'gate', 'fort'].includes(entry.kind);
     if (normalDistance < candidateHalfWidth + entryHalfWidth + (modularJoin ? -1 : 8))
       return { valid: false, reason: 'OCCUPIED' };
   }
@@ -82,9 +126,10 @@ export function canAffordStructure(kind: StructureKind, cargo: Record<Ore, numbe
 }
 
 export function repairSurfaceStructure(structure: UndergroundStructure, credits: number) {
-  if (!['habitat', 'turret', 'wall', 'gate'].includes(structure.kind) ||
-      (structure.integrity ?? SURFACE_RAID.integrity) >= SURFACE_RAID.integrity || credits < SURFACE_RAID.repairCredits) return undefined;
-  return { credits: credits - SURFACE_RAID.repairCredits, integrity: SURFACE_RAID.integrity };
+  const maximum = structureIntegrity(structure.kind);
+  if (!['habitat', 'turret', 'wall', 'gate', 'fort'].includes(structure.kind) ||
+      (structure.integrity ?? maximum) >= maximum || credits < SURFACE_RAID.repairCredits) return undefined;
+  return { credits: credits - SURFACE_RAID.repairCredits, integrity: maximum };
 }
 
 export function findSurfaceTradePostSite(
@@ -258,7 +303,7 @@ export function crossedStructureDeck(
 ) {
   if (dropThrough || Math.abs(toY - fromY) < 0.00001) return undefined;
   for (const structure of structures) {
-    if (structure.kind === 'trade-post' || structure.kind === 'warehouse' || structure.kind === 'wall' || structure.kind === 'gate') continue;
+    if (structure.kind === 'trade-post' || structure.kind === 'warehouse' || structure.kind === 'wall' || structure.kind === 'gate' || structure.kind === 'fort') continue;
     const width = UNDERGROUND_BUILDING[structure.kind].widthTiles * WORLD.tile / 2;
     if (Math.abs(x - structure.x) > width) continue;
     const fromFeet = fromY + gravitySign * halfHeight - structure.y;
