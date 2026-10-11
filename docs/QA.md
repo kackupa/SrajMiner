@@ -1,10 +1,24 @@
-# QA report — 2026-10-10
+# QA
 
-## Core-fuel campaign regression and deployment check — 2026-10-10
+## Flyable solar system: 2026-10-10
+
+The mothership now leaves the planet for a WASD-controlled Vesper system map. Space distance consumes core fuel (400 km per unit); releasing input brakes immediately. The flight planner preserves enough fuel to reach an unlocked planet's landing zone. Planet-local fuel is unchanged. Save v27 migrates v1–26 campaigns and persists fractional core fuel with the space position.
+
+Validation: npm install completed; npm test passed all 165 system tests, atmosphere checks, and solar flight tests; npm run build passed with the existing bundle-size warning. git diff --check passed.
+
+Isolated headed Chrome checks against Vite with native localStorage passed: E boarding, W ascent, automatic system-map entry, diagonal WASD travel from Cryo Shelf to Hull Graveyard, approach landing, E disembarking, and the miner's unboarded altitude cap at -652. The flight consumed approximately 0.78 core fuel and kept the local tank at 140. Reload in space preserved the exact position, fuel and cargo. Return landing at 0.05 core fuel and reload preserved two iron units without duplication. Desktop and 800×600 screenshots were inspected; artifacts are ignored under output/playwright/solar-*.png. No browser console errors were observed. Full fresh-core mining-to-six-world campaign pacing, touch controls, and every far-hemisphere launch remain untested in this session.
+
+Follow-up: isolated Chrome browser fixtures now verify mid-flight reload, distance travel from Cryo Shelf to Hull Graveyard and back, untouched local fuel/cargo/hull/credits, and preserved excavation. A pad restore fix recognizes the mothership's x=555 landing point without snapping saved solar-orbit coordinates down to the surface. The companion shipyard fixture also verifies same-world LAND, disembark/reboard, and pad reload. Both fixtures pass without browser errors.
+
+Pages run [38081174957](https://github.com/kackupa/SrajMiner/actions/runs/38081174957) failed on the existing core-ray test. The same failure reproduced on untouched HEAD. The fixture supplied Cartesian coordinates to aimedDrillTarget, which takes chart coordinates; the test now uses the correct coordinate space without changing drilling behavior.
+
+# QA report: 2026-10-10
+
+## Core-fuel campaign regression and deployment check: 2026-10-10
 
 GitHub Actions run [#5 on `6abf2ee`](https://github.com/kackupa/SrajMiner/actions/runs/38064628317) failed in `npm test` at the campaign-objective test: that pushed test still expected the retired four-part campaign even though progression had moved to core-fuel mothership travel. The current working-tree assertion now checks core unlock, boarding, orbit, and emergency recovery. `npm test` passes 163 system tests plus the atmosphere suite; `npm run build` succeeds; `git diff --check` is clean. The updated files remain local, so a fresh Pages run has not yet been triggered.
 
-## Mothership route and orbital HUD — 2026-10-10
+## Mothership route and orbital HUD: 2026-10-10
 
 An isolated headless Chrome session loaded the production bundle from disk. The six-world atlas exposed its named route-map region and six controls; a fresh launch started on Cryo Shelf with 140 L local fuel, zero core fuel, and the mothership unboarded. A prepared v26 save then completed takeoff and four jumps (Cryo Shelf → Mars Frontier → Hull Graveyard → Prism Fault → Cinder Vale), spending one core-fuel unit per jump. Every arrival was docked aboard the mothership; local fuel, hull, cargo, and credits stayed unchanged; five planet maps and the original excavation survived the final reload. A separate interaction check moved toward the ship until the `BOARD MOTHERSHIP` cue appeared, pressed E at the landing pad, and confirmed the boarded state saved immediately and restored after reload. The browser run used a session-backed localStorage shim because the runner cannot access the local Vite server, so it verifies game input/render/save flow but not the browser's native storage backend (covered by system tests). Human judgments of approach range and pacing remain open.
 
@@ -12,31 +26,31 @@ The repository's `tests/browser-campaign-travel.js` fixture also passed in isola
 
 That flight check exposed an orbital HUD mismatch: while the ship was in orbit, the depth panel still said `UNDERGROUND` and showed a miner return-fuel estimate. It now reads `MOTHERSHIP STATUS · ORBIT`, hides miner depth/record and return-fuel data, and restores the correct surface label after landing. The same isolated browser verified both states with no page errors. The normal Pages build and system tests pass; the Vite large-chunk advisory remains. The original player tab was not touched.
 
-## Colony and grapple visual/input follow-up — 2026-10-10
+## Colony and grapple visual/input follow-up: 2026-10-10
 
 An isolated Chrome view at 1280×800 loaded a version-26 Cryo Shelf save with all six core records and showed the tier-4 `BEACON TOWN` on the curved surface. The miner stayed centered and visible; the ore exchange and service bay silhouettes read against the curved decks. The screenshot is `output/playwright/surface-town-colony-review.png`. In the same isolated browser workflow, a purchased grapple exposed its G control hint, and G switched automatic catches off and on with matching HUD toasts. The footer now keeps the on/off state visible after the toast fades. `npm test` passes 163 system tests plus cave-atmosphere coverage, including disabled-catch and tether-release regressions; the production build passes with the existing large-chunk advisory. The normal player tab was not touched. Human judgment of town scale and grapple timing remains open.
 
-## Staged globe zoom handoff — 2026-10-10
+## Staged globe zoom handoff: 2026-10-10
 
 An isolated 1280×800 Chrome run used the mouse wheel in both directions. Zoom-out settled the local view at 0.62× before beginning the orbital handoff; the transition completed at 0.62× globe zoom. Zoom-in completed the reverse handoff before local zoom resumed at 1.06×. Captures: `output/playwright/globe-zoom-handoff.png` and `output/playwright/globe-zoom-return.png`. This confirms runtime transition ordering and scale; subjective readability and speed still need player feedback.
 
-## Low-fuel stranded recovery — 2026-10-10
+## Low-fuel stranded recovery: 2026-10-10
 
 An isolated Chrome run started a version-26 campaign at the Cryo Shelf surface with 0.02 L fuel and 2 copper. Holding S drilled to 82 m and exhausted the tank; the miner remained there with full hull, cargo, and credits, and the explicit recovery control appeared. Only after clicking recovery did the miner return to the surface with 140 L and lose the unsold cargo. No automatic surface teleport occurred in this scenario. The original blocked-movement report still needs an ordinary player run; curved collision and obstruction-drilling have system coverage.
 
-## Full-cargo drilling and ore spill — 2026-10-10
+## Full-cargo drilling and ore spill: 2026-10-10
 
 An isolated Chrome save started just above a deterministic copper block with all 16 cargo slots occupied. Holding S broke the block and opened the route; its unit remained as a physical ore pickup. Cargo stayed full, credits stayed at $80, and the miner had no terrain overlap. This confirms full cargo does not lock the drill or discard overflow ore.
 
-## Grapple toggle and release — 2026-10-10
+## Grapple toggle and release: 2026-10-10
 
 Press **G** to toggle automatic catches on or off. Turning the grapple off immediately releases an active tether; **W** retains its existing behavior of releasing and thrusting away. The HUD shows the G hint only after the grapple is installed, and the catch toast confirms each toggle. Toggle state is session-only and starts enabled when the purchased grapple is available. System coverage verifies that disabling it suppresses automatic catches and that manual release resumes gravity without thrust or fuel cost. An isolated Chrome run verified the installed control hint and both G toggle states without touching the player tab.
 
-## Landed mothership and core-fuel travel — 2026-10-10
+## Landed mothership and core-fuel travel: 2026-10-10
 
 Fresh starts now show a brief mothership touchdown and miner-deployment animation. The first planetary core unlocks the mothership’s interplanetary drive; E boards it at the surface, W takes off, S lands, and jumps spend dedicated core fuel without consuming local miner fuel. The destination board requires the player to be aboard. Save v26 preserves that state, and v24/v25 migration retains core records and restores flight-ready saves already in orbit. A v24 save with all four legacy route records also retains its former travel reserve even if the component list is absent. `npm test` passes 161 system tests and the cave-atmosphere suite. `npm run build` succeeds with the existing large-chunk advisory. A unit regression verifies takeoff with an empty miner tank. A separate Chrome tab on a fresh localhost origin verified the landing/deployment intro, the interactive six-world atlas, the first-core objective, and the destination-board gates; travel is disabled before a core is recovered, and Vesper-9 remains gated behind five cores. The fresh HUD rendered without game-origin console errors. The bottom controls now switch to ship-specific board, takeoff, thrust, and land prompts. The v26 flight regressions cover takeoff, landing, boarding, jump spend, arrival/reload, and a four-world route that spends exactly four core-fuel units while preserving miner resources. All browser regression scripts parse; execution is still pending because the isolated preview tab timed out connecting to the local server. The original play tab was not touched. Human review of landing animation quality, boarding range, globe zoom/core-crossing feel, and campaign pacing remains open.
 
-## Core steering, drill reach, and record payouts — 2026-10-10
+## Core steering, drill reach, and record payouts: 2026-10-10
 
 The polar chart previously removed tangent steering as it approached zero radius, leaving the center feeling like a vertical shaft. A bounded tangent floor now keeps lateral input responsive through that singularity, and drilling inside a 220 px core halo gets a visible 160 px beam with an explicit `AIM 360°` HUD cue. One-time core record claims are now $3,000 on the first four worlds, $4,500 on Cinder Vale, and $6,000 on Vesper-9. No save fields changed; existing milestone IDs keep claims one-time. `npm test` passes all system and cave-atmosphere tests; `npm run build` passes with Vite's existing large-bundle advisory; `git diff --check` is clean. Isolated browser preview shows the cue at 1,800 m; the long directional drilling/circling maneuver has not had a human playtest, so movement feel and reward pacing remain subjective checks.
 
@@ -44,71 +58,71 @@ Follow-up isolated browser check: chart-space horizontal velocity now scales inv
 
 The core halo drill now follows the mouse's physical chord through the polar chart instead of extending a chart-space vector near the singularity, where angular coordinates can collapse or bend. A new system regression aims at 16 independently prepared core-adjacent rock targets spaced around the full 360-degree circle; all resolve to the intended tile. `npm test` passes 160 system tests plus cave-atmosphere coverage, `npm run build` passes with the existing large-bundle advisory, and all 38 browser fixture scripts pass `node --check`. Live visual input remains unverified because the isolated browser cannot reach the local preview in this session.
 
-## Automatic mothership part assembly — 2026-10-10
+## Automatic mothership part assembly: 2026-10-10
 
 Four Cryo Shelf finds now are the ship parts: drilling one installs its matching part immediately, pays $200 toward gear, and four unlock interplanetary travel. The shipyard is a progress checklist, not a purchase step. Existing saves with recovered route signals gain their matching parts on load while retaining saved credits. System checks cover one-time rewards, automatic assembly, and old-save restoration. Isolated Chromium verified a zero-credit older save with all four signals becomes flight-ready and travels from orbit. `npm test` passes 150 system tests plus cave-atmosphere coverage; `npm run build` succeeds with Vite's existing large-chunk advisory. A physical four-part browser run remains to be done.
 
-## Curved Surface Winch route — 2026-10-10
+## Curved Surface Winch route: 2026-10-10
 
 The Surface Winch searches the mined empty cells for a route to the Hab 07 yard on the current crust, draws the cable through bends, and steers its powered pull toward successive waypoints. It avoids underground service decks, cabins, and turrets, stays inactive if the route cannot reach an opened surface exit, and estimates fuel from the visible route length while retaining the depth-based estimate as a floor. `npm test` passes 154 system tests plus cave-atmosphere coverage; simulations return around a mined rock plug, from both sides of a compact globe, and around a service beacon with no hull damage, while spending fuel. A sealed surface exit is correctly rejected. TypeScript passes. Browser feel and curved-route readability remain unverified; the isolated browser could not connect to the local server in this environment, and the user's play session was not touched.
 
-## mothership takeoff and orbital travel — 2026-10-10
+## mothership takeoff and orbital travel: 2026-10-10
 
 The completed mothership now makes interplanetary travel physical: W climbs beyond the town limit into a stable orbit, the existing globe cutaway becomes the departure view, Worlds is exposed in the orbit UI, and S starts descent. Map travel is restricted to orbit, and the orbital position fits the existing version-24 save data without migration. System coverage checks the near- and far-side orbit thresholds, the town-height gate, saved orbital coordinates, ascent physics, and the orbit-specific campaign objective. In an isolated in-app browser, imported disposable saves through the game's import UI: the 480 m Cryo Shelf reached orbit in about 9 seconds with 133/140 L and full hull; a newly visited 1,800 m world reached it in about 25 seconds with 103/140 L and full hull. The cutaway rendered, the dedicated Worlds control opened the board, and travel to Hull Graveyard arrived at the surface. A four-second S hold exited orbit into the local view and showed the approach/braking prompt with full hull. The board's surface state was also checked and correctly explained the W-to-orbit goal while keeping other worlds disabled. `tests/browser-shipyard-build-travel.js` now asserts this gate, actual orbital altitude and cutaway, safe arrival, and orbit/destination reload persistence; `node --check` passes. That Playwright script was not executed through the Windows wrapper in this session. Human launch pacing, the 25-second long-world climb, and safe surface landing from orbit still need a player session.
 
-Follow-up — 2026-10-10: W is now accepted while parked in orbit, so the completed miner can thrust outward as well as use S to begin a return. A system regression simulates the return from a legacy-size world and confirms W braking avoids impact and restores stable orbit. Save altitude validation now follows each map's saved globe radius, preserving orbit saves from both compact new worlds and older large worlds. `npm test` passes 150 system tests plus cave-atmosphere coverage, and `npm run build` succeeds with the existing large-chunk advisory. Browser verification was attempted on a separate local port, but the isolated browser could not reach the local dev server and the Windows Playwright wrapper could not start because Bash is unavailable; the user's existing game session was not changed.
+Follow-up: 2026-10-10: W is now accepted while parked in orbit, so the completed miner can thrust outward as well as use S to begin a return. A system regression simulates the return from a legacy-size world and confirms W braking avoids impact and restores stable orbit. Save altitude validation now follows each map's saved globe radius, preserving orbit saves from both compact new worlds and older large worlds. `npm test` passes 150 system tests plus cave-atmosphere coverage, and `npm run build` succeeds with the existing large-chunk advisory. Browser verification was attempted on a separate local port, but the isolated browser could not reach the local dev server and the Windows Playwright wrapper could not start because Bash is unavailable; the user's existing game session was not changed.
 
-## Optional safety grapple progression — 2026-10-09
+## Optional safety grapple progression: 2026-10-09
 
 The safety grapple is now unavailable to a new miner until its first workshop purchase. Existing v19 campaigns migrate to save v20: campaigns with grapple level 2 or higher retain the installed module, while level 1 becomes uninstalled. Earlier migrations follow the same rule; no existing paid upgrade or world state is discarded. System tests cover the lock, purchase activation, old-save ownership, and far-side catch. An isolated fresh-save browser check confirms the workshop says `NOT INSTALLED`, shows the $170 install price and imminent-hard-landing behavior, and leaves the install button disabled with only $80. It did not purchase the item, so the in-browser post-purchase tether remains to be tested.
 
-## Globe-aware loose-ore recovery — 2026-10-09
+## Globe-aware loose-ore recovery: 2026-10-09
 
 Loose-ore pickup and the salvage magnet now measure distances in the polar globe projection on charted planets. Magnet acceleration and its speed cap convert through the local radial/tangent frame, and its line-of-sight check follows the physical chord through sampled chart cells, preserving solid-wall blocking. Legacy rectangular maps retain their prior math. Added tests verify that a wide chart-space span is physically close near the core but distant at the surface, and that magnet speed remains capped through an excavated core passage. `npm test` passes 107 system tests plus cave-atmosphere coverage, and the production build succeeds. An isolated browser run launched a fresh expedition, verified the objective/HUD, and used the down-and-drill control to reach 36 m with 3 ore and full hull; no browser errors were reported. The new core-local magnet behavior has focused system coverage but was not played in-browser. Core-adjacent player collision and a full core/far-side return still need human testing; the user's open play session was not touched.
 
-## Material-specific drilling feedback — 2026-10-09
+## Material-specific drilling feedback: 2026-10-09
 
 The first drilling-feel pass gives each impact a material signature: dust, stone chips, hard-rock sparks, Cryo frost, ore/geode shards, and a brief glint for campaign finds. While cutting, the drill extends with progress; breaking a tile retracts it with a short recoil. Effects are transient, capped, and disabled by reduced-motion preference; no save data or mining rewards changed. New system coverage checks the material-to-effect mapping. `npm test` passes 105 system tests plus cave-atmosphere coverage, `npm run build` succeeds, and `git diff --check` is clean. The open browser page remains on the launch briefing, so live mining effects were not viewed to avoid changing the user's session. Subjective effect density, high-zoom readability, and performance during sustained mining remain for playtesting.
 
-## Persistent campaign objective HUD — 2026-10-09
+## Persistent campaign objective HUD: 2026-10-09
 
 The briefing and running HUD now make the mothership goal explicit: collect four glowing Cryo Shelf route signals, use their claims to assemble the ship, then recover each world's core record. The compact objective card updates for route depth, ship assembly, planet records, and emergency pilot rescue; it hides behind dialogs. An isolated in-app browser run at the default desktop viewport verified the launch briefing and expedition start, and confirmed the first objective displays `mothership ROUTE SIGNAL · 0/4` with `THERMAL OBSERVATORY · 96 M` above the miner without covering the avatar. The pause objective uses the same ship-part explanation. `npm test` passes all 103 system tests, `npm run build` succeeds, and `git diff --check` is clean. Small viewport placement, the later campaign stages, and actual core-crossing readability still need browser playtesting; the user's active game tab was left untouched.
 
-## Core camera, screen-relative controls, drill reach, safety grapple, and fall lead — 2026-10-09
+## Core camera, screen-relative controls, drill reach, safety grapple, and fall lead: 2026-10-09
 
 The charted-world camera now follows the local radial frame around the surface, keeping planetary outward at screen-up; it eases through a 180° turn when the miner passes the core and does not snap when crossing the surface seam. Hemisphere progression and its reward still commit after the miner clears the passage. The starter drill reaches adjacent rock only; existing drill levels extend mouse-beam reach and later levels taper. The safety grapple predicts a damaging landing within 1.5 seconds, skips safe ledges and open shafts, and mirrors its anchor under reversed gravity. The camera also eases up to 96 px ahead along screen-down during fast falls and returns toward center when braking.
 
 The new camera math is covered across multiple surface angles: local outward projects to screen-up, neighboring surface positions change the frame gradually, the twisted seam stays continuous, and crossing the center changes the target frame by exactly 180°. Core-crossing detection explicitly ignores seam wraps. The full suite passes 104 system tests plus cave-atmosphere coverage. Visual animation timing and a full core-through-return browser run still need playtesting.
 
-Follow-up on the requested camera behavior — 2026-10-09: ordinary surface travel continuously eases the view to keep local up aligned, while the explicit camera-turn cue is driven only by crossing the gravity center; crossing the surface seam does not trigger it. A short isolated browser surface traverse confirmed the miner stays upright, the nearby surface rotates smoothly in view, and no core-turn cue appears. A compact-chart physics simulation traverses the open center passage and docks at the far crust with no collision damage, no terrain overlap, and screen-relative local-up controls. `npm install` and `npm test` pass (108 system tests plus cave-atmosphere coverage), and `npm run build` passes with Vite's existing large-chunk advisory. The browser run did not reach the core, so the visible center-turn timing and full human-paced crossing remain unverified; the user's active play tab was not touched.
+Follow-up on the requested camera behavior: 2026-10-09: ordinary surface travel continuously eases the view to keep local up aligned, while the explicit camera-turn cue is driven only by crossing the gravity center; crossing the surface seam does not trigger it. A short isolated browser surface traverse confirmed the miner stays upright, the nearby surface rotates smoothly in view, and no core-turn cue appears. A compact-chart physics simulation traverses the open center passage and docks at the far crust with no collision damage, no terrain overlap, and screen-relative local-up controls. `npm install` and `npm test` pass (108 system tests plus cave-atmosphere coverage), and `npm run build` passes with Vite's existing large-chunk advisory. The browser run did not reach the core, so the visible center-turn timing and full human-paced crossing remain unverified; the user's active play tab was not touched.
 
-## Orbital cutaway fit and overlays — 2026-10-09
+## Orbital cutaway fit and overlays: 2026-10-09
 
 The gameplay wheel zoom now computes its orbital minimum from planet radius and viewport dimensions. The complete compact or legacy globe fits inside a HUD-safe 28%-width / 60%-height area, and resizing preserves a fully zoomed-out view by refitting automatically. While in the cutaway, the surface service menu and objective card hide so they do not cover the map; telemetry and controls remain visible. Isolated browser checks verified the complete Cryo globe at desktop size and at 800×600, automatic resize in both directions, and hidden overlays at the smaller size; no page console errors appeared. A system test checks fit bounds for compact and legacy charts at desktop and small sizes. `npm test` passes 109 system tests plus cave-atmosphere coverage and the production build succeeds with the existing bundle-size advisory. Full old-save mining and core traversal remain untested.
 
-Follow-up legacy-save check — 2026-10-09: generated a disposable v18 Cryo Shelf save with no chart metadata, imported it through the game’s save-review UI in a separate browser origin, then exported the migrated save. The downloaded v20 save confirms migration to `radiusRows: 300` and `columns: 942`; its orbital cutaway fits at desktop and 800×600, with no browser console errors. The temporary fixture lives under ignored `output/playwright/`; the active player tab was not changed. This checks legacy geometry and globe fit only; it is not a full old-save mining/core-crossing playtest.
+Follow-up legacy-save check: 2026-10-09: generated a disposable v18 Cryo Shelf save with no chart metadata, imported it through the game’s save-review UI in a separate browser origin, then exported the migrated save. The downloaded v20 save confirms migration to `radiusRows: 300` and `columns: 942`; its orbital cutaway fits at desktop and 800×600, with no browser console errors. The temporary fixture lives under ignored `output/playwright/`; the active player tab was not changed. This checks legacy geometry and globe fit only; it is not a full old-save mining/core-crossing playtest.
 
 
 
-## Curved planetary outpost — 2026-10-09
+## Curved planetary outpost: 2026-10-09
 
 Hab 07 service buildings, the mothership scaffold, and tiered town decks now project from tangent/radial coordinates on either planetary surface. Long deck spans are segmented so their edges follow the circular arc; a local sky gradient sits behind the polar terrain silhouette. The all-system suite passes 101 tests and the TypeScript production build succeeds. The isolated browser connection remains unavailable, so building visibility, alignment, and readability have not been visually verified in a running game. The active play tab was not navigated or refreshed.
 
-## Curved underground structures — 2026-10-09
+## Curved underground structures: 2026-10-09
 
 Buildable decks, service cabins, and turrets now project in the local tangent/outward frame on either hemisphere; turret range outlines follow the same physical frame. A new geometry regression checks tangent and surface-normal distances on both sides of the core. `npm test` passes 102 system tests plus cave-atmosphere coverage, `npm run build` succeeds, and `git diff --check` passes. Browser screenshots and interaction remain unverified because isolated browser access to the local preview is unavailable; the open play tab was left untouched.
 
-## General gameplay camera zoom — 2026-10-09
+## General gameplay camera zoom: 2026-10-09
 
 Mouse-wheel zoom now scales the complete gameplay render smoothly from 45% to 180%, keeps the view centered on the miner, and reverses the transform before converting pointer aim to world coordinates. Labels remain readable at screen size, and the footer advertises the control. The polar chart cell helper is covered separately, but this zoom still shows the legacy rectangular maps; blending into an orbital globe remains the highest-priority unfinished item. All 100 system tests and the cave-atmosphere suite pass, and the production build succeeds with the existing bundle-size warning. An isolated Vite server started on port 5194, but the browser automation and headless Chrome could not reach it from this environment. No in-game visual or mouse playtest was possible, and the player's open game tab was left untouched.
 
-## Expedition pause presentation — 2026-10-08
+## Expedition pause presentation: 2026-10-08
 
 The pause view now uses a dedicated two-column layout with an original vector elevation of the currently equipped pod, current fuel/hull/cargo, and a progress cue that follows the mothership campaign stage. Save/export/import/recovery/new-expedition actions retain their previous behavior and confirmation steps. The surrounding header, footer, and HUD chrome are quieter while the game world remains visible behind the pause view. No save schema or gameplay physics changed.
 
 `npm install` and all 83 system tests plus the cave-atmosphere test pass. The Vite production build succeeds outside the local filesystem sandbox; the sandbox itself denies `realpath` on `src/main.ts`. An isolated Chromium session checked 1920×960, 1280×800, 960×560, and 720×580 with no horizontal overflow or clipped controls. It exercised save status, export-link creation, recovery/new-expedition confirmation, resume, a 36 m descent, and safe docking with no terrain overlap or page errors. Screenshots are in ignored `output/playwright/pause-redesign-*.png`. Visual taste and longer play sessions still need player feedback.
 
-## Cave atmosphere — 2026-10-07
+## Cave atmosphere: 2026-10-07
 
 Added transient regional dust, foreground flakes, headlamp illumination, and drilling/thruster wakes, capped at 96 particles. Particles occupy explored empty tiles only; no terrain, cargo, physics, or campaign-save fields are changed. The MIX panel includes a persistent device-local toggle. Reduced motion removes the effects immediately, including while paused.
 
@@ -116,17 +130,17 @@ Added transient regional dust, foreground flakes, headlamp illumination, and dri
 
 Isolated headless Chromium keyboard play reached 112–113 m, produced drifting particles and thrust wakes, then returned and docked with full hull and no overlaps. The same session verified toggle persistence across reload, pause, live reduced-motion changes, and the compact 960×560 MIX panel. Synthetic open-cavern fixtures render all four region palettes and the far hemisphere with zero pod overlaps. Screenshots are saved under `output/playwright/atmosphere-*.png`; repeatable checks are `tests/browser-atmosphere.js` and `tests/browser-atmosphere-regions.js` via Playwright CLI. A visible-browser attempt lost focus and was replaced by the isolated background run. Long-session performance on low-end devices and subjective particle density still need human feedback.
 
-## Underground construction — 2026-10-07
+## Underground construction: 2026-10-07
 
 Underground construction adds gravity-aware five-tile decks, a service beacon, automatic defense turrets, and a one-use pilot escape suit. The existing rock swimmers now pursue the miner; turrets intercept them within range and use a reload between shots. System coverage verifies build costs/site limits, one-way catching on both hemispheres, turret intercepts, fuel-independent escape-pack flight without drilling, zero-hull escape-save validation, and migration from earlier saves. All 82 system tests pass and the production build succeeds. An isolated browser could not connect to the local test server in this turn, so the construction modal, escape-suit purchase, crash ejection, and live return route remain unverified in-browser.
 
 
 
-## Vertical mining town — 2026-10-07
+## Vertical mining town: 2026-10-07
 
 Hab 07 now grows from a starter camp into a skyline tied to mothership ship components and the four core-record milestones. The skyline adds procedural elevator frames, gravity-mirrored one-way decks, lit work cabins, tram, archive antenna, beacon, and moving crew figures; the camera includes the unlocked height and the service zone covers the tower. Down drops through a deck, and the footer labels this control. This reuses existing milestones and does not alter durable save data. System tests cover stage unlocks, landing on the highest deck, drop-through, far-side inverted-gravity landing, and collision-free landings. `npm install`, all 80 system tests, and the production build pass. An isolated fresh-save browser render at 1280×720 confirms the starter skyline, outpost and docked miner fit together; the keyboard attempt did not produce a reliable flight input, so upper-tier browsing and live landing/drop controls remain unverified. A player session should judge the progression, navigation, and visual scale.
 
-## Planet-specific core objectives — 2026-10-07
+## Planet-specific core objectives: 2026-10-07
 
 Each of the four destinations now generates a deterministic, map-specific sealed sample in the core crossing tile. Drilling records that sample once, grants its $600 salvage claim, and persists both the milestone and excavated tile using the existing version-14 save fields. The Archive and destination board name each core objective, show its recovered state, and track the four-sample ledger. System coverage mines a sample through `MiningSystem`, checks no duplicate claim after repeat collection or reconstruction, checks distinct guaranteed samples across every map, and verifies save validation accepts known IDs while rejecting unknown ones. All 78 system tests pass; the TypeScript/Vite production build succeeds. Browser rendering, the new archive and board copy, and a full cross-core campaign remain unplayed in this turn.
 
@@ -248,7 +262,7 @@ Run the new test in a dedicated development-browser session using `playwright-cl
 
 The improvement pass also fixes New Expedition being overwritten by pagehide autosave. `tests/browser-new-expedition.js` verifies that the confirmed reset yields a fresh seed, $80, base upgrades, and zero destroyed tiles; run it after a saved test expedition in an isolated session.
 
-## Campaign, map, and multi-cut update — 2026-10-06
+## Campaign, map, and multi-cut update: 2026-10-06
 
 Validation on this pass: `npm install`, `npm test` (28 system tests), `npm run build`, and `git diff --check`. Chromium on isolated local origins verified the new Cryo Shelf briefing, shipyard/archive/destination board, explored-map open/close and hidden-ore note, save reload, and a legacy v2 save migrating to Mars Frontier. The browser console had no errors or warnings. The wider-cut regression verifies level 3/4/5 affects two/three/four tiles and cargo stays at or below capacity. Route-fuel estimate and per-map seeded geology have system coverage.
 
@@ -256,19 +270,19 @@ The ore-funded ship build and destination travel have now been browser-played en
 
 The audio mixer adds separately persisted music/effects levels and keeps the existing quick-mute preference. Visual slider operation and mute synchronization were later verified in isolated Chromium; subjective audible balance remains a human check.
 
-## Campaign simulation and large-save round trip — 2026-10-06
+## Campaign simulation and large-save round trip: 2026-10-06
 
 A deterministic `PlayerPod` + `MiningSystem` simulation now performs four separate Cryo Shelf sorties: it mines each real route-fragment tile, returns to the Hab 07 dock between trips without clipping, keeps fuel and hull above zero, sells cargo, services when affordable, and buys all four ship components. The route contracts plus mined ore leave at least $2,800 after services. Later isolated Chromium runs verified the shipyard UI, component purchases, travel among all four regions, and campaign reload persistence (see browser verification below). A second system test serializes and imports a save containing 10,000 excavated/discovered coordinates and 1,000 physical ore drops, then verifies the records survive reconstruction. Charge-freed ore has simulated fall, bounce, and settle coverage against real map terrain. The current suite passes 55 tests; the production build succeeds.
 
-## Regional signature mechanic — 2026-10-06
+## Regional signature mechanic: 2026-10-06
 
 Prism Fault now rolls deterministic, rare geodes on ore-bearing tiles. Each geode is a guaranteed three-unit deposit, with a bright pulsing outline in the world and an explicit three-unit callout in the drill target. System tests verify repeatability across reload generation and absence from other maps. Later live Chromium target checks verify the regional signature callout and zero collision overlap; see the browser verification follow-up below.
 
-## Authored Cryo landmarks — 2026-10-06
+## Authored Cryo landmarks: 2026-10-06
 
 The four guaranteed route seams now sit inside deterministic oval chambers with increasingly wide rooms. Distinct, soft chamber rims and survey labels make the archive's landmark names correspond to real places in the mine. System coverage verifies every center seam, open chamber edge, outside boundary, determinism, and Cryo-only placement. Chromium confirmed the visible room/rim/label, and the later full keyboard campaign run physically recovered all four seams at their authored depths.
 
-## Mining charge and persistent ore pickups — 2026-10-06
+## Mining charge and persistent ore pickups: 2026-10-06
 
 Mining charge packs cost $180 for three charges. Press Q underground to arm a 1.2-second fuse; its diamond-shaped radius clears up to 13 tiles. Ore becomes physical pickups with small toss-and-settle motion; touching them adds only what fits, and leftovers remain available after cargo is sold. Save v5 stores charges, drops, and armed fuse state per map, and migrates v1–v4 saves. System tests cover blast bounds, partial pickups, duplicate pickup rejection, schema validation, and old-save migration. Chromium loaded a one-charge test save, confirmed Q arms the fuse and the blast automatically collected 1.5 copper units, then reloaded and confirmed the 1.5-unit cargo persisted with the same depth and hull. The console had no errors or warnings. Staying still let the blast open the floor and the resulting hard landing cost 8% hull; the shop and fuse warning tell players to move clear or hold W to brake. Multi-map persistence is covered by the later travel fixture; long-session tool balance still needs playtesting.
 
@@ -282,19 +296,19 @@ The style bay includes four pilot suit palettes, shown as a helmeted figure in t
 
 Mars Frontier contains orange thermal seams and Hull Graveyard contains mint-lit alloy caches; both provide at least two units and appear with a map-specific highlight in the drill target. Their generation is deterministic and uses no save fields, so excavated finds stay gone through the existing destroyed-tile state. The style bay adds four hull decals and four silhouette profiles, with original procedural markings and frame shapes; each profile also recolors the cabin glow. Save v10 migrates v1–v9 and adds default cosmetics for older campaigns. At this stage, offline `npm install` could not complete because the cache lacked registry metadata for `@fontsource/barlow-condensed`; installed workspace dependencies still supported tests/build. The initial Playwright CLI attempt stalled, but later browser verification used the bundled runtime successfully (see below), including mixer, regional highlights, and equipped cosmetics.
 
-## Guaranteed route fragment update — 2026-10-06
+## Guaranteed route fragment update: 2026-10-06
 
 Four non-random route-data seams sit at authored Cryo Shelf depths. Their tiles are guaranteed for every Cryo seed, glow in the mine, can be mined into a persistent archive record, and disappear permanently after collection. Version 4 adds their IDs to campaign saves; v1–v3 migration keeps old Mars expeditions on Mars. System tests cover mining, no respawn after excavation, and migration. A Chromium archive check confirms the four depth goals and 0/4 count; a later fresh-save keyboard campaign physically recovered all four seams and traveled to Hull Graveyard (see the campaign route run below).
 
-## Save portability update — 2026-10-06
+## Save portability update: 2026-10-06
 
 The pause menu now prepares a JSON Blob download link. Import accepts JSON after size/schema checks, migrates v1–v3, previews destination/depth/credits/route fragments, and replaces local state only after a second confirmation. Thirty system tests passed at this stage, including parser rejection for malformed and invalid save data. Chromium verified file selection, preview, confirmed replacement, reload, and the imported $420 / 96 m campaign record. That original embedded-browser run did not emit a download event; the later Chromium verification below reads and parses the completed download. The pause menu was visually checked and fits without scrolling at the test viewport.
 
-## Reduced-motion follow-up — 2026-10-06
+## Reduced-motion follow-up: 2026-10-06
 
 The game subscribes to live `prefers-reduced-motion` changes and removes that listener when the Phaser scene shuts down. Reduced-motion mode clears camera shake and debris, skips drilling particles, and makes landmark, regional-find, magnet, charge, and surface beacon animations static. Core world simulation and text feedback continue. System tests and the production build pass. The subsequent isolated Chromium accessibility fixture verified live reduced-motion changes, keyboard navigation, and save-preview rendering; the user's existing game tab was left untouched.
 
-## Keyboard dialog navigation follow-up — 2026-10-06
+## Keyboard dialog navigation follow-up: 2026-10-06
 
 The modal focus loop wraps across all enabled, visible controls (including audio sliders and links), not buttons alone. Visibility, blur, page-hide, dialog-key, and reduced-motion listeners are removed on Phaser scene shutdown so a scene restart cannot stack handlers. System coverage verifies focusable filtering. Forward/reverse tabbing, dialog launch/pause behavior, and live reduced-motion changes were subsequently verified in isolated Chromium in `tests/browser-accessibility.js`.
 
@@ -312,7 +326,7 @@ Region snapshot/restore is now a shared campaign helper used by scene initializa
 
 Ore silhouettes have an explicit one-to-one shape mapping (copper chips, iron bars, silver spires, gold nuggets, diamond facets); a system test prevents duplicates. Known ore shapes and regional halos render over the terrain fog with distance-scaled brightness, while undiscovered tiles stay occluded. Later entries in this report add compact-layout and grayscale visual checks; player accessibility feedback remains outstanding.
 
-## Browser verification follow-up — 2026-10-06
+## Browser verification follow-up: 2026-10-06
 
 An isolated in-app browser tab on port 5180 verified the fresh expedition briefing, destination-board locked states, mixer dialog labels, explored-tunnels privacy note, outpost upgrade requirements, and all four customization tabs. The tab used a separate origin from the user's open game. Inspection found the top pause button incorrectly announced "Resume game" while a service panel was open. It now announces "Close panel and resume game", shows the pause symbol, and the updated label was verified live in the customization panel. The Vite hot reload reset only the isolated tab to a fresh briefing, not the existing player tab. See the following Playwright run for fixture-based integration results.
 
@@ -350,35 +364,35 @@ As a grayscale fallback inspection, near-range Chromium captures were converted 
 
 On this pass, `npm test` passed all 52 system tests, `npm run build` succeeded, and `git diff --check` passed. The build still emits Vite's large-chunk advisory. `npm install --ignore-scripts --offline --package-lock=false --no-audit --no-fund` was attempted again but npm has no cached registry metadata for `@fontsource/barlow-condensed`; the existing installed dependencies supported the passing suite and build.
 
-## Cargo-loss warning follow-up — 2026-10-06
+## Cargo-loss warning follow-up: 2026-10-06
 
 Superseded by the full-cargo spill behavior recorded below: drilling now proceeds immediately, fits what it can in the hold, and saves excess ore as a physical return-trip pickup.
 
-## Braking cue before impact — 2026-10-06
+## Braking cue before impact: 2026-10-06
 
-The synthetic campaign route exposed survivable but severe hull loss after long continuous drilling descents. The low-hull cue appeared only after damage. The HUD now adds “FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT” at 168 px/s, 112 px/s below the 280 px/s damage threshold, while fuel and critical-hull warnings retain priority. System regressions verify its threshold, clearance, and warning priority. `tests/browser-fast-descent-warning.js` passed in isolated headless Chrome using the bundled Playwright runtime: the cue appeared at 197.5 px/s with 100 hull, then W braking cleared it at −27.5 px/s with 100 hull. Screenshots `fast-descent-warning.png` and `fast-descent-braked.png` are under ignored `output/playwright/`. The isolated origin was port 5188; the user's port-5174 save was untouched. `npm test` passes 56 tests, `npm run build` succeeds, and `git diff --check` passes. Subjective campaign balance and sound/accessibility review remain human items.
+The synthetic campaign route exposed survivable but severe hull loss after long continuous drilling descents. The low-hull cue appeared only after damage. The HUD now adds “FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT” at 168 px/s, 112 px/s below the 280 px/s damage threshold, while fuel and critical-hull warnings retain priority. System regressions verify its threshold, clearance, and warning priority. `tests/browser-fast-descent-warning.js` passed in isolated headless Chrome using the bundled Playwright runtime: the cue appeared at 197.5 px/s with 100 hull, then W braking cleared it at −27.5 px/s with 100 hull. Screenshots `fast-descent-warning.png` and `fast-descent-braked.png` are under ignored `output/playwright/`. The isolated origin was port 5188; the user's port-5174 save was untouched. `npm test` passes 56 tests, `npm run build` succeeds, and `git diff --check` passes. Subjective campaign balance and sound/accessibility review remain human items.
 
-## Color-independent map ore markers — 2026-10-06
+## Color-independent map ore markers: 2026-10-06
 
 The explored-tunnel map previously represented all five ore types with identical circles, forcing the legend and map locations to rely on color. Markers now use the same distinct chip, bar, spire, nugget, and facet silhouettes as the in-world crystals; the legend repeats those shapes and labels each ore. Special-find outlines and archive-hash squares remain distinct. A system test checks unique drawing geometry for all five map symbols. An isolated Chrome run confirms the surveyed copper marker and all five unique legend shapes; at 960×560 the full map panel stays inside the gameplay viewport and page width. Screenshots `map-ore-shapes.png` and `map-ore-shapes-960x560.png` are under ignored `output/playwright/`. This improves color-independent identification but does not replace feedback from color-blind players or contrast checks on varied displays.
 
-## Rock-swimmer hazard — 2026-10-06
+## Rock-swimmer hazard: 2026-10-06
 
 The first cavern creature arrives below 240 m, moves through solid tiles without changing excavation, becomes visible only inside scanner range, and turns amber with a proximity line inside 190 px. It steers away from the pod, causes 8 hull damage on contact, then withdraws for a cooldown. This reuses existing hull and has no combat controls or save-schema change. At the time, `npm test` passed 66 system tests, including depth gating, motion, single-hit withdrawal, and cooldown; `npm run build` succeeded. The encounter has not yet had a human playtest in a real descent, so collision likelihood and warning readability still need feedback.
 
-## Full-cargo route clearing — 2026-10-06
+## Full-cargo route clearing: 2026-10-06
 
 Full cargo no longer imposes a warning delay on drilling. Available hold space is used first; overflow is made into a physical ore pickup with the stable map-seed/tile ID and saved immediately. The HUD tells the player the spill is recoverable after selling the haul, so they can clear a route to evade a threat and return for the ore. System tests verify full, partial, and two-block spill amounts and simulate collecting a saved spill on the next trip. `tests/browser-ux.js` was updated to confirm the route clears and the overflow pickup persists through reload, but the browser fixture could not be run in this environment; `npm test` and `npm run build` are the executed checks.
 
-## Mouse-directed drilling — 2026-10-06
+## Mouse-directed drilling: 2026-10-06
 
 Underground, hold left-click to drill the nearest rock along the cursor direction within 1.8 tiles. A highlighted target and guide line preview the selected block. Drill upgrades cut perpendicular to the aim direction, making wide cuts selectable without changing keyboard flight. The torch beam now follows the mouse preview or active keyboard cut direction, and its spread grows with drill width. Upward aim is rejected and cannot drill through empty tunnels to distant rock. `npm test` passes 67 system tests and `npm run build` succeeds. The open game tab hot-reloaded and showed the updated control hint, but interactive browser playtesting remains unverified: the available Playwright wrapper requires `bash`, which is unavailable in this Windows shell, and the in-app browser interface exposes tab inspection without pointer controls. The open playthrough was left untouched.
 
-## Gravity for mining charges — 2026-10-06
+## Gravity for mining charges: 2026-10-06
 
 Newly deployed and saved charges now carry vertical velocity, accelerate downward, and settle on the first solid tile beneath them while the fuse continues. Velocity is optional in the saved data so existing active-charge saves load without a version migration. System coverage verifies falling through a cleared shaft and resting without clipping. Browser interaction is unverified here; `npm test` and `npm run build` are the executed checks.
 
-## Surface winch return tool — 2026-10-06
+## Surface winch return tool: 2026-10-06
 
 The workshop offers a one-time $880 Surface Winch. Holding R underground applies a 1.7× upward pull and 1.5× thrust-fuel use; solid rock still blocks the pod, and reaching Hab 07 through an open shaft docks it automatically. The purchase persists in save version 13; version 1–12 campaigns migrate with the module unowned. A system simulation covers the purchase, fuel trade-off, faster climb, open-shaft docking, and locked input before purchase. All 69 system tests pass and `npm run build` succeeds. The live tab showed the updated R control; interactive browser playtesting was not performed.
 
@@ -388,166 +402,166 @@ Upgrade tracks now continue after level 5 with linear price increases per purcha
 ## Flight drilling
 
 Mouse aiming and drilling remain active while W/upward thrust is held, so the player can cut rock and steer through the same flight. A focused system regression verifies concurrent thrust and mining, both fuel costs, ore recovery, and no pod/terrain overlap. The briefing and HUD now state that drilling works in flight. An isolated game tab loaded at port 5179, but interactive browser input verification remains outstanding: `@playwright/cli` was not in the local npm cache and registry access was unavailable. The user's active game tab/save was left untouched.
-# Campaign core-story archive smoke check — 2026-10-07
+# Campaign core-story archive smoke check: 2026-10-07
 
 The local game loaded in an isolated Chrome tab at `http://127.0.0.1:5191/`. A fresh campaign opened the Archive and showed all four core records as sealed with generic recovery text; unrecovered story details were not exposed. The completed-record and final-conclusion gates are covered by the 83-system-test suite (`planetary core records reveal one by one and gate the complete campaign conclusion`). I attempted to use a generated import fixture for the recovered browser state, but the Chrome extension refused local file uploads because its “Allow access to file URLs” setting is disabled; I left that browser permission unchanged. The only browser console error observed came from a wallet extension attempting to redefine `window.ethereum`, not from the game. A full core-crossing expedition, recovered-state browser rendering, and the human 15-minute campaign playtest remain outstanding.
-## Depth-based soundtrack — 2026-10-08
+## Depth-based soundtrack: 2026-10-08
 
 The three original MP3 sketches are bundled from `music-prototypes/` and play through the existing music bus. Signal Run starts at the surface; a one-time transition begins at 600 m and finishes on Deep Pressure. Returning shallower than 350 m restores Signal Run, while a saved expedition loaded at or beyond 1,300 m begins directly on Deep Pressure. The tracks respect pause, quick mute, and the existing music-volume slider; synthesized effects and landmark cues remain on their existing buses. No save-schema change was needed. An isolated browser context on port 5185 verified decoded playback at surface, a mid-depth save, and a deep save, plus pause/resume and mute/unmute. It also played the full 59-second transition and confirmed the handoff to Deep Pressure, with no browser page errors. A separate production-build smoke check served the site at `/SrajMiner/` and confirmed all three MP3s loaded from that base path and Signal Run played. Repeated descents and subjective mix balance still need a human listening pass.
 
-## Compact planet and save migration — 2026-10-09
+## Compact planet and save migration: 2026-10-09
 
 New campaigns use a 1,800 m core radius and 471 chart columns, preserving round proportions; legacy saves use 3,600 m and 942 columns. Save version 19 records campaign chart geometry; v1–18 migrations preserve their 3,600 m worlds and saved coordinates. Geometry tests cover compact globe initialization, seam travel, far-crust return, and v18 legacy migration. All 102 system tests, the cave-atmosphere test, and production build pass. The drill now has five visible procedural hardware stages, with an aim-aligned module and active-cut pulse; tests verify stage progression and legacy save geometry. An isolated preview at port 5195 timed out when the app browser tried to connect, so rendered appearance, camera transition readability, and human pacing remain unverified.
 
-## Core-only camera turn and transit momentum — 2026-10-09
+## Core-only camera turn and transit momentum: 2026-10-09
 
 The camera continues to follow local up during normal surface travel; the dramatic turn cue is restricted to a true center crossing, not the wrapped surface seam. Browser play exposed a physics mismatch the existing instant-frame simulation missed: after gravity reversed, the far-side climb cap clipped the pod's fall momentum before it could clear the core passage. Charted worlds now preserve that outward ballistic speed inside the passage; the ordinary climb cap is unchanged outside it. The HUD now tells players to coast through the brief camera turn, then shows **W CLIMBS OUTWARD** after they clear the passage.
 
 An isolated headless Chrome run at port 5205 imported a disposable save through the game's save-review UI. The miner crossed into far-side gravity, received the one-time $2,200 crossing claim, climbed from 1,743 m to 1,575 m with W, and crossed back to the home hemisphere. Hull remained at 100% and the page reported no JavaScript errors. Screenshots: `output/playwright/core-crossing-far-side.png`, `output/playwright/core-far-side-climb.png`, and `output/playwright/core-crossing-return.png`. No live campaign or user play tab was used. `npm test` passes 110 system tests plus the cave-atmosphere test; `npm run build` succeeds (Vite reports the existing large JavaScript chunk warning). A second isolated browser run started on the far crust, climbed to 3 m depth, released thrust, and docked at 0 m with 105/140 L fuel and 100% hull; the HUD surfaced its “Welcome back” sale message. Screenshot: `output/playwright/far-side-docked.png`. Separate 800×600 fixtures now confirm the same core crossing and far-side climb with full hull/no page errors, then a return from the far crust to the dock at 3 m, with 105/140 L fuel and 100% hull. Releasing S as soon as the miner crosses the center lets it coast through; holding S longer oscillated within the core band, matching the HUD's coast prompt. Screenshots: `output/playwright/core-crossing-far-side-800x600.png`, `output/playwright/core-far-side-climb-800x600.png`, and `output/playwright/far-side-docked-800x600.png`. The objective tip and return toast previously overlapped on the compact viewport; the toast now sits below the objective, and a browser bounding-box assertion confirms the two do not overlap. Human pacing feedback and a complete fresh-start planet run remain open.
 
-## Drill tier readability and reach preview — 2026-10-09
+## Drill tier readability and reach preview: 2026-10-09
 
 The directional drilling cone now uses the drill's real maximum reach and cut width, so the starter no longer advertises extra reach and higher swaths expand consistently with the mining system. The pod's drill now gains auger teeth, resonance nodes, stabilizer braces, and laser heat fins across its five named hardware tiers. The workshop shows the active drill name/module and current reach/width beside the next upgrade's values. An isolated headless Chrome run on disposable port 5208 showed the Field Bit at 1.4-tile reach / 1-wide cut and the next Extended Auger at 2.1 tiles / 1-wide; a fresh run drilled to 24 m and recovered two copper with hull intact and no page errors. Screenshots are `output/playwright/drill-workshop-upgrades.png` and `output/playwright/drill-workshop-miner.png`. System coverage checks that the displayed preview dimensions track the configured reach and swath. This was an opening smoke test only; upgraded-tier visuals, full 360-degree aim readability, and extended campaign pacing still need player feedback.
 
-## Current campaign UI and travel regression — 2026-10-09
+## Current campaign UI and travel regression: 2026-10-09
 
 An isolated Chromium regression run on a disposable Vite origin passed planet travel with all four map states retained, audio mute/mix persistence, the expedition briefing at 1440×960, 960×720, and 960×560, and pod growth from 1× to 1.38× while keeping zero terrain overlaps. The first run caught an obsolete browser assertion expecting `SELL AT SURFACE`; the briefing now correctly advertises the current `SELL / SERVICE` and `BUILD AT DEPTH` actions, and the assertion was updated to cover both. The rerun passed all four flows with no page errors. Browser state and screenshots stayed under disposable contexts and ignored `output/playwright/`; the user's existing play tab/save was untouched. This run did not test the full drilling campaign or resolve polar-cell collision clearance. At half-radius, compact-world angular cells are approximately 20 px wide against the 26 px pod body; a true physical collider must be designed with a widened approach bore and core chamber.
 
-## Underground service beacon and turret — 2026-10-09
+## Underground service beacon and turret: 2026-10-09
 
 The first isolated build test found a real service-access bug: the scene recognized the nearby beacon, but the HUD rejected its service panel as underground. The HUD now gates service on actual surface-or-beacon access, and shows sale/upgrade tabs only at the surface. Chromium then built a beacon, opened **FUEL & REPAIR / LOCAL PIT STOP** with only refuel and repair actions, restored fuel from 30 to 140 L and hull from 40 to 100, built a sentry turret in a second cavern, and confirmed both structures persisted after reload. No page errors occurred. The fixture and screenshot (`output/playwright/underground-buildings.png`) are isolated; no live save was used. Turret interception remains covered by system tests.
 
-## Emergency escape suit — 2026-10-09
+## Emergency escape suit: 2026-10-09
 
 An isolated Chromium campaign purchased the $780 one-use escape suit, descended into a prepared shaft, and took a real hull-destroying collision. The suit consumed its packed state and ejected the pilot at 252 m with hull at zero; the HUD displayed the A/D steering, W boost, and surface-or-beacon rescue instructions. Holding W flew the pilot home, where the dock restored the miner to 100 hull and 140 L fuel, forfeited the carried ore as intended, and cleared the active escape state. Screenshots: `output/playwright/escape-suit-ejected.png` and `output/playwright/escape-suit-rescued.png`. This route is in the default isolated browser suite, which passed all six campaign/UI flows with no page errors. This verifies the rescue path mechanically; boost feel and rescue tension still need a human playtest.
 
-## Polar collision and core clearance — 2026-10-09
+## Polar collision and core clearance: 2026-10-09
 
 Charted planets now test the rotated miner hull against curved polar-cell polygons. Radial drilling automatically expands its tangent swath as the arc width shrinks toward the core, and the center chamber provides 72 px of physical clearance while keeping the core relic drillable. Legacy rectangular campaigns keep their prior collision rules; no save migration was needed. System coverage checks a curved neighboring cell, core clearance, widened radial cuts, and an uninterrupted compact-globe crossing. `tests/browser-polar-core.js` passed in isolated Chromium: a save restored at 1,691 m with no overlap, crossed to the far hemisphere at 1,742 m with 100 hull and 139 L fuel, and produced no browser errors. Screenshot: `output/playwright/polar-core-crossing.png`. The fixture uses a prepared clearance bore to isolate crossing physics; a fresh-save human run is still needed to judge drilling pace, the visually widening bore, and the associated ore/fuel economy.
 
 The follow-up camera check confirms the intended split: the view smoothly tracks local up during ordinary travel around the globe, while the deliberate turn cue is triggered by center passage and suppressed at the wrapped surface seam. The isolated Chromium polar-core fixture now asserts the actual center-crossing cue and waits for the camera to settle upright on the far hemisphere. `npm test` passes 112 system tests plus cave-atmosphere coverage, and `npm run build` succeeds with Vite's existing large-bundle advisory. Fresh-start drilling pace and human readability still need playtesting.
 
-## Bidirectional core passage and save continuity — 2026-10-09
+## Bidirectional core passage and save continuity: 2026-10-09
 
 Extended `tests/browser-polar-core.js` crosses into far-side gravity and docks on that surface, descends to a 1,500–1,700 m far-side checkpoint, waits for the real autosave, reloads, coasts through the center in the opposite direction, docks on the home surface, and reloads there. The one-time $2,200 core claim and $500 deep-transmission bounty remain at $2,700 after both passages; hull remains at 100%, there are no terrain overlaps, and Chromium reports no page errors. The fixture drops through the curved town's sky decks to reach each surface dock, including multiple progression-unlocked decks on the home side. Screenshots: `output/playwright/polar-core-far-side-docked.png` and `output/playwright/polar-core-roundtrip-home-side.png`. This is an isolated v20 save with a prepared clearance bore, a level-five fuel tank, and stasis used only to hold the far-side checkpoint while autosave runs. It verifies round-trip passage, surface docking, and persistence, not fresh-start mining, economy, or human readability.
 
-## Compact-globe campaign loop and drill direction — 2026-10-09
+## Compact-globe campaign loop and drill direction: 2026-10-09
 
 An isolated Chromium run of `tests/browser-campaign-route-run.js` exercised a new v20 compact-chart Cryo campaign with actual keyboard input. The miner recovered all four route signals at 98, 327, 626, and 1,081 m, returned to the surface between runs without collision overlap, and used the signal/ore proceeds to buy two fuel tiers and one drill tier before the deepest vault. It then assembled all four ship systems, traveled to Hull Graveyard, reloaded, and retained the destination and campaign progress; no page errors occurred. The run exposed a scene integration mismatch: Down selected the radial target but passed a horizontal cut orientation, undermining the widened near-core bore. The scene now maps Down/default aim to radial cuts and A/D to tangent cuts, with a system regression. Screenshot: `output/playwright/campaign-route-run.png`. This is an automated fresh-campaign fixture, not a human pacing test; ordinary player feedback on upgrade timing, braking readability, ore drops, and music remains open.
 
-## Tier-five laser beam and breakthrough feedback — 2026-10-09
+## Tier-five laser beam and breakthrough feedback: 2026-10-09
 
 The Laser Miner now draws a bright mint channel from its active drill tip to the current target, with a warm hit ring for contrast across the planet palettes. Resonance Lance and higher hardware add tier-colored expanding impact rings; the Laser Miner also throws bright sparks when a block breaks. `tests/browser-laser-miner.js` passed in isolated Chromium: the level-five pod actively cut at 64 m, broke a target, used fuel, kept full hull, and had no terrain overlap or browser errors. Screenshots: `output/playwright/laser-miner-cutting.png` and `output/playwright/laser-miner-break.png`. The fixture verifies a shallow Cryo cut; human review at deeper strata and at orbital/gameplay zoom levels remains open.
 
-## Laser Miner thermal rhythm — 2026-10-09
+## Laser Miner thermal rhythm: 2026-10-09
 
 The tier-five emitter accumulates heat during sustained cutting, retains heat between adjacent blocks while the drill remains held, and cools when the player releases the drill. At full heat the beam pauses for a 1.15-second vent; the HUD shows the heat/cooldown meter and a clear venting label. Lower drill tiers are unchanged and heat is transient, so save compatibility needs no migration. `npm test` passes the thermal transition regression; isolated Chromium confirms the meter appears during a real tier-five cut, the block still breaks, and the browser reports no runtime errors. The long vent cycle was not stable in the existing free-fall fixture, so only its pure state transitions and active-cut UI were verified in browser; player feel remains open.
 
-## Fall-speed motion cue — 2026-10-09
+## Fall-speed motion cue: 2026-10-09
 
 The speed-warning check now also verifies a faint peripheral rush cue while inward fall speed rises beyond the warning threshold. In isolated Chromium, the HUD warning and cue appeared at 180 px/s, then both cleared after W braking reduced speed; hull remained at 100 and no browser errors occurred. The cue uses screen margins, follows zoom, stops while paused, and respects reduced-motion settings. Screenshot: `output/playwright/fast-descent-warning.png`. Human playtesting should confirm the cue is noticeable without distracting from aiming or routine landings.
 
-## Surface winch cable — 2026-10-09
+## Surface winch cable: 2026-10-09
 
 An installed winch now renders a taut cable from the pod to the surface anchor while a clear radial tunnel connects them. The cable follows the pod as the miner descends and gains a bright traveling reel marker while R is held; it is hidden when the route is obstructed and retracts when docked. The HUD shows the estimated winch fuel before use, changes to a blocked-route message when appropriate, and updates to `REELING` while R is held. Docking after a winch return adds a two-note signal and clamp toast. Isolated Chromium confirmed the ~11 L estimate at 155 m, safe returns to both near- and far-side docks with full hull, fuel consumption, and the blocked-shaft message, with no browser errors. Screenshots: `output/playwright/winch-cable-descending.png`, `winch-cable-reeling.png`, `winch-cable-far-hemisphere.png`, and `winch-cable-blocked.png`. Curved/angled shaft behavior and human tether readability remain open.
 
-## Current isolated browser regression — 2026-10-09
+## Current isolated browser regression: 2026-10-09
 
 The default disposable Chromium suite passed seven flows: map travel with per-planet excavation persistence, audio preferences, briefing controls at three viewport sizes, pod growth without collider overlap, underground beacon/turret construction and reload, escape-suit ejection/rescue, and a compact-globe bidirectional core crossing with a far-side save/reload. All reported no page errors. This confirms the automated feature paths but does not replace a human 15-minute campaign session or a fresh-start core-side mining and surface-docking playthrough; those remain open.
 
-## Interactive Vesper start map — 2026-10-09
+## Interactive Vesper start map: 2026-10-09
 
-The New Expedition briefing now presents an orbital-style four-world route atlas. Selecting a world updates its dossier; Cryo Shelf is explicitly marked as the first deployment, while the other three explain that mothership assembly unlocks travel. The map repeats the campaign chain—recover four signals, build the mothership, explore every world—without letting a new save start somewhere that bypasses the authored opening. Isolated Chromium verified all four world controls, dossier switching, the goal copy, and a clean Cryo save after launch. At 800×600, the atlas and goal stay visible, and the launch button sits directly beneath them in normal flow, without covering the rest of the briefing. Screenshots: `output/playwright/vesper-start-map.png` and `output/playwright/vesper-start-map-800x600.png`. Human review of dossier copy and map legibility remains open.
+The New Expedition briefing now presents an orbital-style four-world route atlas. Selecting a world updates its dossier; Cryo Shelf is explicitly marked as the first deployment, while the other three explain that mothership assembly unlocks travel. The map repeats the campaign chain: recover four signals, build the mothership, explore every world: without letting a new save start somewhere that bypasses the authored opening. Isolated Chromium verified all four world controls, dossier switching, the goal copy, and a clean Cryo save after launch. At 800×600, the atlas and goal stay visible, and the launch button sits directly beneath them in normal flow, without covering the rest of the briefing. Screenshots: `output/playwright/vesper-start-map.png` and `output/playwright/vesper-start-map-800x600.png`. Human review of dossier copy and map legibility remains open.
 
-## Surface town traversal — 2026-10-10
+## Surface town traversal: 2026-10-10
 
 An isolated Chromium fixture imported a disposable tier-four save and verified far- and home-side landing on the top sky deck, a short Down tap to drop through, and a safe landing on the next deck. The drop costs about 1–1.5 hull at this tested fall height; no terrain overlap or browser errors occurred. Review caught a tile/world-pixel conversion error that rendered planetary town elevations 40× too high; after fixing it, the curved decks line up with the physical landing heights at desktop and 800×600. The same fixture caught and fixed the save validator's too-low home-side altitude limit: a saved position at y=-550 now loads and lands on the upper deck. The canvas fits without page overflow at 800×600, with mobile UI adaptations still deferred. Screenshots: `output/playwright/surface-town-upper-deck.png`, `surface-town-near-side-upper-deck.png`, and `surface-town-800x600.png`. The fixture uses synthetic progression and does not prove fresh-campaign unlock pacing or human traversal feel.
 
-## Backlog browser regression — 2026-10-10
+## Backlog browser regression: 2026-10-10
 
 The default isolated Chromium suite passed all seven campaign flows with no page errors: four-map travel/save persistence, audio preferences, onboarding layouts, pod growth, underground service construction, escape-suit rescue, and a bidirectional core round-trip with both surface docks and save reloads on each side. After the town coordinate and sky-deck save-bound fixes, all seven passed again. Separate fixtures passed the tier-five Laser Miner cut (one tile broken, no terrain overlap) and the surface winch return on both hemispheres (100 hull, docked); the winch also correctly reported a blocked shaft. The surface-town traversal fixture is documented above. These disposable saves verify the tested code paths, not campaign balance or subjective feel; a human 15-minute play session remains outstanding.
 
-## GitHub Pages production smoke check — 2026-10-10
+## GitHub Pages production smoke check: 2026-10-10
 
 The public URL `https://kackupa.github.io/SrajMiner/` loads the deployed game, including the expedition briefing, game canvas, dock UI, and Begin Expedition control. After the backlog commits were pushed, repository Settings → Pages confirmed the source is **GitHub Actions** and the site is live. The [Deploy game to GitHub Pages run for commit `1f479b9`](https://github.com/kackupa/SrajMiner/actions/runs/38032274303) completed successfully: `build` and `deploy` both passed and the `github-pages` artifact was published. The run includes non-blocking GitHub runner/action Node-version deprecation and Ubuntu image migration notices. The workflow also supports manual dispatch.
 
-## Miner visual progression concept sheet — 2026-10-10
+## Miner visual progression concept sheet: 2026-10-10
 
 Added an original SVG reference for Field Bit through Laser Miner and a parts/animation roadmap. It preserves the pilot and cabin silhouette, separates earned drill hardware from cosmetic choices, and sets an explicit compact-collider guardrail. Headless Chromium visual review caught and fixed visible shape definitions and an emitter beam overflow; the final sheet renders inside its five cards. The sheet is a design artifact, not shipped in-game art; readability and direction still need player review before visual replacement work. Preview screenshot: `output/playwright/miner-tier-sheet-preview.png`.
 
-## Final backlog regression pass — 2026-10-10
+## Final backlog regression pass: 2026-10-10
 
 The isolated Chromium suite was rerun against the current checkout: all seven campaign flows passed with no page errors, including four-map save persistence, audio settings, three onboarding viewport sizes, pod growth, underground beacon/turret building, escape-suit rescue, and a bidirectional core round trip with surface docking and save/reload on each side. Focused browser checks also passed for low-fuel recovery, confirmed emergency recovery, ship assembly/travel/reload, save import/export accessibility, and pause layout at 1920×960, 1280×800, 960×560, and 720×580 with no horizontal overflow. `npm install`, 114 system tests plus cave-atmosphere coverage, and the production build passed. The build retains Vite's existing large-JavaScript-chunk advisory. Human campaign pacing, transition readability, and sound/balance judgment remain unverified; mobile optimization stays in Later ideas per request.
 
-## Planetary trade orders — 2026-10-10
+## Planetary trade orders: 2026-10-10
 
 Added a three-stage planet-specific ore contract chain for each of the six campaign worlds. The colony board explains the current request and whether a local Trading Post is required; the sale dialog previews the quantity, one-time reward, and linked-world premium. In an isolated Chromium tab on a disposable imported save, the Cryo Shelf order previewed three copper for a $120 delivery bonus, paid together with ore value and the 10% two-post premium, then advanced to order 2/3 after reload with cargo cleared. The existing version-23 milestone list stores chain progress, so no save migration is needed. `npm test` passes 126 system tests and the cave-atmosphere test. `npm run build` passes with elevated filesystem access because native `realpath` is denied by the ordinary workspace sandbox; Vite still reports the existing large bundle advisory. Dynamic local demand, system projects, walls/gates, and human economy balance remain open.
 
-## Planet-local ore storage and rotating Trading Post demand — 2026-10-10
+## Planet-local ore storage and rotating Trading Post demand: 2026-10-10
 
 A surface Ore Warehouse now stores and withdraws selected ore in half-unit increments, keeps separate inventories for each planet, and limits withdrawals to available miner cargo capacity. Version 24 migrates version-1–23 campaigns without changing their carried cargo or world progress; old planets start with empty storage. The sale panel previews each Trading Post's current demand, the 20% premium on matching ore, and the next demand stage follows each local sale. Demand rotation uses bounded per-planet markers in the existing milestone list. System coverage passes warehouse transfers, capacity, placement/limits, snapshot persistence, legacy migration, demand payout/rotation, nonlocal market exclusion, and save validation. `npm test` passes 131 system tests plus atmosphere coverage; `npm run build` passes. Browser visual QA was not run because local browser socket access is denied in this environment; the user’s active play tab was left untouched.
-## Planetary colony barriers — 2026-10-10
+## Planetary colony barriers: 2026-10-10
 
 Added buildable surface wall segments and security gates. Segments can connect edge-to-edge, per-planet caps are validated, raiders stop to breach barriers and damage them before attacking the habitat or pylon behind, and a gate lifts when the miner approaches. Save format is unchanged; the existing structure records already preserve these kinds. System coverage now passes 133 cases plus cave-atmosphere coverage. The production TypeScript/Vite build passes; Vite retains its existing large-bundle advisory. Browser playtest was not available: the isolated Playwright wrapper could not initialize Git Bash in this Windows session (`NtCreateDirectoryObject` access denied), and the user's open game tab was left untouched. Gate/raider timing, visual placement/readability, and human balance still need an in-game session.
 
-## Vesper Relay system project — 2026-10-10
+## Vesper Relay system project: 2026-10-10
 
 Added an optional three-stage system logistics project. Players donate locally warehoused ore at Cryo Shelf (2 iron), Hull Graveyard (3 iron), and Prism Fault (2 silver). A completed project awards $1,200, adds a relay hub and visible route links to the destination-board map, and adds a disclosed 5% premium to linked-post sales. Donations and stage markers save atomically in the existing per-world warehouse and version-24 milestone fields; no migration is needed. `npm install` reports up to date, `npm test` passes 134 system tests plus cave-atmosphere coverage, and `npm run build` passes with the existing large-bundle advisory. Browser QA remains unavailable in this session: the Playwright wrapper cannot initialize Git Bash (`NtCreateDirectoryObject` access denied), and an isolated hidden browser tab cannot reach the local Vite server. The active user tab was left untouched. `tests/browser-trade-network.js` now includes the warehouse contribution, one-time payout, and restored route-map flow, but that fixture could not be executed in this session. The contribution UI and route-map visual still need live browser verification and player pacing feedback.
 
-## Planet-specific surface landmark pass — 2026-10-10
+## Planet-specific surface landmark pass: 2026-10-10
 
 Added six original landmark families anchored deterministically around each planet's curved surface, plus matching small markers in the orbital cutaway. This is decorative only: collision, terrain, mining, and saves are unchanged. `npm test` passes 136 system tests plus cave-atmosphere coverage. `tests/browser-trade-network.js` passes `node --check`; browser visual verification is still unavailable in this session (see Vesper Relay entry), so check silhouette readability around both hemispheres and the wrap seam in a live game session.
 
-## Transaction-safe itemized sale receipt — 2026-10-10
+## Transaction-safe itemized sale receipt: 2026-10-10
 
 Trading Post and Hab 07 settlements now preserve a receipt with the exact sold cargo, destination, gross value, network premium, local-demand bonus, and fulfilled order. The UI reopens on that receipt after the cargo clears. If storage rejects the save, the transaction restores ore, credits, and contract/demand milestones and reports that the sale can be retried. Added system coverage for receipt immutability and payout arithmetic; `npm test` passes 137 system tests plus cave-atmosphere coverage and `npm run build` passes (Vite's existing large-JavaScript-chunk advisory remains). Browser UI/forced-storage-failure verification was attempted but the Playwright wrapper could not start under Windows permissions; your active play tab was not touched.
 
-## Choose a linked ore buyer — 2026-10-10
+## Choose a linked ore buyer: 2026-10-10
 
 At a Trading Post connected to at least one other colony, the sale panel now lets the player select a local or remote buyer. Each chosen market pays its current ore-demand bonus and advances only that market's existing saved demand cycle; local delivery orders pay only when the local market is selected. A receipt records both seller and buyer. Two system tests cover the immutable settlement and remote demand/order rules; `npm test` passes 139 system tests plus cave-atmosphere coverage and `npm run build` passes with Vite's existing large-chunk advisory. `tests/browser-trade-network.js` now includes the linked-market choice, local-order waiver, and selected local-buyer flow, and passes `node --check`. Browser execution is still pending: the Windows Playwright wrapper was denied execution, and the isolated in-app browser timed out connecting to the dev server on both localhost and 127.0.0.1. The active user play tab was not touched.
 
-## Cargo Tug remote depot network — 2026-10-10
+## Cargo Tug remote depot network: 2026-10-10
 
 Added a second three-stage system project: donate 3 copper at Cryo Shelf, 3 iron at Hull Graveyard, and 2 diamond at Vesper-9 to complete the Cargo Tug. It pays $900 and unlocks withdrawals from any built planetary warehouse while visiting a warehouse; stock is removed from its source map and miner capacity still applies. Donations and remote transfer save atomically using existing map warehouse data and version-24 milestones. `npm test` passes 140 system tests plus cave-atmosphere coverage and `npm run build` passes with Vite's existing large-chunk advisory. System tests cover ordered contributions, one-time completion, remote-access gating, and remote depot presence. `tests/browser-trade-network.js` now checks the remote warehouse selector and a source-debited transfer; fixture syntax passes. Browser execution remains unavailable in this environment, so the remote inventory UI awaits live verification.
-# Compact starter globe and drillable charge predator — 2026-10-10
+# Compact starter globe and drillable charge predator: 2026-10-10
 
 New Cryo Shelf campaigns use the existing compact 480 m chart while older chart geometry remains save-backed. Mouse-held drilling continues to target terrain and enemies through flight; drill upgrades extend beam reach. After two Rock Swimmer encounters, the Shard Manta telegraphs a straight charge on most worlds, while Hull Graveyard substitutes an armored Hull Scrapper whose front deflects drill beams and whose sides/rear remain vulnerable. A drill hit stuns the Manta for a follow-up; the Scrapper takes three clear side/rear hits. Charge movement starts in the same update that the telegraph expires, including long frames. The reported surface snap was traced to explicit Emergency Recovery, which always reset the pod to the home spawn; recovery now preserves longitude and current hemisphere. Steering into solid rock now supplies that obstruction as a drill target, and a globe-specific regression verifies the cut opens a safe route for the miner. `npm test` passes 146 system tests plus cave-atmosphere coverage, and `npm run build` passes with Vite's existing large-bundle advisory. The live enemy now shows remaining drill-hit pips and gives an explicit nonlethal-hit cue. An isolated Chrome preview rendered both the briefing and live expedition HUD, but its browser-control layer could not hold the drill pointer or read the game's development state, so it did not reproduce the reported obstruction interactively. Real input feel, threat balance, and any automatic snap-to-surface while drilling still need playtesting.
 
-## Side steering and curved-wall clearance — 2026-10-10
+## Side steering and curved-wall clearance: 2026-10-10
 
 A/D steering now offers a solid side-contact tile to the drill even when curved-globe motion maps onto the other chart axis. The pod's side collision hull is narrowed around the outer planet so its visible shell can slide past small tile lips; core-area collision remains wider to protect the crossing passage. System tests cover both the side-drill trigger and the existing polar clearance. An isolated Chrome run descended to 108 m, then used D and A separately; each direction reached an obstruction and excavated a tile, with zero final terrain overlap. Screenshot: `output/playwright/side-mining-controls.png`. `npm test` and the production build pass; live feel on the player's device still needs confirmation.
 
-## Two-sided orbital departure and landing warning — 2026-10-10
+## Two-sided orbital departure and landing warning: 2026-10-10
 
 The mothership can thrust out of orbit from the far hemisphere, and the Worlds selector remains available while thrust is held; it parks again when released. The HUD fast-descent warning now uses motion toward the local surface, so thrusting outward on the far hemisphere no longer reads as a fall, and orbit suppresses landing warnings. npm test passes 150 system checks; the atmosphere suite passed in the preceding full run. The production build passes. An isolated Chromium run verified automatic ship assembly, travel, far-side orbital parking, outward movement while W is held, persistent Worlds access, and no false fast-descent warning. Screenshots are under ignored output/playwright/.
 
-## Earlier descent warning — 2026-10-10
+## Earlier descent warning: 2026-10-10
 
 Moved the braking warning from 168 px/s to 112 px/s, increasing the lead time before the 280 px/s hull-damage threshold. The starter-shaft test now includes a 600 ms reaction delay. A campaign-level sweep of seeds 9090, 1, and 2026 completes all four signal sorties, returns, and ship assembly at delays through 600 ms; seed 2026 still fails at 800 ms, so this is a wider margin rather than a guarantee against very late braking. `npm test` passes 155 system tests plus cave-atmosphere coverage, and `npm run build` passes with the existing large-bundle advisory. Real warning visibility and human response still need playtesting.
-## Long-Range Survey Array — 2026-10-10
+## Long-Range Survey Array: 2026-10-10
 
 Added a third authored interplanetary colony project. Donate 2 silver at Cryo Shelf, 3 gold at Cinder Vale, and 2 diamond at Vesper-9 from each planet's warehouse to complete the Long-Range Survey Array; it adds two tiles to scanner reveal and searchlight reach. The project appears on the warehouse and destination-board panels, and donation commits roll back with warehouse stock if saving fails. Completion uses the version-24 milestone field, so no save migration is needed. `npm test` passes 155 system tests plus cave-atmosphere coverage; `npm run build` passes with the existing large-bundle advisory. The browser regression now checks the final contribution and saved reward milestone, and `node --check tests/browser-trade-network.js` passes. It could not run here: the Playwright wrapper's Bash process is denied by Windows, and a separate browser tab could not reach the local dev server. Browser presentation and scanner-balance feel still need a play session; the player's active tab was left untouched.
 
-## Campaign route seed expansion — 2026-10-10
+## Campaign route seed expansion: 2026-10-10
 
 Expanded the physical four-signal campaign route and delayed-braking reaction sweep from three to six deterministic terrain seeds. The reaction sweep now requires docking after every signal and applies the fuel-tank upgrade funded by the first recovered part; this closes a false-pass where all four parts were collected but the miner could run out before the final return. All six complete four serviced sorties and return without terrain overlap through a 600 ms warning-response delay; at least one seed loses the pod at 800 ms. `npm test` passes 155 system tests plus cave-atmosphere coverage, and `npm run build` passes with the existing large-bundle advisory. Real-time handling, cue visibility, and perceived trip length still need human playtesting; the active game tab was left untouched.
 `npm test` passes 155 system tests plus cave-atmosphere coverage, and `npm run build` passes with the existing large-bundle advisory. Real-time handling, cue visibility, and perceived trip length still need human playtesting; the active game tab was left untouched.
 
-## Descent cue threshold comparison — 2026-10-10
+## Descent cue threshold comparison: 2026-10-10
 
 A trial lowering the fast-descent cue from 40% to 30% of the safe-impact threshold did not improve the modeled campaign: one seed lost the pod at 600 ms response, where the current 40% setting survives all six sampled seeds. The trial was reverted. Keep the 40% cue until a controlled model change or human playtest shows a better threshold; at 800 ms, at least one seed remains unsafe.
 
-## Curved-cell ore marker fit — 2026-10-10
+## Curved-cell ore marker fit: 2026-10-10
 
 Ore clusters, geode halos, and vein connectors now use the projected globe tile footprint; marker shapes shrink uniformly as angular cells narrow toward the core instead of staying at full-size rectangular-tile dimensions. A geometry test confirms full scale at the surface and proportional contraction in the near-core band. An isolated Playwright fixture at 384 m rendered a discovered gold block near the core at 1280×800 and after zoom; the pod remained clear of terrain. Screenshot: output/playwright/ore-marker-near-core-zoom.png.
 `npm test` passes 156 system tests plus cave-atmosphere coverage, `npm run build` passes with Vite's existing large-bundle advisory, and `git diff --check` passes. The active player tab was not used.
-## Full-circumference surface gate — 2026-10-10
+## Full-circumference surface gate: 2026-10-10
 
 Charted globes now hold the miner above the crust at every longitude, including the far hemisphere; the hub-only service range remains local. Passing through the surface into the mine requires holding S (down), while the HUD distinguishes `SURFACE · HOLD S TO DRILL` from the current underground stratum. `npm test` passes 157 system checks plus cave-atmosphere coverage, and `npm run build` passes with the existing large-bundle advisory. Isolated Chromium verification landed at x=2772 outside the hub, confirmed docking at y=-22 with the surface prompt, then held S to reach depth 7 and confirmed `UNDERGROUND · CRYO DUST`. Screenshot: `output/playwright/surface-to-underground-barrier.png`. Human playtesting still needed for the surface cue's visibility and drilling feel.
-## Stackable surface walls — 2026-10-10
+## Stackable surface walls: 2026-10-10
 
 During perimeter-wall placement, Left/Right moves along the crust and Up/Down selects the wall layer. Elevated pieces require a supporting wall directly below, adjacent walls still join into continuous runs, and overlapping the same layer is blocked. Outward home-side layers persist with the current version-24 save format; no migration is needed. `npm test` passes 158 system tests plus cave-atmosphere coverage, and the production build passes with the existing large-bundle advisory. Isolated Chromium placed a base wall and a second wall at the same longitude one layer outward; both persisted. Screenshot: `output/playwright/wall-stack-placement.png`.
 
-## Grapple preference persistence — 2026-10-10
+## Grapple preference persistence: 2026-10-10
 
 Pressing G toggles the purchased automatic safety grapple; switching it off releases an active tether, and W still releases while thrusting. The on/off preference now persists in a separate device setting across scene reloads, leaving the version-26 campaign save unchanged. System coverage verifies default-on behavior, both saved states, and safe fallback when browser storage is unavailable. `npm test` passes 164 system tests plus cave-atmosphere coverage, and `npm run build` passes. Vite reports its existing large-JavaScript-chunk advisory. Browser key-input playtest remains useful for confirming the control feels discoverable.

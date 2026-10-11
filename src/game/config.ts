@@ -524,7 +524,7 @@ export const ROUTE_FRAGMENTS = [
 export const NAVIGATION_HASHES = [
   { id: 'hash-cryo', mapId: 'cryo-shelf', x: 12, row: 16, name: 'ICEBOUND ECHO', hash: '7C1A·09EF·B44D', crew: 'Asha Vale', role: 'Signal Officer', transcript: 'The echo is not a beacon. It is a handshake waiting for our key. Someone below knows we are here.', detail: 'A shipyard checksum, signed before the mothership left orbit.' },
   { id: 'hash-hull', mapId: 'hull-graveyard', x: 12, row: 22, name: 'WRECK REGISTER', hash: 'A308·F11C·620B', crew: 'Orrin Bale', role: 'Flight Recorder', transcript: 'The manifest says no survivors. I watched the landing crew walk away from the wreck. The record was changed after we split up.', detail: 'An ark manifest that lists a crew no surviving log remembers.' },
-  { id: 'hash-prism', mapId: 'prism-fault', x: 36, row: 32, name: 'PRISM KEY', hash: 'D9E2·44A7·C015', crew: 'Imani Cho', role: 'Navigator', transcript: 'The beacon bends through the fault, but the coordinates resolve cleanly. This route points back to the first signal—not deeper into the ice.', detail: 'A navigation key refracted through an abandoned survey beacon.' },
+  { id: 'hash-prism', mapId: 'prism-fault', x: 36, row: 32, name: 'PRISM KEY', hash: 'D9E2·44A7·C015', crew: 'Imani Cho', role: 'Navigator', transcript: 'The beacon bends through the fault, but the coordinates resolve cleanly. This route points back to the first signal: not deeper into the ice.', detail: 'A navigation key refracted through an abandoned survey beacon.' },
   { id: 'hash-mars', mapId: 'mars-frontier', x: 9, row: 20, name: 'RED DUST INDEX', hash: '51B7·C82D·A903', crew: 'Sol Reyes', role: 'Surface Lead', transcript: 'We found the mothership’s launch telemetry beneath this shelf. Its last destination was Vesper-9. The crew were not marked lost. They were marked passengers.', detail: 'A checksum from the first surface team, preserved under the frontier.' },
 ] as const;
 export const CREW_ARCHIVE_CONCLUSION = {
@@ -549,3 +549,15 @@ export const ROUTE_SHIP_COMPONENTS: Record<RouteFragmentId, ShipComponent> = {
   'fragment-4': 'life-support',
 };
 export const ROUTE_PART_RECOVERY_BONUS = 200;
+
+export const SOLAR_SYSTEM = {
+  speed: 110, distancePerFuel: 400, landingRadius: 48,
+  planets: {
+    'cryo-shelf': { x: -420, y: -130 },
+    'hull-graveyard': { x: -190, y: 125 },
+    'prism-fault': { x: 130, y: -155 },
+    'mars-frontier': { x: 320, y: 135 },
+    'cinder-vale': { x: -40, y: 240 },
+    'vesper-9': { x: 485, y: -215 },
+  },
+} as const;

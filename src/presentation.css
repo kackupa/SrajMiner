@@ -396,3 +396,11 @@ footer { height: 44px; padding: 0 24px; background: #111c21; }
   .pause-progress { margin: 9px 0 6px; }
   .pause-credit { margin-top: 10px; padding-top: 8px; }
 }
+.solar-flight { position: fixed; inset: 0; z-index: 10000; background: #070e1c; color: #e0edf4; text-align: center; font-family: 'Space Mono', monospace; }
+.solar-flight header { padding: 18px 8px 0; }
+.solar-flight h1 { margin: 4px; letter-spacing: .2em; font-size: 26px; }
+.solar-flight p { margin: 10px; font-size: 12px; }
+.solar-flight small { color: #69ddba; letter-spacing: .2em; }
+.solar-flight canvas { display:block; }
+.solar-flight button { padding: 12px 24px; background:#173c3b; color:#bdffe8; border:1px solid #6ecab3; cursor:pointer; }
+.solar-flight button:disabled { opacity:.45; cursor:default; }

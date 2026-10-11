@@ -11,7 +11,7 @@ async (page) => {
   await page.keyboard.down('s');
   try {
     await page.waitForFunction(
-      () => document.querySelector('#low-warning')?.textContent === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' && window.__mars?.vy >= 168,
+      () => document.querySelector('#low-warning')?.textContent === 'FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT' && window.__mars?.vy >= 168,
       null,
       { timeout: 5000 },
     );
@@ -26,13 +26,13 @@ async (page) => {
   } finally {
     await page.keyboard.up('s');
   }
-  if (warningState.warning !== 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || warningState.vy < 168 || warningState.fallCue <= 0)
+  if (warningState.warning !== 'FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT' || warningState.vy < 168 || warningState.fallCue <= 0)
     throw Error(`Fast descent cue did not match the live speed: ${JSON.stringify(warningState)}`);
 
   await page.keyboard.down('w');
   try {
     await page.waitForFunction(
-      () => document.querySelector('#low-warning')?.textContent !== 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT',
+      () => document.querySelector('#low-warning')?.textContent !== 'FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT',
       null,
       { timeout: 5000 },
     );
@@ -46,7 +46,7 @@ async (page) => {
     hull: window.__mars?.hull,
     fuel: window.__mars?.fuel,
   }));
-  if (brakedState.warning === 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT' || brakedState.hull <= 0 || brakedState.fallCue !== 0)
+  if (brakedState.warning === 'FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT' || brakedState.hull <= 0 || brakedState.fallCue !== 0)
     throw Error(`Braking did not clear the warning safely: ${JSON.stringify(brakedState)}`);
   await page.screenshot({ path: 'output/playwright/fast-descent-braked.png' });
   return { warningState, brakedState };

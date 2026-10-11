@@ -1,6 +1,6 @@
 # 15-minute campaign playtest
 
-Use this with the campaign already in your browser. Keep your current save; do not start a new expedition just for the test. Play normally for about 15 minutes and note anything that interrupts the mining loop. Rough estimates are useful—there is no need to measure with a stopwatch or open developer tools.
+Use this with the campaign already in your browser. Keep your current save; do not start a new expedition just for the test. Play normally for about 15 minutes and note anything that interrupts the mining loop. Rough estimates are useful: there is no need to measure with a stopwatch or open developer tools.
 
 ## During play
 

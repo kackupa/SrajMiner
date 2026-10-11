@@ -55,6 +55,6 @@ Drill, cargo, fuel, hull, engine, scanner, and grapple levels each grow the rend
 
 Initial testing showed a 360 m run and return could consume around three quarters of the hull through cave drops and landing. Raised the safe impact threshold from 245 to 280 pixels/s and reduced damage from 0.25 to 0.20 per excess pixel/s. Terminal fall speed remains 430: a maximum-speed landing costs 30 hull. One-tile drops remain safe. Hull upgrades raise the margin for error, while engine upgrades make ascent and braking stronger.
 
-The HUD now warns “FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT” at 112 pixels/s (40% of the damage threshold), giving a wider response window before a damaging landing. A three-seed campaign sweep now survives a modeled 600 ms response delay after the cue; at 800 ms one deep run still loses the pod. Low fuel and critical hull cues override the descent warning. Live human timing and noticeability review remains open.
+The HUD now warns “FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT” at 112 pixels/s (40% of the damage threshold), giving a wider response window before a damaging landing. A three-seed campaign sweep now survives a modeled 600 ms response delay after the cue; at 800 ms one deep run still loses the pod. Low fuel and critical hull cues override the descent warning. Live human timing and noticeability review remains open.
 
 Fuel is deliberately forgiving on the first expedition. Longer excursions and chasing high-value seams introduce the return decision. Long-session late-game economics still need wider human playtesting.

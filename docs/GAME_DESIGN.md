@@ -1,4 +1,4 @@
-# Game design — Cold Signal
+# Game design: Cold Signal
 
 ## Campaign promise
 

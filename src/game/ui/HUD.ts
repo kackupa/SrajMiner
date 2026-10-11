@@ -27,11 +27,11 @@ export const flightWarning = (input: {
 }) => {
   if (input.surface) return '';
   if (input.inOrbit) return '';
-  if (input.fuelRatio < 0.23) return 'LOW FUEL — RETURN TO SURFACE';
-  if (input.hullRatio < 0.25) return 'LOW HULL — THRUST TO BRAKE. RETURN FOR REPAIRS';
+  if (input.fuelRatio < 0.23) return 'LOW FUEL: RETURN TO SURFACE';
+  if (input.hullRatio < 0.25) return 'LOW HULL: THRUST TO BRAKE. RETURN FOR REPAIRS';
   if (input.descentSpeed >= DESCENT_WARNING_SPEED)
-    return 'FAST DESCENT — HOLD W TO BRAKE BEFORE IMPACT';
-  if (input.cargoFull) return 'CARGO FULL — RETURN TO SELL';
+    return 'FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT';
+  if (input.cargoFull) return 'CARGO FULL: RETURN TO SELL';
   return '';
 };
 export function campaignObjective(p: Progress, mapId: MapId, tradePostCount = 0, hasLocalTradePost = false, inOrbit = false, mothershipBoarded = false) {
@@ -49,11 +49,11 @@ export function campaignObjective(p: Progress, mapId: MapId, tradePostCount = 0,
   };
   if (inOrbit) return {
     title: 'MOTHERSHIP IN ORBIT · CHOOSE A WORLD',
-    body: 'Open WORLDS to travel to another planet. Hold S to land back at the mothership pad.',
+    body: 'Fly with WASD on the solar system map. Approach a planet and select LAND.',
   };
   if (p.coreFuel === CORE_FUEL.unitsPerCore && CORE_RELICS.filter((record) => p.milestones.includes(record.id)).length === 1) return {
     title: 'INTERPLANETARY MINER · CORE DRIVE ONLINE',
-    body: `Drive into the mothership and press E. W takes off; S lands. Your core reserve powers ${p.coreFuel} jumps; each trip uses ${CORE_FUEL.jumpCost}.`,
+    body: `Drive into the mothership and press E. W takes off; approach a planet in space and select LAND. Core fuel limits flight distance; approach a planet to land.`,
   };
   const core = CORE_RELICS.find((record) => record.mapId === mapId)!;
   if (!p.milestones.includes(core.id)) return {
@@ -304,8 +304,8 @@ export class HUD {
     panel.classList.toggle('laser-venting', laserVenting);
     const overflowWarning = full
       ? cargoSpace === 0
-        ? `CARGO FULL — EXCESS ORE DROPS HERE. CLEAR THE ROUTE; RETURN AFTER SELLING TO COLLECT IT.`
-        : `CARGO SHORT — ${cargoSpace} OF ${overflowUnits} UNITS FIT. THE REST DROPS HERE FOR YOUR RETURN TRIP.`
+        ? `CARGO FULL: EXCESS ORE DROPS HERE. CLEAR THE ROUTE; RETURN AFTER SELLING TO COLLECT IT.`
+        : `CARGO SHORT: ${cargoSpace} OF ${overflowUnits} UNITS FIT. THE REST DROPS HERE FOR YOUR RETURN TRIP.`
       : '';
     panel.innerHTML = `<div><b>${shipPart ? '✦ OPTIONAL PLANETARY SIGNAL · ' : coreRelic ? '◈ PLANET CORE · ' : tile.geode ? '✦ PRISM GEODE · ' : regionalFind ? `✦ ${regionalFind.name} · ` : signalHash ? '◈ ARCHIVE HASH · ' : ''}${name.toUpperCase()}${ore && units !== 1 ? ` · +${units} UNITS` : ''}</b><span>${shipPart ? `SURVEY GRANT · +$${ROUTE_PART_RECOVERY_BONUS} CREDITS` : coreRelic ? `+${CORE_FUEL.unitsPerCore} CORE FUEL · $${coreRelic.bounty} CLAIM` : signalHash ? 'OPTIONAL HASH HAS NO CASH VALUE' : ore ? `$${ore.value} / unit` : 'NO ORE'} · ${width} BLOCK${width === 1 ? '' : 'S'} WIDE · ${this.p.drillTime(tile.hardness).toFixed(2)}s CUT</span></div><div class="cut-meter"><i style="width:${ratio * 100}%"></i></div><small>${full ? overflowWarning : laserVenting ? 'EMITTER VENTING · CUT PAUSED · RELEASE TO COOL FASTER' : shipPart ? `OPTIONAL SURVEY SIGNAL · CUTTING ${Math.round(ratio * 100)}%` : coreRelic ? `${coreRelic.detail} · CUT TO RECORD PLANET AND REFILL JUMPS · ${Math.round(ratio * 100)}%` : signalHash ? `${signalHash.detail} · CUTTING ${Math.round(ratio * 100)}%` : tile.geode ? `RARE CRYSTAL POCKET · GUARANTEED 3 UNITS · CUTTING ${Math.round(ratio * 100)}%` : regionalFind ? `${regionalFind.detail} · CUTTING ${Math.round(ratio * 100)}%` : `CUTTING ${Math.round(ratio * 100)}%`}</small>`;
   }
@@ -320,7 +320,7 @@ export class HUD {
     document.querySelector('#app')!.innerHTML = `
       <header class="topbar"><a class="brand" href="#" aria-label="Cold Signal"><span class="brand-mark">C<span>↧</span></span><span>COLD<span class="brand-light">SIGNAL</span><small>THE LOST ARK CAMPAIGN</small></span></a><div class="expedition"><i></i> PROSPECTOR ONLINE <span>/</span> <b id="zone">ICE MOON / CRYO SHELF</b></div><div class="top-actions"><button id="map-toggle" aria-label="Toggle explored map" title="Toggle explored map" aria-pressed="false">MAP</button><button id="audio" aria-label="Toggle sound" title="Toggle sound">SOUND ON</button><button id="audio-mix" aria-label="Open audio mixer" title="Open audio mixer">MIX</button><button id="pause" aria-label="Pause game">Ⅱ</button></div></header>
       <main id="viewport"><div id="game" aria-label="Mining campaign. Use WASD or arrow keys to fly. Hold left mouse button to aim and drill." role="application" tabindex="0"></div>
-      <aside class="telemetry"><div class="eyebrow">POD TELEMETRY <span class="status-dot"></span></div><div class="meter-head"><span>FUEL</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-line"><span>▦ &nbsp;CARGO</span><strong id="cargo-label"></strong></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Interplanetary core fuel"><span>CORE FUEL · JUMPS</span><b id="core-fuel-label">0</b></div></aside>
+      <aside class="telemetry"><div class="eyebrow">POD TELEMETRY <span class="status-dot"></span></div><div class="meter-head"><span>FUEL</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-line"><span>▦ &nbsp;CARGO</span><strong id="cargo-label"></strong></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Interplanetary core fuel"><span>CORE FUEL · SPACE</span><b id="core-fuel-label">0</b></div></aside>
       <aside class="depth-panel"><div class="eyebrow">CURRENT DEPTH</div><div class="depth-value"><span id="depth">0</span><small>m</small></div><div class="record">DEEPEST <span id="record">0m</span></div><div class="depth-rule"></div><div id="depth-note">SURFACE OPERATIONS</div><div id="gravity-note" aria-live="polite"></div></aside>
       <div class="location-label"><span class="eyebrow">ICE MOON / CRYO SHELF</span><span>VESPER-9 · Mothership HAB-07</span></div>
       <div id="tip" class="mission-tip hidden" aria-live="polite"><span class="tip-icon">✦</span><div><b id="mission-headline"></b><span id="mission-body"></span></div></div>
@@ -430,13 +430,13 @@ export class HUD {
           headline: 'THE MOTHERSHIP<br>HAS <em>LANDED.</em>',
           dek: 'Drive out. Mine the planetary core. Bring home fuel for the next world.',
           loop: ['DRILL', 'RECOVER', 'DEPART'],
-          briefing: 'The mothership is your home between planets. Drive into it and press E to board. W takes off; S lands. Mine each planetary core for interplanetary jump fuel. The miner’s local fuel remains separate. Log five planetary cores to chart the hidden sixth world. Your tunnels stay yours.',
+          briefing: 'The mothership is your home between planets. Drive into it and press E to board. W takes off; approach a planet in space and select LAND. Mine each planetary core for interplanetary jump fuel. The miner’s local fuel remains separate. Log five planetary cores to chart the hidden sixth world. Your tunnels stay yours.',
         };
     const atlas = legacyMars ? '' : `<section class="intro-atlas" aria-label="Vesper system route map">
       <div class="atlas-heading"><span>VESPER SYSTEM</span><b>5 WORLDS · 1 HIDDEN CHAPTER</b></div>
       <div class="atlas-chart">
         <svg class="atlas-orbits" viewBox="0 0 560 158" aria-hidden="true"><ellipse cx="280" cy="80" rx="72" ry="26"/><ellipse cx="280" cy="80" rx="154" ry="49"/><ellipse cx="280" cy="80" rx="246" ry="73"/><path d="M25 80H535"/></svg>
-        <button class="atlas-world selected" type="button" data-world="cryo-shelf" data-title="CRYO SHELF · RECOMMENDED START" data-copy="A compact 480 m-deep world gets new pilots to its core sooner. Mine the Cryo Anchor Lens for four core-fuel jumps." aria-pressed="true" style="--world-color:#9be5dc;--world-x:29%;--world-y:38%"><i class="world-disc ice"></i><span>CRYO SHELF</span><small>RECOMMENDED · 480 M DEEP</small></button>
+        <button class="atlas-world selected" type="button" data-world="cryo-shelf" data-title="CRYO SHELF · RECOMMENDED START" data-copy="A compact 480 m-deep world gets new pilots to its core sooner. Mine the Cryo Anchor Lens for four core-fuel units." aria-pressed="true" style="--world-color:#9be5dc;--world-x:29%;--world-y:38%"><i class="world-disc ice"></i><span>CRYO SHELF</span><small>RECOMMENDED · 480 M DEEP</small></button>
         <button class="atlas-world locked" type="button" data-world="mars-frontier" data-title="MARS FRONTIER · LOCKED" data-copy="A rust-red world rich in thermal seams. Recover a planetary core to fuel the first jump here." aria-pressed="false" style="--world-color:#dc9b73;--world-x:16%;--world-y:72%"><i class="world-disc mars"></i><span>MARS FRONTIER</span><small>CORE FUEL REQUIRED</small></button>
         <button class="atlas-world locked" type="button" data-world="hull-graveyard" data-title="HULL GRAVEYARD · LOCKED" data-copy="A shattered ark world with broken decks and reactor salvage. Core fuel powers the route here." aria-pressed="false" style="--world-color:#b0c8b8;--world-x:74%;--world-y:23%"><i class="world-disc hull"></i><span>HULL GRAVEYARD</span><small>CORE FUEL REQUIRED</small></button>
         <button class="atlas-world locked" type="button" data-world="prism-fault" data-title="PRISM FAULT · LOCKED" data-copy="A luminous crystal world with rare geodes. Use core fuel to reach it and recover its planetary core." aria-pressed="false" style="--world-color:#c8a9f7;--world-x:86%;--world-y:64%"><i class="world-disc prism"></i><span>PRISM FAULT</span><small>CORE FUEL REQUIRED</small></button>
@@ -444,8 +444,8 @@ export class HUD {
         <button class="atlas-world locked" type="button" data-world="vesper-9" data-title="VESPER-9 · UNCHARTED" data-copy="The Mothership’s destination is absent from every star chart. Log the five known planetary cores to reconstruct its coordinates." aria-pressed="false" style="--world-color:#b2e98e;--world-x:50%;--world-y:15%"><i class="world-disc vesper"></i><span>VESPER-9</span><small>5 CORE RECORDS REQUIRED</small></button>
         <div class="atlas-sun" aria-label="Vesper star">✦</div>
       </div>
-      <div class="atlas-preview" aria-live="polite"><b id="atlas-title">CRYO SHELF · FIRST DEPLOYMENT</b><p id="atlas-copy">A shorter 480 m route to the core. Mine the Cryo Anchor Lens for four core-fuel jumps.</p></div>
-      <div class="atlas-goal"><i>CAMPAIGN GOAL</i><span>MINE A PLANET CORE <b>→</b> FUEL JUMPS <b>→</b> REACH NEW WORLDS <b>→</b> FIND VESPER-9</span></div>
+      <div class="atlas-preview" aria-live="polite"><b id="atlas-title">CRYO SHELF · FIRST DEPLOYMENT</b><p id="atlas-copy">A shorter 480 m route to the core. Mine the Cryo Anchor Lens for four core-fuel units.</p></div>
+      <div class="atlas-goal"><i>CAMPAIGN GOAL</i><span>MINE A PLANET CORE <b>→</b> FUEL SPACE FLIGHT <b>→</b> REACH NEW WORLDS <b>→</b> FIND VESPER-9</span></div>
     </section>`;
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
     const landingSequence = !this.loaded && this.mapId !== 'mars-frontier' ? '<div class="landing-sequence" aria-label="Mothership landing, followed by miner deployment"><div class="landing-world"></div><div class="landing-glow"></div><div class="landing-craft"><i></i><b></b><span></span></div><div class="landing-miner">▰</div><small>MOTHERSHIP TOUCHDOWN · MINER DEPLOYED</small></div>' : '';
@@ -636,7 +636,7 @@ export class HUD {
         `<article class="archive-entry ${recovered ? 'found' : ''}" id="${relic.id}"><span>${recovered ? `RECOVERED · $${relic.bounty} CLAIM PAID` : `${MAPS[relic.mapId].name.toUpperCase()} · CORE SEALED`}</span><b>${relic.name.toUpperCase()}</b><p>${recovered ? relic.record : 'A unique planetary record remains sealed at the core. Recover the sample to decode it.'}</p></article>`,
       ).join('');
       const regionRecords = `<section class="region-records" aria-label="Regional survey records"><h3>REGIONAL SURVEY RECORDS</h3><div class="region-record-grid">${mapRecords.map((record) => `<article class="archive-entry ${record.visited ? 'found' : ''}" data-map-record="${record.id}"><span>${record.visited ? 'SURVEY RECORDED' : 'NOT VISITED'}</span><b>${record.name.toUpperCase()}</b><p>${record.visited ? `Deepest scan: ${record.deepestMeters.toLocaleString()} m` : 'No depth record yet'}${record.routeTotal ? `<br>${record.routeRecovered} / ${record.routeTotal} route signals` : ''}<br>${record.hashesRecovered} / ${record.hashTotal} archive hash${record.hashTotal === 1 ? '' : 'es'}<br>CORE · ${record.coreRecovered ? 'RECOVERED' : 'SEALED'} · ${record.coreName}</p></article>`).join('')}</div></section>`;
-      content = `<p>Interplanetary core fuel: <b>${p.coreFuel} jumps</b>. Optional route signals: <b>${p.routeFragments.length} / ${ROUTE_FRAGMENTS.length}</b>. Optional navigation hashes: <b>${hashCount} / ${NAVIGATION_HASHES.length}</b>. Planetary cores: <b>${coreCount} / ${CORE_RELICS.length}</b>. Deepest scan: <b>${Math.floor(p.maxDepth)} m</b>.</p>${regionRecords}<div class="archive-list">${coreConclusion}${coreRecords}<article class="archive-entry ${p.artifact ? 'found' : ''}" id="deep-signal-record"><span>${deepSignalStatus}</span><b>UNKNOWN DEEP SIGNAL</b><p>${deepSignalDetail}</p></article>${ROUTE_FRAGMENTS.map((fragment) => {
+      content = `<p>Interplanetary core fuel: <b>${p.coreFuel.toFixed(2)} fuel</b>. Optional route signals: <b>${p.routeFragments.length} / ${ROUTE_FRAGMENTS.length}</b>. Optional navigation hashes: <b>${hashCount} / ${NAVIGATION_HASHES.length}</b>. Planetary cores: <b>${coreCount} / ${CORE_RELICS.length}</b>. Deepest scan: <b>${Math.floor(p.maxDepth)} m</b>.</p>${regionRecords}<div class="archive-list">${coreConclusion}${coreRecords}<article class="archive-entry ${p.artifact ? 'found' : ''}" id="deep-signal-record"><span>${deepSignalStatus}</span><b>UNKNOWN DEEP SIGNAL</b><p>${deepSignalDetail}</p></article>${ROUTE_FRAGMENTS.map((fragment) => {
         const found = p.routeFragments.includes(fragment.id);
         return `<article class="archive-entry ${found ? 'found' : ''}"><span>${found ? 'RECOVERED · SURVEY GRANT PAID' : `OPTIONAL SIGNAL · ${fragment.row * 12} M`}</span><b>${fragment.title.toUpperCase()} · ${fragment.landmark}</b><p>${found ? 'This optional signal is logged in the archive.' : 'Drill the glowing signal for an optional survey grant.'}</p></article>`;
       }).join('')}${NAVIGATION_HASHES.map((hash) => {
@@ -646,7 +646,7 @@ export class HUD {
     } else if (name === 'shipyard') {
       title = p.shipComplete ? 'The mothership is ready.' : 'Power the mothership.';
       sub = 'MOTHERSHIP / CORE-POWERED FLIGHT';
-      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, W lifts the ship into orbit and S brings it back down. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} interplanetary jumps, and each jump consumes ${CORE_FUEL.jumpCost} core-fuel unit. Core fuel is separate from the miner’s local fuel.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel} JUMPS AVAILABLE</b></div><p class="fine">Route signals are optional survey records. Explore another planet to mine its core and replenish the jump reserve.</p>`;
+      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, W lifts the ship into space. Use WASD to fly, then approach a planet and select LAND. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, and space flight consumes fuel by distance. Core fuel is separate from the miner’s local fuel.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Route signals are optional survey records. Explore another planet to mine its core and replenish the jump reserve.</p>`;
     } else if (name === 'destinations') {
       title = 'Choose the next descent.';
       sub = 'DESTINATION BOARD / LONG-RANGE CRAFT';
@@ -660,16 +660,16 @@ export class HUD {
         : `CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES · ${tugStage?.label} AT ${tugStage ? MAPS[tugStage.mapId].name.toUpperCase() : 'NEXT COLONY'} · UNLOCK REMOTE WAREHOUSE ACCESS.`;
       const surveyStatus = survey.complete ? `SURVEY ARRAY ONLINE · SCANNER REACH +${SURVEY_ARRAY_PROJECT.scannerRadiusBonus} TILES.`
         : `SURVEY ARRAY · ${survey.completedStages}/${survey.totalStages} STAGES · ${surveyStage?.label} AT ${surveyStage ? MAPS[surveyStage.mapId].name.toUpperCase() : 'NEXT COLONY'} · EXPAND SCANNER REACH.`;
-      content = `<p>${!p.shipComplete ? 'Mine this planet’s core to fuel the mothership. Board it at the landing site with E.' : this.inOrbit ? `You have ${p.coreFuel} core-fuel jumps. Each jump costs ${CORE_FUEL.jumpCost}; local miner fuel is unchanged. Mine each new planet’s core to replenish the reserve.` : `The interplanetary drive is online with ${p.coreFuel} core-fuel jumps. Board at the landing site, then use W to take off and S to land.`}</p><div class="trade-network-overview">${routeSvg}<div><b>VESPER EXCHANGE · ${postedMaps.length}/${Object.keys(MAPS).length} COLONIES LINKED</b><span>${postedMaps.length < 2 ? 'BUILD A POST ON ANOTHER WORLD TO OPEN A ROUTE' : `${routeEdges.length} ROUTE${routeEdges.length === 1 ? '' : 'S'} ACTIVE · EACH NODE CONNECTS TO ITS NEAREST PARTNER`}</span><span class="relay-status">${projectStatus}</span><span class="relay-status">${tugStatus}</span><span class="relay-status">${surveyStatus}</span></div></div><div class="core-fuel-board"><b>CORE FUEL</b><span>${p.coreFuel} JUMPS · ${CORE_FUEL.jumpCost} PER TRIP</span><small>Each unique planet core replenishes ${CORE_FUEL.unitsPerCore} jumps. This does not use mining fuel.</small></div><div class="destination-list">${(Object.keys(MAPS) as MapId[]).map((id) => {
+      content = `<p>${!p.shipComplete ? 'Mine this planet’s core to fuel the mothership. Board it at the landing site with E.' : this.inOrbit ? `You have ${p.coreFuel.toFixed(2)} core fuel. Flight consumes fuel by distance; local miner fuel is unchanged. Mine each new planet’s core to replenish the reserve.` : `The interplanetary drive is online with ${p.coreFuel.toFixed(2)} core fuel. Board at the landing site, then use W to take off and S to land.`}</p><div class="trade-network-overview">${routeSvg}<div><b>VESPER EXCHANGE · ${postedMaps.length}/${Object.keys(MAPS).length} COLONIES LINKED</b><span>${postedMaps.length < 2 ? 'BUILD A POST ON ANOTHER WORLD TO OPEN A ROUTE' : `${routeEdges.length} ROUTE${routeEdges.length === 1 ? '' : 'S'} ACTIVE · EACH NODE CONNECTS TO ITS NEAREST PARTNER`}</span><span class="relay-status">${projectStatus}</span><span class="relay-status">${tugStatus}</span><span class="relay-status">${surveyStatus}</span></div></div><div class="core-fuel-board"><b>CORE FUEL</b><span>${p.coreFuel.toFixed(2)} FUEL · DISTANCE-BASED</span><small>Each unique planet core replenishes ${CORE_FUEL.unitsPerCore} fuel. This does not use mining fuel.</small></div><div class="destination-list">${(Object.keys(MAPS) as MapId[]).map((id) => {
         const unlocked = id === this.mapId || p.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(p.milestones));
         const current = id === this.mapId;
         const description = id === 'mars-frontier' ? 'Legacy frontier · persistent original-world saves' : id === 'cryo-shelf' ? 'Branching ice caverns · stable starter ores' : id === 'hull-graveyard' ? 'Wide wreck chambers · structural salvage' : id === 'vesper-9' ? 'Hidden return world · lantern groves and living crystal' : 'Narrow crystal seams · valuable deep deposits';
         const core = CORE_RELICS.find((entry) => entry.mapId === id)!;
         const objective = p.milestones.includes(core.id) ? `CORE RECORD LOGGED · ${core.name}` : `CORE OBJECTIVE · RECOVER ${core.name} · $${core.bounty} CLAIM`;
         const lockLabel = id === 'vesper-9' && !unlocked ? '5 CORES REQUIRED' : 'MINE FIRST CORE';
-        const canTravel = unlocked && p.shipComplete && p.coreFuel >= CORE_FUEL.jumpCost && this.mothershipBoarded;
-        return `<div class="service-row"><div><b>${MAPS[id].name.toUpperCase()}</b><small>${description}<br>${objective}</small></div><button id="map-${id}" ${!unlocked || current || !this.inOrbit || !canTravel ? 'disabled' : ''}>${current ? 'CURRENT' : !unlocked ? lockLabel : !p.shipComplete ? 'MINE CORE' : !this.mothershipBoarded ? 'BOARD MOTHERSHIP' : !canTravel ? 'NO CORE FUEL' : this.inOrbit ? `JUMP · −${CORE_FUEL.jumpCost}` : 'ORBIT REQUIRED'}</button></div>`;
-      }).join('')}${!this.inOrbit && p.shipComplete ? '<p class="fine">Drive into the mothership and press E. W takes off; S lands. Local miner fuel stays separate.</p>' : ''}</div>`;
+        const canTravel = unlocked && p.shipComplete && p.coreFuel > 0 && this.mothershipBoarded;
+        return `<div class="service-row"><div><b>${MAPS[id].name.toUpperCase()}</b><small>${description}<br>${objective}</small></div><button id="map-${id}" ${!unlocked || current || !this.inOrbit || !canTravel ? 'disabled' : ''}>${current ? 'CURRENT' : !unlocked ? lockLabel : !p.shipComplete ? 'MINE CORE' : !this.mothershipBoarded ? 'BOARD MOTHERSHIP' : !canTravel ? 'NO CORE FUEL' : this.inOrbit ? 'FLY VIA SYSTEM MAP' : 'ORBIT REQUIRED'}</button></div>`;
+      }).join('')}${!this.inOrbit && p.shipComplete ? '<p class="fine">Drive into the mothership and press E. W takes off; approach a planet in space and select LAND. Local miner fuel stays separate.</p>' : ''}</div>`;
     } else if (name === 'paints') {
       title = this.styleSection === 'paint' ? 'Make the pod yours.' : 'Suit up for the long haul.';
       sub = 'HAB 07 / VISUAL CUSTOMIZATION';
@@ -688,10 +688,10 @@ export class HUD {
         }).join('')}</div><p class="fine">Suit colors appear in the cockpit and change no stats or handling.</p>`;
       } else if (this.styleSection === 'decal') {
         const selected = POD_DECALS[p.selectedDecal];
-        const mark = selected.style === 'arrow' ? '↘' : selected.style === 'crest' ? '✦' : selected.style === 'prism' ? '◇' : '—';
+        const mark = selected.style === 'arrow' ? '↘' : selected.style === 'crest' ? '✦' : selected.style === 'prism' ? '◇' : '·';
         content = `${switcher}<div class="paint-preview"><div class="decal-preview-mark" style="--decal-color:#${selected.color.toString(16).padStart(6, '0')}">${mark}</div><div><small>ACTIVE MARKING</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_DECAL_KEYS.map((key) => {
           const item = POD_DECALS[key], owned = p.ownedDecals.includes(key), active = p.selectedDecal === key;
-          const icon = item.style === 'arrow' ? '↘' : item.style === 'crest' ? '✦' : item.style === 'prism' ? '◇' : '—';
+          const icon = item.style === 'arrow' ? '↘' : item.style === 'crest' ? '✦' : item.style === 'prism' ? '◇' : '·';
           return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch decal-swatch" style="--paint-hull:#${item.color.toString(16).padStart(6, '0')}"><i>${icon}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="decal-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · $${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Decals are applied to the pod hull and are visual only.</p>`;
       } else {
@@ -1009,7 +1009,7 @@ export class HUD {
       : `Estimated thrust fuel to return: about ${returnFuel} L. Route detours require extra fuel.`;
     estimate.classList.toggle('tight', !inOrbit && !planetSurface && p.fuel < requiredFuel * 1.4);
     document.querySelector('#cargo-label')!.textContent = `${p.count} / ${p.max('cargo')}`;
-    document.querySelector('#core-fuel-label')!.textContent = String(p.coreFuel);
+    document.querySelector('#core-fuel-label')!.textContent = p.coreFuel.toFixed(2);
     document.querySelector('#cargo-blocks')!.innerHTML = Array.from(
       { length: 16 },
       (_, i) => `<i class="${i < Math.ceil((p.count / p.max('cargo')) * 16) ? 'filled' : ''}"></i>`,
@@ -1050,12 +1050,12 @@ export class HUD {
           ? docked ? 'SURFACE · HOLD S TO DRILL' : 'SURFACE ZONE · ABOVE CRUST'
           : `UNDERGROUND · ${stratumAt(depth, this.mapId)}`;
     document.querySelector('#control-e')!.textContent = mothershipBoarded
-      ? inOrbit ? '—' : 'DISEMBARK'
+      ? inOrbit ? '' : 'DISEMBARK'
       : mothershipNearby ? shipComplete ? 'BOARD MOTHERSHIP' : 'MINE CORE'
         : 'SELL / SERVICE';
     document.querySelector('#control-w')!.textContent = mothershipBoarded && !inOrbit ? 'TAKE OFF' : 'THRUST';
     document.querySelector('#control-s')!.textContent = mothershipBoarded
-      ? inOrbit ? 'LAND' : '—'
+      ? inOrbit ? 'LAND' : ''
       : 'DOWN / DROP';
     document.querySelector('#grapple-key')!.classList.toggle('hidden', !p.grappleOwned);
     document.querySelector('#grapple-control')!.classList.toggle('hidden', !p.grappleOwned);

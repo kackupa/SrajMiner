@@ -1,5 +1,6 @@
+import { SolarView, flySolar, planetPosition, reachablePlanet, distance, type SolarPosition } from './campaign/SolarSystem';
 import Phaser from 'phaser';
-import { CORE, CORE_FUEL, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
+import { CORE, CORE_FUEL, SOLAR_SYSTEM, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
 import { TileWorld, keyOf, random, type Tile } from './world/TileWorld';
 import { PlayerPod, type Controls } from './player/PlayerPod';
 import { loadGrappleEnabled, saveGrappleEnabled } from './player/GrapplePreference';
@@ -79,6 +80,9 @@ export class MiningScene extends Phaser.Scene {
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
   mothershipBoarded = false;
+  solarPosition: SolarPosition | null = null;
+  solarView?: SolarView;
+  solarSaveClock = 0;
   private grappleEnabled = loadGrappleEnabled();
   private grappleKeyWasDown = false;
   buildPlacementLabel!: Phaser.GameObjects.Text;
@@ -259,6 +263,7 @@ export class MiningScene extends Phaser.Scene {
     this.campaignSeed = saved?.campaignSeed ?? crypto.getRandomValues(new Uint32Array(1))[0];
     const savedMapState = this.mapStates[this.mapId];
     this.mothershipBoarded = saved?.mothershipBoarded ?? false;
+    this.solarPosition = saved?.solarPosition ?? null;
     const mapState = restoreMapState(savedMapState, this.mapId, this.seedForMap(this.mapId), this.chartForUnvisitedMap(this.mapId));
     this.structures = mapState.structures;
     this.warehouseCargo = mapState.warehouse;
@@ -273,7 +278,12 @@ export class MiningScene extends Phaser.Scene {
     if (savedMapState) {
       this.pod.x = savedMapState.x;
       this.pod.y = savedMapState.y;
-      this.pod.docked = dockedOnSurface(savedMapState.x, savedMapState.y, this.world.planetChart);
+      // An aboard mothership can park at x=555, just outside the Hab's service
+      // yard bounds. Treat only that saved pad position as docked; in-orbit
+      // saves must retain their orbital altitude and solar-map position.
+      const atMothershipPad = Math.hypot(savedMapState.x - 555, savedMapState.y - WORLD.spawnY) <= 86;
+      this.pod.docked = dockedOnSurface(savedMapState.x, savedMapState.y, this.world.planetChart) ||
+        this.mothershipBoarded && !this.solarPosition && atMothershipPad;
       if (this.pod.docked) this.pod.y = savedMapState.y < this.world.coreWorldY ? WORLD.spawnY : this.world.farSurfaceY + 22;
       const restoredFrame = this.world.planetChart
         ? planetCameraFrameAngle(savedMapState.x / WORLD.tile, savedMapState.y / WORLD.tile, this.world.planetChart) ?? 0
@@ -611,6 +621,7 @@ export class MiningScene extends Phaser.Scene {
       this.nudgeSurfacePlacement((event.shiftKey ? 5 : 1) * WORLD.tile * direction);
     });
     this.input.keyboard!.on('keydown-E', () => {
+      if (this.solarView) return;
       if (!this.ui.hasStarted || this.ui.modal || this.surfacePlacement) return;
       if (this.isNearMothership()) {
         if (!this.progress.shipComplete) {
@@ -629,7 +640,7 @@ export class MiningScene extends Phaser.Scene {
         }
         this.ui.setMothershipBoarded(this.mothershipBoarded);
         this.ui.toast(this.mothershipBoarded
-          ? `BOARDED THE MOTHERSHIP · W ASCENDS · S LANDS · ${this.progress.coreFuel} CORE-FUEL JUMPS`
+          ? `BOARDED THE MOTHERSHIP · W ASCENDS · S LANDS · ${this.progress.coreFuel.toFixed(2)} CORE FUEL`
           : 'MOTHERSHIP HATCH OPEN · MINER CONTROLS RESTORED');
         return;
       }
@@ -686,6 +697,7 @@ export class MiningScene extends Phaser.Scene {
     window.addEventListener('pagehide', handlePageHide);
     document.addEventListener('keydown', handleDialogTab);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.solarView?.destroy(); this.solarView = undefined;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('pagehide', handlePageHide);
@@ -793,6 +805,7 @@ export class MiningScene extends Phaser.Scene {
           fuel: this.progress.fuel,
           hull: this.progress.hull,
           coreFuel: this.progress.coreFuel,
+          solarPosition: this.solarPosition ? { ...this.solarPosition } : null,
           mothershipBoarded: this.mothershipBoarded,
           shipComplete: this.progress.shipComplete,
           milestones: [...this.progress.milestones],
@@ -1231,6 +1244,24 @@ export class MiningScene extends Phaser.Scene {
     }
     return undefined;
   }
+  landFromSolar() {
+    if (!this.solarPosition) return;
+    const id = reachablePlanet(this.solarPosition, this.progress.milestones);
+    if (distance(this.solarPosition, planetPosition(id)) > SOLAR_SYSTEM.landingRadius) return;
+    if (id === this.mapId) {
+      this.pod.x = 555; this.pod.y = WORLD.spawnY;
+      this.pod.vx = this.pod.vy = 0; this.pod.docked = true;
+      this.globeViewRequested = false; this.orbitalTransition = 0;
+      this.cameraZoom = this.cameraZoomTarget = 1;
+      this.ui.setInOrbit(false); this.ui.setOrbitalOverview(false);
+    } else if (!this.travelToMap(id)) return;
+    this.hemisphereFar = false;
+    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
+    this.cameraFlipElapsed = 0;
+    this.solarPosition = null;
+    this.solarView?.destroy(); this.solarView = undefined;
+    this.ui.toast('MOTHERSHIP LANDED · E TO DISEMBARK'); this.save();
+  }
   travelToMap(id: MapId) {
     if (!this.mothershipBoarded) {
       this.ui.toast('BOARD THE MOTHERSHIP TO TRAVEL BETWEEN PLANETS');
@@ -1242,11 +1273,8 @@ export class MiningScene extends Phaser.Scene {
     }
     const unlocked = id === this.mapId || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
     if (!unlocked) return false;
-    if (!this.progress.spendCoreFuelForJump()) {
-      this.ui.toast(this.progress.shipComplete
-        ? 'CORE FUEL LOW · MINE A PLANETARY CORE TO POWER ANOTHER JUMP'
-        : 'CORE DRIVE OFFLINE · MINE THIS PLANET’S CORE TO UNLOCK INTERPLANETARY FLIGHT');
-      return false;
+    if (!this.solarPosition || distance(this.solarPosition, planetPosition(id)) > SOLAR_SYSTEM.landingRadius) {
+      this.ui.toast('FLY TO THE PLANET ON THE SOLAR SYSTEM MAP'); return false;
     }
     this.rememberCurrentMap();
     this.mapId = id;
@@ -1284,7 +1312,9 @@ export class MiningScene extends Phaser.Scene {
     this.ui.setMap(id);
     this.ui.setInOrbit(false);
     this.mothershipBoarded = true;
-    this.ui.toast(`MOTHERSHIP ARRIVED · CORE FUEL −${CORE_FUEL.jumpCost} · ${this.progress.coreFuel} JUMPS LEFT · ${MAPS[id].name.toUpperCase()}`);
+    this.solarPosition = null;
+    this.solarView?.destroy(); this.solarView = undefined;
+    this.ui.toast(`MOTHERSHIP ARRIVED · ${this.progress.coreFuel.toFixed(2)} CORE FUEL · ${MAPS[id].name.toUpperCase()}`);
     this.save();
     return true;
   }
@@ -1298,7 +1328,7 @@ export class MiningScene extends Phaser.Scene {
     const p = this.progress;
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 26,
+      version: 27,
       planetChart: { ...(this.world.planetChart ?? this.campaignChart) },
       campaignSeed: this.campaignSeed,
       activeMap: this.mapId,
@@ -1314,6 +1344,7 @@ export class MiningScene extends Phaser.Scene {
       shipComponents: [...p.shipComponents],
       routeFragments: [...p.routeFragments],
       coreFuel: p.coreFuel,
+      solarPosition: this.solarPosition,
       mothershipBoarded: this.mothershipBoarded,
       charges: p.charges,
       ownedPaints: [...p.ownedPaints],
@@ -1650,6 +1681,24 @@ export class MiningScene extends Phaser.Scene {
     if (!this.ui) return;
     const dt = Math.min(delta / 1000, 0.05);
     this.tick += dt;
+    if (this.solarView && !this.inOrbit) {
+      this.solarView.destroy(); this.solarView = undefined; this.solarPosition = null;
+    }
+    if (this.ui.hasStarted && this.mothershipBoarded && this.inOrbit) {
+      this.solarPosition ??= { ...planetPosition(this.mapId) };
+      this.solarView ??= new SolarView(() => this.landFromSolar());
+      this.solarView.root.hidden = this.ui.paused;
+      let limited = false;
+      if (!this.ui.paused) {
+        const k = this.keys;
+        const result = flySolar(this.solarPosition, Number(k.D.isDown || k.RIGHT.isDown)-Number(k.A.isDown || k.LEFT.isDown), Number(k.S.isDown || k.DOWN.isDown)-Number(k.W.isDown || k.UP.isDown), dt, this.progress.coreFuel, this.progress.milestones);
+        this.solarPosition = result.position; this.progress.coreFuel = result.fuel; limited = result.limited;
+        this.solarSaveClock += dt;
+        if (this.solarSaveClock > 2) { this.save(); this.solarSaveClock = 0; }
+      }
+      this.solarView.draw(this.solarPosition, this.progress.coreFuel, this.progress.milestones, limited);
+      return;
+    }
     if (!this.ui.paused) {
       const previousFarSide = this.farHemisphere, previousPodY = this.pod.y;
       const k = this.keys,
@@ -1694,7 +1743,7 @@ export class MiningScene extends Phaser.Scene {
         this.float(`−${Math.ceil(damage)} HULL`, this.pod.x, this.pod.y - 25, '#ff927d');
       }, this.viewRotation);
       if (this.world.planetChart) {
-        if (this.progress.shipComplete) {
+        if (this.progress.shipComplete && this.mothershipBoarded) {
           if (this.inOrbit && !input.down && !input.up) {
             this.pod.y = orbitalParkingY(this.pod.y, this.world.planetChart);
             this.pod.vy = 0;
@@ -1702,8 +1751,11 @@ export class MiningScene extends Phaser.Scene {
         } else if (this.pod.y < -MAX_TOWN_ALTITUDE) {
           this.pod.y = -MAX_TOWN_ALTITUDE;
           this.pod.vy = 0;
-          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('MINE THIS PLANET’S CORE TO POWER INTERPLANETARY FLIGHT');
+          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('BOARD THE MOTHERSHIP AT ITS PAD TO LEAVE THE PLANET');
         }
+      }
+      if (!this.mothershipBoarded && this.world.planetChart && this.pod.y > this.world.farSurfaceY + MAX_TOWN_ALTITUDE) {
+        this.pod.y = this.world.farSurfaceY + MAX_TOWN_ALTITUDE; this.pod.vy = 0;
       }
       const enteredOrbit = !previousOrbit && this.inOrbit;
       if (enteredOrbit) {
@@ -1716,7 +1768,7 @@ export class MiningScene extends Phaser.Scene {
         this.globeViewRequested = true;
         this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
         this.ui.setInOrbit(true);
-        this.ui.toast(this.mothershipBoarded ? 'MOTHERSHIP IN ORBIT · OPEN WORLDS TO CHOOSE A PLANET' : 'ORBIT ACHIEVED · OPEN WORLDS TO CHOOSE YOUR NEXT PLANET');
+        this.ui.toast(this.mothershipBoarded ? 'MOTHERSHIP IN SPACE · WASD TO FLY BETWEEN PLANETS' : 'ORBIT ACHIEVED · OPEN WORLDS TO CHOOSE YOUR NEXT PLANET');
         this.soundFx.tone(520, 0.3, 'sine', 0.05, 1040);
         this.save();
       }

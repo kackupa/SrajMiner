@@ -67,7 +67,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 
 ## Planet art bibles
 
-### Mars Frontier — wind-cut badlands
+### Mars Frontier: wind-cut badlands
 
 **Read at a glance:** a dry ochre world with long, eroded ridges and a low, dusty sky. Make it feel open and old rather than simply red.
 
@@ -78,7 +78,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 - Mining material extension: rust soil blocks get horizontal sediment bands; basalt gets angular dark faces. Keep the current ore silhouettes and color cues unchanged.
 - Avoid: lush vegetation, saturated red everywhere, or making every ridge a sharp mountain.
 
-### Cryo Shelf — fractured glacial moon
+### Cryo Shelf: fractured glacial moon
 
 **Read at a glance:** blue-white ice over dark buried rock, with immense cracks and frozen pressure ridges.
 
@@ -89,7 +89,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 - Mining material extension: ice blocks have translucent-looking edge bands and fracture lines; buried hull material keeps a warm metallic contrast. No slippery movement or ice-specific physics in this art pass.
 - Avoid: making all blocks pale (ore visibility suffers) or using a busy snowstorm over the player.
 
-### Hull Graveyard — wreck-strewn salvage moon
+### Hull Graveyard: wreck-strewn salvage moon
 
 **Read at a glance:** a cold, airless wreck field where a dead ark has broken across the surface.
 
@@ -100,7 +100,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 - Mining material extension: outer plating blocks get seams/rivets and broken-deck strata get directional metal edges. Keep ore readable as separate luminous/colored silhouettes.
 - Avoid: turning the surface into a dense junkyard that obscures the town, landing decks, or pod.
 
-### Prism Fault — crystalline highlands
+### Prism Fault: crystalline highlands
 
 **Read at a glance:** a dark violet fault world pierced by enormous translucent crystal blades.
 
@@ -111,7 +111,7 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 - Mining material extension: glass-crust blocks show a simple faceted highlight and one edge color; geode art remains reserved for actual ore-bearing geodes.
 - Avoid: rainbow gradients, constant sparkle, or surface crystal shapes that falsely promise mineable ore.
 
-### Cinder Vale — volcanic ash and cooled lava
+### Cinder Vale: volcanic ash and cooled lava
 
 **Read at a glance:** an ash-dark volcanic world with glowing fissures and distant, subdued eruptions.
 
@@ -124,13 +124,13 @@ Use deterministic procedural placement keyed by map seed and wrapped surface coo
 
 ## Water and other future biomes
 
-Treat water as a later visual biome option, not the first implementation. Place one or more ocean/lake regions as longitude arcs along the globe's outer surface, with shorelines that visibly follow the sphere and join at the seam where needed. At orbital scale they read as broad dark-teal basins; locally they become a clear horizon waterline with restrained foam marks, submerged cliff silhouettes, and slow caustic light. A visual water band does not need liquid simulation. If assigned to a future destination, choose one clear read—shallow frozen sea, hydrocarbon lake, or underground ocean—and preserve a solid walkable/minable crust for the current loop. Do not imply the pod can enter, float, or mine underwater until those mechanics are explicitly designed and tested.
+Treat water as a later visual biome option, not the first implementation. Place one or more ocean/lake regions as longitude arcs along the globe's outer surface, with shorelines that visibly follow the sphere and join at the seam where needed. At orbital scale they read as broad dark-teal basins; locally they become a clear horizon waterline with restrained foam marks, submerged cliff silhouettes, and slow caustic light. A visual water band does not need liquid simulation. If assigned to a future destination, choose one clear read: shallow frozen sea, hydrocarbon lake, or underground ocean: and preserve a solid walkable/minable crust for the current loop. Do not imply the pod can enter, float, or mine underwater until those mechanics are explicitly designed and tested.
 
 Likewise, jungle/forest should belong to a future world with its own biological and lighting premise. Use large canopy silhouettes, sparse bioluminescent trunks, and root-like geology without introducing harvestable plants or crafting recipes. Deserts and barren wastes fit Mars and Cinder best; glaciers suit Cryo; wreck fields suit Hull; crystalline highlands suit Prism. Reuse biome vocabulary only when a planet's story supports it.
 
 ## Surface variety and world traversal
 
-The current planet is a continuous wrapped strip projected to a globe, so scenery should be generated in longitude segments rather than attached to the player's screen. Define a small set of deterministic surface zones per planet—roughly 4–6 broad regions around the circumference—with soft transitions. Each zone chooses a horizon silhouette family, near-surface prop family, and one ambient cue. Keep the spawn/Hab 07 region and both mirrored surface hubs readable; the far hemisphere can have related but distinct landmarks.
+The current planet is a continuous wrapped strip projected to a globe, so scenery should be generated in longitude segments rather than attached to the player's screen. Define a small set of deterministic surface zones per planet: roughly 4–6 broad regions around the circumference: with soft transitions. Each zone chooses a horizon silhouette family, near-surface prop family, and one ambient cue. Keep the spawn/Hab 07 region and both mirrored surface hubs readable; the far hemisphere can have related but distinct landmarks.
 
 Make exploration feel fresh through landmark silhouettes and changing horizons, not by adding tasks or rewards in this visual pass. A landmark should be visible from a distance, identifiable in the orbital view, and remain behind the player consistently as they travel. Do not put false ore glows or route markers in decorative scenery.
 
