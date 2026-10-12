@@ -51,10 +51,21 @@ export function aimedDrillTarget(
       // each point back onto the globe, just as the regular planet ray does.
       if (length < 1) return undefined;
       const distanceLimit = Math.min(length, maxDistance), steps = Math.ceil(distanceLimit / 3);
+      // At the pole a relic cell is narrower than a pointer pixel. Pick its
+      // visible marker in physical space, while retaining foreground occlusion.
+      const relic = world.get(WORLD.homeColumn, chart.radiusRows),
+        relicPoint = planetPoint(world, (WORLD.homeColumn + 0.5) * WORLD.tile, (chart.radiusRows + 0.5) * WORLD.tile),
+        rx = relicPoint.x - origin.x, ry = relicPoint.y - origin.y,
+        along = (rx * dx + ry * dy) / length,
+        perpendicularSq = Math.max(0, rx * rx + ry * ry - along * along),
+        radiusSq = CORE.relicTargetRadius ** 2,
+        relicDistance = relic.coreRelicId && relic.type !== 'empty' && along >= 0 && perpendicularSq <= radiusSq
+          ? Math.max(0, along - Math.sqrt(radiusSq - perpendicularSq)) : Infinity;
       for (let i = 1; i <= steps; i++) {
         const distance = distanceLimit * i / steps,
           point = planetCartesianToChart({ x: origin.x + dx / length * distance, y: origin.y + dy / length * distance }, chart.columns, chart.radiusRows, WORLD.tile),
           tile = world.get(Math.floor(point.u), Math.floor(point.v));
+        if (distance >= relicDistance) return relic;
         if (tile.type === 'boundary') return undefined;
         if (tile.type !== 'empty') return tile;
       }

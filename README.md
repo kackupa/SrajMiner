@@ -36,6 +36,10 @@ Verified with Chromium mobile emulation at 844×390 and 390×844, including mini
 
 The rig runs on a **battery**, separate from mothership fuel. Return to the mothership and choose **Recharge** to fill it for free, even with zero credits. Hull repairs still cost credits. Signals, missing-crew quests and survey cash rewards are not part of the live expedition. Cores supply travel fuel, not cash.
 
+Near the core, aim at its glowing marker and hold the mouse button to extract it. The marker remains selectable when polar tiles become narrower than a screen pixel; intervening rock still needs to be drilled first. A fresh Cryo descent, core extraction and return to the surface has been browser-tested with earned cargo and no funded upgrades. A later core-crossing return stalled against rock, so reliable return navigation and the full six-world campaign remain under review.
+
+An earned opening campaign also passed core return with controlled browser frame timing, camp/uplink construction, first sales and the first drill upgrade, including save/reload. Shipment quantities update their quote while you type without losing focus when switching fields. These automated checks do not replace real-time navigation, raid-balance or human playtesting; see [QA](docs/QA.md).
+
 Camp and uplink construction uses ore carried in the rig. Withdraw stored materials first, press B, select a building, position its preview, then confirm. Materials are spent only after successful placement. The initial material seams provide enough ore for both buildings. Additional warehouses, extractors and existing colony structures remain available.
 
 ## Controls and menus
@@ -52,6 +56,8 @@ At the mothership, **Quick services** provides common actions. **Full services**
 ## Saves and compatibility
 
 Campaigns remain under `mars-miner.v1`, save version 30. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
+
+Automated extractors stop at the planet warehouse's capacity and cap offline catch-up at 12 hours. Full storage discards blocked production instead of banking it for an immediate payout after withdrawal. The extractor upgrade panel shows the same credit and material costs that the purchase charges. Browser fixtures cover a Cryo–Mars round trip, upgrade persistence, full-store withdrawal/reload, and v28 migration; they do not replace an earned-resource campaign playthrough.
 
 ## Worlds, customers and the Expedition Codex
 

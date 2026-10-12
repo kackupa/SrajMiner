@@ -1,5 +1,21 @@
 # 15-minute campaign playtest
 
+## Earned opening progression and shipment entry — 2026-10-12
+
+A fresh campaign with controlled browser frame timing recovered the Cryo core and returned at 100% hull, then mined additional materials to build a camp and Market uplink for the exact combined cost of 10 copper, 8 iron and 2 silver. Earned sales yielded $251.50; the first drill upgrade cost $140 and left $111.50. Reload preserved the upgrade, both buildings and four ship-fuel units. No resources or excavation were granted. The continuation checkpoint is `output/playwright/earned-first-upgrade-storage.json`.
+
+Fixed shipment quantity editing replacing the form on blur and losing a subsequent edit. Chromium verified decimal typing, retained focus/selection, an exact $27.50 half-unit sale and reload. Raids damaged the starter camp and destroyed it during a separate unpaused test delay; early defense affordability still needs player review. A real-time aim-through-core run recovered the relic but failed its W-only return after crossing the center. Controlled timing proves a viable route, not comfortable real-time play or completion of all six worlds. See QA.md.
+
+## Fresh Cryo core and return — 2026-10-12
+
+Descent-warning follow-up: real-time Chromium verified the warning during a 138.46 px/s fall, its removal after braking to -72.51 px/s, and a short surface return with 100% hull, 135.84 battery and zero overlaps. Full-depth retests reached 446 m with full hull but could not sustain core mouse targeting while hovering and ran out of battery; repeatable core extraction/return remains open.
+
+A fresh $0 expedition recovered its first core through actual drilling and mouse aiming, then returned and docked with 65.41 battery, 55.51% hull and four ship-fuel units. Reload retained the core, cargo and excavation. No funded inventory or prepared shaft was used. A later repeat crossed the center and exhausted its battery against rock on return, so repeatable return navigation remains open. Investigation also corrected reversed and mis-scaled HUD descent speed; the corrected browser descent reached 387 m at full hull, but its hover/return retest is unfinished. Fixed a sub-pixel core-targeting defect and canvas/input alignment after the full-screen intro. See QA.md for measured runs and failed attempts. The earned six-world campaign and player assessment of damage/braking remain open.
+
+## Automated mining and persistence — 2026-10-12
+
+Chromium passed a funded Cryo → Mars → Cryo trip with extractor construction, two ore produced during a simulated hour, Industrial Drill purchase and unchanged stock/tier after reload. Fixed the upgrade UI showing the wrong tier's cost and materials. Separate browser checks passed full-store pause, withdrawal/reload without extra ore, the 12-hour offline cap, and v28 → v30 migration preserving stock and excavation. See QA.md for measured costs and quantities. This does not close the fresh earned-resource campaign or human balance checks.
+
 ## Placement camera check — 2026-10-11
 
 - Desktop Chromium: edge-scrolled the placement camera from x=680 to x=1601, then dragged another 220 world units. The miner remained at (680, -22), with unchanged cargo and no structure created during the drag.

@@ -254,6 +254,11 @@ test('automated extraction costs, tiers, ore access, storage capacity and elapse
   const full = { ...emptyCargo(), copper: 39.5 }, capStructure = [{ ...warehouse, level: 1 }, { ...facility }];
   accumulateAutomatedProduction(capStructure, full, 'cryo-shelf', 3600);
   assert.equal(Object.values(full).reduce((sum, units) => sum + units, 0), 40);
+  assert.equal(capStructure[1]!.productionFraction, 0, 'filling storage discards production blocked by capacity');
+  full.copper -= 0.5;
+  accumulateAutomatedProduction(capStructure, full, 'cryo-shelf', 0);
+  assert.equal(Object.values(full).reduce((sum, units) => sum + units, 0), 39.5,
+    'withdrawing after a full-store catch-up cannot instantly mint buffered ore');
   const second = { id: 'extractor:b', kind: 'extractor' as const, x: 300, y: 0, level: 1 };
   const two = [facility, second, warehouse], stocks = emptyCargo();
   accumulateAutomatedProduction(two, stocks, 'cryo-shelf', 3600);
@@ -416,14 +421,17 @@ test('fall camera lookahead is speed-driven and symmetric with gravity', () => {
   assert.equal(cameraFocusY(1000, 96, Math.PI), 904);
   assert.ok(Math.abs(cameraFocusY(1000, 96, Math.PI / 2) - 1000) < 1e-8, 'camera lead passes smoothly through the sideways view');
 });
-test('charted radial descent cues include tangent motion toward a curved surface', () => {
-  const chart = STARTER_PLANET_CHART,
-    u = WORLD.homeColumn + 4,
-    v = chart.radiusRows - 3,
-    tangentSpeed = -500,
-    radial = planetRadialVelocity(tangentSpeed, 0, u, v, chart, WORLD.tile);
-  assert.ok(radial > 90, `tangent travel toward the Cryo surface should warn at the curved edge (radial ${radial.toFixed(1)})`);
-  assert.ok(planetRadialVelocity(-tangentSpeed, 0, u, v, chart, WORLD.tile) < 0, 'reversing tangent travel is outward');
+test('charted descent speed matches physical radius changes on both hemispheres', () => {
+  for (const chart of [STARTER_PLANET_CHART, PLANET_CHART])
+    for (const side of [-1, 1]) for (const vx of [-500, 0, 500]) for (const vy of [-230, 0, 230]) {
+      const u = WORLD.homeColumn + 4, v = chart.radiusRows + side * 3, dt = 0.001,
+        before = planetChartToCartesian({u, v}, chart.columns, chart.radiusRows, WORLD.tile),
+        after = planetChartToCartesian({u:u + vx * dt / WORLD.tile, v:v + vy * dt / WORLD.tile}, chart.columns, chart.radiusRows, WORLD.tile),
+        measuredInward = (Math.hypot(before.x, before.y) - Math.hypot(after.x, after.y)) / dt,
+        speed = planetRadialVelocity(vy, v, chart);
+      assert.ok(Math.abs(speed - measuredInward) < 1e-6, 'warning speed matches physical inward motion, regardless of longitude velocity');
+      assert.equal(speed > DESCENT_WARNING_SPEED, vy * -side > DESCENT_WARNING_SPEED, 'only an inward fall triggers the warning');
+    }
 });
 test('camera flip keeps horizontal and upward inputs aligned to screen throughout the turn', () => {
   for (const rotation of [0, Math.PI / 4, Math.PI / 2, Math.PI * 0.8, Math.PI]) {
@@ -1249,6 +1257,35 @@ test('core halo ray resolves an isolated polar ore cell from chart coordinates',
   const found = aimedDrillTarget(world, WORLD.homeColumn * WORLD.tile, chart.radiusRows * WORLD.tile,
     (targetX + 0.5) * WORLD.tile, (targetY + 0.5) * WORLD.tile, CORE.drillAssistReach);
   assert.equal(found, target, 'the polar ore cell remains selectable along a precise core ray');
+});
+test('core relic mouse target tolerates pixel rounding without reaching through rock', () => {
+  for (const chart of [STARTER_PLANET_CHART, PLANET_CHART]) {
+    const world = new TileWorld(1178645725, [], [], 'cryo-shelf', chart);
+    for (let row = chart.radiusRows - 6; row <= chart.radiusRows + 6; row++)
+      for (let col = 0; col < chart.columns; col++)
+        if (col !== WORLD.homeColumn || row !== chart.radiusRows) world.break(col, row);
+    const pod = {u:17.5, v:chart.radiusRows - 3.4},
+      relic = world.get(WORLD.homeColumn, chart.radiusRows),
+      center = planetChartToCartesian({u:WORLD.homeColumn + 0.5, v:chart.radiusRows + 0.5}, chart.columns, chart.radiusRows, WORLD.tile),
+      toChart = (point: {x:number;y:number}) => planetCartesianToChart(point, chart.columns, chart.radiusRows, WORLD.tile);
+    for (const rounding of [-1, 1]) {
+      const aim = toChart({x:center.x + rounding, y:center.y});
+      assert.equal(aimedDrillTarget(world, pod.u * WORLD.tile, pod.v * WORLD.tile,
+        aim.u * WORLD.tile, aim.v * WORLD.tile, CORE.drillAssistReach), relic,
+      `a one-pixel pointer error must still select the visible core on a ${chart.columns}-column chart`);
+    }
+    const miss = toChart({x:center.x + 50, y:center.y});
+    assert.notEqual(aimedDrillTarget(world, pod.u * WORLD.tile, pod.v * WORLD.tile,
+      miss.u * WORLD.tile, miss.v * WORLD.tile, CORE.drillAssistReach), relic, 'aiming away does not select the core');
+    const origin = planetChartToCartesian(pod, chart.columns, chart.radiusRows, WORLD.tile),
+      middle = toChart({x:(origin.x + center.x)/2, y:(origin.y + center.y)/2}),
+      col = Math.floor(middle.u), row = Math.floor(middle.v);
+    world.destroyed.delete(keyOf(col, row));
+    const blocker = world.get(col, row); blocker.type = 'hard';
+    const aim = toChart(center);
+    assert.equal(aimedDrillTarget(world, pod.u * WORLD.tile, pod.v * WORLD.tile,
+      aim.u * WORLD.tile, aim.v * WORLD.tile, CORE.drillAssistReach), blocker, 'intervening rock must be cut first');
+  }
 });
 function sim(pod: PlayerPod, seconds: number, input: Controls, mining?: MiningSystem) {
   let damage = 0;

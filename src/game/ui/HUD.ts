@@ -7,6 +7,7 @@ import { CORE, CORE_RELICS, CORE_FUEL, EXTRACTOR_TIERS, vesperChapterUnlocked, O
 import { extractorOreEligibility } from '../building/UndergroundStructures';
 import { parseSaveFile, type SaveData } from '../save/SaveManager';
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
+import { quoteCivilianShipment } from '../economy/Civilisations';
 import type { SaleReceipt } from '../economy/Sale';
 import type { Tile } from '../world/TileWorld';
 import type { TileWorld } from '../world/TileWorld';
@@ -579,9 +580,9 @@ export class HUD {
       const localCapacity = this.actions.warehouseCapacity(this.mapId), totalStored = ORE_KEYS.reduce((sum, ore) => sum + localStock[ore], 0), localFacilities = this.actions.structures().filter((entry) => entry.kind === 'extractor');
       const facilityRows = localFacilities.map((entry) => {
         const level = entry.level ?? 1, tier = EXTRACTOR_TIERS[level - 1]!,
-          materialsOk = EXTRACTOR_TIERS[level] && Object.entries(EXTRACTOR_TIERS[level]!.upgradeMaterials).every(([ore, units]) => p.cargo[ore as Ore] >= units),
-          next = EXTRACTOR_TIERS[level], cost = next?.upgradeCredits ?? 0;
-        return `<article class="service-row"><div><b>${tier.name.toUpperCase()} · ${tier.rate} ORE/H</b><small>${extractorOreEligibility(this.mapId, level).map((ore) => ore.toUpperCase()).join(' · ')}${next ? ` → ${next.name} · MATERIALS ${Object.entries(next.upgradeMaterials).map(([ore, count]) => `${count} ${ore.toUpperCase()}`).join(' + ') || 'NONE'}` : ' · MAX TIER'}</small></div>${next ? `<button id="upgrade-extractor-${encodeURIComponent(entry.id)}" ${p.money < cost || !materialsOk ? 'disabled' : ''}>UPGRADE · $${cost}</button>` : ''}</article>`;
+          materialsOk = Object.entries(tier.upgradeMaterials).every(([ore, units]) => p.cargo[ore as Ore] >= units),
+          next = EXTRACTOR_TIERS[level], cost = tier.upgradeCredits;
+        return `<article class="service-row"><div><b>${tier.name.toUpperCase()} · ${tier.rate} ORE/H</b><small>${extractorOreEligibility(this.mapId, level).map((ore) => ore.toUpperCase()).join(' · ')}${next ? ` → ${next.name} · MATERIALS ${Object.entries(tier.upgradeMaterials).map(([ore, count]) => `${count} ${ore.toUpperCase()}`).join(' + ') || 'NONE'}` : ' · MAX TIER'}</small></div>${next ? `<button id="upgrade-extractor-${encodeURIComponent(entry.id)}" ${p.money < cost || !materialsOk ? 'disabled' : ''}>UPGRADE · $${cost}</button>` : ''}</article>`;
       }).join('');
       const warehouse = this.actions.structures().find((entry) => entry.kind === 'warehouse'), warehouseLevel = warehouse?.level ?? 1, warehouseNextCost = UNDERGROUND_BUILDING.warehouse.capacityUpgrade[warehouseLevel],
         capacityUpgrade = !warehouse ? 'MOTHERSHIP HOLD · BUILD A WAREHOUSE TO EXPAND' : warehouseNextCost === undefined ? 'MAX CAPACITY' : `<button id="upgrade-warehouse" ${p.money < warehouseNextCost ? 'disabled' : ''}>UPGRADE · $${warehouseNextCost}</button>`;
@@ -700,7 +701,20 @@ export class HUD {
     for (const key of campLinks) this.on(`camp-nav-${key}`, () => this.open(key));
     this.on('workshop-build', () => this.open('construction'));
     document.querySelectorAll<HTMLButtonElement>('[data-buyer]').forEach(node => node.onclick = () => { this.civilianBuyer = node.dataset.buyer as CivilisationId; this.renderModal(); });
-    document.querySelectorAll<HTMLInputElement>('[data-shipment]').forEach(node => node.onchange = () => { const ore = node.dataset.shipment as Ore; this.shipment[ore] = Math.max(0, Math.floor(Math.min(this.p.cargo[ore], Number(node.value) || 0) * 2) / 2); this.renderModal(); });
+    document.querySelectorAll<HTMLInputElement>('[data-shipment]').forEach(node => {
+      const update = () => {
+        const ore = node.dataset.shipment as Ore;
+        this.shipment[ore] = Math.max(0, Math.floor(Math.min(this.p.cargo[ore], Number(node.value) || 0) * 2) / 2);
+        const quote = quoteCivilianShipment(this.p.cargo, this.shipment, this.civilianBuyer, this.p.deliveries);
+        // Keep the active input and the next click target alive while editing.
+        // Rebuilding the modal on blur used to discard the next field's edit.
+        document.querySelector('.shipment-checkout strong')!.textContent = `$${quote.total.toLocaleString()}`;
+        document.querySelector('.shipment-checkout div > span')!.textContent = `$${quote.gross} ore + $${quote.bonus} project premium`;
+        document.querySelector<HTMLButtonElement>('#ship-selected')!.disabled = quote.total <= 0;
+      };
+      node.oninput = update;
+      node.onchange = () => { update(); node.value = String(this.shipment[node.dataset.shipment as Ore]); };
+    });
     document.querySelector<HTMLSelectElement>('#trade-plan')?.addEventListener('change', event => { this.plannedBuilding = (event.target as HTMLSelectElement).value as PlannedBuilding; this.renderModal(); });
     this.on('trade-surplus', () => {
       const stock = this.actions.warehouseStock(), materials = UNDERGROUND_BUILDING[this.plannedBuilding].materials as Partial<Cargo>;

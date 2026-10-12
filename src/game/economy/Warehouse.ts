@@ -1,4 +1,4 @@
-import { MAPS, ORE_KEYS, type MapId, type Ore } from '../config';
+import { EXTRACTOR_TIERS, MAPS, ORE_KEYS, UNDERGROUND_BUILDING, type MapId, type Ore } from '../config';
 import { warehouseCapacity, type UndergroundStructure } from '../building/UndergroundStructures';
 import type { Cargo } from './Progress';
 
@@ -35,16 +35,13 @@ export function transferWarehouseOre(
 export function accumulateAutomatedProduction(
   structures: UndergroundStructure[], warehouse: Cargo, mapId: MapId, elapsedSeconds: number,
 ) {
-  const elapsed = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.min(43200, elapsedSeconds)) : 0,
+  const elapsed = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.min(UNDERGROUND_BUILDING.automation.offlineCapSeconds, elapsedSeconds)) : 0,
     capacity = warehouseCapacity(structures), results: Record<string, number> = {};
   if (capacity <= 0) return { warehouse, produced: results };
   for (const facility of structures) {
     if (facility.kind !== 'extractor') continue;
-    const level = Math.max(1, Math.min(3, facility.level ?? 1)), tier = [
-      { rate: 2, ores: ['copper', 'iron'] as const },
-      { rate: 6, ores: ['copper', 'iron', 'silver'] as const },
-      { rate: 12, ores: ['silver', 'gold', 'diamond'] as const },
-    ][level - 1]!, eligible = tier.ores.filter((ore) => MAPS[mapId].oreFactors[ore] > 0),
+    const level = Math.max(1, Math.min(EXTRACTOR_TIERS.length, facility.level ?? 1)), tier = EXTRACTOR_TIERS[level - 1]!,
+      eligible = tier.ores.filter((ore) => MAPS[mapId].oreFactors[ore] > 0),
       weights = eligible.map((ore) => MAPS[mapId].oreFactors[ore]), weightTotal = weights.reduce((a, b) => a + b, 0);
     if (!weightTotal) continue;
     facility.productionFraction ??= 0;
@@ -61,7 +58,9 @@ export function accumulateAutomatedProduction(
       const ore = eligible[(start + i) % eligible.length]!;
       warehouse[ore] += 0.5; results[ore] = (results[ore] ?? 0) + 0.5;
     }
-    facility.productionFraction = room <= 1e-8 ? 0 : Math.min(0.499999999, Math.max(0, units));
+    // Full storage pauses production; discard excess time instead of banking
+    // nearly half an ore for the next withdrawal/reload.
+    facility.productionFraction = room - accepted <= 1e-8 ? 0 : Math.min(0.499999999, Math.max(0, units));
   }
   return { warehouse, produced: results };
 }

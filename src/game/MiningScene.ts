@@ -624,15 +624,26 @@ export class MiningScene extends Phaser.Scene {
       this.pendingPositionNotice = false;
       this.pendingPositionWarning = false;
     }
-    document.querySelector('#game')!.appendChild(this.game.canvas);
+    const gameHost = document.querySelector<HTMLElement>('#game')!;
+    gameHost.appendChild(this.game.canvas);
+    // HUD construction replaces the boot-time #game node. Keep Phaser's
+    // sizing and pointer transforms attached to the live canvas parent.
+    this.scale.parent = gameHost;
+    this.scale.parentIsWindow = false;
     const resize = () => {
       const el = document.querySelector('#viewport')!;
       const previousWidth = this.scale.width, previousHeight = this.scale.height,
         wasFullyZoomedOut = !!this.world.planetChart && previousWidth > 0 && previousHeight > 0 && this.globeViewRequested;
       this.scale.resize(el.clientWidth, el.clientHeight);
+      this.scale.updateBounds();
       if (wasFullyZoomedOut) this.cameraZoomTarget = GLOBE_HANDOFF_ZOOM;
     };
     resize();
+    // Intro and full-screen menus change the viewport without a window resize.
+    // Observe those transitions so pointer coordinates and the camera keep
+    // matching the visible canvas after the header/footer return.
+    const viewportObserver = new ResizeObserver(resize);
+    viewportObserver.observe(document.querySelector('#viewport')!);
     window.addEventListener('resize', resize);
     this.g = this.add.graphics();
     this.orbitG = this.add.graphics().setDepth(1);
@@ -760,6 +771,7 @@ export class MiningScene extends Phaser.Scene {
       this.touch?.destroy();
       this.wallBuilder?.destroy();
       window.removeEventListener('resize', resize);
+      viewportObserver.disconnect();
       this.solarView?.destroy(); this.solarView = undefined;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
@@ -875,7 +887,7 @@ export class MiningScene extends Phaser.Scene {
     );
     this.revealAroundPod();
     const radialDescentSpeed = this.world.planetChart
-      ? planetRadialVelocity(this.pod.vx, this.pod.vy, this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, this.world.planetChart, WORLD.tile) * this.world.gravitySign(this.pod.y)
+      ? planetRadialVelocity(this.pod.vy, this.pod.y / WORLD.tile, this.world.planetChart)
       : this.pod.vy * this.world.gravitySign(this.pod.y);
     this.ui.update(this.depth, this.surface, 1, this.pod.docked, 0, radialDescentSpeed, this.farHemisphere, false, this.world.coreDepthMeters,
       false, false, false, 0, 0, false, this.planetSurface, false, this.isNearMothership(), this.mothershipBoarded, this.progress.shipComplete, this.inOrbit);
@@ -888,8 +900,12 @@ export class MiningScene extends Phaser.Scene {
           y: this.pod.y,
           vx: this.pod.vx,
           vy: this.pod.vy,
-          fallCue: fallMotionCueIntensity(this.pod.vy, this.world.gravitySign(this.pod.y)),
-          descentSpeed: this.pod.vy * this.world.gravitySign(this.pod.y),
+          fallCue: fallMotionCueIntensity(this.descentSpeed, 1),
+          descentSpeed: this.descentSpeed,
+          coreTargetScreen: this.worldPointToScreen(WORLD.homeColumn * WORLD.tile + WORLD.tile / 2,
+            this.world.coreWorldY + WORLD.tile / 2, this.scale.width, this.scale.height),
+          pointer: { x: this.input.activePointer.x, y: this.input.activePointer.y, down: this.input.activePointer.leftButtonDown() },
+          aimTile: this.aimTile ? { x: this.aimTile.x, y: this.aimTile.y } : null,
           depth: this.depth,
           farHemisphere: this.farHemisphere,
           gravitySign: this.world.gravitySign(this.pod.y),
@@ -975,6 +991,11 @@ export class MiningScene extends Phaser.Scene {
   }
   get depth() {
     return depthAtWorldY(this.pod.y, this.world.planetChart);
+  }
+  get descentSpeed() {
+    return this.world.planetChart
+      ? planetRadialVelocity(this.pod.vy, this.pod.y / WORLD.tile, this.world.planetChart)
+      : this.pod.vy * this.world.gravitySign(this.pod.y);
   }
   get mothershipStart() { return this.progress.milestones.includes('mothership-origin'); }
   get surface() {
@@ -2343,9 +2364,7 @@ export class MiningScene extends Phaser.Scene {
     }, this.laserThermal.vent > 0);
     this.uiClock += dt;
     if (this.uiClock > 0.08) {
-      const descentSpeed = this.world.planetChart
-        ? planetRadialVelocity(this.pod.vx, this.pod.vy, this.pod.x / WORLD.tile, this.pod.y / WORLD.tile, this.world.planetChart, WORLD.tile) * this.world.gravitySign(this.pod.y)
-        : this.pod.vy * this.world.gravitySign(this.pod.y);
+      const descentSpeed = this.descentSpeed;
       const coreDrillMode = this.inCoreDrillHalo();
       this.ui.update(this.depth, this.surface, this.uiClock, this.pod.docked, this.estimateReturnFuel(), descentSpeed, this.farHemisphere, this.progress.pilotEscaping, this.world.coreDepthMeters,
         this.progress.returnWinch, this.pod.reeling, !!this.surfaceWinchCable(), this.laserThermal.heat, this.laserThermal.vent,

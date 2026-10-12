@@ -29,13 +29,11 @@ export function planetCameraFrameAngle(u: number, v: number, chart: PlanetChartS
   return Math.atan2(Math.sin(angle), Math.cos(angle));
 }
 
-/** Convert a chart-space velocity into screen-radial speed for curved-planet cues. */
-export function planetRadialVelocity(vx: number, vy: number, u: number, v: number, chart: PlanetChartSize, tileSize = 1): number {
-  const theta = Math.PI * u / chart.columns,
-    radius = (chart.radiusRows - v) * tileSize,
-    angularVelocity = vx * Math.PI / chart.columns,
-    radialVelocity = -vy * tileSize;
-  return radialVelocity - angularVelocity * radius * Math.sin(theta);
+/** Inward speed in world pixels/second. Longitude changes do not change radius. */
+export function planetRadialVelocity(vy: number, v: number, chart: PlanetChartSize): number {
+  // Player velocity already uses world pixels, whereas v is a tile coordinate.
+  // Positive chart Y is inward on the near hemisphere and outward on the far.
+  return vy * (v < chart.radiusRows ? 1 : -1);
 }
 
 /** Shortest signed turn from one camera angle to another. */

@@ -17,6 +17,7 @@ export const CORE = {
   physicalPassageRadius: 72,
   drillAssistRadius: 220,
   drillAssistReach: 160,
+  relicTargetRadius: 12,
 };
 export const CORE_WORLD_Y = CORE.depthMeters / WORLD.meters * WORLD.tile;
 export const CORE_CROSSING_CLEARANCE = CORE.passageRadius * WORLD.tile;
