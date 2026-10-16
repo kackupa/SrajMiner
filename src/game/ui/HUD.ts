@@ -1,3 +1,4 @@
+import { panelPages } from './PanelPages';
 import { codexPanel } from './Codex';
 import { atlasMarkup, planetArt } from './PlanetArt';
 import { tradeTerminal, type PlannedBuilding } from './TradeTerminal';
@@ -47,7 +48,7 @@ export function campaignObjective(p: Progress, mapId: MapId, tradePostCount = 0,
   if (inOrbit) return { title: 'CHOOSE YOUR NEXT PLANET', body: 'Select a world and check the core-fuel cost before travelling.' };
   const core = CORE_RELICS.find(r => r.mapId === mapId)!;
   if (!p.milestones.includes(core.id)) return { title: 'MINE THE PLANETARY CORE', body: 'Your mothership needs core fuel to leave. Drill toward the center. Return to the ship whenever your rig needs recharging.' };
-  return { title: 'EXPLORE ANOTHER WORLD', body: `Core fuel ready: ${p.coreFuel.toFixed(2)}. Board the mothership with E, then press W to choose a destination. Build an uplink on each planet to sell its ore.` };
+  return { title: 'EXPLORE ANOTHER WORLD', body: `Core fuel ready: ${p.coreFuel.toFixed(2)}. Board with E, choose Pilot mothership, then hold W to take off. Build an uplink on each planet to sell its ore.` };
 }
 
 export function drawOreSymbol(ctx: CanvasRenderingContext2D, ore: keyof typeof ORES, x: number, y: number, size: number) {
@@ -99,6 +100,8 @@ export function drawOreSymbol(ctx: CanvasRenderingContext2D, ore: keyof typeof O
   }
 }
 export type UIActions = {
+  leaveShip: () => boolean;
+  openShip: () => void;
   modeChanged: (paused: boolean) => void;
   serviceAll: () => boolean;
   start: () => void;
@@ -170,6 +173,7 @@ export class HUD {
   civilianBuyer: CivilisationId = 'helion';
   shipment: Cargo = emptyCargo();
   plannedBuilding: PlannedBuilding = 'habitat';
+  private clearPages = () => {};
   modal = 'intro';
   hasStarted = false;
   paused = true;
@@ -182,6 +186,7 @@ export class HUD {
   toastTimer = 0;
   displayedMoney = 80;
   lastSale?: SaleReceipt;
+  allBuildings = false;
   workshopSection: WorkshopSection = 'miner';
   selectedUpgrade: Upgrade = 'drill';
   campNotice = '';
@@ -332,14 +337,14 @@ export class HUD {
       <button id="orbit-worlds" class="orbit-worlds-button hidden" title="Choose a planet from orbit"><span aria-hidden="true">⌖</span> Mothership · WORLDS</button>
       ${campDock()}
       <input id="save-import-input" type="file" accept="application/json,.json" hidden /><div id="modal-layer" class="modal-layer"></div></main>
-      <footer><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>HOLD LEFT CLICK · AIM + DRILL <span></span>WHEEL ZOOM <span></span><kbd>S</kbd> <span id="control-s">DOWN / DROP</span> <span></span><kbd>W</kbd> <span id="control-w">THRUST</span> <span></span><kbd>E</kbd> <span id="control-e">INTERACT</span> <span></span><kbd>B</kbd> BUILD <span></span><kbd id="grapple-key" class="hidden">G</kbd> <span id="grapple-control" class="hidden">TOGGLE GRAPPLE</span> <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">${credits(p.money)}</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
+      <footer><div class="field-controls"><span><kbd>A D</kbd> Move</span><span><kbd>S</kbd> Drill</span><span><kbd>W</kbd> Fly up</span><span><kbd>E</kbd> Ship</span><span><kbd>B</kbd> Build</span></div><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>HOLD LEFT CLICK · AIM + DRILL <span></span>WHEEL ZOOM <span></span><kbd>S</kbd> <span id="control-s">DOWN / DROP</span> <span></span><kbd>W</kbd> <span id="control-w">THRUST</span> <span></span><kbd>E</kbd> <span id="control-e">INTERACT</span> <span></span><kbd>B</kbd> BUILD <span></span><kbd id="grapple-key" class="hidden">G</kbd> <span id="grapple-control" class="hidden">TOGGLE GRAPPLE</span> <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">${credits(p.money)}</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
     this.on('pause', () => actions.pause());
     this.on('audio', () => this.updateMuteButton(actions.mute()));
     this.updateMuteButton(actions.isMuted());
     this.on('open-sell', () => this.open('sell'));
     this.on('open-service', () => this.open('service'));
     this.on('open-upgrades', () => this.open('upgrades'));
-    this.on('open-full-services', () => this.open(this.actions.hasTradePost() ? 'upgrades' : 'construction'));
+    this.on('open-full-services', () => this.actions.openShip());
     this.on('open-archive', () => this.open('archive'));
     this.on('open-shipyard', () => this.open('shipyard'));
     this.on('open-destinations', () => this.open('destinations'));
@@ -391,15 +396,6 @@ export class HUD {
     button.textContent = muted ? 'SOUND OFF' : 'SOUND ON';
     button.setAttribute('aria-pressed', String(muted));
   }
-  boardingTransition() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const overlay = document.createElement('div');
-    overlay.className = 'boarding-arrival';
-    overlay.setAttribute('aria-hidden', 'true');
-    overlay.innerHTML = '<div class="boarding-bay"><span>01 / CARGO BAY</span><div class="boarding-rig">' + podPortrait(this.p) + '</div><div class="boarding-ramp"></div></div><b>DOCKING MINER</b>';
-    document.body.append(overlay);
-    window.setTimeout(() => overlay.remove(), 850);
-  }
   openCodex(entry: string) {
     if (this.modal !== 'codex') this.codexReturn = this.modal || 'pause';
     this.codexEntry = entry; this.codexQuery = ''; this.open('codex');
@@ -420,7 +416,11 @@ export class HUD {
     this.setMode(true);
     this.renderModal();
   }
-  close() {
+  close(deploy = true) {
+    // Return to mine must also release the landed ship's boarding state.
+    const leavingTerminal = CAMP_MENUS.includes(this.modal) || this.modal === 'intro';
+    if (deploy && leavingTerminal && !this.actions.leaveShip()) return;
+    this.clearPages();
     this.modal = '';
     this.lastSale = undefined;
     if (this.exportUrl) URL.revokeObjectURL(this.exportUrl);
@@ -428,12 +428,13 @@ export class HUD {
     this.exportFilename = '';
     this.setMode(false);
     document.querySelector('#modal-layer')!.innerHTML = '';
-    const target = this.returnFocus;
     this.returnFocus = null;
-    if (target?.isConnected && target.getClientRects().length) target.focus();
-    else (document.querySelector('#game') as HTMLElement).focus();
+    // Space is thrust in play: never restore focus to a service button that
+    // would activate again when the player tries to fly.
+    (document.querySelector('#game') as HTMLElement).focus();
   }
   showIntro() {
+    this.clearPages();
     this.modal = 'intro';
     this.paused = true;
     const step = this.introStep;
@@ -448,15 +449,15 @@ export class HUD {
         }
       : {
           eyebrow: 'INTERPLANETARY MINER / FIRST DEPLOYMENT',
-          headline: 'THE MOTHERSHIP<br>IS <em>LANDING.</em>',
-          dek: 'Your mothership is out of fuel. Deploy the rig. Mine ore, build a camp, and reach the planetary core.',
+          headline: 'A SMALL RIG.<br>A <em>BIG FRONTIER.</em>',
+          dek: 'Dig for ore. Build your outpost. Discover what lies beneath the ice.',
           loop: ['DRILL', 'RECOVER', 'DEPART'],
-          briefing: 'Start with a mothership, a mining rig, and no credits. Mine copper and iron to build a camp. Add a Market uplink with copper, iron and silver to sell ore for credits, then buy upgrades. Return to the mothership to recharge your rig for free. Mine planetary cores to fuel the mothership. Board with E and press W to choose another world. Your buildings, stored ore and tunnels stay on each planet.',
+          briefing: 'Start with a mothership, a mining rig, and no credits. Mine copper and iron to build a camp. Add a Market uplink with copper, iron and silver to sell ore for credits, then buy upgrades. Return to the mothership to recharge your rig for free. Mine planetary cores to fuel the mothership. Open the mothership, choose Pilot mothership and hold W to take off. Your buildings, stored ore and tunnels stay on each planet.',
         };
+    const touch = matchMedia('(any-pointer: coarse)').matches;
     const atlas = legacyMars ? '' : atlasMarkup(this.mapId);
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
-    const landingSequence = !this.loaded ? '<div class="landing-sequence" aria-label="Mothership landing, followed by miner deployment"><div class="landing-world"></div><div class="landing-glow"></div><div class="landing-craft"><svg viewBox="0 0 220 130" aria-hidden="true"><path fill="#506b77" d="M15 40h34v64H15zm156 0h34v64h-34z"/><path fill="#b5c5bd" d="m21 97-8 26h34l-12-26m150 0-8 26h34l-12-26"/><path fill="#77929d" d="m30 55 28-35 75-8 40 25 23 41-23 29H51z"/><path fill="#c5d0c3" d="m58 20 75-8 40 25-109 8z"/><path fill="#203c4d" d="m68 51 62-5 28 20-8 15H65z"/><path stroke="#96dfd4" stroke-width="10" d="M75 64h20m8-2h22m7 4h15"/><path fill="#243d49" d="M83 87h48v25H83z"/><path fill="#a4afa4" d="m86 109 42 0 16 18H80z"/><path fill="#e9b36c" d="M49 76h8v18h-8zm109 9h14v5h-14z"/></svg></div><div class="landing-miner">▰</div><small>ARRIVAL RESERVE · TOUCHDOWN → DEPLOY MINER</small></div>' : '';
-    const titleScreen = `<div class="intro-screen intro-title-screen">${landingSequence}<div class="eyebrow">${intro.eyebrow}</div><div class="intro-symbol">✦</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button></nav></div>`;
+    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${intro.eyebrow}</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${touch ? '← →' : 'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'Drill pad' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? '↑' : 'W / ↑'}</kbd><b>Return</b><small>Fly up your open tunnel</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button></nav></div>`;
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
     const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL · LAND IN ORBIT</span></div><div><kbd>W</kbd><span>THRUST UP · TAKE OFF ABOARD</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>NEARBY STATION · BOARD AT SHIP</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>G</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">Q MINING CHARGE · X STASIS · R SURFACE WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
@@ -479,17 +480,13 @@ export class HUD {
         this.close();
         this.actions.start();
       };
-      if (landingSequence && document.querySelector('.landing-sequence')) {
-        const introNode = document.querySelector('.intro');
-        const button = document.querySelector<HTMLButtonElement>('#launch');
-        if (button) { button.disabled = true; button.textContent = 'LANDING · DEPLOYING MINER…'; }
-        introNode?.classList.add('intro-deploying');
-        window.setTimeout(begin, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 300 : 4200);
-      } else begin();
+      begin();
     });
+    this.clearPages = panelPages(document.querySelector<HTMLElement>('#modal-layer')!);
     document.getElementById(step === 'title' ? 'launch' : 'intro-back')?.focus();
   }
   renderModal() {
+    this.clearPages();
     const name = this.modal,
       p = this.p;
     const scrollTop = document.querySelector('.camp-main')?.scrollTop ?? 0;
@@ -500,7 +497,19 @@ export class HUD {
     let title = '',
       sub = '',
       content = '';
-    if (name === 'codex') {
+    if (name === 'hub') {
+      title = 'Ready for your next run?';
+      sub = 'Recharge, unload, then head back out.';
+      content = `<div class="hub-status"><span>Battery <b>${Math.ceil(p.fuel / p.max('fuel') * 100)}%</b></span><span>Hull <b>${Math.ceil(p.hull / p.max('hull') * 100)}%</b></span><span>Cargo <b>${p.count} / ${p.max('cargo')}</b></span></div><div class="hub-grid">${[
+        ['service', '01', 'Recharge & repair', 'Free battery charging. Repair your hull here.'],
+        [this.actions.hasTradePost() ? 'sell' : 'construction', '02', this.actions.hasTradePost() ? 'Sell your ore' : 'Build your camp', this.actions.hasTradePost() ? 'Turn your haul into upgrade credits.' : `First: ${Object.entries(UNDERGROUND_BUILDING.habitat.materials).map(([ore, units]) => `${units} ${ore}`).join(' + ')}. Then a Market uplink.`],
+        ['warehouse', '03', 'Store materials', 'Keep construction ore safe for later.'],
+        ['upgrades', '04', 'Upgrade your rig', 'A better drill. More room. Longer runs.'],
+      ].map(([page, number, heading, copy]) => `<button data-hub="${page}"><span>${number} / MOTHERSHIP</span><b>${heading} <i>↗</i></b><small>${copy}</small></button>`).join('')}</div>${this.mothershipBoarded ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Find a core to unlock flight'}</button>` : ''}<p class="hub-note">Return to mine deploys your rig immediately. Your expedition is paused while this screen is open.</p>`;
+    } else if (name === 'more') {
+      title = 'Explore your expedition'; sub = 'Optional tools, records and destinations.';
+      content = `<div class="hub-grid">${[['paints', 'Paint shop'], ['archive', 'Mining log'], ['shipyard', 'Core drive'], ['destinations', 'Worlds'], ['codex', 'How things work']].map(([page,label]) => `<button data-hub="${page}"><b>${label} <i>↗</i></b></button>`).join('')}</div>`;
+    } else if (name === 'codex') {
       title = 'The Expedition Codex'; sub = 'ENGINEERING · WORLDS · FRONTIER HISTORY';
       content = '<button id="codex-back" class="text-button">← Back to '+this.codexReturn+'</button>'+codexPanel(p,this.codexEntry,this.codexQuery);
     } else if (name === 'construction') {
@@ -542,6 +551,9 @@ export class HUD {
           return `<article class="service-row"><div><b>PYLON LEVEL ${level}</b><small>${stats.range} px range · ${stats.reloadSeconds}s reload${next ? ` → ${next.range} px · ${next.reloadSeconds}s` : ' · Fully upgraded'}</small></div>${next ? `<button id="upgrade-turret-${encodeURIComponent(entry.id)}" ${p.money < next.upgradeCredits ? 'disabled' : ''}>UPGRADE · ${next.upgradeCredits}</button>` : ''}</article>`;
         }).join('') : '';
         content = `<p>First build a Mining camp from copper and iron. Then build a Market uplink to unlock ore sales. These two buildings cost materials only. Carry the listed ore in your rig; withdraw it from the mothership hold if needed. Nothing is spent until placement succeeds.</p><div class="network-status"><b>PLANETARY BUY ORDER</b><span>${orderCopy}</span></div>${repairRows ? `<div class="upgrade-list">${repairRows}</div>` : ''}${upgradeRows ? `<div class="upgrade-list">${upgradeRows}</div>` : ''}<div class="upgrade-list">${option('habitat', 'MINING CAMP', `${habitatCount}/${UNDERGROUND_BUILDING.habitat.maxPerMap} built. A surface base for your mining operation. Build this before your Market uplink.`, habitatCount >= UNDERGROUND_BUILDING.habitat.maxPerMap)}${option('trade-post', 'MARKET UPLINK', this.actions.hasTradePost() ? 'This colony is connected to the Vesper exchange.' : 'A communications terminal linking this planet to the interplanetary market. Unlocks ore sales and paid upgrades.', this.actions.hasTradePost())}${option('fort', 'COLONY FORT', `One per planet. Four-hit command bunker. Walls join its edges; pylons within ${UNDERGROUND_BUILDING.fort.linkRadius} px gain ${UNDERGROUND_BUILDING.fort.rangeBonus} px range. First raid after ${SURFACE_RAID.fortFirstWarningSeconds}s at the surface, then every ${SURFACE_RAID.fortRepeatWarningSeconds}s after an encounter.`, structures.some(entry => entry.kind === 'fort'))}${option('turret', 'DEFENSE PYLON', `${turretCount}/${UNDERGROUND_BUILDING.turret.maxPerMap} built. Intercepts rock swimmers and colony raiders in its 440 px guard radius.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}${option('warehouse', 'ORE WAREHOUSE', `${warehouseCount ? 'Built · ' : 'One per planet · '}store selected ore safely here and withdraw it later.`, warehouseCount >= UNDERGROUND_BUILDING.warehouse.maxPerMap)}${warehouseCount ? `<article class="service-row"><div><b>AUTOMATED EXTRACTORS · ${extractorCount}/${UNDERGROUND_BUILDING.extractor.maxPerMap}</b><small>Build an excavator beside this depot, then upgrade its tier at the warehouse.</small></div><button id="build-extractor" ${extractorCount >= UNDERGROUND_BUILDING.extractor.maxPerMap || !this.actions.atWarehouse() ? 'disabled' : ''}>BUILD · $${UNDERGROUND_BUILDING.extractor.credits}</button></article>` : ''}${option('wall', 'PERIMETER WALL', `${wallCount}/${UNDERGROUND_BUILDING.wall.maxPerMap} built. Adjacent segments connect; raiders must breach each segment. Your miner can cross freely.`, wallCount >= UNDERGROUND_BUILDING.wall.maxPerMap)}${option('gate', 'SECURITY GATE', `${gateCount}/${UNDERGROUND_BUILDING.gate.maxPerMap} built. A raider-blocking gap that lifts when your miner approaches.`, gateCount >= UNDERGROUND_BUILDING.gate.maxPerMap)}</div><div class="network-status"><b>INTERPLANETARY EXCHANGE · ${networkCount}/${Object.keys(MAPS).length} POSTS</b><span>${premium}% LINKED-WORLD SALE PREMIUM · ${networkCount < 2 ? 'BUILD ON A SECOND PLANET TO OPEN THE ROUTE' : 'ROUTES ACTIVE ACROSS THE VESPER SYSTEM'}</span></div><p class="fine">Press E at a habitat for service, Market uplink for sales, or Warehouse for ore storage and extractor upgrades. ${this.nearSurface ? `Damaged forts, habitats, pylons, walls and gates can be repaired here for $${SURFACE_RAID.repairCredits}.` : 'Return to the mothership to repair damaged colony buildings.'} Structures persist per planet; use MAPS after completing the Mothership to visit other worlds.</p>`;
+        const browse = `<button id="building-catalogue">${this.allBuildings ? '← Essential buildings' : 'More buildings →'}</button>`;
+        if (!this.allBuildings) content = `<p>Carry the materials in your rig. Choose a building, move its preview, then click to place it. Materials are spent only when placement succeeds.</p><div class="starter-buildings">${option('habitat', '1. Mining camp', 'Your first surface base. Collect copper and iron in the shallow seams.', habitatCount >= UNDERGROUND_BUILDING.habitat.maxPerMap)}${option('trade-post', '2. Market uplink', 'Connect your camp to the market. Unlocks ore sales and upgrades.', this.actions.hasTradePost())}</div>`;
+        content = browse + content;
       } else {
         content = `<p>Build in a cleared cavern. Down drops through decks; local gravity decides which side catches you. Structures stay on this planet.</p><div class="upgrade-list">${option('platform', 'ANCHOR DECK', 'A five-tile landing and staging platform.', platformCount >= 12)}${option('service', 'REPAIR STATION', 'One per planet. Press E nearby to recharge or repair for hull repairs.', hasService)}${option('turret', 'SENTRY TURRET', `${turretCount}/3 built. Automatically intercepts rock swimmers in range.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}</div><p class="fine">Construction requires a 180 m+ site and open room around the build point.</p>`;
       }
@@ -611,10 +623,10 @@ export class HUD {
     } else if (name === 'shipyard') {
       title = p.shipComplete && p.coreFuel > 0 ? 'The mothership is ready.' : 'Power the mothership.';
       sub = 'MOTHERSHIP / CORE-POWERED FLIGHT';
-      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, W opens the planet selector. Review a route and confirm travel; core fuel is charged by distance. WASD remains for mining movement. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, separate from the rig’s battery charge.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Explore another planet to mine its core and replenish the jump reserve.</p>`;
+      content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, choose Pilot mothership in the ship hub and hold W to take off. Review a route and confirm travel; core fuel is charged by distance. WASD remains for mining movement. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, separate from the rig’s battery charge.</p><div class="sale-total"><span>INTERPLANETARY CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Explore another planet to mine its core and replenish the jump reserve.</p>`;
     } else if (name === 'destinations') {
       title = 'Plan the next expedition.'; sub = 'SURVEY ATLAS / MOTHERSHIP NAVIGATION';
-      content = '<div class="grounded-status"><b>'+(!p.shipComplete || p.coreFuel<=0 ? 'GROUNDED · CORE FUEL REQUIRED' : 'JUMP DRIVE READY')+'</b><p>'+p.coreFuel.toFixed(2)+' core fuel aboard. Browse worlds here. Board the mothership with E, close its terminal, then press W to review and confirm a fuel-priced route.</p></div>'+atlasMarkup(this.mapId)+
+      content = '<div class="grounded-status"><b>'+(!p.shipComplete || p.coreFuel<=0 ? 'GROUNDED · CORE FUEL REQUIRED' : 'JUMP DRIVE READY')+'</b><p>'+p.coreFuel.toFixed(2)+' core fuel aboard. Browse worlds here. Board with E and choose Pilot mothership in the ship hub. Hold W to take off and select a destination in orbit.</p></div>'+atlasMarkup(this.mapId)+
         '<section class="civilian-worlds"><h2>The worlds you supply</h2><div>'+CIVILISATION_KEYS.map(id=>'<button data-codex="'+id+'">'+planetArt(id)+'<b>'+CIVILISATIONS[id].name+'</b><small>'+CIVILISATIONS[id].title+'</small></button>').join('')+'</div></section>';
     } else if (name === 'paints') {
       title = this.styleSection === 'paint' ? 'Make the pod yours.' : 'Suit up for the long haul.';
@@ -678,10 +690,10 @@ export class HUD {
     }
     const campMenu = CAMP_MENUS.includes(name);
     const campLinks = [
-      'codex',
+      ...(this.nearSurface ? ['hub'] : []),
       ...(this.actions.sellAccess() ? ['sell'] : []),
       ...(this.actions.serviceAccess() ? ['service'] : []),
-      ...(this.nearSurface ? ['upgrades', 'paints', 'archive', 'shipyard', 'destinations', 'construction'] : []),
+      ...(this.nearSurface ? ['upgrades', 'construction', 'more'] : []),
       ...(this.actions.atWarehouse() ? ['warehouse'] : []),
     ];
     document.querySelector('#modal-layer')!.innerHTML = name === 'pause' ? content : campMenu
@@ -699,6 +711,9 @@ export class HUD {
     this.on('codex-back', () => this.open(this.codexReturn));
     document.querySelectorAll<HTMLButtonElement>('[data-codex]').forEach(node => node.onclick = () => this.openCodex(node.dataset.codex!));
     for (const key of campLinks) this.on(`camp-nav-${key}`, () => this.open(key));
+    const mobileNav = document.querySelector<HTMLSelectElement>('#camp-select');
+    if (mobileNav) mobileNav.onchange = () => this.open(mobileNav.value);
+    document.querySelectorAll<HTMLButtonElement>('[data-hub]').forEach(node => node.onclick = () => this.open(node.dataset.hub!));
     this.on('workshop-build', () => this.open('construction'));
     document.querySelectorAll<HTMLButtonElement>('[data-buyer]').forEach(node => node.onclick = () => { this.civilianBuyer = node.dataset.buyer as CivilisationId; this.renderModal(); });
     document.querySelectorAll<HTMLInputElement>('[data-shipment]').forEach(node => {
@@ -851,6 +866,8 @@ export class HUD {
       if (this.actions.buyEscapeSuit()) this.toast('Escape suit packed. If the miner is destroyed, pilot controls switch to jetpack flight.');
       this.renderModal();
     });
+    this.on('building-catalogue', () => { this.allBuildings = !this.allBuildings; this.renderModal(); });
+    this.on('pilot-ship', () => this.close(false));
     this.on('close', () => this.close());
     this.on('resume', () => this.actions.resume());
     this.on('recover-stranded', () => { if (!this.actions.recoverStranded()) this.toast('The miner is no longer stranded.'); });
@@ -973,6 +990,7 @@ export class HUD {
       if (this.actions.warehouseMaps().includes(selected)) this.warehouseSourceMap = selected;
       this.renderModal();
     });
+    this.clearPages = panelPages(document.querySelector<HTMLElement>('#modal-layer')!);
     const campMain = document.querySelector('.camp-main');
     if (campMain && previousFocusId) campMain.scrollTop = scrollTop;
     const previousFocus = previousFocusId ? document.getElementById(previousFocusId) : null;
@@ -1124,12 +1142,13 @@ export class HUD {
     const visible = this.hasStarted && !this.paused && !this.modal;
     tip.classList.toggle('hidden', !visible);
     if (!visible) return;
-    const campMaterials = Object.entries(UNDERGROUND_BUILDING.habitat.materials).map(([ore, units]) => `${units} ${ore}`).join(' and ');
-    const uplinkMaterials = Object.entries(UNDERGROUND_BUILDING['trade-post'].materials).map(([ore, units]) => `${units} ${ore}`).join(', ');
+    const materials = (kind: 'habitat' | 'trade-post') => Object.entries(UNDERGROUND_BUILDING[kind].materials).map(([ore, units]) => `${Math.min(units, this.p.cargo[ore as Ore])}/${units} ${ore}`).join(' · ');
+    const ready = Object.entries(UNDERGROUND_BUILDING.habitat.materials).every(([ore, units]) => this.p.cargo[ore as Ore] >= units);
+    const touch = matchMedia('(any-pointer: coarse)').matches;
     const objective = !this.actions.structures().some(s => s.kind === 'habitat') && !this.actions.hasTradePost()
-      ? { title: 'BUILD A MINING CAMP', body: `Collect ${campMaterials}. Return to the mothership and open Build yard. Construction uses ore, not credits. Recharge here for free.` }
+      ? { title: `FIRST CAMP · ${materials('habitat').toUpperCase()}`, body: ready ? `Materials ready! ${touch ? 'Hold ↑ to return, tap Build' : 'Fly to the surface with W, press B'} and choose Mining camp.` : touch ? 'Hold the right pad to drill into coloured ore. Hold ↑ on the left pad to fly back through your tunnel.' : 'Hold S to drill down, or aim + hold the mouse at coloured ore. Hold W to fly back through your tunnel.' }
       : !this.actions.hasTradePost()
-        ? { title: 'CONNECT TO THE INTERPLANETARY MARKET', body: `Collect ${uplinkMaterials}. Build a Market uplink to sell ore and earn credits for upgrades.` }
+        ? { title: `NEXT · MARKET UPLINK`, body: `Carry ${materials('trade-post')}. ${touch ? 'Tap Build' : 'Press B'} at the surface to build. Then you can sell ore.` }
         : campaignObjective(this.p, this.mapId, this.actions.tradeNetworkCount(), this.actions.hasTradePost(), this.inOrbit, this.mothershipBoarded),
       signature = `${objective.title}\n${objective.body}`;
     if (signature === this.missionTipSignature) return;

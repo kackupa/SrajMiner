@@ -1,5 +1,36 @@
 # QA
 
+## Vehicle redesign and piloted motion — 2026-10-15
+
+Replaced the rigid miner artwork with an original articulated cockpit, visible pilot, gimballed engine pods, directional correction jets, retracting skids and drill recoil. Rebuilt the mothership as a long cargo carrier with a raised bridge, twin nacelles, retracting landing gear and closing bay. Hangar portraits match the new miner. Presentation state is transient; physics, collision geometry and save schema are unchanged.
+
+Chromium playtests verified right/left banking (about +12.9° / −12.9°), pilot reversal, thrust plumes, drilling and landing. An isolated fresh expedition mined to 62 m, collected 3 copper and 2 iron, and returned with 100% hull and zero overlaps. Landing settled the body and extended the skids. Opening the ship and returning to mine restored movement. Pause froze the complete pose and animation phase. No page errors occurred.
+
+A separate copied-save fixture supplied four core-fuel units to check mothership takeoff and gear retraction; this was not an earned-core campaign test. Reduced-motion emulation zeroed banking, pitch and oscillation while preserving functional engine/gear feedback. The existing deep-core navigation limitations below remain unresolved; physical phones and the full campaign were not retested for this visual change.
+
+Artifacts under ignored `output/playwright/`: `miner-navigation.webm`, `miner-bank-right.png`, `miner-bank-left.png`, `miner-drilling.png`, `new-rig-portrait.png`, and `mothership-flight.png`. The flight screenshot predates the final bay shutter detail. Automated vehicle-pose regressions cover banking, reversal, landing, pause, reduced motion and long-frame bounds.
+
+`npm install`, `npm test` (175 system tests plus all supplementary suites, including vehicle pose), and `npm run build` passed. The build retains the existing large-bundle advisory.
+
+## UX and visual overhaul — 2026-10-15
+
+Implemented a full-screen title and service hub, compact gameplay HUD, live camp/uplink material guidance, essential-building view, mobile service selector, and explicit Previous/Next controls for long panels. Replaced the landing delay with immediate play. Added original SVG frontier illustration, faceted lander artwork, aurora/horizon treatment and less repetitive geology/ore clusters. No assets from other games, balance changes, backend or save-schema changes.
+
+Chromium browser checks on the local Vite build:
+- A real keyboard run drilled to 84 m, collected 3 copper + 3 iron and excavated seven cells. W returned through that shaft with 100 hull and zero overlaps.
+- E opened the ship hub. Recharge filled the battery to 140. Return to mine cleared boarding, focused the game, and Space immediately thrust to y=-109.45 without another E or reopening the menu. The on-screen Open mothership button also opened the hub.
+- Save/reload retained exactly 3 copper, 3 iron and the same seven destroyed cells, with the miner unboarded. No duplicated ore observed.
+- Desktop 1366×768 hub fit its available height (648/648 px). Portrait 390×844 hub fit (688/688 px); document dimensions equalled viewport dimensions.
+- At 844×390, the full building catalogue's Next control advanced from scroll position 0 to 222.4 with a correct page indicator; no page overflow. Essential construction shows camp and uplink first.
+- Compact title and pause screens fit 844×390 exactly (390 px client and content heights); portrait pause fit 844 px exactly.
+- An isolated fixture with four core-fuel units verified Pilot mothership retains boarding and W lifts the ship from y=-22 to y=-275.55. This is a UI/flight-mode check, not earned campaign completion.
+- Fresh touch emulation at 390×844 and 844×390 showed touch-specific starting instructions, objective and control pads without page overflow. This checks responsive rendering, not physical mobile-device performance.
+
+Screenshots and temporary automation are under ignored output/playwright/, including frontier-title.png, hub-desktop.png, frontier-phone-hub.png, build-desktop.png, build-landscape.png, touch-title.png and touch-game.png. npm install, all 175 system tests plus atmosphere/solar/expedition/wall suites, and npm run build passed; the build retains the existing bundle-size advisory.
+
+Limits: this pass exercised the opening mining/return/service/save loop. It did not replay the six-world campaign, post-core return navigation, later transactions, or real phone hardware. Earlier documented core-crossing navigation concerns remain unresolved; no physics changes were made in this overhaul.
+
+
 ## Earned camp, uplink and first sales — 2026-10-12
 
 Continued the controlled-core checkpoint with its actual earned inventory. Stored nine iron and 2.5 silver, recharged for free, mined a shallow branch for additional copper/iron, followed the branch back to the main shaft and returned intact. Built the Mining camp at (860, 0) for exactly six copper + four iron, then collected the final copper and withdrew stored materials to build the Market uplink at (1140, 0) for four copper + four iron + two silver. Credits remained zero through both purchases. No cargo, excavation or credits were injected. These navigation legs used controlled browser frame advancement and do not substitute for human feel checks.

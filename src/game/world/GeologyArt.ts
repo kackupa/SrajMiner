@@ -39,19 +39,19 @@ export function drawGeology(
   g.fillPoints(cell, true);
   g.fillStyle(material.shadow, 0.22);
   g.fillPoints(polygon([[0, band(x)], [0.5, band(x + 0.5)], [1, band(x + 1)], [1, 1], [0, 1]]), true);
-  g.fillStyle(material.light, 0.055 + n * 0.045);
-  g.fillPoints(polygon([[0, 0], [1, 0], [1, 0.16], [0.55, 0.11], [0, 0.24]]), true);
-  g.lineStyle(1, material.seam, 0.55);
+  // Broad sediment bands connect across cells; avoid a bright top on every
+  // tile, which made natural geology read as a wall of identical bricks.
+  g.lineStyle(1, material.seam, 0.25);
   g.strokePoints(polygon([[0, band(x)], [0.5, band(x + 0.5)], [1, band(x + 1)]]), false);
   // Sparse facets rather than identical bevels around every tile.
-  if (n > 0.32) {
+  if (n > 0.64) {
     const u = 0.2 + n * 0.38;
     g.fillStyle(material.shadow, 0.28);
     g.fillPoints(polygon([[u, 0.3], [u + 0.2, 0.48], [u + 0.08, 0.84], [u - 0.13, 0.65]]), true);
     g.lineStyle(1, material.light, world.mapId === 'cryo-shelf' ? 0.32 : 0.16);
     g.strokePoints(polygon([[u - 0.13, 0.65], [u + 0.08, 0.84], [u + 0.2, 0.48]]), false);
   }
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 1; i++) {
     const u = 0.12 + random(world.seed, tile.x + i, tile.y, 8102) * 0.7,
       v = 0.12 + random(world.seed, tile.x, tile.y + i, 8103) * 0.7;
     g.lineStyle(1, material.light, 0.14);

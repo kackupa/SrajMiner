@@ -5,12 +5,14 @@ import { podPortrait } from './PodPortrait';
 export const credits = (n: number) => `$${Math.ceil(n).toLocaleString()}`;
 const number = (n: number) => Number(n.toFixed(2)).toLocaleString();
 export type WorkshopSection = 'miner' | 'equipment' | 'pilot';
-export const CAMP_MENUS = ['codex', 'sell', 'service', 'upgrades', 'paints', 'archive', 'shipyard', 'destinations', 'warehouse', 'construction'];
+export const CAMP_MENUS = ['hub', 'more', 'codex', 'sell', 'service', 'upgrades', 'paints', 'archive', 'shipyard', 'destinations', 'warehouse', 'construction'];
 const labels: Record<string, [string, string]> = {
+  hub: ['Mothership', 'Prepare your next run'],
+  more: ['Explore & customise', 'Optional expedition tools'],
   codex: ['Expedition Codex', 'Engineering & frontier history'],
   sell: ['Teletrade', 'Sell your haul'], service: ['Service bay', 'Recharge & repair'],
   upgrades: ['Workshop', 'Upgrade your miner'], paints: ['Paint shop', 'Make it yours'],
-  archive: ['Mining log', 'Your progress'], shipyard: ['Mothership', 'Your way to other worlds'],
+  archive: ['Mining log', 'Your progress'], shipyard: ['Core drive', 'Your way to other worlds'],
   destinations: ['Worlds', 'Plan your next landing'], warehouse: ['Warehouse', 'Store your ore'],
   construction: ['Build yard', 'Grow your outpost'],
 };
@@ -42,7 +44,7 @@ export function campDock() {
       <button id="open-service"><span class="camp-action-icon">＋</span><span><b>Recharge & repair</b><small id="camp-service-hint">Get ready for another run</small></span><span class="camp-arrow">›</span></button>
       <button id="open-upgrades"><span class="camp-action-icon">⚙</span><span><b>Upgrade miner</b><small>Better tools. Longer expeditions.</small></span><span class="camp-arrow">›</span></button>
     </div>
-    <button id="open-full-services" class="camp-full-services">Full services <span aria-hidden="true">→</span></button><p class="camp-dock-foot">Choose a service · Your expedition pauses inside</p>
+    <button id="open-full-services" class="camp-full-services">Open mothership <span aria-hidden="true">→</span></button><p class="camp-dock-foot">Choose a service · Your expedition pauses inside</p>
   </nav>`;
 }
 
@@ -50,7 +52,7 @@ export function campShell(name: string, title: string, subtitle: string, content
   mapId: MapId, links: string[], notice: string) {
   return `<section class="modal camp-screen camp-${name}" role="dialog" aria-modal="true" aria-label="${labels[name]?.[0] ?? title}">
     <header class="camp-top"><div><span class="camp-live">● EXPEDITION / ${MAPS[mapId].name}</span><b>${p.milestones.includes('mothership-origin') ? 'Mothership operations' : 'Mining camp'}</b></div><div class="camp-wallet"><small>YOUR CREDITS</small><strong>${credits(p.money)}</strong></div><button id="close" class="close camp-exit" aria-label="Return to mine">Return to mine <kbd>Esc</kbd></button></header>
-    <aside class="camp-sidebar"><div class="camp-rig">${podPortrait(p)}<span>YOUR MINER · ${Math.round(p.hull / p.max('hull') * 100)}% HULL</span></div><nav aria-label="Camp services">${links.map(key => `<button id="camp-nav-${key}" aria-current="${key === name ? 'page' : 'false'}"><span>${labels[key]?.[0] ?? key}</span><span aria-hidden="true">${key === name ? '●' : '›'}</span></button>`).join('')}</nav></aside>
+    <aside class="camp-sidebar"><select id="camp-select" aria-label="Choose ship service">${(links.includes(name) ? links : [name, ...links]).map(key => `<option value="${key}" ${key === name ? 'selected' : ''}>${labels[key]?.[0] ?? key}</option>`).join('')}</select><div class="camp-rig">${podPortrait(p)}<span>YOUR MINER · ${Math.round(p.hull / p.max('hull') * 100)}% HULL</span></div><nav aria-label="Camp services">${links.map(key => `<button id="camp-nav-${key}" aria-current="${key === name ? 'page' : 'false'}"><span>${labels[key]?.[0] ?? key}</span><span aria-hidden="true">${key === name ? '●' : '›'}</span></button>`).join('')}</nav></aside>
     <main class="camp-main"><header class="camp-heading"><span class="eyebrow">${labels[name]?.[0] ?? 'CAMP SERVICES'}</span><h2>${title}</h2><p>${subtitle}</p></header><div id="camp-notice" class="camp-notice ${notice ? '' : 'is-empty'}" role="status" aria-live="polite">${notice}</div><div class="camp-content">${content}</div></main>
     <footer class="camp-bottom"><span>● Expedition paused · Purchases save automatically</span><span>MOTHERSHIP / FIELD OPERATIONS</span></footer>
   </section>`;

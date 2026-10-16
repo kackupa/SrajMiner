@@ -28,3 +28,5 @@ new Phaser.Game({
 import './expedition.css';
 
 import './mobile.css';
+
+import './frontier.css';

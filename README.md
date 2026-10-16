@@ -32,7 +32,7 @@ Verified with Chromium mobile emulation at 844×390 and 390×844, including mini
 3. Build a **Market uplink** with 4 copper, 4 iron and 2 silver. It connects the planet to the interplanetary market and unlocks ore sales and paid rig upgrades.
 4. Sell carried ore for credits. Store construction materials in the mothership hold before selling the rest. Stored ore is not sold.
 5. Buy upgrades, expand your operation and drill toward the planetary core.
-6. Extract cores for **mothership fuel**. Board with E, then press W to choose another world. Travel costs core fuel by distance; a core supplies four units.
+6. Extract cores for **mothership fuel**. Board with E, choose **Pilot mothership**, then hold W to take off. Travel costs core fuel by distance; a core supplies four units.
 
 The rig runs on a **battery**, separate from mothership fuel. Return to the mothership and choose **Recharge** to fill it for free, even with zero credits. Hull repairs still cost credits. Signals, missing-crew quests and survey cash rewards are not part of the live expedition. Cores supply travel fuel, not cash.
 
@@ -47,11 +47,17 @@ Camp and uplink construction uses ore carried in the rig. Withdraw stored materi
 - **A/D** or **Left/Right:** move.
 - **S/Down:** drill downward. **W/Up/Space:** thrust through open tunnels.
 - **Mouse:** aim; hold left-click to drill.
-- **E:** board/disembark at the mothership or use a nearby structure.
+- **E:** open the mothership or use a nearby structure. **Return to mine / Esc** closes the landed ship terminal and deploys the rig immediately.
 - **B:** open the build yard. **M:** explored tunnel map. **Esc:** pause/close.
 - **R:** installed surface winch. **Q:** mining charge. **X:** installed stasis module.
 
-At the mothership, **Quick services** provides common actions. **Full services** opens the full-screen terminal directly. Before the market connection is built, it opens the build yard; afterwards it opens the workshop. The workshop compares current and next component stats and shows costs and requirements.
+The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. **Pilot mothership** deliberately keeps you aboard for flight once core fuel is available.
+
+The opening screen teaches movement, drilling and return flight. The in-game objective tracks carried materials against building costs from `src/game/config.ts`. The build yard starts with just Mining camp and Market uplink; **More buildings** opens the rest. Optional records, appearance and worlds live under **Explore & customise**.
+
+The game fits the viewport without browser scrollbars. Main menus use the full screen; longer reference/catalogue panels offer **Previous / Next** controls and still support wheel, touch and keyboard navigation. Phone service navigation uses a compact selector. The original illustrated title, lander, sky and mineral treatment share the new blue/orange visual style.
+
+The redesigned miner has a visible pilot, directional banking, gimballed thrusters, correction jets, retractable skids and drill recoil. The mothership uses a long carrier hull, raised bridge, twin engines and a closing landing bay. These animations follow movement without changing handling, collision size or saves. Pause freezes the pose; reduced motion removes banking and oscillation.
 
 ## Saves and compatibility
 

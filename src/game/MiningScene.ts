@@ -1,3 +1,5 @@
+import { drawMiner } from './player/MinerArt';
+import { advanceVehiclePose, restingVehiclePose } from './player/VehiclePose';
 import { WallBuilder } from './ui/WallBuilder';
 import { TouchControls } from './ui/TouchControls';
 import { settleCivilianShipment } from './economy/Civilisations';
@@ -124,6 +126,7 @@ export class MiningScene extends Phaser.Scene {
   hemisphereFar = false;
   readonly cameraFlipDuration = 1.15;
   tick = 0;
+  vehiclePose = restingVehiclePose();
   saveClock = 0;
   uiClock = 0;
   wasSurface = true;
@@ -266,6 +269,7 @@ export class MiningScene extends Phaser.Scene {
     super('mine');
   }
   create() {
+    this.vehiclePose = restingVehiclePose();
     this.motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.reducedMotion = this.motionQuery.matches;
     this.motionQuery.addEventListener('change', this.motionPreferenceChanged);
@@ -339,6 +343,12 @@ export class MiningScene extends Phaser.Scene {
     this.ui = new HUD(
       this.progress,
       {
+        leaveShip: () => this.deployMiner(),
+        openShip: () => {
+          if (this.mothershipBoarded) this.ui.open('hub');
+          else if (this.isNearMothership()) this.interactWithShip();
+          else this.ui.open('service');
+        },
         start: () => {
           this.soundFx.unlock(this.depth);
           this.save();
@@ -679,23 +689,7 @@ export class MiningScene extends Phaser.Scene {
       if (!this.ui.hasStarted || this.ui.modal || this.surfacePlacement) return;
       if (this.isNearMothership()) {
 
-        const wasBoarded = this.mothershipBoarded, oldX = this.pod.x;
-        this.mothershipBoarded = !wasBoarded;
-        this.pod.vx = this.pod.vy = 0;
-        this.pod.docked = this.mothershipBoarded;
-        this.pod.x = this.mothershipBoarded ? MOTHERSHIP.x : 680;
-        if (!this.save()) {
-          this.mothershipBoarded = wasBoarded;
-          this.pod.x = oldX;
-          this.ui.setMothershipBoarded(wasBoarded);
-          this.pod.docked = wasBoarded;
-          return;
-        }
-        this.ui.setMothershipBoarded(this.mothershipBoarded);
-        this.ui.toast(this.mothershipBoarded
-          ? `MOTHERSHIP DOCKED · MARKET & STORAGE · ${this.progress.coreFuel.toFixed(2)} CORE FUEL`
-          : 'MOTHERSHIP HATCH OPEN · MINER CONTROLS RESTORED');
-        if (this.mothershipBoarded) { this.ui.open('warehouse'); this.ui.boardingTransition(); }
+        this.interactWithShip();
         return;
       }
       const habitat = this.planetSurface && nearbyGlobeSurfaceStructure(this.structures, this.pod.x, this.pod.y, this.world, 'habitat'),
@@ -932,6 +926,7 @@ export class MiningScene extends Phaser.Scene {
           scannerRadius: surveyScannerRadius(this.progress.max('scanner'), SPECIALIZATIONS[this.progress.specialization].scanRadiusBonus, this.progress.milestones, this.world.widthTiles),
           cargoCapacity: this.progress.max('cargo'),
           surveyedCells: this.world.discovered.size,
+          vehiclePose: { ...this.vehiclePose },
           podScale: podVisualScale(this.progress.levels, this.progress.shipComponents.length),
           camera: { x: this.camX, y: this.camY },
           cameraRotation: this.viewRotation,
@@ -1013,6 +1008,43 @@ export class MiningScene extends Phaser.Scene {
     if (!this.world.planetChart) return Math.hypot(this.pod.x - MOTHERSHIP.x, this.pod.y - WORLD.spawnY) < MOTHERSHIP.serviceRadius;
     if (!this.planetSurface) return false;
     return globeSurfaceDistance(this.world, this.pod.x, this.pod.y, 555, surfaceDockYAt(WORLD.spawnY, this.world.planetChart)) < MOTHERSHIP.serviceRadius;
+  }
+  interactWithShip() {
+    if (!this.isNearMothership()) return;
+    const wasBoarded = this.mothershipBoarded, oldX = this.pod.x;
+    this.mothershipBoarded = !wasBoarded;
+    this.pod.vx = this.pod.vy = 0;
+    this.pod.docked = this.mothershipBoarded;
+    this.pod.x = this.mothershipBoarded ? MOTHERSHIP.x : 680;
+    if (!this.save()) {
+      this.mothershipBoarded = wasBoarded;
+      this.pod.x = oldX;
+      this.ui.setMothershipBoarded(wasBoarded);
+      this.pod.docked = wasBoarded;
+      return;
+    }
+    this.ui.setMothershipBoarded(this.mothershipBoarded);
+    this.ui.toast(this.mothershipBoarded
+      ? `MOTHERSHIP DOCKED · MARKET & STORAGE · ${this.progress.coreFuel.toFixed(2)} CORE FUEL`
+      : 'MOTHERSHIP HATCH OPEN · MINER CONTROLS RESTORED');
+    if (this.mothershipBoarded) { this.ui.open('hub'); }
+
+  }
+  deployMiner() {
+    if (!this.mothershipBoarded || this.inOrbit || !this.isNearMothership()) return true;
+    const previous = { x: this.pod.x, y: this.pod.y, docked: this.pod.docked };
+    this.mothershipBoarded = false;
+    this.pod.x = 680;
+    this.pod.y = WORLD.spawnY;
+    this.pod.vx = this.pod.vy = 0;
+    this.pod.docked = false;
+    if (!this.save()) {
+      this.mothershipBoarded = true;
+      Object.assign(this.pod, previous);
+      return false;
+    }
+    this.ui.setMothershipBoarded(false);
+    return true;
   }
   get marketOnline() { return this.structures.some(s => s.kind === 'trade-post'); }
   get sellAccess() {
@@ -2373,6 +2405,16 @@ export class MiningScene extends Phaser.Scene {
       this.ui.drawMap(this.world, this.pod);
       this.uiClock = 0;
     }
+    const origin = this.worldPointToLocal(this.pod.x, this.pod.y, this.scale.width, this.scale.height);
+    const velocityPoint = this.worldPointToLocal(this.pod.x + this.pod.vx * 0.05,
+      this.pod.y + this.pod.vy * 0.05, this.scale.width, this.scale.height);
+    this.vehiclePose = advanceVehiclePose(this.vehiclePose, {
+      sideSpeed: (velocityPoint.x - origin.x) / 0.05,
+      verticalSpeed: (velocityPoint.y - origin.y) / 0.05,
+      facing: this.pod.facing, thrust: this.pod.thrusting,
+      grounded: this.pod.docked || Math.abs(this.pod.vy) < 0.1 && !this.pod.thrusting,
+      drilling: !!this.mining.target, paused: this.ui.paused, reducedMotion: this.reducedMotion,
+    }, dt);
     this.draw();
   }
   atmosphereView() {
@@ -2481,7 +2523,6 @@ export class MiningScene extends Phaser.Scene {
       angle = this.viewRotation,
       cos = Math.cos(angle),
       sin = Math.sin(angle),
-      viewSign = 1,
       cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, angle),
       surfaceStyle = MAPS[this.mapId].surface;
     const zoom = Math.max(0.0001, this.cameraZoom),
@@ -2751,15 +2792,6 @@ export class MiningScene extends Phaser.Scene {
           const markerX = px + tileWidth / 2, markerY = py + tileHeight / 2,
             markerScale = this.world.planetChart ? planetTileDecorationScale(tileWidth, tileHeight, T) : 1;
           const markerAlpha = 0.42 + light * 0.58;
-          for (const [nx, ny] of [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]) {
-            const neighborTile = this.world.get(nx, ny), neighborKey = keyOf(neighborTile.x, neighborTile.y);
-            if (!this.world.discovered.has(neighborKey) || this.world.destroyed.has(neighborKey)) continue;
-            const neighbor = neighborTile;
-            if (neighbor.ore !== tile.ore) continue;
-            const neighborCenter = project(nx * T + T / 2, ny * T + T / 2);
-            g.lineStyle(Math.max(0.75, 2 * markerScale), color, 0.18 + light * 0.16);
-            g.lineBetween(markerX, markerY, neighborCenter.x, neighborCenter.y);
-          }
           if (tile.geode || tile.regionFind) {
             const findColor = tile.geode ? 0xb8a8ff : REGION_FINDS[tile.regionFind!].tint;
             g.fillStyle(findColor, (this.reducedMotion ? 0.24 : 0.16 + (Math.sin(this.tick * 3 + x + y) + 1) * 0.06) * (0.45 + light * 0.55));
@@ -2771,7 +2803,7 @@ export class MiningScene extends Phaser.Scene {
               g.lineBetween(markerX - 12 * markerScale, markerY, markerX + 12 * markerScale, markerY);
             }
           }
-          g.fillStyle(color, 0.035 + light * 0.065);
+          g.fillStyle(color, 0.015 + light * 0.025);
           g.fillCircle(markerX, markerY, 15 * markerScale);
           const unitAmount = tile.oreUnits ?? 1;
           const crystalCount = unitAmount >= 3 ? 8 : unitAmount >= 2 ? 6 : unitAmount < 1 ? 2 : 4;
@@ -2816,7 +2848,7 @@ export class MiningScene extends Phaser.Scene {
               g.fillRect(crystalX, crystalY, 8 * markerScale, 3 * markerScale);
               g.fillRect(crystalX + 2 * markerScale, crystalY + 4 * markerScale, 8 * markerScale, 3 * markerScale);
             } else if (silhouette === 'nuggets') g.fillCircle(crystalX, crystalY, 4 * markerScale);
-            else g.fillRect(crystalX, crystalY, (5 + (i % 3)) * markerScale, (4 + (i % 2)) * markerScale);
+            else g.fillPoints([[-4,-2],[1,-4],[5,-1],[3,4],[-3,3]].map(([dx,dy]) => ({x:crystalX+dx*scale,y:crystalY+dy*scale})), true);
             g.fillStyle(0xffffff, (0.2 + light * 0.4) * markerAlpha);
             g.fillRect(crystalX, crystalY, 2 * scale, Math.max(0.5, scale));
           }
@@ -3423,13 +3455,10 @@ export class MiningScene extends Phaser.Scene {
     }
     const x = sx(this.pod.x),
       y = sy(this.pod.y),
-      f = this.pod.facing,
-      vehicleScale = podVisualScale(this.progress.levels, this.progress.shipComponents.length),
-      px = (offset: number) => x + offset * vehicleScale * viewSign,
-      py = (offset: number) => y + offset * vehicleScale * viewSign;
+      vehicleScale = podVisualScale(this.progress.levels, this.progress.shipComponents.length);
     const winchCable = this.surfaceWinchCable();
     if (this.mothershipBoarded) {
-      drawMothership(g, (dx, dy) => project(this.pod.x + dx, this.pod.y + dy + 22), this.pod.thrusting);
+      drawMothership(g, (dx, dy) => project(this.pod.x + dx, this.pod.y + dy + 22), this.pod.thrusting, this.vehiclePose);
       return;
     }
     if (winchCable) {
@@ -3478,23 +3507,6 @@ export class MiningScene extends Phaser.Scene {
       g.fillCircle(ax, ay, 8);
       g.lineStyle(2, 0xf4d597, 1);
       g.strokeCircle(ax, ay, 6);
-    }
-    if (this.pod.thrusting && !this.ui.paused) {
-      g.fillStyle(0x9fefe0, 0.12);
-      g.fillEllipse(x, py(30), 42 * vehicleScale, 44 * vehicleScale);
-      for (const xx of [-10, 10]) {
-        g.fillStyle(0xeea95e);
-        g.fillTriangle(
-          px(xx - 4),
-          py(14),
-          px(xx + 4),
-          py(14),
-          px(xx),
-          py(27 + (this.reducedMotion ? 0 : Math.sin(this.tick * 47) * 5)),
-        );
-        g.fillStyle(0xc7f2d9);
-        g.fillRect(px(xx - 2), py(14), 4 * vehicleScale, 7 * vehicleScale);
-      }
     }
     if (this.progress.pilotEscaping) {
       const side = this.world.gravitySign(this.pod.y), suit = PILOT_SUITS[this.progress.selectedSuit];
@@ -3552,212 +3564,8 @@ export class MiningScene extends Phaser.Scene {
     g.lineBetween(beamStartX, beamStartY, beamEndX + beamY * beamHalfWidth, beamEndY - beamX * beamHalfWidth);
     g.lineBetween(beamEndX - beamY * beamHalfWidth, beamEndY + beamX * beamHalfWidth,
       beamEndX + beamY * beamHalfWidth, beamEndY - beamX * beamHalfWidth);
-    g.fillStyle(0x121d22);
-    g.fillRect(px(-18), py(-9), 36 * vehicleScale, 23 * vehicleScale);
-    g.fillStyle(0x6c7c78);
-    g.fillRect(px(-18), py(-7), 7 * vehicleScale, 19 * vehicleScale);
-    g.fillRect(px(11), py(-7), 7 * vehicleScale, 19 * vehicleScale);
-    g.fillStyle(0x24373b);
-    g.fillRect(px(-19), py(8), 8 * vehicleScale, 7 * vehicleScale);
-    g.fillRect(px(11), py(8), 8 * vehicleScale, 7 * vehicleScale);
-    // Earned chassis upgrades add visible hardware without changing the compact collider.
-    const hullLevel = this.progress.levels.hull,
-      fuelLevel = this.progress.levels.fuel,
-      engineLevel = this.progress.levels.engine,
-      scannerLevel = this.progress.levels.scanner,
-      grappleLevel = this.progress.levels.grapple;
-    if (hullLevel > 1) {
-      const plateColor = hullLevel >= 4 ? 0x9ba99a : 0x71837c;
-      g.fillStyle(0x26383a, 0.96);
-      g.fillPoints([
-        { x: px(-19), y: py(-8) }, { x: px(-14), y: py(-12) }, { x: px(-11), y: py(9) }, { x: px(-18), y: py(12) },
-      ], true);
-      g.fillPoints([
-        { x: px(19), y: py(-8) }, { x: px(14), y: py(-12) }, { x: px(11), y: py(9) }, { x: px(18), y: py(12) },
-      ], true);
-      g.fillStyle(plateColor, 1);
-      g.fillPoints([
-        { x: px(-17), y: py(-7) }, { x: px(-13), y: py(-10) }, { x: px(-11), y: py(8) }, { x: px(-16), y: py(10) },
-      ], true);
-      g.fillPoints([
-        { x: px(17), y: py(-7) }, { x: px(13), y: py(-10) }, { x: px(11), y: py(8) }, { x: px(16), y: py(10) },
-      ], true);
-      if (hullLevel >= 3) {
-        g.lineStyle((hullLevel >= 5 ? 3 : 2) * vehicleScale, 0xc4b58e, 0.95);
-        g.lineBetween(px(-17), py(-5), px(-17), py(7));
-        g.lineBetween(px(17), py(-5), px(17), py(7));
-      }
-      if (hullLevel >= 5) {
-        g.fillStyle(0xf0ca82, 0.95);
-        g.fillCircle(px(-15), py(-7), 1.8 * vehicleScale);
-        g.fillCircle(px(15), py(-7), 1.8 * vehicleScale);
-      }
-    }
-    if (fuelLevel > 1) {
-      // A separate rear fuel spine keeps the upgrade distinguishable from the cargo hold.
-      const tanks = fuelLevel >= 4 ? [-8, 8] : [0];
-      for (const offset of tanks) {
-        const radius = (fuelLevel >= 3 ? 4.2 : 3.2) * vehicleScale;
-        g.fillStyle(0x142326, 1);
-        g.fillRoundedRect(px(offset - radius - 1), py(14), (radius + 1) * 2, (fuelLevel >= 4 ? 11 : 9) * vehicleScale, radius);
-        g.fillStyle(fuelLevel >= 5 ? 0x91d8c2 : 0x758b7d, 1);
-        g.fillRoundedRect(px(offset - radius), py(14), radius * 2, (fuelLevel >= 4 ? 9 : 7) * vehicleScale, radius);
-        g.lineStyle(1 * vehicleScale, 0xe4c783, 0.9);
-        g.lineBetween(px(offset - radius + 1), py(17), px(offset + radius - 1), py(17));
-      }
-    }
-    if (engineLevel > 1) {
-      const nozzleSize = (2.5 + Math.min(2, engineLevel - 2) * 0.6) * vehicleScale;
-      for (const side of [-1, 1]) {
-        const nx = px(side * (engineLevel >= 4 ? 11 : 8));
-        g.fillStyle(0x172326, 1);
-        g.fillRoundedRect(nx - nozzleSize - vehicleScale, py(21), (nozzleSize + vehicleScale) * 2, 5 * vehicleScale, 2 * vehicleScale);
-        g.fillStyle(engineLevel >= 5 ? 0x91ead4 : 0xeaa15e, 0.95);
-        g.fillTriangle(nx - nozzleSize, py(24), nx + nozzleSize, py(24), nx, py(29 + (this.pod.thrusting && !this.reducedMotion ? Math.sin(this.tick * 40) * 2 : 0)));
-      }
-    }
-    if (scannerLevel > 1) {
-      const mastTop = py(-13 - Math.min(9, (scannerLevel - 1) * 2.1));
-      g.lineStyle((scannerLevel >= 4 ? 2 : 1.4) * vehicleScale, 0x9bb4a9, 0.96);
-      g.lineBetween(px(0), py(-13), px(0), mastTop);
-      if (scannerLevel === 2) {
-        g.lineBetween(px(-5), py(-17), px(5), py(-17));
-      } else if (scannerLevel >= 3) {
-        g.lineBetween(px(-5 - (scannerLevel - 3)), mastTop + 2 * vehicleScale, px(5 + (scannerLevel - 3)), mastTop + 2 * vehicleScale);
-        g.fillStyle(scannerLevel >= 5 ? 0x9bf0dc : 0xeac781, 1);
-        g.fillCircle(px(0), mastTop, (2 + (scannerLevel >= 5 ? 0.5 : 0)) * vehicleScale);
-      }
-      if (scannerLevel >= 4 && !this.reducedMotion && !this.ui.paused) {
-        const sweep = (this.tick * 0.9) % (Math.PI * 2), sweepX = Math.cos(sweep) * 11 * vehicleScale,
-          sweepY = mastTop + Math.sin(sweep) * 4 * vehicleScale;
-        g.lineStyle(1 * vehicleScale, 0x8fe5d0, 0.48);
-        g.lineBetween(px(0), mastTop, px(0) + sweepX, sweepY);
-      }
-    }
-    if (grappleLevel > 1) {
-      const socketSize = (2 + Math.min(2, grappleLevel - 2) * 0.45) * vehicleScale;
-      for (const side of [-1, 1]) {
-        const gx = px(side * (grappleLevel >= 4 ? 17 : 14));
-        g.fillStyle(0x19282a, 1);
-        g.fillCircle(gx, py(5), socketSize + 1.2 * vehicleScale);
-        g.lineStyle(1.3 * vehicleScale, grappleLevel >= 5 ? 0xa4ecd9 : 0xb8aa83, 0.95);
-        g.strokeCircle(gx, py(5), socketSize);
-        if (grappleLevel >= 3) {
-          g.lineStyle(1.3 * vehicleScale, 0xd6c89e, 0.9);
-          g.lineBetween(gx, py(5), gx + side * (2 + grappleLevel * 0.45) * vehicleScale, py(8));
-        }
-      }
-    }
-    if (this.progress.salvageMagnet) {
-      g.lineStyle(1.6 * vehicleScale, 0x83d7c5, 0.95);
-      g.strokeCircle(px(-15), py(1), 3 * vehicleScale);
-      g.strokeCircle(px(15), py(1), 3 * vehicleScale);
-      g.lineStyle(2 * vehicleScale, 0xa5e7d6, 0.85);
-      g.lineBetween(px(-15), py(1), px(-15), py(-3));
-      g.lineBetween(px(15), py(1), px(15), py(-3));
-    }
-    if (this.progress.stasisModule) {
-      g.lineStyle(1.8 * vehicleScale, 0x83c9bc, 0.88);
-      g.strokeEllipse(x, py(8), 26 * vehicleScale, 10 * vehicleScale);
-      g.fillStyle(0x9ce8d7, 0.9);
-      g.fillCircle(px(-12), py(8), 1.5 * vehicleScale);
-      g.fillCircle(px(12), py(8), 1.5 * vehicleScale);
-    }
-    if (this.progress.returnWinch) {
-      const spoolY = py(-16);
-      g.fillStyle(0x25383a, 1);
-      g.fillRoundedRect(px(-5), spoolY - 2 * vehicleScale, 10 * vehicleScale, 5 * vehicleScale, 2 * vehicleScale);
-      g.lineStyle(1.3 * vehicleScale, 0xd7c18f, 0.95);
-      g.strokeCircle(px(0), spoolY, 3 * vehicleScale);
-      g.lineStyle(1 * vehicleScale, 0xa7b5a7, 0.9);
-      g.lineBetween(px(-3), spoolY, px(3), spoolY);
-    }
-    const profile = POD_PROFILES[this.progress.selectedProfile];
-    if (profile.style === 'antenna') {
-      g.lineStyle(2, 0x9cbdb3, 0.95);
-      g.lineBetween(px(0), py(-14), px(0), py(-29));
-      g.lineBetween(px(-6), py(-26), px(6), py(-26));
-      g.fillStyle(0xeac781);
-      g.fillCircle(px(0), py(-30), 2.5 * vehicleScale);
-    } else if (profile.style === 'stabilizers') {
-      g.fillStyle(0x8fa89c);
-      g.fillPoints([{ x: px(-11), y: py(-5) }, { x: px(-19), y: py(-10) }, { x: px(-17), y: py(10) }, { x: px(-10), y: py(8) }], true);
-      g.fillPoints([{ x: px(11), y: py(-5) }, { x: px(19), y: py(-10) }, { x: px(17), y: py(10) }, { x: px(10), y: py(8) }], true);
-      g.fillStyle(0x334a47);
-      g.fillRect(px(-18), py(3), 3 * vehicleScale, 3 * vehicleScale);
-      g.fillRect(px(15), py(3), 3 * vehicleScale, 3 * vehicleScale);
-    } else if (profile.style === 'armor') {
-      g.fillStyle(0x7b8e82);
-      g.fillRoundedRect(px(-16), py(-5), 5 * vehicleScale, 17 * vehicleScale, 2 * vehicleScale);
-      g.fillRoundedRect(px(11), py(-5), 5 * vehicleScale, 17 * vehicleScale, 2 * vehicleScale);
-      g.fillStyle(0xb8c1a2);
-      g.fillTriangle(px(-7), py(12), px(7), py(12), px(0), py(20));
-    }
+    drawMiner(g, x, y, vehicleScale, this.progress, this.vehiclePose, this.reducedMotion);
     const paint = POD_PAINTS[this.progress.selectedPaint];
-    g.fillStyle(paint.hull);
-    g.fillRoundedRect(px(-12), py(-16), 24 * vehicleScale, 29 * vehicleScale, 4 * vehicleScale);
-    // Enamel shell, shaded side panel, protective window gasket and worn fasteners.
-    g.fillStyle(0x152c35, 0.3);
-    g.fillPoints([{ x: px(7), y: py(-14) }, { x: px(12), y: py(-11) },
-      { x: px(12), y: py(10) }, { x: px(6), y: py(13) }], true);
-    g.lineStyle(1.2 * vehicleScale, 0x101e27, 0.95);
-    g.strokeRoundedRect(px(-12), py(-16), 24 * vehicleScale, 29 * vehicleScale, 4 * vehicleScale);
-    g.fillStyle(paint.trim);
-    g.fillRect(px(-8), py(-15), 15 * vehicleScale, 2 * vehicleScale);
-    g.fillStyle(0x11212b);
-    g.fillRoundedRect(px(-10), py(-11), 20 * vehicleScale, 14 * vehicleScale, 4 * vehicleScale);
-    for (const side of [-1, 1]) {
-      g.fillStyle(0xe9dac0, 0.9);
-      g.fillCircle(px(side * 9), py(10), 0.9 * vehicleScale);
-      g.fillStyle(0x263743);
-      g.fillRoundedRect(px(side * 14 - 3), py(10), 6 * vehicleScale, 7 * vehicleScale, 2 * vehicleScale);
-      g.lineStyle(1.2 * vehicleScale, 0xb7c5bc, 0.8);
-      g.lineBetween(px(side * 14 - 3), py(15), px(side * 14 + 3), py(15));
-    }
-    const decal = POD_DECALS[this.progress.selectedDecal];
-    g.fillStyle(decal.color);
-    if (decal.style === 'stripe') g.fillRect(px(-6), py(5), 12 * vehicleScale, 2 * vehicleScale);
-    else if (decal.style === 'arrow') g.fillPoints([
-      { x: px(-5), y: py(4) }, { x: px(4), y: py(4) }, { x: px(4), y: py(1) },
-      { x: px(8), y: py(6) }, { x: px(4), y: py(10) }, { x: px(4), y: py(7) }, { x: px(-5), y: py(7) },
-    ], true);
-    else if (decal.style === 'crest') {
-      g.fillPoints([{ x: px(0), y: py(1) }, { x: px(6), y: py(6) }, { x: px(0), y: py(11) }, { x: px(-6), y: py(6) }], true);
-      g.fillStyle(0x24373b);
-      g.fillCircle(px(0), py(6), 1.5 * vehicleScale);
-    } else {
-      g.fillPoints([{ x: px(-6), y: py(4) }, { x: px(-2), y: py(1) }, { x: px(2), y: py(4) }, { x: px(-2), y: py(7) }], true);
-      g.fillPoints([{ x: px(1), y: py(8) }, { x: px(5), y: py(5) }, { x: px(9), y: py(8) }, { x: px(5), y: py(11) }], true);
-    }
-    g.fillStyle(0x284a50);
-    g.fillRoundedRect(px(-9), py(-10), 18 * vehicleScale, 12 * vehicleScale, 3 * vehicleScale);
-    g.fillStyle(profile.cabin);
-    g.fillRect(px(-7), py(-9), 14 * vehicleScale, 3 * vehicleScale);
-    const suit = PILOT_SUITS[this.progress.selectedSuit];
-    g.fillStyle(suit.body);
-    g.fillRect(px(-4), py(-5), 8 * vehicleScale, 7 * vehicleScale);
-    g.fillStyle(suit.trim);
-    g.fillRoundedRect(px(-4), py(-9), 8 * vehicleScale, 5 * vehicleScale, 2 * vehicleScale);
-    g.fillStyle(0x18343a);
-    g.fillRect(px(-2), py(-7), 4 * vehicleScale, 2 * vehicleScale);
-    g.fillStyle(0x6d9293);
-    g.fillRect(px(-7), py(-5), 5 * vehicleScale, 4 * vehicleScale);
-    g.fillStyle(0xe0f9f0, 0.23);
-    g.fillPoints([{ x: px(-8), y: py(-9) }, { x: px(-2), y: py(-9) },
-      { x: px(-7), y: py(0) }, { x: px(-8), y: py(0) }], true);
-    g.fillStyle(0x263b41);
-    g.fillRect(px(-7), py(7), 14 * vehicleScale, 2 * vehicleScale);
-    g.fillStyle(0xe9c28c);
-    g.fillRect(px(-6), py(7), 3 * vehicleScale, vehicleScale);
-    if (this.pod.docked) {
-      g.lineStyle(2, 0x95c9b6, 0.9);
-      g.lineBetween(px(-26), py(21), px(26), py(21));
-      g.lineBetween(px(-26), py(21), px(-26), py(14));
-      g.lineBetween(px(26), py(21), px(26), py(14));
-    }
-    g.lineStyle(1, 0x4b6664);
-    g.lineBetween(px(-5), py(16), px(4), py(16));
-    g.lineBetween(px(-3), py(19), px(2), py(19));
     g.fillStyle(paint.light);
     g.fillCircle(x + beamX * 13, y + beamY * 5, 2.5 * vehicleScale);
     const drillTier = drillVisualTier(this.progress.levels.drill),
@@ -3776,7 +3584,7 @@ export class MiningScene extends Phaser.Scene {
       drillSpread = (2 + drillTier * 0.75) * vehicleScale,
       drillPulse = drillActive && !this.reducedMotion ? 0.8 + Math.sin(this.tick * 18) * 0.2 : 1;
     // Earned drill hardware pivots toward the actual 360-degree aim vector;
-    // the chassis stays upright while the camera turns around the miner.
+    // the chassis banks independently, so visual tilt never changes drill aim.
     g.lineStyle(4.5 * vehicleScale, 0x18272a, 1);
     g.lineBetween(drillBaseX, drillBaseY, drillTipX, drillTipY);
     g.lineStyle(2.2 * vehicleScale, drillColor, 0.95 * drillPulse);
@@ -3890,7 +3698,7 @@ export class MiningScene extends Phaser.Scene {
         profile = drillImpactProfile(target, this.mapId),
         targetDx = target.x * T + T / 2 - this.pod.x;
       const sideways = Math.abs(targetDx) > 20;
-      const direction = sideways ? Math.sign(targetDx) || f : 0;
+      const direction = sideways ? Math.sign(targetDx) || this.pod.facing : 0;
       this.particles.push({
         x: this.pod.x + (sideways ? direction * 15 : (Math.random() - 0.5) * 12),
         y: this.pod.y + (sideways ? (Math.random() - 0.5) * 20 : 16),

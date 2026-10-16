@@ -20,7 +20,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
     <button class="close" id="close" aria-label="Close panel">×</button>
     <div class="pause-menu">
       <div class="pause-location"><span aria-hidden="true">Ⅱ</span> ${MAPS[map].name} <span class="pause-location-status">${docked ? 'DOCKED' : `${depth.toLocaleString()} m BELOW SURFACE`}</span></div>
-      <h2>Expedition<br><em>paused.</em></h2>
+      <h2>Expedition <em>paused.</em></h2>
       <button id="open-codex">Expedition Codex <span>Engineering, resources & civilisations</span></button><button id="resume" class="primary pause-resume" aria-label="RESUME EXPEDITION"><span>Resume expedition</span><span aria-hidden="true">↗</span></button>
       <div class="pause-file-actions" aria-label="Expedition saves">
         <button id="save" aria-label="SAVE EXPEDITION">Save expedition <span aria-hidden="true">↓</span></button>
