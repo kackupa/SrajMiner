@@ -144,6 +144,7 @@ export type UIActions = {
   warehouseStock: (mapId?: MapId) => Cargo;
   warehouseCapacity: (mapId?: MapId) => number;
   warehouseMaps: () => MapId[];
+  discardOre: (ore: Ore, units: number) => number;
   transferWarehouse: (ore: Ore, direction: WarehouseDirection, units: number, mapId?: MapId) => number;
   contributeSystemProject: () => boolean;
   contributeCargoTug: () => boolean;
@@ -201,8 +202,7 @@ export class HUD {
   exportUrl?: string;
   exportFilename = '';
   styleSection: 'paint' | 'suit' | 'decal' | 'profile' = 'paint';
-  warehouseSelectedOre: Ore = 'copper';
-  warehouseUnits = 1;
+  warehouseAmounts: Partial<Record<Ore, number>> = {};
   warehouseSourceMap: MapId = 'cryo-shelf';
   returnFocus: HTMLElement | null = null;
   introStep: 'title' | 'atlas' | 'controls' = 'title';
@@ -379,16 +379,18 @@ export class HUD {
   on(id: string, fn: () => void) {
     document.getElementById(id)?.addEventListener('click', fn);
   }
-  private moveWarehouse(direction: WarehouseDirection, all = false) {
-    const ore = document.querySelector<HTMLSelectElement>('#warehouse-ore')?.value as Ore | undefined;
-    if (!ore || !ORE_KEYS.includes(ore)) return;
-    this.warehouseSelectedOre = ore;
-    const input = document.querySelector<HTMLInputElement>('#warehouse-units');
-    this.warehouseUnits = input ? Math.max(0.5, Number(input.value) || 0.5) : this.warehouseUnits;
+  private moveWarehouse(ore: Ore, direction: WarehouseDirection, all = false) {
+    const input = document.querySelector<HTMLInputElement>('#warehouse-units-' + ore);
+    if (!all && input && !input.reportValidity()) return;
+    const units = Number(input?.value || 1);
+    const panel = document.querySelector<HTMLElement>('.camp-main');
+    const scrollTop = panel?.scrollTop ?? 0;
     const sourceMap = direction === 'withdraw' ? this.warehouseSourceMap : undefined;
-    const moved = this.actions.transferWarehouse(ore, direction, all ? Number.MAX_SAFE_INTEGER : this.warehouseUnits, sourceMap);
-    if (!moved) this.toast(direction === 'store' ? `No ${ORES[ore].name.toLowerCase()} available to store.` : 'No stored ore fits in the miner’s cargo hold.');
+    const moved = this.actions.transferWarehouse(ore, direction, all ? Number.MAX_SAFE_INTEGER : units, sourceMap);
+    this.toast(moved ? (direction === 'store' ? 'Stored ' : 'Took ') + moved + ' ' + ORES[ore].name.toLowerCase() + '.' : 'No room or ore available for this transfer.');
     this.renderModal();
+    const nextPanel = document.querySelector<HTMLElement>('.camp-main');
+    if (nextPanel) nextPanel.scrollTop = scrollTop;
   }
   private updateMuteButton(muted: boolean) {
     const button = document.querySelector<HTMLButtonElement>('#audio');
@@ -598,13 +600,13 @@ export class HUD {
       }).join('');
       const warehouse = this.actions.structures().find((entry) => entry.kind === 'warehouse'), warehouseLevel = warehouse?.level ?? 1, warehouseNextCost = UNDERGROUND_BUILDING.warehouse.capacityUpgrade[warehouseLevel],
         capacityUpgrade = !warehouse ? 'MOTHERSHIP HOLD · BUILD A WAREHOUSE TO EXPAND' : warehouseNextCost === undefined ? 'MAX CAPACITY' : `<button id="upgrade-warehouse" ${p.money < warehouseNextCost ? 'disabled' : ''}>UPGRADE · $${warehouseNextCost}</button>`;
-      content = `<p>Keep building materials in the mothership hold. Select an ore and quantity to store or take out. Stored ore stays safe if the miner is lost. Store actions always use this colony; withdraw uses the selected warehouse.</p>${remoteSourcePicker}<div class="network-status"><b>LOCAL STORAGE · ${totalStored} / ${localCapacity} ORE</b><span>Warehouse level ${warehouseLevel} · storage upgrades expand production capacity.</span>${capacityUpgrade}</div><div class="service-row"><div><b>BUILD BASIC EXCAVATOR</b><small>2 ore per hour · copper and iron · $${UNDERGROUND_BUILDING.extractor.credits} + ${Object.entries(UNDERGROUND_BUILDING.extractor.materials).map(([ore, n]) => `${n} ${ore}`).join(' + ')}</small></div><button id="warehouse-build-extractor" ${localFacilities.length >= UNDERGROUND_BUILDING.extractor.maxPerMap || !warehouse || p.money < UNDERGROUND_BUILDING.extractor.credits || Object.entries(UNDERGROUND_BUILDING.extractor.materials).some(([ore, n]) => p.cargo[ore as Ore] < n) ? 'disabled' : ''}>BUILD</button></div>${facilityRows ? `<div class="upgrade-list">${facilityRows}</div>` : ''}<div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b></div>`).join('')}</div><div class="warehouse-transfer"><label for="warehouse-ore">SELECT ORE</label><select id="warehouse-ore">${ORE_KEYS.map((ore) => `<option value="${ore}" ${ore === this.warehouseSelectedOre ? 'selected' : ''}>${ORES[ore].name.toUpperCase()}</option>`).join('')}</select><label for="warehouse-units">UNITS · HALF-UNIT STEPS</label><input id="warehouse-units" type="number" min="0.5" step="0.5" value="${this.warehouseUnits}" /></div><div class="warehouse-actions"><button id="warehouse-store">STORE SELECTED</button><button id="warehouse-store-all">STORE ALL OF THIS ORE</button><button id="warehouse-withdraw">TAKE SELECTED</button><button id="warehouse-withdraw-all">TAKE ALL OF THIS ORE</button></div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES</b><span>${tugCopy}</span>${!tug.complete && tugStage?.mapId === this.mapId ? `<button id="fund-tug" ${canFundTug ? '' : 'disabled'}>CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>LONG-RANGE SURVEY ARRAY · ${survey.completedStages}/${survey.totalStages} STAGES</b><span>${surveyCopy}</span>${!survey.complete && surveyStage?.mapId === this.mapId ? `<button id="fund-survey" ${canFundSurvey ? '' : 'disabled'}>CONTRIBUTE ${surveyStage.units} ${surveyStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">${remoteWarehousesOnline ? `Remote access is online · ${warehouseMaps.length}/${Object.keys(MAPS).length} colony depots connected.` : `This inventory belongs to ${MAPS[this.mapId].name}.`} Take out the ore you want to sell, then use Sell aboard the mothership or a built Market uplink. Stored reserves are never sold.</p>`;
+      content = `<p>Keep building materials in the mothership hold. Use each ore row to store or take out an amount in half-unit steps. Stored ore stays safe if the miner is lost. Store actions always use this colony; withdraw uses the selected warehouse.</p>${remoteSourcePicker}<div class="network-status"><b>LOCAL STORAGE · ${totalStored} / ${localCapacity} ORE</b><span>Warehouse level ${warehouseLevel} · storage upgrades expand production capacity.</span>${capacityUpgrade}</div><div class="service-row"><div><b>BUILD BASIC EXCAVATOR</b><small>2 ore per hour · copper and iron · $${UNDERGROUND_BUILDING.extractor.credits} + ${Object.entries(UNDERGROUND_BUILDING.extractor.materials).map(([ore, n]) => `${n} ${ore}`).join(' + ')}</small></div><button id="warehouse-build-extractor" ${localFacilities.length >= UNDERGROUND_BUILDING.extractor.maxPerMap || !warehouse || p.money < UNDERGROUND_BUILDING.extractor.credits || Object.entries(UNDERGROUND_BUILDING.extractor.materials).some(([ore, n]) => p.cargo[ore as Ore] < n) ? 'disabled' : ''}>BUILD</button></div>${facilityRows ? `<div class="upgrade-list">${facilityRows}</div>` : ''}<div class="ore-list warehouse-stock">${ORE_KEYS.map((ore) => `<div class="warehouse-ore-row"><span><i style="background:${ORES[ore].hex}"></i>${ORES[ore].name}</span><span>MINER × ${p.cargo[ore]}</span><b>STORED × ${stock[ore]}</b><label class="warehouse-row-amount">Units<input id="warehouse-units-${ore}" aria-label="${ORES[ore].name} units" type="number" min="0.5" step="0.5" required value="${this.warehouseAmounts[ore] ?? 1}" /></label><section class="warehouse-row-actions" aria-label="Transfer ${ORES[ore].name}"><button id="warehouse-store-${ore}" ${p.cargo[ore] <= 0 || totalStored >= localCapacity ? 'disabled' : ''}>Store</button><button id="warehouse-withdraw-${ore}" ${stock[ore] <= 0 ? 'disabled' : ''}>Take</button><button id="warehouse-store-all-${ore}" ${p.cargo[ore] <= 0 || totalStored >= localCapacity ? 'disabled' : ''}>Store all</button><button id="warehouse-withdraw-all-${ore}" ${stock[ore] <= 0 ? 'disabled' : ''}>Take all</button><button id="warehouse-discard-${ore}" class="discard-ore" title="Permanently discard this amount from the miner" ${p.cargo[ore] <= 0 ? 'disabled' : ''}>Discard</button></section></div>`).join('')}</div><div class="network-status"><b>VESPER RELAY · ${relay.completedStages}/${relay.totalStages} STAGES</b><span>${relayCopy}</span>${!relay.complete && relayStage?.mapId === this.mapId ? `<button id="fund-relay" ${canFundRelay ? '' : 'disabled'}>CONTRIBUTE ${relayStage.units} ${relayStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>CARGO TUG · ${tug.completedStages}/${tug.totalStages} STAGES</b><span>${tugCopy}</span>${!tug.complete && tugStage?.mapId === this.mapId ? `<button id="fund-tug" ${canFundTug ? '' : 'disabled'}>CONTRIBUTE ${tugStage.units} ${tugStage.ore.toUpperCase()}</button>` : ''}</div><div class="network-status"><b>LONG-RANGE SURVEY ARRAY · ${survey.completedStages}/${survey.totalStages} STAGES</b><span>${surveyCopy}</span>${!survey.complete && surveyStage?.mapId === this.mapId ? `<button id="fund-survey" ${canFundSurvey ? '' : 'disabled'}>CONTRIBUTE ${surveyStage.units} ${surveyStage.ore.toUpperCase()}</button>` : ''}</div><p class="fine">${remoteWarehousesOnline ? `Remote access is online · ${warehouseMaps.length}/${Object.keys(MAPS).length} colony depots connected.` : `This inventory belongs to ${MAPS[this.mapId].name}.`} Take out the ore you want to sell, then use Sell aboard the mothership or a built Market uplink. Stored reserves are never sold.</p>`;
       if (!warehouse) {
         title = 'Mothership ore hold.';
         sub = 'STORE · WITHDRAW · BUILD';
         const stockStart = content.indexOf('<div class="ore-list warehouse-stock">');
         const projectsStart = content.indexOf('<div class="network-status"><b>VESPER RELAY');
-        content = '<p>Reserve ores for your mining camp. Withdraw ore for construction or sale; everything left in storage stays safe.</p>' +
+        content = '<p>Reserve ores for your mining camp. Withdraw ore for construction or sale. Cargo full? Discard an amount from its row to make room. Discarded ore is permanently lost; stored ore stays safe.</p>' +
           '<div class="network-status"><b>MOTHERSHIP HOLD · ' + totalStored + ' / ' + localCapacity + ' ORE</b><span>Build a warehouse to expand storage. Carry construction materials in your rig. The first camp and uplink need no credits.</span></div>' + content.slice(stockStart, projectsStart);
       }
     } else if (name === 'service') {
@@ -910,10 +912,28 @@ export class HUD {
         tick();
       }
     });
-    this.on('warehouse-store', () => this.moveWarehouse('store'));
-    this.on('warehouse-store-all', () => this.moveWarehouse('store', true));
-    this.on('warehouse-withdraw', () => this.moveWarehouse('withdraw'));
-    this.on('warehouse-withdraw-all', () => this.moveWarehouse('withdraw', true));
+    for (const ore of ORE_KEYS) {
+      document.getElementById('warehouse-units-' + ore)?.addEventListener('change', (event) => {
+        const input = event.target as HTMLInputElement;
+        if (input.validity.valid) this.warehouseAmounts[ore] = Number(input.value);
+      });
+      this.on('warehouse-discard-' + ore, () => {
+        const input = document.querySelector<HTMLInputElement>('#warehouse-units-' + ore);
+        if (!input || !input.reportValidity()) return;
+        const units = Math.min(Number(input.value), this.p.cargo[ore]);
+        if (units <= 0 || !window.confirm('Permanently discard ' + units + ' ' + ORES[ore].name.toLowerCase() + ' from the miner? Stored ore will be kept.')) return;
+        const panel = document.querySelector<HTMLElement>('.camp-main');
+        const scrollTop = panel?.scrollTop ?? 0;
+        this.actions.discardOre(ore, units);
+        this.renderModal();
+        const nextPanel = document.querySelector<HTMLElement>('.camp-main');
+        if (nextPanel) nextPanel.scrollTop = scrollTop;
+      });
+      this.on('warehouse-store-' + ore, () => this.moveWarehouse(ore, 'store'));
+      this.on('warehouse-store-all-' + ore, () => this.moveWarehouse(ore, 'store', true));
+      this.on('warehouse-withdraw-' + ore, () => this.moveWarehouse(ore, 'withdraw'));
+      this.on('warehouse-withdraw-all-' + ore, () => this.moveWarehouse(ore, 'withdraw', true));
+    }
     this.on('upgrade-warehouse', () => { this.toast(this.actions.upgradeWarehouse() ? 'WAREHOUSE CAPACITY UPGRADED.' : 'UPGRADE FAILED · CHECK CREDITS AND SAVE STORAGE.'); this.renderModal(); });
     for (const extractor of this.actions.structures().filter((entry) => entry.kind === 'extractor')) this.on(`upgrade-extractor-${encodeURIComponent(extractor.id)}`, () => {
       this.toast(this.actions.upgradeExtractor(extractor.id) ? 'EXTRACTOR UPGRADED · NEW ORES AND RATE ONLINE.' : 'UPGRADE FAILED · CHECK CREDITS, ORE AND SAVE STORAGE.'); this.renderModal();

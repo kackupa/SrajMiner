@@ -562,6 +562,7 @@ export class MiningScene extends Phaser.Scene {
         warehouseStock: (mapId) => ({ ...(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.warehouse ?? emptyCargo() : this.warehouseCargo) }),
         warehouseCapacity: (mapId) => warehouseCapacity(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.structures ?? [] : this.structures) + (!mapId || mapId === this.mapId ? MOTHERSHIP.storageCapacity : 0),
         warehouseMaps: () => this.warehouseMaps(),
+        discardOre: (ore, units) => this.discardOre(ore, units),
         transferWarehouse: (ore, direction, units, mapId) => this.transferWarehouse(ore, direction, units, mapId),
         contributeSystemProject: () => this.contributeSystemProject(),
         contributeCargoTug: () => this.contributeCargoTug(),
@@ -1066,6 +1067,21 @@ export class MiningScene extends Phaser.Scene {
       const structures = id === this.mapId ? this.structures : this.mapStates[id]?.structures;
       return id === this.mapId || (structures?.some((entry) => entry.kind === 'warehouse') ?? false);
     });
+  }
+  discardOre(ore: Ore, units: number) {
+    if (!Object.hasOwn(this.progress.cargo, ore) || !Number.isFinite(units) || units < 0.5) return 0;
+    const removed = Math.min(this.progress.cargo[ore], Math.floor(units * 2) / 2);
+    if (removed <= 0) return 0;
+    const oldCargo = this.progress.cargo;
+    this.progress.cargo = { ...oldCargo, [ore]: oldCargo[ore] - removed };
+    if (!this.save()) {
+      this.progress.cargo = oldCargo;
+      this.rememberCurrentMap();
+      this.ui.toast('SAVE FAILED · Ore kept in your miner.');
+      return 0;
+    }
+    this.ui.toast('DISCARDED ' + removed + ' ' + ore.toUpperCase() + ' · Cargo space freed.');
+    return removed;
   }
   transferWarehouse(ore: Ore, direction: WarehouseDirection, units: number, selectedMapId?: MapId) {
     if (!this.nearbyWarehouse) return 0;

@@ -224,3 +224,36 @@ footer .bank { margin-left:auto; font-size:10px; }
  .pause-screen .pause-save-state { margin:8px 0; }
  .pause-screen .pause-recovery-note { display:none; }
 }
+/* Ore transfers stay beside their inventory, including on narrow screens. */
+.ore-list.warehouse-stock > .warehouse-ore-row {
+  grid-template-columns: minmax(110px, 1fr) 110px 110px 72px minmax(280px, 340px);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+.warehouse-row-amount { display: grid; gap: 3px; font-size: 10px; color: #9cb4be; }
+.warehouse-row-amount input { width: 100%; min-width: 0; height: 36px; padding: 6px; }
+.warehouse-row-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.warehouse-row-actions button { min-width: 0; min-height: 40px; padding: 6px; font-size: 11px; white-space: nowrap; }
+@media (max-width: 1050px) {
+  .ore-list.warehouse-stock > .warehouse-ore-row { grid-template-columns: minmax(100px, 1fr) 100px 100px; }
+  .warehouse-row-amount { grid-column: 1; grid-row: 2; max-width: 90px; }
+  .warehouse-row-actions { grid-column: 2 / -1; grid-row: 2; }
+}
+@media (max-width: 480px) {
+  .ore-list.warehouse-stock > .warehouse-ore-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .warehouse-ore-row > span:first-child { grid-column: 1 / -1; }
+  .warehouse-ore-row > span:nth-child(2), .warehouse-ore-row > b { grid-row: 2; }
+  .warehouse-row-amount { grid-row: 3; max-width: none; }
+  .warehouse-row-actions { grid-column: 1 / -1; grid-row: 4; }
+}
+.warehouse-row-amount input { background: #0a1a25; color: #f1eee3; border: 1px solid #385465; border-radius: 3px; font: inherit; font-size: 14px; color-scheme: dark; }
+.warehouse-row-amount input:focus-visible { outline: 2px solid #ffb66d; outline-offset: 2px; }
+.warehouse-row-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.warehouse-row-actions .discard-ore { color: #ffb0a0; border-color: #85534d; }
+@media (min-width: 1051px) {
+  .ore-list.warehouse-stock > .warehouse-ore-row { grid-template-columns: minmax(100px, 1fr) 100px 100px 64px minmax(340px, 400px); }
+}
+@media (min-width: 481px) and (max-width: 1050px) {
+  .warehouse-row-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
