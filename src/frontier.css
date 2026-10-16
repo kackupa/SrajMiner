@@ -257,3 +257,105 @@ footer .bank { margin-left:auto; font-size:10px; }
 @media (min-width: 481px) and (max-width: 1050px) {
   .warehouse-row-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+/* Mobile controls: one primary action and an optional equipment tray. */
+@media (any-pointer: coarse) {
+  .touch-primary { position: absolute; right: max(12px, env(safe-area-inset-right)); bottom: max(144px, calc(env(safe-area-inset-bottom) + 132px)); display: flex; gap: 8px; pointer-events: auto; }
+  .touch-primary button { font-size: 13px; min-height: 48px; padding: 10px 16px; }
+  .touch-primary [data-action="INTERACT"], .touch-primary [data-action="PLACE"] { background: #ffb66d; color: #10202c; font-weight: 700; }
+  .touch-tools { top: auto; bottom: max(204px, calc(env(safe-area-inset-bottom) + 192px)); right: max(12px, env(safe-area-inset-right)); display: grid; grid-template-columns: repeat(3, minmax(56px, 1fr)); padding: 8px; border: 1px solid #527081; border-radius: 12px; background: #081b2af5; overflow: visible; }
+  .touch-pad { grid-template-columns: repeat(3, clamp(48px, 7vw, 60px)); gap: 4px; }
+  .touch-pad button { height: clamp(52px, 8vw, 60px); }
+  .touch-rotate { display: none; }
+  .mission-tip { top: 64px; left: 12px; width: min(330px, calc(100% - 24px)); padding: 8px 10px; }
+  .mission-tip b { font-size: 12px; }
+  .mission-tip div > span { font-size: 12px; }
+  .touch-controls.placing .touch-primary { bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+@media (any-pointer: coarse) and (max-height: 500px) {
+  .mission-tip { top: 54px; width: min(300px, 40vw); }
+  .mission-tip div > span { display: none; }
+  .touch-primary { bottom: 16px; right: 50%; transform: translateX(50%); }
+  .touch-tools { bottom: 74px; right: 50%; transform: translateX(50%); }
+}
+@media (any-pointer: coarse) {
+  .ore-list.warehouse-stock > .mobile-storage-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mobile-storage-row [hidden] { display: none !important; }
+  .storage-toggle { grid-column: 1 / -1; display: flex; gap: 10px; align-items: center; text-align: left; min-height: 52px; background: transparent; font-size: 16px; border: 0; }
+  .storage-toggle > span { margin-left: auto; }
+  .mobile-storage-row > span, .mobile-storage-row > b { grid-row: 2; }
+  .mobile-storage-row .warehouse-row-amount { grid-column: 1; grid-row: 3; max-width: none; font-size: 12px; }
+  .storage-presets { grid-column: 2; grid-row: 3; display: flex; gap: 5px; align-items: end; }
+  .storage-presets button { flex: 1; min-width: 44px; min-height: 48px; padding: 4px; }
+  .mobile-storage-row .warehouse-row-actions { grid-column: 1 / -1; grid-row: 4; grid-template-columns: 1fr 1fr; }
+  .mobile-storage-row .warehouse-row-actions button { min-height: 48px; font-size: 14px; }
+  .mobile-storage-row .discard-ore { grid-column: 1 / -1; }
+  .storage-expanded { border-left: 2px solid #ffb66d; padding-left: 10px !important; }
+}
+@media (any-pointer: coarse) and (max-height: 500px) { .mission-tip { top: 82px; } }
+@media (any-pointer: coarse) and (max-width: 360px) {
+  .touch-pad { grid-template-columns: repeat(3, 48px); gap: 2px; }
+  .touch-flight { left: 8px; }
+  .touch-drill { right: 8px; }
+  .telemetry { width: 220px; }
+}
+@media (any-pointer: coarse) {
+ .trade-terminal [hidden] { display: none !important; }
+ .mobile-buyer { display: grid; grid-template-columns: 70px 1fr; align-items: center; gap: 10px; }
+ .mobile-buyer select { min-height: 48px; width: 100%; font-size: 16px; }
+ .buyer-brief { display: block; padding: 12px 0; }
+ .buyer-brief > .planet-art, .buyer-brief .eyebrow, .buyer-brief h3, .buyer-brief p:first-of-type, .buyer-brief button { display: none; }
+ .buyer-brief p { margin: 5px 0; font-size: 13px; }
+ .mobile-reserve summary { min-height: 48px; padding: 12px 0; cursor: pointer; }
+ .trade-help { font-size: 13px; }
+ .manifest-line > label { display: grid; gap: 6px; }
+ .manifest-line > label button { min-height: 44px; }
+ .trade-terminal .shipment-checkout { display: flex; }
+}
+/* Phone paging and navigation must be as easy to hit as gameplay controls. */
+@media (any-pointer: coarse) {
+ .camp-screen .panel-pages button { min-height: 44px; }
+ .camp-screen .camp-bottom { min-height: 56px; }
+ .modal.camp-screen:not(.intro) { grid-template-rows: 64px minmax(0,1fr) 56px; }
+ .camp-sidebar nav button { min-height: 44px; }
+ .panel-pages { bottom: max(4px, env(safe-area-inset-bottom)); right: 8px; gap: 8px; }
+}
+@media (any-pointer: coarse) and (max-width: 560px) {
+ .modal.camp-screen:not(.intro) { grid-template-rows: 64px 54px minmax(0,1fr) 56px; }
+ #camp-select { min-height: 44px; }
+}
+@media (any-pointer: coarse) and (min-width: 561px) and (max-height: 500px) {
+ .modal.camp-screen:not(.intro) { grid-template-columns: 1fr; }
+ .camp-sidebar { display: contents; }
+ .camp-sidebar nav, .camp-sidebar .camp-rig { display: none; }
+ #camp-select { display: block; position: absolute; top: 8px; left: 48%; transform: translateX(-50%); width: 190px; height: 48px; padding: 8px; font-size: 16px; background: #153044; color: #e4f3fa; border: 1px solid #527081; border-radius: 6px; }
+ .camp-main { grid-column: 1; }
+ .camp-top { padding: 0 14px; }
+ .camp-top .camp-wallet { display: none; }
+ .camp-top > div > b { font-size: 21px; }
+ .camp-heading { margin-bottom: 8px; }
+ .camp-heading h2 { font-size: 28px; }
+}
+@media (any-pointer: coarse) {
+ .camp-service-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+ .camp-service-card { padding: 12px; }
+ .camp-service-card > .equipment-art { display: none; }
+ .camp-service-card h3 { margin: 8px 0; font-size: 28px; }
+ .camp-service-card h3 small { display: block; font-size: 12px; }
+ .camp-service-card .camp-gauge { margin: 8px 0; }
+ .camp-service-card p { font-size: 12px; }
+ .camp-content:has(.camp-service-grid) > .camp-section-intro { display: none; }
+ .camp-checkout { margin-top: 10px; padding: 12px; gap: 10px; }
+ .camp-bottom > span { max-width: 90px; }
+ .mobile-upgrade-select { display: grid; gap: 6px; margin-bottom: 12px; font-size: 13px; }
+ .mobile-upgrade-select select { min-height: 48px; width: 100%; font-size: 16px; background: #153044; color: #e4f3fa; border: 1px solid #527081; padding: 8px; }
+ .upgrade-picker[hidden] { display: none !important; }
+ .component-stage { display: none; }
+}
+@media (any-pointer: coarse) and (max-height: 500px) {
+ .camp-content:has(.camp-service-grid) .camp-service-card { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; align-items: center; }
+ .camp-service-card .eyebrow { grid-column: 1; }
+ .camp-service-card h3 { grid-column: 1; grid-row: 2; }
+ .camp-service-card > button { grid-column: 2; grid-row: 1 / 3; }
+ .camp-service-card .camp-gauge, .camp-service-card p { display: none; }
+ .camp-content:has(.camp-service-grid) .camp-checkout { margin-top: 8px; }
+}

@@ -1,3 +1,4 @@
+import { RenderGraphics } from './RenderGraphics';
 import { drawMiner } from './player/MinerArt';
 import { advanceVehiclePose, restingVehiclePose } from './player/VehiclePose';
 import { WallBuilder } from './ui/WallBuilder';
@@ -656,8 +657,8 @@ export class MiningScene extends Phaser.Scene {
     const viewportObserver = new ResizeObserver(resize);
     viewportObserver.observe(document.querySelector('#viewport')!);
     window.addEventListener('resize', resize);
-    this.g = this.add.graphics();
-    this.orbitG = this.add.graphics().setDepth(1);
+    this.g = this.add.existing(new RenderGraphics(this));
+    this.orbitG = this.add.existing(new RenderGraphics(this)).setDepth(1);
     this.input.mouse?.disableContextMenu();
     this.keys = this.input.keyboard!.addKeys(
       'W,A,S,D,G,M,B,UP,LEFT,DOWN,RIGHT,SPACE,ESC,E,X,R',
@@ -706,7 +707,7 @@ export class MiningScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-E', interact);
     this.touch = new TouchControls({
       INTERACT: interact,
-      SERVICES: () => { if (!this.surfacePlacement) document.getElementById('open-full-services')?.click(); },
+      SERVICES: () => { if (!this.surfacePlacement && this.surface) this.ui.open('service'); },
       BUILD: () => { if (!this.surfacePlacement && (this.planetSurface || this.depth >= UNDERGROUND_BUILDING.minimumDepthMeters && this.depth <= 3400)) this.ui.open('construction'); },
       MAP: () => this.ui.toggleMap(),
       CHARGE: () => this.deployCharge(),
@@ -2005,11 +2006,13 @@ export class MiningScene extends Phaser.Scene {
       this.structures.filter(entry => entry.kind === 'wall').length, UNDERGROUND_BUILDING.wall.maxPerMap, !!wallCheck?.valid,
       wallCheck?.valid ? 'Click to lock a block. Keep clicking to stack! Drag to pan · Done / Esc to finish.'
       : wallCheck && !wallCheck.valid && wallCheck.reason === 'OCCUPIED' ? 'Needs a clear, supported layer. Try Auto-stack.' : wallCheck && !wallCheck.valid ? wallCheck.reason : '');
+    const firstCampReady = this.planetSurface && !this.structures.some(entry => entry.kind === 'habitat') && canAffordStructure('habitat', this.progress.cargo, this.progress.money);
+    this.touch?.primary('BUILD', firstCampReady && !this.surfacePlacement, firstCampReady ? 'Build camp' : 'BUILD');
     this.touch?.available('CHARGE', this.progress.charges > 0 && !this.surfacePlacement);
     this.touch?.available('R', this.progress.returnWinch && !this.mothershipBoarded);
     this.touch?.available('G', this.progress.grappleOwned && !this.mothershipBoarded);
     this.touch?.available('X', this.progress.stasisModule && !this.mothershipBoarded);
-    this.touch?.available('INTERACT', !this.surfacePlacement, this.isNearMothership() ? this.mothershipBoarded ? 'DISEMBARK' : 'BOARD' : 'INTERACT');
+    this.touch?.available('INTERACT', !this.surfacePlacement && (this.isNearMothership() || this.surface), this.isNearMothership() ? this.mothershipBoarded ? 'Deploy miner' : 'Open ship' : 'Use station');
     const dt = Math.min(delta / 1000, 0.05);
     this.tick += dt;
     if (this.solarView && !this.inOrbit) {
@@ -2567,11 +2570,17 @@ export class MiningScene extends Phaser.Scene {
         ? Math.min(1, (this.cameraFlipDuration - this.cameraTurnLabelRemaining) * 5, this.cameraTurnLabelRemaining * 2)
         : Math.min(1, this.cameraFlipElapsed * 5, (this.cameraFlipDuration - this.cameraFlipElapsed) * 2))
       .setVisible(flipping);
+    // Camera focus and rotation are constant for this draw, even though terrain
+    // and vehicle artwork project thousands of points through them.
+    const frameChart = this.world.planetChart, frameFocus = this.planetCameraFocus();
     const project = (x: number, y: number) => {
-      const point = this.worldPointToLocal(x, y, w, h);
+      const point = frameChart
+        ? planetChartToCartesian({ u: x / T, v: y / T }, frameChart.columns, frameChart.radiusRows, T)
+        : { x, y };
+      const dx = point.x - frameFocus.x, dy = point.y - frameFocus.y;
       return {
-        x: point.x + (this.reducedMotion ? 0 : (Math.random() - 0.5) * this.shake),
-        y: point.y,
+        x: w / 2 + dx * cos - dy * sin + (this.reducedMotion ? 0 : (Math.random() - 0.5) * this.shake),
+        y: h / 2 + dx * sin + dy * cos,
       };
     };
     const localProject = (x: number, y: number, tangent: number, outward: number) => {
@@ -2590,6 +2599,7 @@ export class MiningScene extends Phaser.Scene {
     const sx = (x: number) => project(x, this.pod.y).x,
       sy = (y: number) => project(this.pod.x, y).y;
     g.clear();
+    const ground = sy(surfaceGroundY(this.pod.y, this.world.planetChart));
     g.fillStyle(0x131b20);
     g.fillRect(expandedViewport.x, expandedViewport.y, expandedViewport.width, expandedViewport.height);
     if (orbitalView) {
@@ -2599,11 +2609,9 @@ export class MiningScene extends Phaser.Scene {
       return;
     }
     if (orbitBlend > 0) this.drawOrbitalOverview(orbitBlend);
-    const ground = sy(surfaceGroundY(this.pod.y, this.world.planetChart));
     if (ground > 0 && this.world.planetChart) {
-      const [skyTL, skyTR, skyBL, skyBR] = surfaceStyle.sky;
-      g.fillGradientStyle(skyTL, skyTR, skyBL, skyBR);
-      g.fillRect(expandedViewport.x, expandedViewport.y, expandedViewport.width, expandedViewport.height);
+      const [tl, tr, bl, br] = MAPS[this.mapId].surface.sky;
+      g.fillGradientStyle(tl, tr, bl, br).fillRect(expandedViewport.x, expandedViewport.y, expandedViewport.width, expandedViewport.height);
       drawSkyArt(g, this.mapId, expandedViewport);
       const farSurface = this.pod.y >= this.world.coreWorldY;
       const surfaceRow = farSurface ? this.world.farSurfaceRow : 0;
@@ -2752,8 +2760,11 @@ export class MiningScene extends Phaser.Scene {
           px = Math.min(topLeft.x, topRight.x, bottomRight.x, bottomLeft.x),
           py = Math.min(topLeft.y, topRight.y, bottomRight.y, bottomLeft.y),
           tileWidth = Math.max(1, Math.max(topLeft.x, topRight.x, bottomRight.x, bottomLeft.x) - px),
-          tileHeight = Math.max(1, Math.max(topLeft.y, topRight.y, bottomRight.y, bottomLeft.y) - py),
-          tile = this.world.get(x, y),
+          tileHeight = Math.max(1, Math.max(topLeft.y, topRight.y, bottomRight.y, bottomLeft.y) - py);
+        // Reject projected cells before lighting, geology and ore decoration work.
+        if (px + tileWidth < expandedViewport.x - T || px > expandedViewport.x + expandedViewport.width + T ||
+            py + tileHeight < expandedViewport.y - T || py > expandedViewport.y + expandedViewport.height + T) continue;
+        const tile = this.world.get(x, y),
           tileKey = keyOf(tile.x, tile.y),
           seen = this.world.discovered.has(tileKey);
         const tileCenterX = x * T + 20, tileCenterY = y * T + 20,
@@ -2801,7 +2812,7 @@ export class MiningScene extends Phaser.Scene {
           g.fillRect(px + 7, py + 31, 2, 2);
           continue;
         }
-        drawGeology(g, this.world, tile, x, y, project, light);
+        drawGeology(g, this.world, tile, x, y, project, light, [topLeft, topRight, bottomRight, bottomLeft]);
         if (tile.ore) {
           const color = ORES[tile.ore].color;
           const silhouette = ORE_SILHOUETTES[tile.ore];

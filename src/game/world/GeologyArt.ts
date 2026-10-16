@@ -20,10 +20,10 @@ const MATERIALS: Record<MapId, { shadow: number; light: number; seam: number }> 
  */
 export function drawGeology(
   g: Phaser.GameObjects.Graphics, world: TileWorld, tile: Tile,
-  x: number, y: number, project: Project, light: number,
+  x: number, y: number, project: Project, light: number, projectedCorners?: readonly Point[],
 ) {
   const t = WORLD.tile, material = MATERIALS[world.mapId],
-    corners = [project(x * t, y * t), project((x + 1) * t, y * t),
+    corners = projectedCorners ?? [project(x * t, y * t), project((x + 1) * t, y * t),
       project((x + 1) * t, (y + 1) * t), project(x * t, (y + 1) * t)],
     // Interpolate within the actual rendered quad: bounded geometry and no
     // repeated polar transforms for the small decorative strokes.

@@ -27,12 +27,13 @@ export function drawSkyArt(g: Phaser.GameObjects.Graphics, map: MapId,
       sy = y + random(827, i, map.length, 2) * h * 0.75,
       size = i % 9 === 0 ? 1.3 : 0.65;
     g.fillStyle(0xd3e6df, i % 9 === 0 ? 0.65 : 0.24);
-    g.fillCircle(sx, sy, size);
+    // Subpixel stars do not need the renderer's 100-segment arc tessellation.
+    g.fillRect(sx - size, sy - size, size * 2, size * 2);
   }
   const cx = x + w * 0.73, cy = y + h * 0.24, radius = Math.min(w * 0.065, h * 0.13);
   for (let i = 5; i > 0; i--) {
     g.fillStyle(accent, 0.008);
-    g.fillCircle(cx, cy, radius + i * 9);
+    g.fillEllipse(cx, cy, (radius + i * 9) * 2, (radius + i * 9) * 2, 40);
   }
   if (map === 'cryo-shelf' || map === 'prism-fault') {
     g.lineStyle(5, accent, 0.13);
@@ -41,12 +42,12 @@ export function drawSkyArt(g: Phaser.GameObjects.Graphics, map: MapId,
     g.strokeEllipse(cx, cy, radius * 3.85, radius * 0.74);
   }
   g.fillStyle(0x142735, 0.96);
-  g.fillCircle(cx, cy, radius);
+  g.fillEllipse(cx, cy, radius * 2, radius * 2, 48);
   g.fillStyle(accent, 0.32);
-  g.fillCircle(cx, cy, radius * 0.97);
+  g.fillEllipse(cx, cy, radius * 1.94, radius * 1.94, 48);
   // An offset dark disc gives the body a readable illuminated crescent.
   g.fillStyle(0x172b3a, 0.94);
-  g.fillCircle(cx - radius * 0.24, cy - radius * 0.1, radius * 0.73);
+  g.fillEllipse(cx - radius * 0.24, cy - radius * 0.1, radius * 1.46, radius * 1.46, 48);
   g.lineStyle(1, accent, 0.2);
   g.strokeCircle(cx, cy, radius);
 }

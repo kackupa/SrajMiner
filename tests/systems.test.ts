@@ -105,6 +105,19 @@ test('Laser Miner heats during sustained cutting, cools on release, and vents br
   thermal = advanceLaserThermal(thermal, 1 / 60, true);
   assert.ok(thermal.heat > 0, 'held drill resumes heating after the vent clears');
 });
+test('unavailable browser audio does not interrupt game start', () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'AudioContext');
+  try {
+    Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: undefined });
+    const audio = new AudioSystem();
+    assert.doesNotThrow(() => audio.unlock());
+    assert.equal(audio.context, undefined);
+  } finally {
+    if (original) Object.defineProperty(globalThis, 'AudioContext', original);
+    else Reflect.deleteProperty(globalThis, 'AudioContext');
+  }
+});
+
 test('audio mix defaults, clamps and parses saved per-channel levels', () => {
   assert.deepEqual(parseAudioMix(null), DEFAULT_AUDIO_MIX);
   assert.deepEqual(parseAudioMix('{"music":45,"effects":95}'), { music: 45, effects: 95 });

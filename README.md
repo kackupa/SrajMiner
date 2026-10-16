@@ -92,3 +92,5 @@ Choose Perimeter Wall in Build. Auto-stack snaps to an existing column and previ
 Ore storage transfers are available directly in each ore row: choose a half-unit amount, then Store or Take, or use that row's Store all / Take all. Each row keeps its own amount while the panel is open; carried and stored totals update after transfers.
 
 When both cargo and storage are full, use **Discard** beside an ore in the Warehouse screen. Enter the amount first; confirmation permanently removes only that ore from the miner, with no credits. Stored reserves are unaffected. Discard saves immediately and restores cargo if saving fails.
+
+Mobile controls group equipment under Tools and show the nearby ship action directly. Phone Warehouse rows expand into large transfer controls with amount presets; trading has Max buttons and Workshop has a component selector. Browser tests cover the earned camp → uplink → sale → upgrade → reload sequence, multitouch, rotation and save failures. See [mobile overhaul tracking](docs/MOBILE-OVERHAUL.md) for evidence and limitations. Physical Android/iPhone comfort, keyboard behaviour and sustained performance remain unverified.

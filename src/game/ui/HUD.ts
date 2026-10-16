@@ -1,3 +1,5 @@
+import { mobileTrade } from './MobileTrade';
+import { mobileStorage } from './MobileStorage';
 import { panelPages } from './PanelPages';
 import { codexPanel } from './Codex';
 import { atlasMarkup, planetArt } from './PlanetArt';
@@ -202,6 +204,7 @@ export class HUD {
   exportUrl?: string;
   exportFilename = '';
   styleSection: 'paint' | 'suit' | 'decal' | 'profile' = 'paint';
+  mobileStorageOre: Ore | undefined;
   warehouseAmounts: Partial<Record<Ore, number>> = {};
   warehouseSourceMap: MapId = 'cryo-shelf';
   returnFocus: HTMLElement | null = null;
@@ -387,7 +390,8 @@ export class HUD {
     const scrollTop = panel?.scrollTop ?? 0;
     const sourceMap = direction === 'withdraw' ? this.warehouseSourceMap : undefined;
     const moved = this.actions.transferWarehouse(ore, direction, all ? Number.MAX_SAFE_INTEGER : units, sourceMap);
-    this.toast(moved ? (direction === 'store' ? 'Stored ' : 'Took ') + moved + ' ' + ORES[ore].name.toLowerCase() + '.' : 'No room or ore available for this transfer.');
+    // The transaction reports success or a save failure; preserve that specific feedback.
+    if (!moved && !this.saveFailed) this.toast('No room or ore available for this transfer.');
     this.renderModal();
     const nextPanel = document.querySelector<HTMLElement>('.camp-main');
     if (nextPanel) nextPanel.scrollTop = scrollTop;
@@ -463,7 +467,7 @@ export class HUD {
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
     const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL · LAND IN ORBIT</span></div><div><kbd>W</kbd><span>THRUST UP · TAKE OFF ABOARD</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>NEARBY STATION · BOARD AT SHIP</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>G</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">Q MINING CHARGE · X STASIS · R SURFACE WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? matchMedia('(any-pointer: coarse)').matches ? `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">TOUCH FIELD GUIDE</span></div><h2>Two thumbs. One expedition.</h2><p>Use the left arrows to steer and hold ↑ to thrust upward or brake a fall. Hold the right arrows to drill down or sideways. Sideways movement also drills when you meet rock.</p><p>You can thrust and drill together. Release a button to stop its action. Board the mothership for storage, recharge and repairs; Services opens the camp panels. Sell ore after building a Market uplink.</p><p>Landscape gives you the widest view. The top-right pause button stops the expedition. Rotate or switch apps safely: held controls clear automatically.</p><p class="intro-risk">WATCH YOUR BATTERY · LEAVE ENOUGH FOR THE RETURN.</p><div class="intro-detail-actions">${launchButton}</div></div>` : controlsScreen : titleScreen}</section>`;
+      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? matchMedia('(any-pointer: coarse)').matches ? `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">TOUCH FIELD GUIDE</span></div><h2>Two thumbs. One expedition.</h2><p>Use the left arrows to steer and hold ↑ to thrust upward or brake a fall. Hold the right arrows to drill down or sideways. Sideways movement also drills when you meet rock.</p><p>You can thrust and drill together. Release a button to stop its action. Tap Open ship for storage, recharge and repairs. Tools holds Build, Map and installed equipment. Sell ore after building a Market uplink.</p><p>Landscape gives you the widest view. The top-right pause button stops the expedition. Rotate or switch apps safely: held controls clear automatically.</p><p class="intro-risk">WATCH YOUR BATTERY · LEAVE ENOUGH FOR THE RETURN.</p><div class="intro-detail-actions">${launchButton}</div></div>` : controlsScreen : titleScreen}</section>`;
     document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((node) => node.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((other) => {
         const selected = other === node;
@@ -487,13 +491,16 @@ export class HUD {
     this.clearPages = panelPages(document.querySelector<HTMLElement>('#modal-layer')!);
     document.getElementById(step === 'title' ? 'launch' : 'intro-back')?.focus();
   }
+  private lastRenderedModal = "";
   renderModal() {
     this.clearPages();
     const name = this.modal,
       p = this.p;
-    const scrollTop = document.querySelector('.camp-main')?.scrollTop ?? 0;
+    const samePanel = this.lastRenderedModal === name;
+    this.lastRenderedModal = name;
+    const scrollTop = samePanel ? document.querySelector('.camp-main')?.scrollTop ?? 0 : 0;
     const active = document.activeElement;
-    const previousFocusId = active instanceof HTMLElement && document.querySelector('.modal')?.contains(active) ? active.id : '';
+    const previousFocusId = samePanel && active instanceof HTMLElement && document.querySelector('.modal')?.contains(active) ? active.id : '';
     const receipt = name === 'sell' && !p.count ? this.lastSale : undefined;
     const saleCargo = receipt?.cargo ?? p.cargo;
     let title = '',
@@ -504,7 +511,7 @@ export class HUD {
       sub = 'Recharge, unload, then head back out.';
       content = `<div class="hub-status"><span>Battery <b>${Math.ceil(p.fuel / p.max('fuel') * 100)}%</b></span><span>Hull <b>${Math.ceil(p.hull / p.max('hull') * 100)}%</b></span><span>Cargo <b>${p.count} / ${p.max('cargo')}</b></span></div><div class="hub-grid">${[
         ['service', '01', 'Recharge & repair', 'Free battery charging. Repair your hull here.'],
-        [this.actions.hasTradePost() ? 'sell' : 'construction', '02', this.actions.hasTradePost() ? 'Sell your ore' : 'Build your camp', this.actions.hasTradePost() ? 'Turn your haul into upgrade credits.' : `First: ${Object.entries(UNDERGROUND_BUILDING.habitat.materials).map(([ore, units]) => `${units} ${ore}`).join(' + ')}. Then a Market uplink.`],
+        [this.actions.hasTradePost() ? 'sell' : 'construction', '02', this.actions.hasTradePost() ? 'Sell your ore' : this.actions.structures().some(s => s.kind === 'habitat') ? 'Build market uplink' : 'Build your camp', this.actions.hasTradePost() ? 'Turn your haul into upgrade credits.' : this.actions.structures().some(s => s.kind === 'habitat') ? 'Camp ready. Carry 4 copper, 4 iron and 2 silver to connect to the market.' : `First: ${Object.entries(UNDERGROUND_BUILDING.habitat.materials).map(([ore, units]) => `${units} ${ore}`).join(' + ')}. Then a Market uplink.`],
         ['warehouse', '03', 'Store materials', 'Keep construction ore safe for later.'],
         ['upgrades', '04', 'Upgrade your rig', 'A better drill. More room. Longer runs.'],
       ].map(([page, number, heading, copy]) => `<button data-hub="${page}"><span>${number} / MOTHERSHIP</span><b>${heading} <i>↗</i></b><small>${copy}</small></button>`).join('')}</div>${this.mothershipBoarded ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Find a core to unlock flight'}</button>` : ''}<p class="hub-note">Return to mine deploys your rig immediately. Your expedition is paused while this screen is open.</p>`;
@@ -1011,6 +1018,23 @@ export class HUD {
       this.renderModal();
     });
     this.clearPages = panelPages(document.querySelector<HTMLElement>('#modal-layer')!);
+    if (matchMedia('(any-pointer: coarse)').matches) {
+      const picker = document.querySelector<HTMLElement>('.upgrade-picker');
+      if (picker) {
+        const label = document.createElement('label');
+        label.className = 'mobile-upgrade-select'; label.textContent = 'Choose component';
+        const select = document.createElement('select'); select.setAttribute('aria-label', 'Choose miner component');
+        picker.querySelectorAll<HTMLButtonElement>('button').forEach(button => {
+          const option = document.createElement('option'); option.value = button.id;
+          option.textContent = button.querySelector('b')?.textContent ?? button.textContent;
+          option.selected = button.getAttribute('aria-pressed') === 'true'; select.append(option);
+        });
+        select.onchange = () => document.getElementById(select.value)?.click();
+        label.append(select); picker.before(label); picker.hidden = true;
+      }
+    }
+    mobileTrade();
+    mobileStorage(this.mobileStorageOre, ore => { this.mobileStorageOre = ore; });
     const campMain = document.querySelector('.camp-main');
     if (campMain && previousFocusId) campMain.scrollTop = scrollTop;
     const previousFocus = previousFocusId ? document.getElementById(previousFocusId) : null;
@@ -1019,7 +1043,7 @@ export class HUD {
       (document.querySelector('.modal .primary:not(:disabled)') ??
         document.querySelector('.modal button:not(.close):not(:disabled)') ??
         document.querySelector('.close')) as HTMLElement
-    )?.focus();
+    )?.focus({ preventScroll: true });
   }
   setColonyAlert(text: string) {
     const alert = document.getElementById('colony-alert');
@@ -1156,6 +1180,10 @@ export class HUD {
       inOrbit: this.inOrbit,
       cargoFull: p.count >= p.max('cargo'),
     });
+    if (matchMedia('(any-pointer: coarse)').matches) {
+      const warning = document.querySelector('#low-warning')!;
+      warning.textContent = warning.textContent?.replaceAll('HOLD W', 'HOLD ↑').replaceAll('W BOOSTS', '↑ BOOSTS').replaceAll('A / D STEER', 'LEFT PAD STEERS') ?? '';
+    }
   }
   private updateMissionTip() {
     const tip = document.querySelector<HTMLElement>('#tip')!;
@@ -1165,12 +1193,21 @@ export class HUD {
     const materials = (kind: 'habitat' | 'trade-post') => Object.entries(UNDERGROUND_BUILDING[kind].materials).map(([ore, units]) => `${Math.min(units, this.p.cargo[ore as Ore])}/${units} ${ore}`).join(' · ');
     const ready = Object.entries(UNDERGROUND_BUILDING.habitat.materials).every(([ore, units]) => this.p.cargo[ore as Ore] >= units);
     const touch = matchMedia('(any-pointer: coarse)').matches;
-    const objective = !this.actions.structures().some(s => s.kind === 'habitat') && !this.actions.hasTradePost()
-      ? { title: `FIRST CAMP · ${materials('habitat').toUpperCase()}`, body: ready ? `Materials ready! ${touch ? 'Hold ↑ to return, tap Build' : 'Fly to the surface with W, press B'} and choose Mining camp.` : touch ? 'Hold the right pad to drill into coloured ore. Hold ↑ on the left pad to fly back through your tunnel.' : 'Hold S to drill down, or aim + hold the mouse at coloured ore. Hold W to fly back through your tunnel.' }
+    let objective = !this.actions.structures().some(s => s.kind === 'habitat') && !this.actions.hasTradePost()
+      ? { title: `FIRST CAMP · ${materials('habitat').toUpperCase()}`, body: ready ? `Materials ready! ${touch ? 'Hold ↑ to return, then tap Build camp' : 'Fly to the surface with W, press B'} and choose Mining camp.` : touch ? 'Hold the right pad to drill into coloured ore. Hold ↑ on the left pad to fly back through your tunnel.' : 'Hold S to drill down, or aim + hold the mouse at coloured ore. Hold W to fly back through your tunnel.' }
       : !this.actions.hasTradePost()
-        ? { title: `NEXT · MARKET UPLINK`, body: `Carry ${materials('trade-post')}. ${touch ? 'Tap Build' : 'Press B'} at the surface to build. Then you can sell ore.` }
-        : campaignObjective(this.p, this.mapId, this.actions.tradeNetworkCount(), this.actions.hasTradePost(), this.inOrbit, this.mothershipBoarded),
-      signature = `${objective.title}\n${objective.body}`;
+        ? { title: `NEXT · MARKET UPLINK`, body: `Carry ${materials('trade-post')}. ${touch ? 'Open Tools → BUILD' : 'Press B'} at the surface to build. Then you can sell ore.` }
+        : campaignObjective(this.p, this.mapId, this.actions.tradeNetworkCount(), this.actions.hasTradePost(), this.inOrbit, this.mothershipBoarded);
+    if (touch && !this.inOrbit && !this.p.pilotEscaping) {
+      if (!this.onCrust && (this.p.count >= this.p.max('cargo') || this.p.fuel < this.p.max('fuel') * 0.3)) {
+        objective = { title: this.p.count >= this.p.max('cargo') ? 'CARGO FULL · RETURN HOME' : 'LOW BATTERY · RETURN HOME', body: 'Hold ↑ on the left pad. Follow the tunnel you mined back to the ship.' };
+      } else if (this.onCrust && this.p.count >= this.p.max('cargo') && !ready) {
+        objective = { title: 'MAKE ROOM FOR BUILDING ORE', body: 'Open ship → Warehouse. Store spare ore, then take the materials you need. If both holds are full, discard a small amount from the miner.' };
+      } else if (this.onCrust && this.p.fuel < this.p.max('fuel') * 0.7) {
+        objective = { title: 'RECHARGE BEFORE YOUR NEXT RUN', body: 'Open ship → Recharge. Battery charging is free. Your ore stays aboard the miner.' };
+      }
+    }
+    const signature = `${objective.title}\n${objective.body}`;
     if (signature === this.missionTipSignature) return;
     this.missionTipSignature = signature;
     tip.querySelector('#mission-headline')!.textContent = objective.title;

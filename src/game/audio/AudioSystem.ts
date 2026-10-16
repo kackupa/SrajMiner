@@ -84,7 +84,11 @@ export class AudioSystem {
   }
   unlock(depth = 0) {
     if (!this.context) {
-      this.context = new AudioContext();
+      const Context = globalThis.AudioContext ??
+        (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      // Audio is optional: unavailable browser audio must not interrupt deployment.
+      if (!Context) return;
+      try { this.context = new Context(); } catch { return; }
       this.musicBus = this.context.createGain();
       this.effectsBus = this.context.createGain();
       this.musicBus.connect(this.context.destination);
@@ -106,7 +110,7 @@ export class AudioSystem {
       this.nextBeat = this.context.currentTime + 0.12;
     }
     this.applyMix();
-    void this.context.resume();
+    void this.context.resume().catch(() => { /* Retry on the next user gesture. */ });
     this.startSoundtrack(depth);
   }
   private startSoundtrack(depth: number) {
