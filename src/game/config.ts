@@ -66,7 +66,7 @@ export const UNDERGROUND_BUILDING = {
   'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5, maxPerMap: 1 },
   habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
   warehouse: { credits: 0, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
-  extractor: { credits: 0, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 2, 6, 12], upgradeCredits: [0, 0, 680, 1800] },
+  extractor: { credits: 0, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 24, 48, 96], upgradeCredits: [0, 0, 680, 1800] },
   automation: { offlineCapSeconds: 43200 },
   wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1, maxPerMap: 12 },
   gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3, maxPerMap: 3 },
@@ -75,10 +75,11 @@ export const UNDERGROUND_BUILDING = {
   serviceRadius: 100,
 } as const;
 export const EXTRACTOR_TIERS = [
-  { name: 'Basic Excavator', rate: 2, ores: ['copper', 'iron'] as const, upgradeCredits: 680, upgradeMaterials: { iron: 6, silver: 2 } },
-  { name: 'Industrial Drill', rate: 6, ores: ['copper', 'iron', 'silver'] as const, upgradeCredits: 1800, upgradeMaterials: { iron: 10, silver: 8 } },
-  { name: 'Deep-Core Extractor', rate: 12, ores: ['silver', 'gold', 'diamond', 'nickel', 'titanium', 'cobalt', 'cryocrystal'] as const, upgradeCredits: 0, upgradeMaterials: {} },
+  { name: 'Basic Excavator', rate: 24, ores: ['copper', 'iron'] as const, upgradeCredits: 680, upgradeMaterials: { iron: 6, silver: 2 } },
+  { name: 'Industrial Drill', rate: 48, ores: ['copper', 'iron', 'silver'] as const, upgradeCredits: 1800, upgradeMaterials: { iron: 10, silver: 8 } },
+  { name: 'Deep-Core Extractor', rate: 96, ores: ['silver', 'gold', 'diamond', 'nickel', 'titanium', 'cobalt', 'cryocrystal'] as const, upgradeCredits: 0, upgradeMaterials: {} },
 ] as const;
+export const EXTRACTION_SEAMS = { width: 320, units: 60 } as const;
 export const WAREHOUSE_CAPACITY_TIERS = [40, 100, 200, 360] as const;
 export const SURFACE_RAID = {
   firstWarningSeconds: 55,
@@ -633,4 +634,11 @@ export const RIG_SPECIALIST_PLANS = [
   { name: 'Precision drill', ore: 'diamond', world: 'prism-fault', description: 'A cutting-focused rig for deep mining.' },
   { name: 'High-capacity battery', ore: 'cobalt', world: 'cinder-vale', description: 'An endurance-focused exploration rig.' },
   { name: 'Advanced scanner', ore: 'gold', world: 'vesper-9', description: 'A survey-focused rig for finding valuable seams.' },
+] as const;
+
+/** Optional local buyers. Quantities are paid once, independently of old sale bonuses. */
+export const COLONY_ORDERS = [
+  { key: 'bulk', name: 'Bulk delivery', ore: 'copper', units: 12, rewardMultiplier: 1.25 },
+  { key: 'survey', name: 'Survey request', ore: 'exclusive', units: 2, rewardMultiplier: 1.5 },
+  { key: 'construction', name: 'Construction supply', ore: 'iron', units: 8, rewardMultiplier: 1.25 },
 ] as const;

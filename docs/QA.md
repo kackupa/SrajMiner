@@ -857,3 +857,69 @@ Sandbox copy audit: star-map exclusive labels and live flight-map profiles both 
 - Real CDP touch events held W and D simultaneously; both became active. Touch end and touch cancellation cleared held input. Sustained thrust/steering moved the miner out of ship interaction range. Tools > MAP opened the explored map.
 - Inspected output/playwright/mobile-wasd.png. npm install, npm test and npm run build passed (existing bundle-size advisory).
 - Physical Android comfort and sustained performance remain untested. This check did not repeat the full mining economy or every service panel.
+
+### Colony update first pass (17 October 2026)
+- New colony management transaction tests cover half-unit refunds, storage capacity, duplicate dismantling and rollback on false/throwing saves.
+- Browser fixture on isolated localhost:4183: level-2 extractor at x1120 and warehouse at x1400. Mobile Left moved preview to x1080; cancel preserved structures. Confirm/reload retained x1080 and level2. Dismantling displayed/refunded 1.5 copper + 0.5 iron exactly, leaving warehouse intact.
+- Overview checked at 390x844, 320x568 and 844x390: no measured overflow or select/checkbox elements. Screenshot output/playwright/colony-mobile-first-pass.png visually inspected. Current overview is a functional first pass, not final visual acceptance.
+- Test suite including colony transactions passed. No physical Android check performed. Other colony scope remains unfinished, as recorded in README.
+
+### Finite extraction pass (17 October 2026)
+- Save v31 adds a validated shared depletion ledger, with v30 migration retaining campaign fields. Pure tests cover shared seams, final half-unit exhaustion, tier eligibility, full-storage pause and persisted depletion.
+- Isolated browser fixture: a copper seam with 0.5 ore remaining and storage at 89.5/90 accepted exactly 0.5 offline ore. Colony panel then showed Deposit exhausted, Storage full and Upgrade required for three different extractors, with total production 0 and stock 90/90.
+- Full npm test and build passed after schema fixture updates. Latest additional migration assertions await the final regression run. Production art has working-only drill strokes/ore motion and a warehouse fill indicator; final visual acceptance is still pending.
+
+### Local orders and world inspection (17 October 2026)
+- Optional order transaction tests passed: exact pooled consumption, planet scoping, once-only reward, false/throwing save rollback. Full npm test/build passed before the subsequent world-inspection changes; latest inspection changes passed TypeScript and browser checks, with final full regression still due.
+- Browser delivery consumed 12 stored copper (90 to 78), awarded 270 credits and saved colony-order:cryo-shelf:bulk. Tracking showed 12/12 Copper on the mining HUD. Completed order persisted through development reload.
+- Initial compact contract overflow was fixed using phone order tabs. All three tabs measured no overflow at 320x568 and 390x844; 844x390 and 1440x900 cards also fit. No select/checkbox/details elements in contracts. Inspected output/playwright/colony-orders-320.png.
+- Locate preserved miner position x680,y-22 while displaying a paused building inspector. Colony top bar and four management actions fit 320x568, 390x844 and 844x390. Inspected output/playwright/colony-locate-mobile.png. Direct canvas selection, far-side camera behavior and the final visual polish still need explicit verification.
+- Remaining release scope: improve building/map visuals, finish workshop success feedback, production notifications and balancing, audit all game screens against no scrolling/checkbox/text-dropdown rules, fresh-save colony loop and final regressions. No deploy/commit performed.
+
+### Colony polish and no-scroll audit in progress (17 October 2026)
+- Original code-native building SVGs replace abstract workshop icons in colony/catalogue. Inspected colony-building-art.png and colony-cargo-cards.png.
+- Fullscreen cargo measured no overflow at 320x568, 390x844, 844x390 and removed the details element. Rig success feedback and production pause notifications implemented; explicit behavior checks remain due.
+- Extraction balance raised to 24/48/96 per hour. Full tests/build passed with updated capacity/yield expectations before the later pagination changes.
+- Replaced scrollBy pagination with complete-block pages. At 320x568 both hub pages fit with scrollHeight==clientHeight. Phone storage initially overflowed and had a helper-ordering issue; moved transformations before pagination and removed wasted sidebar/padding. Final selected Copper/Iron panel measured no overflow; all six transfer/discard buttons ended above y493, safely above footer at y512. Screenshot storage-cards-320.png.
+- Removed generated select/details widgets from mobile trading and legacy component helper; source scan under src/game found none. Remaining verification: all trading/service/legacy pages, portrait/landscape transitions, storage transfer/confirmation flow after restructuring, direct building hit targets/far-side camera, real-time production/upgrade feedback, fresh-save colony loop and final regression/build.
+
+### Pagination regression pass (17 October 2026)
+- Fixed an important mobile buyer-card CSS rule overriding pagination visibility. Hidden page units now explicitly override layout display rules; short landscape screens use compact headings.
+- Populated trading fixture with all nine carried ores: every page fits at 320x568 (7 pages), 844x390 (8 pages), and 1440x900 (3 pages). In every checked page camp-main scrollHeight equalled clientHeight.
+- Full npm test and npm run build passed after the Codex rewrite and pagination fixes (colony-final-tests.log, colony-final-build.log). Build retains the existing large-bundle warning.
+- Codex article-by-article inspection is still in progress. No release acceptance or deployment implied by these checks.
+- Field guide audit exercised 339 index/article/section views across phone, landscape and desktop. It exposed an inherited 43px footer height against 48px controls; footer/header now size to content. Rechecked index at all three sizes with no measured overflow. Full article rerun after this footer fix remains due.
+
+### Fresh-save colony loop (17 October 2026)
+- New isolated colony-fresh browser session, no inventory fixture: six seconds holding S mined 3 copper and 2 iron. W returned through the shaft with hull 100. Built the first extractor at x900 for 3 copper + 1 iron, leaving 1 iron carried.
+- Actual elapsed production yielded 0.5 copper in planetary storage and reduced its 60-unit seam to 59.5. Reload preserved the building and depletion ledger (cryo-shelf:near:2 = 0.5), with no duplicate output. Subsequent production reached 1 copper normally.
+- Clicked the visible extractor directly on canvas at (925,480): opened Mining paused inspection without changing miner position (700,-22) or cargo. Return to rig restored gameplay. Screenshot colony-fresh-surface.png inspected.
+- Paint category audit covered 36 pages/views. Fixed 11px landscape card overflow. Portrait resize exposed stale pagination until the next layout callback; added immediate window-resize measurement. Full repeat after that fix remains due.
+- Post-resize-fix paint finish repeat: all 9 pages across 320x568, 844x390 and 1440x900 fit with no measured overflow. Build passed after the resize listener change.
+
+### Upgrade, construction and secondary-screen checks (17 October 2026)
+- Rig install changed drill level 1 to 2 and displayed `1 -> 1.5 x cutting speed`, consuming 3 iron and 2 copper from shared materials. Second install under reduced-motion media displayed the next stat change; computed rig-art animation was none and scene reducedMotion was true.
+- Pause and audio pages fit 320x568, 844x390 and 1440x900. All eight catalogue choices plus recovery/new-save confirmation passed 30 viewport checks with zero overflow and zero select/details/checkbox elements (colony-screen-audit.js).
+- Newly placed buildings assemble over 0.65 seconds using a visual-only rise. Start/complete screenshots inspected; reduced-motion bypasses the animation. Tests and build passed after implementation.
+- Live edge fixtures verified both notifications: Deposit exhausted at the final half-unit, and Storage full at exactly 50/50. No production overflow.
+- Far-side Locate showed the selected habitat upright after the camera transition, without moving the miner from (700,-22). Return restored the miner camera rotation. Fixed underlying dock UI showing through the inspector. Screenshot colony-far-inspection-settled.png inspected.
+- Remaining acceptance work: repeat final Codex/paint coverage after layout fixes, import confirmation, storage transfer/discard and sale interaction after pagination, final source/documentation cleanup. Physical Android remains untested.
+
+### Final interaction and content acceptance (17 October 2026)
+- Found and fixed a hidden discard confirmation caused by block pagination. Disposal now opens a dedicated fullscreen confirmation. Cancel preserved 2 copper; confirm removed exactly 1; confirmation and actions fit 320x568, 844x390 and 1440x900. Store/withdraw round trip preserved quantities.
+- Mobile paged Teletrade: selected 1 copper, reached checkout on page 7, sold it for 24 credits (270 to 294), removed exactly 1 carried copper and saved helion:copper delivery 1. Stored reserves were retained.
+- Import confirmation pages fit all three sizes; cancellation preserved campaign money/state.
+- Final field-guide/paint audit: 372 index, article, section and appearance-page checks across all three sizes, zero measured overflow. Script: output/playwright/colony-final-content-audit.js.
+- npm test and npm run build passed after the discard-screen fix (colony-release-tests.log and colony-release-build.log). Existing bundle-size advisory remains. Git diff whitespace check passes.
+
+### Colony update completion audit (17 October 2026)
+The entries above are chronological findings; this section supersedes their earlier pending-status notes for the colony update.
+- Sandbox construction: open catalogue, pooled local materials, free placement/nudging/snap, cost only on commit. Earned fresh-save extractor placement passed.
+- Management: paged overview, direct canvas selection, near/far Locate without teleportation, relocation/cancel/reload, dismantle confirmation/refund/capacity/support protections and save rollback verified.
+- Production: finite shared seams, tier eligibility, 24/48/96 rate, real-time first output, full/exhausted pause notifications, durable depletion and no duplicated reload yield verified.
+- Presentation: original matching building art, working-only drilling, warehouse fill, construction assembly, upgrade before/after notice and reduced-motion bypass inspected.
+- Contracts: three independent optional local orders, exact pooled delivery, once-only reward, HUD tracking, phone tabs and save persistence verified.
+- UI: explicit pages/cards/buttons, no select/details/checkbox markup. Final content audit passed 372 views; final navigation audit passed 19 views spanning mining log, core drive, star map, intro and how-to. Catalogue/confirmation audit passed 30 views. Storage/transfer/discard, shipment, import cancellation, pause/audio and overview layouts checked separately. Tested 320x568, 844x390 and 1440x900; additional 390x844 checks are recorded earlier.
+- Compatibility and regression: full npm test and build pass; migration v30 to v31 preserves campaign data. Fresh mining/return retained full hull. Existing physics regression coverage remains green.
+- Documentation updated; temporary screenshots and browser scripts remain under ignored output/playwright. No commit, push or deployment performed.
+- Limits: physical Android touch/performance is not certified; the existing large-bundle advisory and historical broader campaign/mobile limitations remain documented. Travel, refining and connected player trading are outside this colony update.
