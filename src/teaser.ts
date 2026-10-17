@@ -77,8 +77,8 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
 
     <section id="tokenomics" class="tokenomics-band"><div class="wrap launch-section">
       <div class="section-kicker"><span>04 / TOKENOMICS</span><span>DETAILS TO BE ANNOUNCED</span></div>
-      <div class="launch-heading"><h2>The supply.<br/><em>The full picture.</em></h2><p>The token model is being defined. This is the place for the final distribution and unlock schedule once the details are confirmed.</p></div>
-      <dl class="token-facts"><div><dt>Token name &amp; ticker</dt><dd>TBA</dd></div><div><dt>Network &amp; contract</dt><dd>TBA</dd></div><div><dt>Total supply</dt><dd>TBA</dd></div><div><dt>Launch circulation</dt><dd>TBA</dd></div><div><dt>Allocation breakdown</dt><dd>TBA</dd></div><div><dt>Vesting &amp; unlocks</dt><dd>TBA</dd></div></dl>
+      <div class="launch-heading"><h2>The supply.<br/><em>The full picture.</em></h2><p>CREDIT is the working token name for the Ore Frontier ecosystem. The launch model will be published once the contract and distribution are confirmed.</p></div>
+      <dl class="token-facts"><div><dt>Token name &amp; ticker</dt><dd>CREDIT</dd></div><div><dt>Network</dt><dd>Robinhood Chain</dd></div><div><dt>DEX pair</dt><dd>CREDIT / WETH</dd></div><div><dt>Contract address</dt><dd>TBA</dd></div><div><dt>Total supply &amp; allocation</dt><dd>TBA</dd></div><div><dt>Vesting &amp; unlocks</dt><dd>TBA</dd></div></dl>
       <p class="token-note">Allocation percentages, liquidity, emissions, and any burn or buyback mechanisms are unconfirmed. No sale or contract is linked from this page.</p>
     </div></section>
 
