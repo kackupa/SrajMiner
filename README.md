@@ -27,6 +27,10 @@ Verified with Chromium mobile emulation at 844×390 and 390×844, including mini
 
 The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewport, turns its destinations into a compact touch grid on narrow screens, hides scrollbar chrome, and replaces service/reserve/warehouse dropdowns with visible button choices. Build and automated tests pass. The local dev server could not be reached from the browser session, so this specific navigation layout still needs browser and Android playtesting.
 
+## Ore Frontier teaser
+
+Open `/teaser.html` in the development build for the separate Ore Frontier teaser page; the playable game remains at `/`. The teaser includes an original CSS hero illustration, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The intended custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages can rewrite `/` to `/teaser.html` and `/play` to `/index.html` with `public/_redirects`; local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. DNS, hosting, and browser visual QA are still pending.
+
 ## The mining loop
 
 1. Deploy from the mothership on the Cryo Shelf. Mine copper and iron nearby.

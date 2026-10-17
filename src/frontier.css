@@ -19,11 +19,12 @@ footer .bank { margin-left:auto; font-size:10px; }
 .telemetry { top:18px; left:18px; width:184px; padding:16px; background:#091a28dd; border:1px solid #8dbbd52b; border-radius:12px; box-shadow:0 8px 30px #0002; }
 .telemetry .eyebrow { margin-bottom:12px; }
 .telemetry .core-fuel-readout,.telemetry .cargo-worth,.telemetry .cargo-blocks { display:none; }
-.cargo-manifest { margin-top: 6px; color: #dce5df; font: 9px 'Space Mono', monospace; pointer-events: auto; }
-.cargo-manifest summary { width: fit-content; color: #9eb7bd; cursor: pointer; list-style: none; }
-.cargo-manifest summary::-webkit-details-marker { display: none; }
-.cargo-manifest summary::before { content: '＋ '; color: #ffb36b; }
-.cargo-manifest[open] summary::before { content: '− '; }
+.cargo-manifest { margin-top: 0; color: #dce5df; font: 9px 'Space Mono', monospace; pointer-events: auto; }
+.cargo-manifest > summary { width: 100%; color: #c9cabb; cursor: pointer; list-style: none; }
+.cargo-manifest > summary::-webkit-details-marker { display: none; }
+.cargo-manifest > summary::after { content: '⌄'; color: #ffb36b; }
+.cargo-manifest[open] > summary::after { content: '⌃'; }
+.cargo-manifest > summary:focus-visible { outline: 2px solid #ffb66d; outline-offset: 3px; border-radius: 3px; }
 #cargo-manifest-list { display: grid; gap: 5px; margin-top: 8px; padding: 8px; border: 1px solid #8dbbd52b; border-radius: 6px; background: #071722ed; }
 .cargo-manifest-ore { display: grid; grid-template-columns: 7px 1fr auto; align-items: center; gap: 6px; }
 .cargo-manifest-ore i { width: 6px; height: 6px; border-radius: 50%; background: var(--ore); }
@@ -245,6 +246,9 @@ footer .bank { margin-left:auto; font-size:10px; }
   padding: 10px 0;
 }
 .warehouse-row-amount { display: grid; gap: 3px; font-size: 10px; color: #9cb4be; }
+.warehouse-count { display: grid; gap: 4px; color: #d8e4e2; }
+.warehouse-count small { color: #88a6ad; font: 8px 'Space Mono', monospace; letter-spacing: .35px; }
+.warehouse-count b { font: 12px 'Space Mono', monospace; }
 .warehouse-row-amount input { width: 100%; min-width: 0; height: 36px; padding: 6px; }
 .warehouse-row-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .warehouse-row-actions button { min-width: 0; min-height: 40px; padding: 6px; font-size: 11px; white-space: nowrap; }

@@ -585,7 +585,7 @@ export const SOLAR_SYSTEM = {
   },
 } as const;
 
-export const MOTHERSHIP = { x: 555, serviceRadius: 190, storageCapacity: 24 };
+export const MOTHERSHIP = { x: 555, serviceRadius: 190, storageCapacity: 50 };
 
 export const STARTER_MATERIAL_SEAMS = [
   { ore: 'copper', left: 16, right: 19, top: 0, bottom: 2 },

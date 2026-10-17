@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { MAPS } from '../src/game/config';
+import { MAPS, MOTHERSHIP } from '../src/game/config';
 import { TileWorld, keyOf, type Tile } from '../src/game/world/TileWorld';
 import { RockSwimmer, swimmerKindForEncounter } from '../src/game/world/RockSwimmer';
 import { SurfaceRaid } from '../src/game/world/SurfaceRaid';
@@ -243,6 +243,14 @@ test('planet warehouses transfer selected half-unit ore without exceeding miner 
   assert.equal(transferWarehouseOre(cargo, warehouse, 'copper', 'store', 20, 6, 5).moved, 0.5,
     'storage capacity is enforced across all ore types');
   assert.equal(transferWarehouseOre(cargo, warehouse, 'copper', 'store', Number.NaN, 6).moved, 0);
+});
+
+test('mothership hold starts with fifty ore of capacity', () => {
+  const cargo = { ...emptyCargo(), iron: 1 }, warehouse = { ...emptyCargo(), copper: 49.5 };
+  const transfer = transferWarehouseOre(cargo, warehouse, 'iron', 'store', 1, 24, MOTHERSHIP.storageCapacity);
+  assert.equal(MOTHERSHIP.storageCapacity, 50);
+  assert.equal(transfer.moved, 0.5, 'the hold accepts ore up to its new 50-unit capacity');
+  assert.equal(transfer.warehouse.copper + transfer.warehouse.iron, 50);
 });
 
 test('automated extraction costs, tiers, ore access, storage capacity and elapsed production', () => {
