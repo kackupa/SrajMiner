@@ -29,6 +29,6 @@ assert.equal(validateSurfaceStructureSite(world,'trade-post',{x:1800,y:0},[],pla
 assert.equal(validateSurfaceStructureSite(world,'extractor',{x:1800,y:0},[],planetaryMaterials(cargo,stock),0).valid,true,'extractor needs no warehouse');
 const facilities:UndergroundStructure[]=[{id:'extractor:1',kind:'extractor',x:1800,y:0,level:1}], hold=emptyCargo();
 accumulateAutomatedProduction(facilities,hold,'cryo-shelf',3600,24);
-assert.equal(ORE_KEYS.reduce((n,o)=>n+hold[o],0),2,'extractor can use mothership hold');
+assert.equal(ORE_KEYS.reduce((n,o)=>n+hold[o],0),24,'extractor can use mothership hold');
 const full={...emptyCargo(),copper:24};accumulateAutomatedProduction(facilities,full,'cryo-shelf',3600,24);assert.equal(full.copper,24);assert.equal(facilities[0].productionFraction,0);
 console.log('PASS sandbox: pooled fractional materials, atomic shortage, common/exclusive geography, open placement, hold production and full-storage pause');

@@ -19,7 +19,7 @@ Vite prints the local game URL. Saves belong to that browser origin. The product
 
 When placing a camp or another surface building, drag the map sideways or hold the mouse near the left/right screen edge to pan around the planet. Arrow-key placement also brings the selected site into view. A mouse click or Enter confirms; Escape/right-click cancels. On touch screens, drag to pan, tap a site, then tap **PLACE** (or **CANCEL**). Dragging never spends materials. Completing or cancelling placement returns the camera to the miner.
 
-The same game and save format support touch devices. Landscape is recommended; portrait remains playable. The left pad steers and thrusts upward, while the right pad drills down or sideways. Sideways steering also drills against rock, just as keyboard movement does. Multiple fingers can hold thrust and drilling together. Board/Disembark, Services, Build and Map are available on screen; equipment controls appear when owned. The pause button stays in the top bar.
+The same game and save format support touch devices. Landscape is recommended; portrait remains playable. The left WASD pad steers, drills and thrusts upward; contextual actions and equipment are on the right. Sideways steering also drills against rock, just as keyboard movement does. Multiple fingers can hold thrust and drilling together. Board/Disembark, Services, Build and Map are available on screen; equipment controls appear when owned. The pause button stays in the top bar.
 
 Touch inputs clear on rotation, menu entry, cancellation and loss of focus. Phone layouts use a compact battery/hull/cargo HUD, safe-area spacing and full-screen service panels. How to play shows touch instructions on touch devices. No mobile fork, backend or save migration is required.
 
@@ -35,13 +35,12 @@ The custom domain is `https://playorefrontier.xyz/`; canonical and social-share 
 
 ## The mining loop
 
-1. Deploy from the mothership on the Cryo Shelf. Mine copper and iron nearby.
-2. Build a **Mining camp** with 6 copper and 4 iron. No credits are required.
-3. Build a **Market uplink** with 4 copper, 4 iron and 2 silver. It connects the planet to the interplanetary market and unlocks ore sales and paid rig upgrades.
-4. Sell carried ore for credits. Store construction materials in the mothership hold before selling the rest. Stored ore is not sold.
-5. Buy upgrades, expand your operation and drill toward the planetary core.
-6. Extract cores for **mothership fuel**. Board with E, choose **Pilot mothership**, then hold W to take off. Travel costs core fuel by distance; a core supplies four units.
-
+1. Deploy on Cryo Shelf and mine nearby copper, iron and silver.
+2. Choose your own first building: extractor, warehouse, camp or market uplink. Each uses shared local materials; none requires another building first.
+3. Install basic rig upgrades with common ores from your miner and planetary storage.
+4. Build an uplink to sell carried ore to civilian buyers, or complete optional local contracts.
+5. Expand, relocate extractors as seams deplete, and keep storage from filling.
+6. Recover the planetary core for future mothership fuel. Travel and specialist modules remain coming soon in this pre-build.
 The rig runs on a **battery**, separate from mothership fuel. Return to the mothership and choose **Recharge** to fill it for free, even with zero credits. Hull repairs still cost credits. Signals, missing-crew quests and survey cash rewards are not part of the live expedition. Cores supply travel fuel, not cash.
 
 Near the core, aim at its glowing marker and hold the mouse button to extract it. The marker remains selectable when polar tiles become narrower than a screen pixel; intervening rock still needs to be drilled first. A fresh Cryo descent, core extraction and return to the surface has been browser-tested with earned cargo and no funded upgrades. A later core-crossing return stalled against rock, so reliable return navigation and the full six-world campaign remain under review.
@@ -59,23 +58,23 @@ Construction pools miner cargo and storage on the current planet, spending carri
 - **B:** open the build yard. **M:** explored tunnel map. **Esc:** pause/close.
 - **R:** installed surface winch. **Q:** mining charge. **X:** installed stasis module.
 
-The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. **Pilot mothership** deliberately keeps you aboard for flight once core fuel is available.
+The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. Interplanetary flight is disabled in this pre-build.
 
 The opening screen teaches movement, drilling and return flight. The fullscreen build catalogue groups Mining, Storage, Services and Defence without scrolling or dropdowns. It shows exact shortages from pooled planetary materials and retains repair/upgrade management. There is no camp prerequisite for an uplink. The Star map has its own menu entry.
 
-The game fits the viewport without browser scrollbars. Main menus use the full screen; longer reference/catalogue panels offer **Previous / Next** controls and still support wheel, touch and keyboard navigation. Phone service navigation uses a compact selector. The original illustrated title, lander, sky and mineral treatment share the new blue/orange visual style.
+The game fits the viewport without browser scrollbars. Main menus use the full screen; longer panels use explicit **Previous / Next** pages rather than scrolling. Phone menus use buttons, cards and tabs, without text dropdowns or checkboxes. The original illustrated title, lander, sky and mineral treatment share the new blue/orange visual style.
 
 The redesigned miner has a visible pilot, directional banking, gimballed thrusters, correction jets, retractable skids and drill recoil. The mothership uses a long carrier hull, raised bridge, twin engines and a closing landing bay. These animations follow movement without changing handling, collision size or saves. Pause freezes the pose; reduced motion removes banking and oscillation.
 
 ## Saves and compatibility
 
-Campaigns remain under `mars-miner.v1`, save version 30. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
+Campaigns remain under `mars-miner.v1`, save version 31. Version 30 campaigns gain an empty finite-seam depletion ledger. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
 
 Automated extractors stop at the planet warehouse's capacity and cap offline catch-up at 12 hours. Full storage discards blocked production instead of banking it for an immediate payout after withdrawal. The extractor upgrade panel shows the same credit and material costs that the purchase charges. Browser fixtures cover a Cryo–Mars round trip, upgrade persistence, full-store withdrawal/reload, and v28 migration; they do not replace an earned-resource campaign playthrough.
 
 ## Worlds, customers and the Expedition Codex
 
-The planet atlas previews geology and expedition footholds. In orbit, the flight deck shows route fuel cost and remaining fuel before an explicit departure, with a skippable transit sequence. Civilian worlds are trading partners, not playable mining destinations.
+The fullscreen star map previews geology, mining worlds and inhabited trading partners. Travel is unavailable in this pre-build. Civilian worlds are trading partners, not playable mining destinations.
 
 Teletrade offers four customers: Helion's municipal works, Kepler's shipyards, Verdant's growers and Lyra's research institute. Each has three development projects. Selected shipments earn a capped 35% premium on the current project's remaining ore requirement; completed projects persist and add lights to the world's artwork. Shipment quantities are separate from carried and stored inventory. Select surplus reserves materials for a chosen camp, uplink or warehouse.
 
@@ -128,3 +127,15 @@ Interplanetary travel is disabled by the pre-build release policy, including sce
 
 ### Mobile WASD controls
 Touch gameplay uses one W/A/S/D pad at the lower left: W thrusts upward, A/D move and drill sideways, and S drills downward. Contextual actions and Tools sit at the lower right. Multiple touches support thrust and steering together.
+
+### Your First Mining Colony update
+Build catalogue > Colony opens a fullscreen, paged building overview. Surface buildings can be relocated without spending materials or resetting levels; cancelling keeps the original location. Dismantling confirms a refund of half the base construction materials into planetary storage, protects storage capacity, and rolls back on save failure. Upgrades are not refunded. Supporting wall layers must remain until the layer above is removed. Touch placement includes explicit Left and Right buttons.
+The colony update is implemented and locally verified. The fresh-save mining/building/production loop, save migration, management transactions and responsive UI checks are documented in docs/QA.md. Physical Android testing and deployment are separate from this local acceptance.
+
+Finite extraction seams are now implemented with save version 31. A migration preserves version-30 campaign data and adds an empty depletion ledger. Each 320-world-unit surface sector has a deep seam with 60 units; these are separate from manually excavated shallow blocks. Placement surveys ore, remaining units and tier rate. Extractors share sector depletion; dismantling/rebuilding does not replenish it. Full storage and unsupported ore tiers pause production. Relocation preserves levels and resets only the fractional work when changing seams. Working drills animate and warehouses show their real storage fill. Production rates are 24/48/96 ore per hour for basic, industrial and deep extractors.
+
+Optional local contracts are available through Colony > Contracts: bulk copper, a planetary-exclusive survey request, and iron construction supply. All three are independent, have no expiry and pay once. Delivery consumes the stated quantity from carried ore then local storage and saves atomically. Tracking is a session-only HUD aid. Phones use three explicit tabs and one full order card; larger screens show three cards.
+The top-bar Colony button marks extractor attention states. Locate opens a paused world inspection with Manage, Move and Dismantle; returning to the rig restores its camera without teleporting the player. Clicking a visible building also opens inspection.
+
+Colony visual/feedback pass: cards now use original building silhouettes matching the world palette; working extractors animate. Rig installation shows its exact stat change with a short reduced-motion-aware effect. Production state transitions notify without pausing. Basic/industrial/deep rates are now 24/48/96 ore per hour; the first half-unit arrives after 75 seconds. Extractor placement outlines its surveyed seam area. The cargo HUD opens a fullscreen nine-ore inventory instead of a text dropdown.
+Phone storage uses explicit ore cards with one transfer panel. Mobile buyer selection retains cards, and legacy generated select/details widgets were removed. Generic mothership pagination now hides/shows complete content blocks instead of scrolling. The final browser audit covered phone portrait (320×568), phone landscape (844×390) and desktop (1440×900), including complete field-guide and paint-shop pages. Discard uses a dedicated confirmation screen.

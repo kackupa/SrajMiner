@@ -1,6 +1,7 @@
 import { EXTRACTOR_TIERS, MAPS, ORE_KEYS, UNDERGROUND_BUILDING, type MapId, type Ore } from '../config';
 import { warehouseCapacity, type UndergroundStructure } from '../building/UndergroundStructures';
 import type { Cargo } from './Progress';
+import { extractorStatus, type ExtractionLedger } from './ExtractionSeams';
 
 export type WarehouseDirection = 'store' | 'withdraw';
 
@@ -33,13 +34,25 @@ export function transferWarehouseOre(
 }
 
 export function accumulateAutomatedProduction(
-  structures: UndergroundStructure[], warehouse: Cargo, mapId: MapId, elapsedSeconds: number, extraCapacity = 0,
+  structures: UndergroundStructure[], warehouse: Cargo, mapId: MapId, elapsedSeconds: number, extraCapacity = 0, extraction?: ExtractionLedger,
 ) {
   const elapsed = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.min(UNDERGROUND_BUILDING.automation.offlineCapSeconds, elapsedSeconds)) : 0,
     capacity = warehouseCapacity(structures) + extraCapacity, results: Record<string, number> = {};
   if (capacity <= 0) return { warehouse, produced: results };
   for (const facility of structures) {
     if (facility.kind !== 'extractor') continue;
+    if (extraction) {
+      const status = extractorStatus(mapId, facility, extraction, ORE_KEYS.reduce((n, o) => n + warehouse[o], 0), capacity);
+      if (status.state !== 'Mining') { facility.productionFraction = 0; continue; }
+      const accumulated = (facility.productionFraction ?? 0) + elapsed / 3600 * status.rate,
+        room = capacity - ORE_KEYS.reduce((n, o) => n + warehouse[o], 0),
+        accepted = Math.floor(Math.min(accumulated, room, status.remaining) * 2 + 1e-8) / 2;
+      warehouse[status.ore] += accepted;
+      extraction[status.key] = (extraction[status.key] ?? 0) + accepted;
+      results[status.ore] = (results[status.ore] ?? 0) + accepted;
+      facility.productionFraction = room - accepted < 0.5 || status.remaining - accepted <= 0 ? 0 : Math.min(.499999999, accumulated - accepted);
+      continue;
+    }
     const level = Math.max(1, Math.min(EXTRACTOR_TIERS.length, facility.level ?? 1)), tier = EXTRACTOR_TIERS[level - 1]!,
       eligible = tier.ores.filter((ore) => MAPS[mapId].oreFactors[ore] > 0),
       weights = eligible.map((ore) => MAPS[mapId].oreFactors[ore]), weightTotal = weights.reduce<number>((a, b) => a + b, 0);

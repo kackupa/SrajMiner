@@ -1,5 +1,8 @@
+import { dismantleBuilding, supportsWall } from './building/ColonyManagement';
+import { deliverColonyOrder } from './economy/ColonyOrders';
+import { extractionSeam, extractorStatus, type ExtractionLedger } from './economy/ExtractionSeams';
 import { installRigUpgrade } from './economy/RigUpgrade';
-import { PREBUILD } from './config';
+import { PREBUILD, ORE_KEYS, EXTRACTION_SEAMS } from './config';
 import { PlacementControls } from './ui/PlacementControls';
 import { planetaryMaterials, spendPlanetaryMaterials } from './building/PlanetaryMaterials';
 import { RenderGraphics } from './RenderGraphics';
@@ -73,6 +76,8 @@ export class MiningScene extends Phaser.Scene {
   surfaceFeatures: SurfaceLandmark[] = [];
   warehouseCargo: Cargo = emptyCargo();
   productionUpdatedAt = Date.now();
+  extraction: ExtractionLedger = {};
+  productionStates = new Map<string, string>();
   oreDrops: OreDrop[] = [];
   activeCharge?: ActiveCharge;
   pod!: PlayerPod;
@@ -86,7 +91,7 @@ export class MiningScene extends Phaser.Scene {
   laserThermal: LaserThermalState = { heat: 0, vent: 0 };
   rockSwimmer!: RockSwimmer;
   surfaceRaid!: SurfaceRaid;
-  surfacePlacement?: { kind: SurfaceStructureKind; x: number; y: number };
+  surfacePlacement?: { kind: SurfaceStructureKind; x: number; y: number; movingId?: string };
   saves = new SaveManager();
   soundFx = new AudioSystem();
   ui!: HUD;
@@ -112,10 +117,12 @@ export class MiningScene extends Phaser.Scene {
   placementSnap = false;
   wallAutoStack = true;
   wallPulse?: { id: string; at: number };
+  constructionPulse?: { id: string; at: number };
   placementFocus?: { x: number; y: number };
   placementPointer?: { x: number; y: number; touch: boolean };
   placementDrag?: { x: number; startX: number; startY: number; moved: boolean };
-  get cameraSubject() { return this.surfacePlacement && this.placementFocus ? this.placementFocus : this.pod; }
+  inspectionFocus?: { x: number; y: number };
+  get cameraSubject() { return this.surfacePlacement && this.placementFocus ? this.placementFocus : this.inspectionFocus ?? this.pod; }
   camX = 0;
   camY = -300;
   cameraFlip = 0;
@@ -288,6 +295,7 @@ export class MiningScene extends Phaser.Scene {
     if (saved) this.saves.restore(this.progress, saved);
     else { this.progress.milestones.push('mothership-origin'); this.progress.money = 0; }
     this.productionUpdatedAt = saved?.productionUpdatedAt ?? Date.now();
+    this.extraction = { ...saved?.extraction };
     this.progress.pilotEscaping = saved?.pilotEscaping ?? false;
     this.mapId = saved?.activeMap ?? 'cryo-shelf';
     this.mapStates = saved?.maps ?? {};
@@ -369,7 +377,7 @@ export class MiningScene extends Phaser.Scene {
           if (this.ui.hasStarted && this.ui.modal) this.ui.close();
           else this.pause();
         },
-        modeChanged: (paused) => this.syncInput(paused),
+        modeChanged: (paused) => { if (!paused) this.inspectionFocus = undefined; this.syncInput(paused); },
         serviceAll: () => {
           if (!this.isNearMothership()) return false;
           const ok = this.progress.serviceAll();
@@ -560,6 +568,25 @@ export class MiningScene extends Phaser.Scene {
           return ok;
         },
         buildStructure: (kind: StructureKind) => this.buildUndergroundStructure(kind),
+        locateBuilding: id => {
+          const s = this.structures.find(s => s.id === id); if (!s) return false;
+          this.inspectionFocus = { x: s.x, y: s.y - this.world.gravitySign(s.y) * 50 };
+          this.cameraZoom = this.cameraZoomTarget = 1; this.cameraLookAhead = 0;
+          return true;
+        },
+        deliverColonyOrder: id => {
+          this.applyAutomatedProduction(Date.now());
+          const ok = deliverColonyOrder(this.progress, this.warehouseCargo, this.mapId, id, () => !!this.save());
+          if (ok) this.soundFx.reward(); else this.rememberCurrentMap();
+          return ok;
+        },
+        moveBuilding: id => this.moveBuilding(id),
+        dismantleBuilding: id => {
+          this.applyAutomatedProduction(Date.now());
+          const result = dismantleBuilding(this.structures, this.warehouseCargo, id, MOTHERSHIP.storageCapacity, () => !!this.save());
+          if (!result.ok) this.rememberCurrentMap();
+          this.ui.toast(result.reason); return result.ok;
+        },
         upgradeTurret: (id: string) => this.upgradeDefenseTurret(id),
         buildExtractor: () => this.buildExtractor(),
         upgradeExtractor: (id: string) => this.upgradeAutomatedExtractor(id),
@@ -575,6 +602,7 @@ export class MiningScene extends Phaser.Scene {
         atWarehouse: () => !!this.nearbyWarehouse,
         placementActive: () => !!this.surfacePlacement,
         structures: () => this.structures,
+        extractorStatus: structure => extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity),
         tradeNetworkCount: () => this.tradeNetworkCount(),
         tradePostMaps: () => this.tradePostMaps(),
         hasTradePost: () => this.structures.some((entry) => entry.kind === 'trade-post'),
@@ -719,6 +747,7 @@ export class MiningScene extends Phaser.Scene {
       PLACE: () => this.confirmSurfacePlacement(),
     });
     this.placementControls = new PlacementControls({
+      left: () => this.nudgeSurfacePlacement(-WORLD.tile), right: () => this.nudgeSurfacePlacement(WORLD.tile),
       snap: () => { this.placementSnap = !this.placementSnap; this.updateSurfacePlacementLabel(); },
       place: () => this.confirmSurfacePlacement(), cancel: () => this.cancelSurfacePlacement(),
     });
@@ -830,6 +859,13 @@ export class MiningScene extends Phaser.Scene {
       } else this.cameraZoomTarget = Phaser.Math.Clamp(nextZoom, this.minimumCameraZoom, 1.8);
     });
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.button === 0 && this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.surfacePlacement) {
+        const selected = this.structures.find(s => {
+          const point = this.worldPointToScreen(s.x, s.y - this.world.gravitySign(s.y) * 28, this.scale.width, this.scale.height);
+          return Math.hypot(point.x - pointer.x, point.y - pointer.y) < 42 * this.cameraZoom;
+        });
+        if (selected) { this.ui.inspectBuilding(selected.id); return; }
+      }
       if (pointer.button === 0 && this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.surfacePlacement)
         this.mouseAimActive = true;
       if (!this.surfacePlacement || this.ui.paused || this.ui.modal) return;
@@ -1127,9 +1163,15 @@ export class MiningScene extends Phaser.Scene {
     for (const mapId of Object.keys(this.mapStates) as MapId[]) {
       const state = this.mapStates[mapId];
       if (!state) continue;
-      if (mapId !== this.mapId) accumulateAutomatedProduction(state.structures, state.warehouse, mapId, elapsed);
+      if (mapId !== this.mapId) accumulateAutomatedProduction(state.structures, state.warehouse, mapId, elapsed, 0, this.extraction);
     }
-    accumulateAutomatedProduction(this.structures, this.warehouseCargo, this.mapId, elapsed, MOTHERSHIP.storageCapacity);
+    accumulateAutomatedProduction(this.structures, this.warehouseCargo, this.mapId, elapsed, MOTHERSHIP.storageCapacity, this.extraction);
+    for (const structure of this.structures.filter(s => s.kind === 'extractor')) {
+      const status = extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity), previous = this.productionStates.get(structure.id);
+      if (previous && previous !== status.state && this.ui?.hasStarted && (status.state === 'Storage full' || status.state === 'Deposit exhausted'))
+        this.ui.toast(`${status.state}. Open Colony to manage your extractor.`);
+      this.productionStates.set(structure.id, status.state);
+    }
     this.productionUpdatedAt = Number.isFinite(now) ? Math.max(0, now) : this.productionUpdatedAt;
   }
   upgradeWarehouseCapacity() {
@@ -1223,6 +1265,17 @@ export class MiningScene extends Phaser.Scene {
       return structures?.some((entry) => entry.kind === 'trade-post') ?? false;
     });
   }
+  moveBuilding(id: string) {
+    const structure = this.structures.find(s => s.id === id);
+    if (!structure || !this.planetSurface || structure.kind === 'platform' || structure.kind === 'service') return false;
+    if (supportsWall(structure, this.structures)) {
+      this.ui.toast('Move the wall layer above this one first.'); return false;
+    }
+    this.surfacePlacement = { kind: structure.kind, x: structure.x, y: structure.y, movingId: id };
+    this.placementFocus = { x: structure.x, y: structure.y - this.world.gravitySign(structure.y) * 22 };
+    this.placementPointer = undefined; this.placementDrag = undefined; this.wallAutoStack = false;
+    this.updateSurfacePlacementLabel(); return true;
+  }
   beginSurfacePlacement(kind: SurfaceStructureKind) {
     if (!this.planetSurface || !this.world.planetChart) return false;
     const baseArc = surfaceArcCoordinate(this.world, this.pod.x, this.pod.y),
@@ -1297,12 +1350,19 @@ export class MiningScene extends Phaser.Scene {
   surfacePlacementCheck() {
     const placement = this.surfacePlacement;
     if (!placement) return undefined;
+    if (placement.kind === 'extractor') {
+      const existing = this.structures.find(s => s.id === placement.movingId),
+        status = extractorStatus(this.mapId, { id: 'preview', ...placement, level: existing?.level ?? 1 }, this.extraction, 0, 1);
+      if (!status.supported) return { valid: false as const, reason: `${ORES[status.ore].name} seam: upgrade required` };
+      if (!status.remaining) return { valid: false as const, reason: 'Deposit exhausted. Choose another seam.' };
+    }
     const stations: UndergroundStructure[] = (this.mothershipStart ? [] : STATIONS).map((station, index) => ({
       id: `station:${index}`, kind: 'platform', x: station.x,
       y: placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
     }));
     stations.push({ id: 'mothership', kind: 'habitat', x: MOTHERSHIP.x, y: 0 });
-    return validateSurfaceStructureSite(this.world, placement.kind, placement, [...this.structures, ...stations], this.constructionMaterials(), this.progress.money);
+    const materials = placement.movingId ? { ...this.constructionMaterials(), ...UNDERGROUND_BUILDING[placement.kind].materials } : this.constructionMaterials();
+    return validateSurfaceStructureSite(this.world, placement.kind, placement, [...this.structures.filter(s => s.id !== placement.movingId), ...stations], materials, placement.movingId ? Number.MAX_SAFE_INTEGER : this.progress.money);
   }
   updateSurfacePlacementLabel() {
     const placement = this.surfacePlacement;
@@ -1336,9 +1396,24 @@ export class MiningScene extends Phaser.Scene {
       this.soundFx.tone(170, 0.07, 'square', 0.02, 120);
       return false;
     }
+    if (placement.movingId) {
+      this.applyAutomatedProduction(Date.now());
+      const existing = this.structures.find(s => s.id === placement.movingId);
+      if (!existing) return false;
+      const previous = { x: existing.x, y: existing.y, productionFraction: existing.productionFraction };
+      if (existing.kind === 'extractor' && extractionSeam(this.mapId, existing, this.extraction).key !== extractionSeam(this.mapId, placement, this.extraction).key) existing.productionFraction = 0;
+      Object.assign(existing, { x: placement.x, y: placement.y });
+      if (!this.save()) {
+        Object.assign(existing, previous); this.rememberCurrentMap();
+        this.ui.toast('Move could not be saved. Building kept at its original site.'); return false;
+      }
+      this.surfacePlacement = undefined; this.buildPlacementLabel.setVisible(false);
+      this.ui.toast('Building relocated. No materials spent.'); return true;
+    }
+    this.applyAutomatedProduction(Date.now());
     const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo },
       structure: UndergroundStructure = {
-        id: `${placement.kind}:${Math.round(placement.x)}:${Math.round(placement.y)}`,
+        id: `${placement.kind}:${Math.round(placement.x)}:${Math.round(placement.y)}:${Date.now()}`,
         kind: placement.kind, x: placement.x, y: placement.y, ...(placement.kind === 'extractor' ? { level: 1, productionFraction: 0 } : { integrity: structureIntegrity(placement.kind) }),
       };
     const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials);
@@ -1373,6 +1448,7 @@ export class MiningScene extends Phaser.Scene {
     }
     this.surfacePlacement = undefined;
     this.buildPlacementLabel.setVisible(false);
+    this.constructionPulse = { id: structure.id, at: this.tick };
     this.burst(structure.x, structure.y, structure.kind === 'turret' ? 0xf0b779 : 0xa4efd9, 18);
     this.float(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT`, structure.x, structure.y - 42, '#9ce4cf');
     this.soundFx.reward();
@@ -1639,7 +1715,8 @@ export class MiningScene extends Phaser.Scene {
     this.applyAutomatedProduction(Date.now());
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 30,
+      version: 31,
+      extraction: { ...this.extraction },
       deliveries: { ...p.deliveries },
       productionUpdatedAt: this.productionUpdatedAt,
       planetChart: { ...(this.world.planetChart ?? this.campaignChart) },
@@ -2001,7 +2078,9 @@ export class MiningScene extends Phaser.Scene {
     this.touch?.root.classList.toggle('placing', !!this.surfacePlacement);
     this.touch?.root.classList.toggle('wall-placing', this.surfacePlacement?.kind === 'wall');
     const placementCheck = this.surfacePlacementCheck();
-    this.placementControls?.update(!!this.surfacePlacement && this.surfacePlacement.kind !== 'wall' && !this.ui.modal && !this.ui.paused, this.placementSnap, !!placementCheck?.valid, placementCheck && !placementCheck.valid ? placementCheck.reason : '');
+    const seam = this.surfacePlacement?.kind === 'extractor' ? extractionSeam(this.mapId, this.surfacePlacement, this.extraction) : undefined;
+    const survey = seam ? `${ORES[seam.ore].name} seam · ${seam.remaining} ore · ${EXTRACTOR_TIERS[(this.structures.find(s => s.id === this.surfacePlacement?.movingId)?.level ?? 1)-1].rate}/hour` : '';
+    this.placementControls?.update(!!this.surfacePlacement && this.surfacePlacement.kind !== 'wall' && !this.ui.modal && !this.ui.paused, this.placementSnap, !!placementCheck?.valid, placementCheck && !placementCheck.valid ? placementCheck.reason : survey);
     const wall = this.surfacePlacement?.kind === 'wall' ? this.surfacePlacement : undefined;
     const wallCheck = wall ? this.surfacePlacementCheck() : undefined;
     const wallLayer = wall ? 1 + Math.round(Math.abs(wall.y - (wall.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY)) / WORLD.tile) : 1;
@@ -2982,7 +3061,10 @@ export class MiningScene extends Phaser.Scene {
     for (const structure of this.structures) {
       if (!isOnScreen(structure.x, structure.y, 150)) continue;
       if (this.world.planetChart) {
-        const pointAt = (tangent: number, outward: number) => localProject(structure.x, structure.y, tangent, outward);
+        const assembly = !this.reducedMotion && this.constructionPulse?.id === structure.id
+          ? Phaser.Math.Clamp((this.tick - this.constructionPulse.at) / 0.65, 0, 1) : 1;
+        const rise = 1 - Math.pow(1 - assembly, 3);
+        const pointAt = (tangent: number, outward: number) => localProject(structure.x, structure.y, tangent, outward * rise);
         const polygon = (points: { tangent: number; outward: number }[]) =>
           g.fillPoints(points.map(({ tangent, outward }) => pointAt(tangent, outward)), true);
         const rectangle = (tangent: number, outward: number, width: number, height: number, color: number, alpha = 1) => {
@@ -3119,6 +3201,9 @@ export class MiningScene extends Phaser.Scene {
           rectangle(0, 9, 82, 5, 0xe4b877);
           rectangle(-37, 49, 12, 9, 0xc58c4e);
           rectangle(37, 49, 12, 9, 0x8eaa91);
+          const fill = Math.min(1, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0) / (warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity));
+          rectangle(0, 46, 60, 4, 0x17292e);
+          rectangle(-30 + fill * 30, 46, fill * 60, 4, fill >= 1 ? 0xffba79 : 0x8ee0cd);
           g.lineStyle(2, 0xf0c47f, 0.9);
           const sign = pointAt(0, 60);
           g.strokeRect(sign.x - 11, sign.y - 7, 22, 14);
@@ -3126,18 +3211,24 @@ export class MiningScene extends Phaser.Scene {
           continue;
         }
         if (structure.kind === 'extractor') {
-          const accent = [0xa4efd9, 0xf0b779, 0x80f5e9][Math.max(0, Math.min(2, (structure.level ?? 1) - 1))]!;
+          const status = extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity),
+            working = status.state === 'Mining', accent = working ? 0xa4efd9 : status.state === 'Deposit exhausted' ? 0x71848a : 0xf0b779,
+            stroke = working && !this.reducedMotion ? Math.sin(this.tick * 5) * 4 : 0;
           rectangle(0, 0, 100, 8, 0x263332);
           rectangle(0, 24, 64, 34, 0x364b48);
-          rectangle(0, 19, 38, 10, 0x657874);
+          rectangle(0, 19 + stroke, 38, 10, 0x657874);
           rectangle(-22, 31, 13, 19, 0x1c2928);
           rectangle(22, 31, 13, 19, 0x1c2928);
           rectangle(0, 58, 76, 6, accent);
           rectangle(0, 11, 5, 10, accent);
-          if (!this.reducedMotion) {
+          if (working && !this.reducedMotion) {
             const pulse = Math.sin(this.tick * (structure.level ?? 1) * 2.2) * 2;
             const lamp = pointAt(0, 20 + pulse), foot = pointAt(0, 6);
             g.lineStyle(2, accent, 0.7); g.lineBetween(foot.x, foot.y, lamp.x, lamp.y);
+            for (let i = 0; i < 3; i++) {
+              const phase = (this.tick * .4 + i / 3) % 1, ore = pointAt(phase * 36, 10 + Math.sin(phase * Math.PI) * 10);
+              g.fillStyle(ORES[status.ore].color, .9); g.fillRect(ore.x - 2, ore.y - 2, 4, 4);
+            }
           }
           continue;
         }
@@ -3315,6 +3406,12 @@ export class MiningScene extends Phaser.Scene {
       g.fillPoints(footprint, true);
       g.lineStyle(2, color, 0.95);
       g.strokePoints(footprint, true);
+      if (placement.kind === 'extractor') {
+        const seam = extractionSeam(this.mapId, placement, this.extraction), start = Math.floor(placement.x / EXTRACTION_SEAMS.width) * EXTRACTION_SEAMS.width - placement.x;
+        const surveyArea = [pointAt(start, -8), pointAt(start + EXTRACTION_SEAMS.width, -8), pointAt(start + EXTRACTION_SEAMS.width, -38), pointAt(start, -38)];
+        g.fillStyle(ORES[seam.ore].color, .18); g.fillPoints(surveyArea, true);
+        g.lineStyle(2, ORES[seam.ore].color, .8); g.strokePoints(surveyArea, true);
+      }
       if (placement.kind === 'turret') {
         const range = Array.from({ length: 49 }, (_, i) => {
           const angle = Math.PI * 2 * i / 48;
