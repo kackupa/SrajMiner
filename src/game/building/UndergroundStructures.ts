@@ -73,7 +73,7 @@ export function validateSurfaceStructureSite(
   credits: number,
 ): { valid: true } | { valid: false; reason: 'LIMIT' | 'OCCUPIED' | 'NEED MATERIALS / CREDITS' } {
   const rule = UNDERGROUND_BUILDING[kind];
-  const playerStructures = existing.filter((entry) => !entry.id.startsWith('station:'));
+  const playerStructures = existing.filter((entry) => !entry.id.startsWith('station:') && entry.id !== 'mothership');
   if (playerStructures.length >= UNDERGROUND_BUILDING.maxStructuresPerMap ||
       kind === 'habitat' && playerStructures.filter((entry) => entry.kind === 'habitat').length >= rule.maxPerMap ||
       kind === 'turret' && playerStructures.filter((entry) => entry.kind === 'turret').length >= rule.maxPerMap ||

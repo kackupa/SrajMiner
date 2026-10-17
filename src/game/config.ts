@@ -62,22 +62,22 @@ export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 180,
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
   service: { credits: 420, materials: { iron: 3, silver: 2 }, widthTiles: 5, uniquePerMap: true },
-  turret: { credits: 560, materials: { iron: 2, silver: 2, gold: 1 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
+  turret: { credits: 560, materials: { iron: 4, silver: 3 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
   'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5, maxPerMap: 1 },
   habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
-  warehouse: { credits: 360, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
-  extractor: { credits: 220, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 2, 6, 12], upgradeCredits: [0, 0, 680, 1800] },
+  warehouse: { credits: 0, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
+  extractor: { credits: 0, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 2, 6, 12], upgradeCredits: [0, 0, 680, 1800] },
   automation: { offlineCapSeconds: 43200 },
   wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1, maxPerMap: 12 },
   gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3, maxPerMap: 3 },
-  fort: { credits: 1400, materials: { iron: 6, silver: 3, gold: 2 }, widthTiles: 7, maxPerMap: 1, integrity: 4, linkRadius: 640, rangeBonus: 120 },
+  fort: { credits: 1400, materials: { iron: 8, silver: 5 }, widthTiles: 7, maxPerMap: 1, integrity: 4, linkRadius: 640, rangeBonus: 120 },
   maxStructuresPerMap: 20,
   serviceRadius: 100,
 } as const;
 export const EXTRACTOR_TIERS = [
   { name: 'Basic Excavator', rate: 2, ores: ['copper', 'iron'] as const, upgradeCredits: 680, upgradeMaterials: { iron: 6, silver: 2 } },
-  { name: 'Industrial Drill', rate: 6, ores: ['copper', 'iron', 'silver'] as const, upgradeCredits: 1800, upgradeMaterials: { iron: 10, silver: 6, gold: 2 } },
-  { name: 'Deep-Core Extractor', rate: 12, ores: ['silver', 'gold', 'diamond'] as const, upgradeCredits: 0, upgradeMaterials: {} },
+  { name: 'Industrial Drill', rate: 6, ores: ['copper', 'iron', 'silver'] as const, upgradeCredits: 1800, upgradeMaterials: { iron: 10, silver: 8 } },
+  { name: 'Deep-Core Extractor', rate: 12, ores: ['silver', 'gold', 'diamond', 'nickel', 'titanium', 'cobalt', 'cryocrystal'] as const, upgradeCredits: 0, upgradeMaterials: {} },
 ] as const;
 export const WAREHOUSE_CAPACITY_TIERS = [40, 100, 200, 360] as const;
 export const SURFACE_RAID = {
@@ -178,6 +178,8 @@ export const ORES = {
   cryocrystal: { name: 'Cryocrystal', value: 210, color: 0xd5f8ff, hex: '#d5f8ff', min: 288, max: 600, rarity: 0.075 },
 } as const;
 export type Ore = keyof typeof ORES;
+export const COMMON_ORES = ['copper', 'iron', 'silver'] as const;
+export const PLANET_EXCLUSIVE_ORES = { 'mars-frontier': 'nickel', 'cryo-shelf': 'cryocrystal', 'hull-graveyard': 'titanium', 'prism-fault': 'diamond', 'cinder-vale': 'cobalt', 'vesper-9': 'gold' } as const;
 export const ORE_KEYS = Object.keys(ORES) as Ore[];
 export const ORE_SILHOUETTES = {
   copper: 'chips',
@@ -233,7 +235,7 @@ export const MAPS = {
     palette: [0x855043, 0x65504b, 0x51424a, 0x363e49, 0x273f42],
     caveChance: 0.12,
     geodeChance: 0,
-    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 1, diamond: 1, nickel: 1.1, titanium: 1.2, cobalt: 0.6, cryocrystal: 0 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 0, diamond: 0, nickel: 1.5, titanium: 0, cobalt: 0, cryocrystal: 0 },
     surface: { sky: [0x17252c, 0x17252c, 0x8c6356, 0x8c6356], ground: 0xba805c, edge: 0xe0a776, mountains: [0x594f4e, 0x79594e, 0x9c6851], moon: 0xc6b4a2 },
   },
   'cryo-shelf': {
@@ -243,7 +245,7 @@ export const MAPS = {
     palette: [0x527884, 0x415e70, 0x37495f, 0x293c54, 0x25344b],
     caveChance: 0.17,
     geodeChance: 0,
-    oreFactors: { copper: 0.75, iron: 1.05, silver: 1.1, gold: 0.9, diamond: 1.05, nickel: 0.7, titanium: 0, cobalt: 0.8, cryocrystal: 1.5 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 0, diamond: 0, nickel: 0, titanium: 0, cobalt: 0, cryocrystal: 1.5 },
     surface: { sky: [0x101b29, 0x152c3b, 0x315564, 0x59838c], ground: 0x638995, edge: 0xa9d5d5, mountains: [0x293e50, 0x365669, 0x4a6d79], moon: 0xa4d1d3 },
   },
   'hull-graveyard': {
@@ -253,7 +255,7 @@ export const MAPS = {
     palette: [0x596d68, 0x495b5c, 0x464b55, 0x373c48, 0x28353d],
     caveChance: 0.21,
     geodeChance: 0,
-    oreFactors: { copper: 0.65, iron: 1.5, silver: 0.9, gold: 0.8, diamond: 0.7, nickel: 1.7, titanium: 1.3, cobalt: 1.2, cryocrystal: 0 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 0, diamond: 0, nickel: 0, titanium: 1.5, cobalt: 0, cryocrystal: 0 },
     surface: { sky: [0x101b21, 0x1d3035, 0x34464a, 0x647b77], ground: 0x596c69, edge: 0xa1b3a2, mountains: [0x25373a, 0x354647, 0x4e625c], moon: 0xb2c8c0 },
   },
   'prism-fault': {
@@ -263,7 +265,7 @@ export const MAPS = {
     palette: [0x645b80, 0x564f79, 0x43486f, 0x345569, 0x244f5c],
     caveChance: 0.09,
     geodeChance: 0.08,
-    oreFactors: { copper: 0.6, iron: 0.8, silver: 1.5, gold: 1.25, diamond: 1.4, nickel: 0.5, titanium: 0.6, cobalt: 0.8, cryocrystal: 0 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 0, diamond: 1.5, nickel: 0, titanium: 0, cobalt: 0, cryocrystal: 0 },
     surface: { sky: [0x171629, 0x242344, 0x373764, 0x565480], ground: 0x655f82, edge: 0xb3b1ed, mountains: [0x2d2b4b, 0x3d3b62, 0x535273], moon: 0xc3c7ed },
   },
   'cinder-vale': {
@@ -273,7 +275,7 @@ export const MAPS = {
     palette: [0x79534c, 0x5d4548, 0x51414a, 0x453a42, 0x382d3c],
     caveChance: 0.16,
     geodeChance: 0.04,
-    oreFactors: { copper: 1.25, iron: 1.15, silver: 0.9, gold: 1.2, diamond: 1.1, nickel: 1.1, titanium: 1.5, cobalt: 1.4, cryocrystal: 0 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 0, diamond: 0, nickel: 0, titanium: 0, cobalt: 1.5, cryocrystal: 0 },
     surface: { sky: [0x1c1720, 0x30212a, 0x59383a, 0x8e5140], ground: 0x694640, edge: 0xf08a58, mountains: [0x332a34, 0x4b3439, 0x70433c], moon: 0xe8a36c },
   },
   'vesper-9': {
@@ -283,7 +285,7 @@ export const MAPS = {
     palette: [0x426f65, 0x375c5c, 0x344d59, 0x303e55, 0x27354a],
     caveChance: 0.23,
     geodeChance: 0.08,
-    oreFactors: { copper: 0.65, iron: 0.8, silver: 1.25, gold: 1.3, diamond: 1.55, nickel: 0.6, titanium: 0.8, cobalt: 1, cryocrystal: 0 },
+    oreFactors: { copper: 1, iron: 1, silver: 1, gold: 1.5, diamond: 0, nickel: 0, titanium: 0, cobalt: 0, cryocrystal: 0 },
     surface: { sky: [0x101b27, 0x172c3a, 0x315957, 0x64836b], ground: 0x426d5d, edge: 0xb2dc9a, mountains: [0x243d42, 0x31534d, 0x476b55], moon: 0xc0dca5 },
   },
 } as const;
@@ -614,3 +616,21 @@ export const CIVILISATIONS = {
 export type CivilisationId = keyof typeof CIVILISATIONS;
 export const CIVILISATION_KEYS = Object.keys(CIVILISATIONS) as CivilisationId[];
 export const CIVILIAN_DEMAND = { premium: 0.35 } as const;
+
+/** Pre-build release policy. Core collection is retained; interplanetary flight is not released. */
+export const PREBUILD = { travelEnabled: false, basicRigMaxLevel: 5 } as const;
+export const RIG_MATERIAL_BASE: Record<Upgrade, Partial<Record<Ore, number>>> = {
+  drill: { iron: 3, copper: 2 }, fuel: { copper: 3, silver: 1 }, cargo: { iron: 3, copper: 3 },
+  hull: { iron: 4, copper: 1 }, engine: { copper: 3, iron: 2 }, scanner: { copper: 2, silver: 2 }, grapple: { iron: 2, copper: 2 },
+};
+export function rigMaterialCost(key: Upgrade, fittedLevel: number): Partial<Record<Ore, number>> {
+  return Object.fromEntries(Object.entries(RIG_MATERIAL_BASE[key]).map(([ore, units]) => [ore, units! * fittedLevel]));
+}
+export const RIG_SPECIALIST_PLANS = [
+  { name: 'Reinforced hull', ore: 'nickel', world: 'mars-frontier', description: 'A tougher rig for demanding excavations.' },
+  { name: 'Efficient cooling', ore: 'cryocrystal', world: 'cryo-shelf', description: 'A cooling-focused mining setup.' },
+  { name: 'Lightweight cargo bay', ore: 'titanium', world: 'hull-graveyard', description: 'A specialist hauler built around carrying more ore.' },
+  { name: 'Precision drill', ore: 'diamond', world: 'prism-fault', description: 'A cutting-focused rig for deep mining.' },
+  { name: 'High-capacity battery', ore: 'cobalt', world: 'cinder-vale', description: 'An endurance-focused exploration rig.' },
+  { name: 'Advanced scanner', ore: 'gold', world: 'vesper-9', description: 'A survey-focused rig for finding valuable seams.' },
+] as const;

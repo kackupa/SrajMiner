@@ -340,17 +340,17 @@ test('planetary buy orders pay once only at their local Trading Post and persist
   assert.equal(p.claimMarketContract('cryo-shelf', true), 0, 'a claimed stage cannot pay again');
   assert.equal(p.claimMarketContract('prism-fault', true), 0, 'contracts remain planet-specific');
 });
-test('campaign objective explains mining cores, recharging and travelling without a signal quest', () => {
+test('pre-build objective retains core collection without promising travel', () => {
   const p = new Progress();
   const start = campaignObjective(p, 'cryo-shelf');
-  assert.match(start.title, /PLANETARY CORE/);
-  assert.match(start.body, /recharging/);
+  assert.match(start.title, /MINING OPERATION/);
+  assert.match(start.body, /coming soon/);
   const money = p.money;
   collectCoreRelic(p, 'core-cryo');
   assert.equal(p.money, money, 'cores supply ship fuel, not free credits');
   assert.equal(p.coreFuel, CORE_FUEL.unitsPerCore);
-  assert.match(campaignObjective(p, 'cryo-shelf').title, /EXPLORE ANOTHER WORLD/);
-  assert.match(campaignObjective(p, 'cryo-shelf', 0, false, true, true).title, /CHOOSE YOUR NEXT PLANET/);
+  assert.match(campaignObjective(p, 'cryo-shelf').body, /coming soon/);
+  assert.match(campaignObjective(p, 'cryo-shelf', 0, false, true, true).title, /MINING OPERATION/);
   p.pilotEscaping = true;
   assert.match(campaignObjective(p, 'cryo-shelf').title, /RETURN TO SAFETY/);
 });
@@ -1025,7 +1025,7 @@ test('underground builds require mined space, materials, credits, and persistabl
   assert.ok(serviceSite);
   const turretSite = findBuildSite(world, 980, 960, 1, 'turret', []);
   assert.ok(turretSite, 'a cleared cavern can host a sentry');
-  assert.equal(canAffordStructure('turret', { ...emptyCargo, iron: 2, silver: 2, gold: 1 }, 560), true);
+  assert.equal(canAffordStructure('turret', { ...emptyCargo, ...UNDERGROUND_BUILDING.turret.materials }, UNDERGROUND_BUILDING.turret.credits), true);
   assert.equal(findBuildSite(world, 980, 960, 1, 'service', [{ id: 'service:1', kind: 'service', ...serviceSite }]), undefined, 'only one service stop can be built per planet');
   assert.equal(findBuildSite(world, 980, 960, 1, 'platform', [{ id: 'nearby', kind: 'platform', x: 990, y: 1000 }]), undefined, 'structures need 240 px of spacing');
   assert.equal(canAffordStructure('platform', emptyCargo, 1000), false);
@@ -1892,7 +1892,7 @@ test('the hidden Vesper-9 chapter opens after the five-world ledger and complete
   p.shipComponents = Object.keys(SHIP_COMPONENTS);
   p.milestones = [...previousWorlds];
   const next = campaignObjective(p, 'cinder-vale');
-  assert.match(next.title, /EXPLORE ANOTHER WORLD/);
+  assert.match(next.title, /MINING OPERATION/);
   assert.equal(upgradeGateMet(16, { shipComplete: true, coreRelics: p.milestones }), false,
     'the highest upgrade band awaits the new chapter core');
   p.milestones.push('core-vesper');

@@ -42,7 +42,7 @@ Latest: all176 system tests, supplementary suites, production build and touch in
 
 No backend, physics, balance or save schema changes. Discard remains miner-only, explicitly labelled. This file records progress and is not completion evidence for unchecked work.
 
-## Second pass — 2026-10-16
+## Second pass: 2026-10-16
 
 Implemented priority guidance for cargo-full return, low battery, surface recharge and making space for building materials. First-camp affordability promotes Build camp to the main touch action row. Mobile warnings refer to ↑ rather than W. Hub copy advances after camp construction. Phone trading now uses a customer selector, collapsible building reserves, hides wholly empty inventory rows, and includes Max shipment buttons.
 
@@ -54,7 +54,7 @@ Mobile trade fixture in separate browser context: Max selected3 copper and quote
 
 Desktop-hosted Pixel 7 emulation frame-pacing sample: 601 animation frames over10s, median16.7ms, p9516.9ms, zero intervals above50ms, at the landed gameplay view. This is not a mobile hardware, mining stress or thermal result.
 
-## Third pass — 2026-10-16
+## Third pass: 2026-10-16
 
 Full-inventory mobile regression `tests/browser-mobile-storage.js` passes the in-game discard prompt, cancellation and confirmation, exact transfer totals, expanded-row and amount retention through rotation, and reload with no duplicated ore. Sizes320×740,390×844,844×390; no page-width overflow or page errors.
 
@@ -62,7 +62,7 @@ Menu sweep `tests/browser-mobile-menus.js` covers hub, storage, construction, se
 
 Local implementation and emulated opening progression are verified to the scope above. The outstanding acceptance gate is real iPhone Safari/Android Chrome interaction, keyboard/safe-area behaviour, sustained mining performance/thermal testing and human comfort. `MOBILE-DEVICE-TEST.md` contains the concrete run sheet. No device result has been supplied yet. Do not claim full completion.
 
-## Additional compatibility and failure testing — 2026-10-16
+## Additional compatibility and failure testing: 2026-10-16
 
 `tests/browser-mobile-save-failure.js` injects QuotaExceededError only for campaign writes in an isolated fixture. Store/withdraw/discard restored exact inventories, but HUD overwrote transaction errors with a misleading capacity message. Fixed HUD to preserve save-failure feedback. Retest passed all three errors, storage restoration, one successful discard retry and exact reload totals.
 
@@ -72,25 +72,25 @@ Installed matching Playwright WebKit2368. `tests/browser-webkit-mobile.js` expos
 
 All176 system tests plus supplementary suites and production build pass after audio fix. CSS cleanup and a unified full earned-campaign harness remain useful follow-through; full objective remains active with performance work and real-device checks outstanding.
 
-## Rendering performance follow-up — 2026-10-16
+## Rendering performance follow-up: 2026-10-16
 
 Reduced circle tessellation to a radius-dependent segment count, used direct triangles for small convex filled polygons, culled offscreen terrain before detail generation, and cached static sky artwork per map/viewport. Portrait screenshot mobile-render-cached-sky.png inspected: sky, miner, terrain and touch controls render correctly. Same 4x CPU-throttled mining/return harness now reports 191 frames, median66.6ms, p95116.7ms and111 intervals above50ms, with100% hull,3 copper/2 iron andzero overlaps. Baseline median100ms/p95166.6ms; improvement is measurable but still not smooth-phone acceptance. Production build and all176 system tests plus supplementary suites pass. Physical Android performance and comfort remain pending.
 
 The post-render-change WebKit rerun timed out waiting for a gameplay condition (20s). Its earlier compatibility pass predates these rendering edits; the new timeout needs diagnosis before claiming current WebKit progression passes.
 
-## Current rendering verification — 2026-10-16
+## Current rendering verification: 2026-10-16
 
 Removed the experimental sky RenderTexture cache: its measured improvement was negligible. Kept offscreen culling, radius-dependent circle tessellation and convex polygon triangles. Geology now reuses the cell corners already projected by the scene. Latest throttled sample:185 frames, median66.6ms/p95100ms,113 intervals over50ms,100% hull andzero overlaps. This remains too slow to claim smooth phone performance; host load also affects comparisons.
 
 WebKit harness now uses a fresh context and explicit portrait viewport, avoiding accumulated session state. Mining/return/storage/rotation/reload passes repeatedly with exact ore totals andzero page errors. However, visual inspection of webkit-mobile-mining.png shows a blank game canvas despite the working HUD and simulation. Replacing RenderGraphics with stock Phaser Graphics reproduced the blank canvas; restored the optimized renderer afterward. A standalone WebGL red-canvas probe renders correctly. Thus WebKit game rendering remains unresolved, and the state-only pass is NOT visual acceptance. Current Chromium screenshot mobile-render-current.png provides separate rendering evidence. All176 system tests, supplementary suites and production build passed during this follow-up; no schema or gameplay balance changes.
 
-## Camera projection and WebKit readback — 2026-10-16
+## Camera projection and WebKit readback: 2026-10-16
 
 Latest CPU profile moved the bottleneck from triangulation to repeated camera calculations. Cached camera focus/rotation within each scene draw, retaining identical world projection and gameplay rules. Convex polygons up to128 points now take the direct triangle path, including tessellated circles. Throttled mining/return:189 frames, median50ms, p95100.3ms,77 intervals over50ms;100% hull,3 copper/2 iron,zero overlaps. Performance is improved but not yet smooth-device acceptance. All176 system tests, supplementary suites and production build pass.
 
 WebKit diagnosis: the actual game drawing buffer has hundreds of distinct opaque colours while ordinary page screenshots omit the canvas. Stock Phaser Graphics shows the same issue; explicit canvas compositing and preserveDrawingBuffer (test interception only) did not resolve the screenshot. The WebKit harness now checks actual drawing-buffer pixels and exports them separately as webkit-mobile-buffer.png;658 sampled colours in the latest run, with ore, terrain and miner visibly present. Mining/return/storage/rotation/reload pass with exact saved totals andzero page errors. This narrows the issue to presentation/capture rather than missing game drawing commands, but does not prove physical Safari composition is correct. No renderer fallback or browser-specific production workaround added without device evidence.
 
-## Complete earned mobile progression — 2026-10-16
+## Complete earned mobile progression: 2026-10-16
 
 Expanded tests/browser-mobile-earned.js from two shafts to the complete fresh-campaign sequence in an isolated browser context: earn6 copper/4 iron, build camp at940, recharge free, earn uplink materials, build uplink at1220, mine a further silver haul, use Max shipment actions, sell, buy drill level2, reload. Gameplay uses CDP touch only; no resources/credits/buildings injected. Native selects use Playwright selection. A first unbraked run lost16 hull through a natural gap; the final harness applies taught thrust braking with a second contact, using read-only descent diagnostics to time pulses. It is a controlled regression, not evidence of human comfort or reflexes.
 

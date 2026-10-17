@@ -19,11 +19,12 @@ const gameplayVideoUrl = import.meta.env.VITE_PUBLIC_GAMEPLAY_VIDEO_URL?.trim() 
 document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
   <header class="site-header">
     <a class="brand" href="#top" aria-label="Ore Frontier home">${mark}<span><b>ORE FRONTIER</b><small>MINE · BUILD · EXPAND</small></span></a>
-    <nav aria-label="Main navigation"><a href="#expedition">The game</a><a href="#token">Token</a><a href="#tokenomics">Tokenomics</a><a href="#roadmap">Roadmap</a><a href="#community">X / Community</a></nav>
+    <nav aria-label="Main navigation"><a href="#expedition">The game</a><a href="#roadmap">Roadmap</a><a href="#community">X / Community</a></nav>
     <a class="header-cta" href="${gameHref}">Play the current build ${arrow}</a>
   </header>
 
   <main id="top">
+    <aside class="official-notice wrap" aria-label="Official token notice"><p>Ore Frontier has no official token at this time. Any token claiming affiliation is unauthorised.</p></aside>
     <section class="hero wrap">
       <div class="hero-copy">
         <div class="eyebrow"><i></i> BROWSER MINING GAME · EARLY BUILD</div>
@@ -68,46 +69,27 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
 
     <section class="status-band"><div class="wrap status-content"><span class="status-dot"></span><div><small>PLAYABLE NOW · STILL IN DEVELOPMENT</small><p>Try mining, construction, upgrades, and planetary travel in the early build. The multiplayer beta is still being prepared.</p></div><a class="button button-primary" href="${gameHref}">Play Ore Frontier <span aria-hidden="true">→</span></a></div></section>
 
-    <section id="token" class="launch-section wrap">
-      <div class="section-kicker"><span>03 / CREDIT</span><span>PLANNED TOKEN · NOT IN THE GAME YET</span></div>
-      <div class="launch-heading"><h2>CREDIT.<br/><em>Our ecosystem token.</em></h2><p>CREDIT is planned for the wider Srajtasma ecosystem, with Ore Frontier as its initial game branding. Its role in the game and across the ecosystem is still being defined.</p></div>
-      <div class="utility-grid">
-        <article><span class="feature-no">01 / THE GAME TODAY</span><h3>Mine, build, upgrade</h3><p>The current game uses ore and in-game credits to build your operation. These balances are separate from CREDIT.</p></article>
-        <article><span class="feature-no">02 / THE PLAYER MARKET</span><h3>Trade ore with players</h3><p>A global buy-and-sell market is in development. Its initial tests use separate beta balances, with no connection to your campaign inventory or CREDIT.</p></article>
-        <article><span class="feature-no">03 / THE TOKEN PLAN</span><h3>Connect the ecosystem</h3><p>The aim is to use CREDIT across ecosystem projects. Specific uses, conversion rules, and game integration will be announced when agreed.</p></article>
-      </div>
-    </section>
-
-    <section id="tokenomics" class="tokenomics-band"><div class="wrap launch-section">
-      <div class="section-kicker"><span>04 / CREDIT DETAILS</span><span>DETAILS TO BE ANNOUNCED</span></div>
-      <div class="launch-heading"><h2>CREDIT.<br/><em>Launch details.</em></h2><p>CREDIT is the token name and ticker. Robinhood Chain is the chosen network, with CREDIT / WETH the intended trading pair. Contract and distribution details will be published before launch.</p></div>
-      <dl class="token-facts"><div><dt>Token name &amp; ticker</dt><dd>CREDIT</dd></div><div><dt>Planned network</dt><dd>Robinhood Chain</dd></div><div><dt>Planned DEX pair</dt><dd>CREDIT / WETH</dd></div><div><dt>Contract address</dt><dd>TBA</dd></div><div><dt>Total supply &amp; allocation</dt><dd>TBA</dd></div><div><dt>Vesting &amp; unlocks</dt><dd>TBA</dd></div></dl>
-      <p class="token-note">Allocation percentages, liquidity, emissions, and any burn or buyback mechanisms are unconfirmed. No sale or contract is linked from this page.</p>
-    </div></section>
-
     <section id="roadmap" class="launch-section wrap">
-      <div class="section-kicker"><span>05 / PRODUCT ROADMAP</span><span>DIRECTION, NOT FIXED DATES</span></div>
-      <div class="launch-heading"><h2>Building toward<br/><em>multiplayer.</em></h2><p>The next release focuses on clear controls, reliable mining, and a basic global ore market. The early game, player market, and CREDIT integration are at different stages.</p></div>
+      <div class="section-kicker"><span>03 / PRODUCT ROADMAP</span><span>DIRECTION, NOT FIXED DATES</span></div>
+      <div class="launch-heading"><h2>Building toward<br/><em>multiplayer.</em></h2><p>The next release focuses on clear controls, reliable mining, and a basic global ore market. The early game and player market are at different stages.</p></div>
       <ol class="roadmap-grid">
         <li><span class="phase-status">01 / AVAILABLE NOW</span><h3>Mining &amp; colony building</h3><p>Playable browser build with mining, ore collection, rig upgrades, colony building, and planetary travel.</p></li>
         <li><span class="phase-status">02 / NEXT · LAUNCH</span><h3>A smoother mining game</h3><p>Improve instructions, return navigation, mobile controls, and full-screen menus. Test the complete mine, build, sell, and upgrade loop.</p></li>
         <li><span class="phase-status">03 / IN DEVELOPMENT</span><h3>Global ore market</h3><p>Test player-to-player buy and sell orders with separate beta balances. Connecting the market to mined ore is a later step.</p></li>
-        <li><span class="phase-status">04 / PLANNED</span><h3>CREDIT integration</h3><p>Publish the token model and define how CREDIT connects to the game and wider ecosystem. Integration timing is still to be confirmed.</p></li>
       </ol>
     </section>
 
-    <section id="community" class="community-band"><div class="wrap community-inner"><div><span class="eyebrow">06 / DEVELOPMENT UPDATES</span><h2>Follow the build<br/><em>on X.</em></h2><p>Follow progress on mining, colonies, the global market, and CREDIT. We will add the official Ore Frontier X account here when it is ready.</p></div><div class="x-placeholder"><span aria-hidden="true" class="x-mark">𝕏</span><strong>Official X account</strong><span>COMING SOON</span><small>Account link to be announced</small></div></div></section>
+    <section id="community" class="community-band"><div class="wrap community-inner"><div><span class="eyebrow">04 / DEVELOPMENT UPDATES</span><h2>Follow the build<br/><em>on X.</em></h2><p>Follow the game’s development on the creator’s official X account, @Kac_Kupa_. This website and that account are the official sources for Ore Frontier updates.</p></div><a class="official-x" href="https://x.com/Kac_Kupa_" target="_blank" rel="noopener noreferrer"><span aria-hidden="true" class="x-mark">𝕏</span><strong>@Kac_Kupa_</strong><span>Official creator account</span><small>Follow on X ↗</small></a></div></section>
 
     <section id="faq" class="faq wrap">
-      <div class="section-kicker"><span>07 / FAQ</span><span>GETTING STARTED</span></div>
-      <div class="faq-layout"><div><h2>About<br/><em>Ore Frontier.</em></h2><p>The game, the market, and CREDIT.</p></div><div class="faq-list">
+      <div class="section-kicker"><span>05 / FAQ</span><span>GETTING STARTED</span></div>
+      <div class="faq-layout"><div><h2>About<br/><em>Ore Frontier.</em></h2><p>The game and the player market.</p></div><div class="faq-list">
         <details><summary>What is Ore Frontier?<span>+</span></summary><p>A browser game about building a mining empire. You mine ore, build camps and warehouses, upgrade your rig, add automated extractors, and expand to other planets.</p></details>
         <details><summary>Can I play it now?<span>+</span></summary><p>Yes. The current build is playable in your browser from the “Play” links on this page. It is still in development, so features and presentation will continue to change.</p></details>
         <details><summary>How do I control the miner?<span>+</span></summary><p>Use A/D or Left/Right to move, S/Down to drill down, and W/Up to fly up. Aim and hold the mouse button to drill toward ore. Press B to build. The game also has on-screen touch controls.</p></details>
         <details><summary>Can I play on my phone?<span>+</span></summary><p>The game has touch controls and responsive screens. Phone testing is ongoing; landscape is currently the best way to play.</p></details>
         <details><summary>Can I trade ore with other players?<span>+</span></summary><p>The global player market is in development. Its beta uses separate test balances. Ore mined in the campaign is not connected to that market yet.</p></details>
-        <details><summary>Is CREDIT already in the game?<span>+</span></summary><p>No. The current game uses in-game credits. CREDIT is the planned ecosystem token; token integration and launch details are still to be announced.</p></details>
-        <details><summary>When is the launch?<span>+</span></summary><p>The early build is playable now. Multiplayer beta and CREDIT launch dates have not been announced. Confirmed dates will be published here.</p></details>
+        <details><summary>When is the launch?<span>+</span></summary><p>The early build is playable now. A multiplayer beta release date has not been announced. Confirmed dates will be published here.</p></details>
       </div></div>
     </section>
   </main>

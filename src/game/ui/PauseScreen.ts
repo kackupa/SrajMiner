@@ -1,4 +1,4 @@
-import { CORE_RELICS, MAPS, SPECIALIZATIONS } from '../config';
+import { PREBUILD, CORE_RELICS, MAPS, SPECIALIZATIONS } from '../config';
 import type { MapId } from '../config';
 import type { Progress } from '../economy/Progress';
 import { podPortrait } from './PodPortrait';
@@ -6,10 +6,10 @@ import { podPortrait } from './PodPortrait';
 export function pauseScreen(p: Progress, map: MapId, depth: number, docked: boolean,
   exportControl: string, saveStatus: string, campBuilt = true, marketOnline = true) {
   const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
-  const objective = !campBuilt && !marketOnline
-    ? { title: 'Build a mining camp', text: 'Mine copper and iron, carry them to the build yard, and place your first camp. Recharge free at the mothership.', done: 0, total: 2, unit: 'camp and uplink built' }
+  const objective = !PREBUILD.travelEnabled ? { title: 'Grow your mining operation', text: 'Build in any order. Upgrade your rig using shared common ores. Recover the local core for future fuel; travel and specialist modules are coming soon.', done: Number(p.milestones.includes(CORE_RELICS.find(c => c.mapId === map)!.id)), total: 1, unit: 'local core recovered' } : !campBuilt && !marketOnline
+    ? { title: 'Build your colony', text: 'Choose storage, extraction or services. Mine common ores and build in any order using shared planetary materials.', done: 0, total: 2, unit: 'optional colony milestones' }
     : !marketOnline
-      ? { title: 'Build a Market uplink', text: 'Use copper, iron and silver to connect to the interplanetary market. Then sell ore for upgrade credits.', done: 1, total: 2, unit: 'camp and uplink built' }
+      ? { title: 'Build a Market uplink', text: 'Use copper, iron and silver to connect to the interplanetary market. Then sell ore for upgrade credits.', done: 1, total: 2, unit: 'optional colony milestones' }
     : !p.shipComplete
     ? { title: 'Mine a planetary core', text: 'The core unlocks mothership flight and adds interplanetary fuel. Recharge the rig at the mothership.', done: 0, total: 1, unit: 'core recovered' }
       : cores < 5

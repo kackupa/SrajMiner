@@ -29,7 +29,7 @@ Crossing through a planet's core and reaching its far hemisphere for the first t
 | Drill    | 1 / 1.5 / 2.2 / 3.1 / 4.3 × speed     | $140 / $360 / $850 / $1,800  |
 | Fuel     | 140 / 190 / 260 / 350 / 480 L         | $120 / $320 / $750 / $1,600  |
 | Cargo    | 16 / 24 / 34 / 48 / 64 slots          | $150 / $380 / $900 / $1,900  |
-| Mothership hold | 50 ore per planet                | —                            |
+| Mothership hold | 50 ore per planet                | n/a                            |
 | Hull     | 100 / 140 / 195 / 270 / 380 integrity | $130 / $340 / $800 / $1,700  |
 | Engine   | 1 / 1.18 / 1.4 / 1.65 / 1.95 × output | $160 / $400 / $950 / $2,000  |
 

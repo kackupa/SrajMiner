@@ -7,30 +7,30 @@ export const MARKET_CONTRACTS = {
   'mars-frontier': { id: 'contract-mars', ore: 'iron', units: 2, reward: 150 },
   'hull-graveyard': { id: 'contract-hull', ore: 'iron', units: 3, reward: 210 },
   'prism-fault': { id: 'contract-prism', ore: 'silver', units: 2, reward: 260 },
-  'cinder-vale': { id: 'contract-cinder', ore: 'gold', units: 2, reward: 340 },
-  'vesper-9': { id: 'contract-vesper', ore: 'diamond', units: 1, reward: 420 },
+  'cinder-vale': { id: 'contract-cinder', ore: 'cobalt', units: 2, reward: 340 },
+  'vesper-9': { id: 'contract-vesper', ore: 'gold', units: 1, reward: 420 },
 } as const satisfies Record<MapId, { id: string; ore: keyof Cargo; units: number; reward: number }>;
 
 const order = <T extends keyof Cargo>(id: string, ore: T, units: number, reward: number) => ({ id, ore, units, reward });
 export const MARKET_CONTRACT_CHAINS = {
   'cryo-shelf': [MARKET_CONTRACTS['cryo-shelf'], order('contract-cryo-2', 'iron', 2, 180), order('contract-cryo-3', 'silver', 1, 260)],
-  'mars-frontier': [MARKET_CONTRACTS['mars-frontier'], order('contract-mars-2', 'copper', 4, 180), order('contract-mars-3', 'gold', 1, 320)],
-  'hull-graveyard': [MARKET_CONTRACTS['hull-graveyard'], order('contract-hull-2', 'silver', 2, 260), order('contract-hull-3', 'gold', 1, 360)],
-  'prism-fault': [MARKET_CONTRACTS['prism-fault'], order('contract-prism-2', 'gold', 2, 360), order('contract-prism-3', 'diamond', 1, 520)],
-  'cinder-vale': [MARKET_CONTRACTS['cinder-vale'], order('contract-cinder-2', 'silver', 2, 320), order('contract-cinder-3', 'diamond', 1, 500)],
-  'vesper-9': [MARKET_CONTRACTS['vesper-9'], order('contract-vesper-2', 'gold', 2, 420), order('contract-vesper-3', 'diamond', 2, 700)],
+  'mars-frontier': [MARKET_CONTRACTS['mars-frontier'], order('contract-mars-2', 'copper', 4, 180), order('contract-mars-3', 'nickel', 1, 320)],
+  'hull-graveyard': [MARKET_CONTRACTS['hull-graveyard'], order('contract-hull-2', 'silver', 2, 260), order('contract-hull-3', 'titanium', 1, 360)],
+  'prism-fault': [MARKET_CONTRACTS['prism-fault'], order('contract-prism-2', 'silver', 2, 360), order('contract-prism-3', 'diamond', 1, 520)],
+  'cinder-vale': [MARKET_CONTRACTS['cinder-vale'], order('contract-cinder-2', 'silver', 2, 320), order('contract-cinder-3', 'cobalt', 1, 500)],
+  'vesper-9': [MARKET_CONTRACTS['vesper-9'], order('contract-vesper-2', 'gold', 2, 420), order('contract-vesper-3', 'gold', 2, 700)],
 } as const satisfies Record<MapId, readonly { id: string; ore: keyof Cargo; units: number; reward: number }[]>;
 
 export const MARKET_CONTRACT_IDS = Object.values(MARKET_CONTRACT_CHAINS).flat().map(({ id }) => id);
 
 /** Local stations rotate demand after each paid sale, creating a small reason to revisit with a mixed haul. */
 export const MARKET_DEMANDS = {
-  'cryo-shelf': ['copper', 'silver', 'iron', 'gold'],
-  'mars-frontier': ['iron', 'gold', 'copper', 'diamond'],
-  'hull-graveyard': ['iron', 'copper', 'diamond', 'silver'],
-  'prism-fault': ['silver', 'diamond', 'gold', 'iron'],
-  'cinder-vale': ['gold', 'silver', 'copper', 'diamond'],
-  'vesper-9': ['diamond', 'gold', 'silver', 'iron'],
+  'cryo-shelf': ['copper', 'silver', 'iron', 'cryocrystal'],
+  'mars-frontier': ['iron', 'silver', 'copper', 'nickel'],
+  'hull-graveyard': ['iron', 'copper', 'titanium', 'silver'],
+  'prism-fault': ['silver', 'diamond', 'copper', 'iron'],
+  'cinder-vale': ['cobalt', 'silver', 'copper', 'iron'],
+  'vesper-9': ['copper', 'gold', 'silver', 'iron'],
 } as const satisfies Record<MapId, readonly (keyof Cargo)[]>;
 export const MARKET_DEMAND_BONUS_RATE = 0.2;
 export const MARKET_DEMAND_IDS = Object.keys(MARKET_DEMANDS).flatMap((mapId) =>

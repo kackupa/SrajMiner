@@ -13,7 +13,7 @@ const labels: Record<string, [string, string]> = {
   sell: ['Teletrade', 'Sell your haul'], service: ['Service bay', 'Recharge & repair'],
   upgrades: ['Workshop', 'Upgrade your miner'], paints: ['Paint shop', 'Make it yours'],
   archive: ['Mining log', 'Your progress'], shipyard: ['Core drive', 'Your way to other worlds'],
-  destinations: ['Worlds', 'Plan your next landing'], warehouse: ['Warehouse', 'Store your ore'],
+  destinations: ['Star map', 'Explore the future frontier'], warehouse: ['Warehouse', 'Store your ore'],
   construction: ['Build yard', 'Grow your outpost'],
 };
 

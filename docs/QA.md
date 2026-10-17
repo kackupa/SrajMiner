@@ -1,6 +1,6 @@
 # QA
 
-## Vehicle redesign and piloted motion — 2026-10-15
+## Vehicle redesign and piloted motion: 2026-10-15
 
 Replaced the rigid miner artwork with an original articulated cockpit, visible pilot, gimballed engine pods, directional correction jets, retracting skids and drill recoil. Rebuilt the mothership as a long cargo carrier with a raised bridge, twin nacelles, retracting landing gear and closing bay. Hangar portraits match the new miner. Presentation state is transient; physics, collision geometry and save schema are unchanged.
 
@@ -12,7 +12,7 @@ Artifacts under ignored `output/playwright/`: `miner-navigation.webm`, `miner-ba
 
 `npm install`, `npm test` (175 system tests plus all supplementary suites, including vehicle pose), and `npm run build` passed. The build retains the existing large-bundle advisory.
 
-## UX and visual overhaul — 2026-10-15
+## UX and visual overhaul: 2026-10-15
 
 Implemented a full-screen title and service hub, compact gameplay HUD, live camp/uplink material guidance, essential-building view, mobile service selector, and explicit Previous/Next controls for long panels. Replaced the landing delay with immediate play. Added original SVG frontier illustration, faceted lander artwork, aurora/horizon treatment and less repetitive geology/ore clusters. No assets from other games, balance changes, backend or save-schema changes.
 
@@ -31,7 +31,7 @@ Screenshots and temporary automation are under ignored output/playwright/, inclu
 Limits: this pass exercised the opening mining/return/service/save loop. It did not replay the six-world campaign, post-core return navigation, later transactions, or real phone hardware. Earlier documented core-crossing navigation concerns remain unresolved; no physics changes were made in this overhaul.
 
 
-## Earned camp, uplink and first sales — 2026-10-12
+## Earned camp, uplink and first sales: 2026-10-12
 
 Continued the controlled-core checkpoint with its actual earned inventory. Stored nine iron and 2.5 silver, recharged for free, mined a shallow branch for additional copper/iron, followed the branch back to the main shaft and returned intact. Built the Mining camp at (860, 0) for exactly six copper + four iron, then collected the final copper and withdrew stored materials to build the Market uplink at (1140, 0) for four copper + four iron + two silver. Credits remained zero through both purchases. No cargo, excavation or credits were injected. These navigation legs used controlled browser frame advancement and do not substitute for human feel checks.
 
@@ -41,13 +41,13 @@ A raid damaged the undefended camp during the surface trips; during a later unpa
 
 Purchased the Extended Auger for $140 from those earnings: drill level 1 → 2, credits $251.50 → $111.50. Reload retained that level, exact credits, four core-fuel units and both structures. Screenshot: `earned-first-upgrade.png`. Continue the campaign from `output/playwright/earned-first-upgrade-storage.json`; it has no injected resources, an empty cargo bay, and a damaged but present camp. The full six-core route, later upgrade gates, real-time core-crossing navigation, and human assessment remain unfinished.
 
-## Controlled core return and real-time comparison — 2026-10-12
+## Controlled core return and real-time comparison: 2026-10-12
 
 `tests/browser-core-controlled.js` starts a fresh random-seed, zero-credit campaign and uses actual keyboard/mouse input with Playwright clock advancement in 100 ms increments. It grants no ore, upgrades, excavation or core records. Seed 3369400751 recovered the Cryo core at 446 m with 100% hull and 59.68 battery, then returned through its earned shaft and docked with 100% hull, 49.32 battery, four ship-fuel units and zero overlaps. Boarding persisted the core record. Eighty cells were excavated; cargo was 4.5 copper, 9 iron and 2.5 silver. No page errors. Screenshots `controlled-core-recovered.png` and `controlled-core-return.png`, plus the continuation checkpoint `earned-cryo-controlled-storage.json`, are under ignored `output/playwright/`.
 
 This proves that the current starter equipment and generated route permit an intact core return when input timing is controlled. It does not establish human comfort, real-time repeatability, or a safe return after crossing the center. Measured real browser command loops took about 100–160 ms; hovering moved the camera enough to leave an exactly aimed pointer short of the core, since the drill ray ends at the pointer. The real-time harness now aims through the marker. That comparison recovered the core but crossed the center and exhausted its battery at 465 m while holding W against rock (79.83% hull remaining). Following the actual return route after the camera turns remains unresolved; a W-only return is not a valid general navigation test.
 
-## Descent warning correction and failed return repeat — 2026-10-12
+## Descent warning correction and failed return repeat: 2026-10-12
 
 A repeat first-core browser run collected four travel-fuel units, crossed the center, then stalled against rock at 465 m while holding W until its rig battery ran out. This contradicts any claim that the first-core return is consistently verified. The earlier successful checkpoint remains available, but core-crossing navigation and repeatability are still open. `output/playwright/core-return-blocked.png` records the stranded state.
 
@@ -57,7 +57,7 @@ The browser retests with corrected telemetry reached 387 m and 446 m at 100% hul
 
 The focused `tests/browser-descent-warning.js` passed in real-time headless Chromium: at 29 m, downward speed and telemetry both measured 138.46 px/s with `FAST DESCENT: HOLD W TO BRAKE BEFORE IMPACT`; after W braking, both measured -72.51 px/s at 33 m and the warning cleared. The miner returned and docked with 100% hull, 135.84 battery, zero overlaps and no page errors. `output/playwright/descent-warning-return.png` records the return. An initial harness attempt pressed S before intro input reset completed and never left the pad; the passing version waits for the intro to disappear and input reset to finish. These findings do not change save format, collision geometry or balance values.
 
-## Fresh Cryo core, return, and pointer targeting — 2026-10-12
+## Fresh Cryo core, return, and pointer targeting: 2026-10-12
 
 `tests/browser-campaign-route-run.js` now starts a genuinely fresh $0 expedition, uses held S/W inputs to mine and brake, explicitly aims the mouse at the core marker in the 360-degree halo, releases thrust at the surface, and waits for docking. A headless Chromium run extracted the core from 444 m using the existing core-halo reach, with 75.54 battery remaining, then returned and docked with 65.41 battery, 55.51% hull, four core-fuel units and no terrain overlap. The entire haul and excavation were earned through live controls; no money, upgrades, terrain or core records were injected. Reload retained cargo, excavation count and core fuel. The first earned checkpoint is saved under ignored `output/playwright/earned-cryo-core-storage.json` for later campaign work. This is a first-core pass, not completion of all six worlds or the 6/11/16 upgrade gates. Damage was taken during descent; this is not a damage-free or human-comfort claim.
 
@@ -67,7 +67,7 @@ A separate regression found the canvas stayed at intro height after the header/f
 
 Earlier attempts are not passing campaign evidence: the old S-only harness oscillated at the center without aiming at the relic, and a headed Chromium session delivered only two animation frames in 1.76 seconds with the profiler mostly idle. Headless Chromium delivered 24 frames in 1.21 seconds and completed the real input flow. Screenshots: `output/playwright/cryo-core-recovered.png` and `output/playwright/cryo-core-return.png`. Physical hardware and human feel remain unverified.
 
-## Automated-mining backlog verification — 2026-10-12
+## Automated-mining backlog verification: 2026-10-12
 
 An isolated headed Chromium session on local Vite port 5180 passed the updated `tests/browser-automated-mining.js` flow: deposited 0.5 copper, built a Basic Excavator for $220 + 3 copper + 1 iron, physically ascended, travelled Cryo → Mars → Cryo, produced 2 ore under a simulated one-hour wall-clock advance, bought Industrial Drill for $680 + 6 iron + 2 silver, and reloaded with unchanged stock and tier. Final credits: $4,100 from the funded $5,000 fixture. No browser page errors. The local storage display is 64 units (40 warehouse + 24 mothership hold); automatic production uses the planet warehouse's 40-unit capacity.
 
@@ -735,7 +735,7 @@ Full services correction: replaced the expandable dock list with a direct button
 
 Camp fall protection: camp decks (including outer edges) and vertical terrain impacts inside the camp service zone no longer emit hull damage. Normal collision stopping remains. Regression coverage tests 900-speed landings at three camp positions on both hemispheres. Browser playtest flew from y=-22 to y=-385 before coasting and falling onto the y=-148 platform; hull stayed at 100. Screenshot: output/playwright/camp-safe-landing.png. npm install, 172 system tests plus atmosphere/travel checks, and production build passed. Save format and balance values are unchanged.
 
-## 2026-10-11 — Mothership-first start
+## 2026-10-11: Mothership-first start
 
 Fresh campaigns land and deploy before play, with no automatic camp buildings or invisible town platforms. Browser-verified a real 47 m mining descent and safe return to the mothership. Verified boarding, the 24-unit starter hold, selective storage and withdrawal, sale of carried surplus without touching stored copper, and a zero-core-fuel takeoff attempt remaining grounded. A warehouse purchase consumed iron/silver and persisted alongside stored ore through reload. Separate funded fixtures placed a habitat and trading post and verified their exact combined $2,000 and ore costs. No browser page errors in the storage/build test. Screenshots are under `output/playwright/mothership-*.png`.
 
@@ -747,7 +747,7 @@ Renamed the game, browser title, header, export filenames and current README to 
 
 Fresh campaigns start with no buildings and $0. Mining camp costs 6 copper + 4 iron; Market uplink costs 4 copper + 4 iron + 2 silver and requires a camp. Both are ore-only. The uplink gates selling and the workshop. Starter seams near the landed rig contain the needed materials. Recharging is free at the mothership; a remote camp repair bay cannot recharge. Existing hull repairs retain their credit cost. Mothership art is enlarged relative to the mining rig.
 
-Normal-input Chromium playtest in a new isolated browser session: confirmed $0/no structures/no core fuel; mined ore and returned; restored battery from 135.22 to 140 at $0; mined and placed the camp at x=860, consuming 6 copper/4 iron with no cash; mined and placed the uplink at x=1140, again at $0. The empty post-construction cargo correctly disabled selling. A further haul of 4 copper/4 silver sold for $292. A drill upgrade cost $140 and raised it to level 2. Reload retained $152, both buildings, level 2, and empty cargo—no duplicated ore or extra debit. Hull reached about 11% during the expeditions; no recovery was used. Existing raids damaged the camp to one integrity during the playtest; the market connection remained usable.
+Normal-input Chromium playtest in a new isolated browser session: confirmed $0/no structures/no core fuel; mined ore and returned; restored battery from 135.22 to 140 at $0; mined and placed the camp at x=860, consuming 6 copper/4 iron with no cash; mined and placed the uplink at x=1140, again at $0. The empty post-construction cargo correctly disabled selling. A further haul of 4 copper/4 silver sold for $292. A drill upgrade cost $140 and raised it to level 2. Reload retained $152, both buildings, level 2, and empty cargo, with no duplicated ore or extra debit. Hull reached about 11% during the expeditions; no recovery was used. Existing raids damaged the camp to one integrity during the playtest; the market connection remained usable.
 
 The camp repair screen showed Mothership required on its disabled recharge button. Service content had no horizontal overflow at 1440×960, 800×600 and 390×844. Screenshots and scripts: ignored output/playwright/premise-*. The longer mobile brand header was tightened after screenshot inspection. npm install completed; 174 system tests plus atmosphere and route tests passed. Production build verification is recorded in output/playwright/premise-final-build.txt; the usual Vite bundle advisory remains.
 
@@ -756,7 +756,7 @@ Limits: this browser run verifies the early economy, charging, building, upgrade
 Final narrow-header check at 390 px: topbar client/scroll widths both 390 px and the rightmost control ended at 380 px. Save-resume copy and pause guidance now match the current build/market stage. The legacy rectangular-map mothership range branch was corrected by code review; that older map format was not browser-playtested in this pass.
 
 Final reward audit also removed the old core-crossing $2,200 payment and its toast. Crossing still records the existing milestone and reverses gravity. Credits can no longer be earned by rushing through the core before building the market connection.
-# 2026-10-11 — Civilian trade and Expedition Codex
+# 2026-10-11: Civilian trade and Expedition Codex
 
 Final validation: `npm install`, `npm test` (174 systems tests plus atmosphere, solar-route and new expedition suites), `npm run build`, and `git diff --check` passed. The build retains the existing large-bundle advisory. New ores have distinct mine and survey-map silhouettes. The expanded Prism ore pool uses an adjusted 8% geode chance: the deterministic 48×500 sample contains 413 special deposits, within the existing rarity bound. Version-29 migration preserves fractional carried ore and warehouse quantities while adding zeroed new ore slots; civilian delivery-ledger validation and restoration pass.
 
@@ -764,31 +764,31 @@ Browser script `tests/browser-expedition-ui.js` passed at 1440×1000 and capture
 
 Screenshots: `output/playwright/expedition-*.png`. Funded save fixtures exercise the interface and persistence without replaying the complete earning loop. This pass does not establish full campaign balance, touchscreen usability or completion of every civilian project. Inhabited worlds are trade partners, not explorable cities. Development currently consists of three projects per buyer, visible city-light growth and animated orbital traffic. Reduced motion suppresses decorative animation and skips transit delay.
 
-## Inline ore transfers — 2026-10-16
+## Inline ore transfers: 2026-10-16
 
 Moved quantity and Store/Take/Store all/Take all controls into each ore row, removing the separate ore selector and transfer form. Amounts remain per ore during the UI session; transactions retain existing capacity, persistence and remote-warehouse rules. Empty-source buttons are disabled. Rows adapt to narrow screens without horizontal overflow or scrollbar chrome.
 
 `npm install`, all tests (175 system tests plus supplementary suites), and production build passed; existing bundle-size advisory remains. Chromium fresh-game playtest mined 3 copper and 3 iron and returned with 100% hull and zero overlap. Stored/took 0.5 copper, then stored/took all 3 iron; final cargo was unchanged. Visually checked desktop 1560×900 and narrow 390×844 layouts; no page-width overflow. Screenshots: `output/playwright/inline-storage-desktop.png` and `inline-storage-mobile.png` (before final input colour polish). Remote-depot transfers and physical touch hardware were not retested.
 
-## Cargo discard escape hatch — 2026-10-16
+## Cargo discard escape hatch: 2026-10-16
 
 Added per-row Discard using the half-unit quantity, an explicit permanent-loss confirmation, clamping to carried ore, and save-failure rollback. Storage capacity and market access do not gate discarding. No save schema change.
 
 Browser fixture reproduced the reported deadlock: miner 0.5 copper + 15.5 iron; hold 16 copper + 8 iron (24/24). Cancellation retained 15.5 iron; accepting removal of 5.5 left 10 iron, allowing withdrawal of 5.5 copper and reaching 6 copper for camp construction. Reload retained miner 6 copper/10 iron and hold 10.5 copper/8 iron, without duplication. Confirmation outcomes were supplied by a browser stub after the CLI's native-dialog handling interrupted an earlier attempt. Desktop screenshot inspected: `output/playwright/discard-unblocked.png`. Save-failure rollback is implemented but was not fault-injected. Physical mobile hardware was not tested. npm install, all system/supplementary tests, and production build passed (existing bundle-size advisory).
 
-## Mobile overhaul in progress — 2026-10-16
+## Mobile overhaul in progress: 2026-10-16
 
 First pass adds a context action, expandable equipment tray, larger pads with slide-to-change direction, and phone storage rows with one expanded ore and amount presets. Pixel 7 Chromium emulation drilled to48m with touch events, released all held inputs, returned using thrust, entered storage and selected0.5 copper. Both orientations rendered; landscape objective overlap was identified and adjusted. See `MOBILE-OVERHAUL.md` for the outstanding verification and implementation checklist. Install, system/supplementary tests and production build passed. This is not completion of the mobile goal or real-device certification.
 
-## Mobile progression and input checks — 2026-10-16
+## Mobile progression and input checks: 2026-10-16
 
 The second mobile pass passed multitouch, independent release, direction sliding, cancellation, rotation reset and blur pause in Chromium emulation. A fresh earned campaign built camp and uplink, recharged, sold ore, bought drill2 and reloaded unchanged at$780. First four sorties retained100% hull; a later prolonged unbraked funding descent took hull damage to54.8% before returning. See MOBILE-OVERHAUL.md for the harness limitations and remaining physical-device requirements. Mobile trade Max and customer switching passed in a separate fixture. Full system tests and build passed; existing bundle-size advisory persists.
 
-## Mobile inventory and menu sweep — 2026-10-16
+## Mobile inventory and menu sweep: 2026-10-16
 
 Full miner/full storage regression passed cancellation, discard, withdrawal, rotation and exact reload totals in an isolated phone fixture. All21 main-menu/viewport combinations (320×740,390×844,844×390) pass no horizontal overflow,44px-or-larger controls and opening at page1. Fixed short paging buttons and focus-induced scrolling between screens. Phone service is one page at320px; all7 Workshop components are accessible by selector. Screenshots `mobile-full-storage-*.png`, `mobile-menu-*-*.png`, `mobile-service-final.png` under ignored output/playwright. Real iPhone/Android keyboard, thermal and human-use testing remains pending; see MOBILE-DEVICE-TEST.md.
 
-## Save failures, WebKit and throttled performance — 2026-10-16
+## Save failures, WebKit and throttled performance: 2026-10-16
 
 Injected campaign write failures preserved ore on store, withdraw and discard; fixed HUD overwriting the specific save error. Recovery retry and reload passed. WebKit revealed unavailable AudioContext; guarded/prefixed initialization and caught resume rejection now preserve game startup without audio. WebKit mining/return/storage/rotation/reload retest passed with no page errors.176 system tests plus supplementary suites and build pass. However,4× CPU-throttled mining measured median100ms/p95166.6ms frames despite safe return. Polygon rendering/triangulation dominates the CPU profile; optimization remains required. See MOBILE-OVERHAUL.md for exact evidence and limitations.
 
@@ -799,13 +799,54 @@ WebKit follow-up: game drawing-buffer readback contains terrain/miner pixels (65
 Complete earned mobile progression now automated in tests/browser-mobile-earned.js: fresh save, camp/uplink construction from mined ore, free recharge, two-contact braking, sale, drill2 purchase and exact reload. Final controlled run retained100% hull/zero overlaps and102 credits after purchase. No resource injection. Braking is timed from read-only diagnostics, so this is not a human ease-of-play claim. See mobile-earned-complete.png in ignored output/playwright.
 
 
-## Landing-page copy pass — 2026-10-17
+## Landing-page copy pass: 2026-10-17
 
 Rewrote the full teaser around mining, camp/uplink construction, rig upgrades, warehouses, automated extraction, and expansion across planets. Removed mystery/adventure slogans and unagreed token utilities. The player-market beta is explicitly separate from campaign inventory and CREDIT. Search/share metadata and FAQ match this positioning.
 
 npm install, npm test, and the production build passed. Isolated Chromium loaded the production teaser at 1440×900 and 390×900; the actual gameplay image loaded, the player-market FAQ opened, and the phone viewport had no horizontal overflow. Screenshots: `output/playwright/copy-pass-1440.png` and `output/playwright/copy-pass-390.png`. These are local checks; this copy pass has not been deployed. Game logic and saves are unchanged.
 
 
-### Actual-game feature section — 2026-10-17
+### Actual-game feature section: 2026-10-17
 
 Replaced the three illustrated feature cards with alternating screenshot rows and short mining/workshop/colony descriptions. Workshop and colony captures come from the current game in an isolated staged save; they demonstrate actual rendering, not earned progression. The prior mining capture remains in use. No player save or game logic changed. Production build passed. Isolated Chromium verified all three images loaded and no horizontal document overflow at 1440×900 and 390×900. Inspected screenshots: `output/playwright/actual-features-1440.png` and `output/playwright/actual-features-390.png`. Local preview rebuilt; hosted deployment unchanged.
+
+### Miner tab icon and punctuation (2026-10-17)
+
+All four HTML entry points now use `miner-avatar.svg`, derived from the actual default `podPortrait` artwork. Site titles and social metadata use a vertical bar instead of an em dash. Production build passed. Isolated Chromium confirmed the updated title, loaded the new icon, and found no em dashes in visible teaser copy. Inspected favicon renders at 16, 32, and 64 pixels in `output/playwright/miner-favicon-sizes.png`. Local preview updated; production not deployed by this change.
+
+## 2026-10-17: fullscreen star map preview
+- Added standalone Star map after Warehouse plus a mobile-accessible hub entry. Removed the large destination heading/fuel instructions and pagination from this view.
+- Browser verified at 1440x900, 844x390, 390x844 and 320x568. Mining, civilian and exchange details had zero horizontal/vertical overflow in the map, modal and inspector. No pagination controls.
+- Selected all ten worlds and exchange through real browser clicks at 390x844. Checked keyboard Enter selection, back to mothership, Escape dismissal and reduced-motion animation disabled. Document overflow zero.
+- Original procedural planet art, conceptual trade routes and explicitly planned multiplayer exchange. No fabricated live player activity; no travel, cargo or save mutation from selections.
+- npm install, npm test (177 system tests plus all supplemental suites) and npm run build passed. Existing bundle size advisory remains. Real Android touch/performance remains untested.
+- Screenshots: ignored output/playwright/star-map-1440.png, star-map-844.png, star-map-390.png, star-map-320.png.
+
+Solar system follow-up: central luminous star, individual orbital tracks, separate exchange station. Browser checked at 1440x900 and 390x844; mobile map and inspector overflow both zero. Screenshots in output/playwright/solar-system-desktop.png and solar-system-mobile.png. Build and test suites passed.
+
+Planet identity pass: removed exchange dotted paths (browser confirmed zero route elements). Added individual original SVG surface features and palettes for all ten worlds; inhabited worlds have city lights, orbital infrastructure and explicit INHABITED labels. Desktop screenshot reviewed at 1440x900, Verdant inspector checked at 390x844 with zero overflow. Build and full tests passed.
+
+## Official-source landing-page update — 2026-10-17
+Removed token launch marketing and added the no-official-token notice plus the creator X link. Browser checked at 1440x900 and 390x844: notice and link present, no CREDIT/Robinhood/WETH/Tokenomics copy, no horizontal overflow, FAQ opens. Screenshots: output/playwright/official-sources-desktop.png and official-sources-mobile.png. npm install, npm test (177 systems plus supplemental suites), and production build passed; existing large game bundle warning remains. Live deployment not performed. X account ownership was not independently verified; handle follows the user's supplied identity.
+
+Follow-up: user corrected the handle to @Kac_Kupa_. Updated the displayed handle and link to https://x.com/Kac_Kupa_ and verified source references. Earlier browser screenshots and build checks predate this text-only correction.
+
+## 2026-10-17: sandbox building and exclusive planetary deposits
+- Implemented pooled construction costs (carried first, active-planet storage second), optional snapping and shared placement controls, extractor placement, and an open fullscreen category/detail catalogue. No camp prerequisite. Core economy and mining save schema retained.
+- All eight surface buildings checked in the browser at 1440x900, 390x844, 320x568 and 844x390. Initial landscape overflow was fixed; final compact layouts measured zero body/detail overflow. No select elements or pagination controls.
+- Isolated save: no buildings, zero credits, cargo 0.5 copper/1 iron and storage 8 copper/8 iron/4 silver. Uplink was available first. Cancel preserved both inventories. Simulated Storage.setItem failure left placement active; retry then reload produced exactly one uplink, empty cargo and storage 4.5 copper/5 iron/2 silver. No double debit or duplication.
+- Placed extractor without camp/warehouse using pooled materials, toggled snapping, confirmed via the phone-sized toolbar, then reloaded. Correct level-1 extractor and remaining stock persisted.
+- Mouse preview rejected an occupied site. Free placement succeeded at x=277.7916914084781, demonstrating unsnapped positioning; warehouse debited exactly 3 iron/1 silver from storage.
+- Added sandbox regression suite: fractional pooled spending, atomic insufficient-material rejection, all six worlds' common/exclusive generated deposits, independent uplink/extractor placement, production into mothership hold and full-storage pause. Updated geography/cost fixtures for the new balance. npm install, npm test (177 system tests plus supplemental and sandbox suites), npm run build passed.
+- QA uses isolated browser fixtures, not the user's save. Screenshots remain ignored under output/playwright/. Real Android touch and long-term economy balance are still untested. Existing large-bundle advisory remains.
+
+Sandbox copy audit: star-map exclusive labels and live flight-map profiles both use current ore geography. Corrected warehouse construction-withdrawal instructions and Codex carry-only wording, plus outdated Nickel/Titanium source locations. Rig upgrades still require an uplink; extractor upgrades still require a nearby warehouse. No change to those mechanics in this copy pass.
+
+## 2026-10-17: material rig upgrades and pre-build travel lock
+- Added common-ore rig installation through level 5, without market or credit prerequisites, using shared local materials. Install/save is atomic, including battery/hull adjustments and grapple ownership. Higher purchased levels stay intact.
+- Fullscreen workshop has basic components, specialist previews, equipment and pilot setups. Inspected all items at desktop and phone dimensions; fixed compact-layout overflow. Final 320x568 basic/specialist layouts and 844x390 layouts fit without scrolling or pagination. Optional equipment retains credit costs; specialist ore modules are explicitly unavailable.
+- Browser fixture with no uplink/credits: simulated storage failure followed by retry/reload installed one level-2 drill, consumed exactly 3 iron/2 copper across cargo and storage, and retained zero credits.
+- Valid legacy orbital fixture restored to y=-22 on the same planet, retaining level-12 drill, 8 core fuel, 2.5 carried copper and 7 stored iron. Pilot-flight button absent. Initial deliberately over-high fixture was rejected by existing save validation; valid orbital-height fixture confirmed recovery.
+- Travel guarded at entry points, orbital view detection and mothership thrust; no schema change. Intro, pause, core-drive and HUD text now explain that travel is coming soon.
+- npm install, npm run build and npm test passed (177 system tests, supplemental suites, sandbox and rig-upgrade regressions). Pure upgrade tests cover every component, insufficient ore, save exceptions/false results, cargo conservation, capacity adjustments and legacy-level preservation.
+- Screenshots under ignored output/playwright/rig-*.png. Physical Android input and long-run balancing remain untested.
