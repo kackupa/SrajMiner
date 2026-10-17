@@ -39,7 +39,8 @@ h1 em,h2 em { color:var(--gold); font-style:normal; }
 .control-hint>span { display:grid; place-items:center; width:19px; height:19px; border:1px solid #3d4d4c; color:#d2d4c8; font-size:9px; }
 .control-hint small { margin-left:5px; font-size:8px; letter-spacing:.04em; }
 .control-hint b { color:#56635e; font-weight:400; margin-inline:7px; }
-.hero-art { height:480px; position:relative; overflow:hidden; border:1px solid #9b927e30; background:radial-gradient(ellipse at 73% 28%,#334850 0,#152a32 30%,#101e25 65%,#17262b); box-shadow:0 28px 90px #0005; isolation:isolate; }
+.hero-art { height:480px; position:relative; overflow:hidden; border:1px solid #9b927e30; background-color:#101e25; background-image:linear-gradient(90deg,#0d1a20 0%,#0d1a20d9 30%,#0d1a2033 69%,#0d1a2008 100%),var(--hero-art); background-position:center;background-size:cover; box-shadow:0 28px 90px #0005; isolation:isolate; }
+.hero-art .hero-planet,.hero-art .hero-horizon,.hero-art .hero-star,.hero-art .hero-cave,.hero-art .hero-pod { display:none; }
 .hero-art::before { content:""; position:absolute; inset:0; z-index:-1; opacity:.42; background-image:radial-gradient(#dbe4d4 1px,transparent 1.4px); background-size:83px 71px; mask-image:linear-gradient(#000 0%,transparent 77%); }
 .hero-planet { width:175px; height:175px; position:absolute; right:13%; top:12%; border:1px solid #d4d8c540; border-radius:50%; background:radial-gradient(circle at 30% 28%,#82938b 0,#566a66 36%,#293e43 70%,#17272e 100%); box-shadow:0 0 0 17px #c5d4c40d,0 0 45px #88beb725; }
 .hero-planet::after { content:""; position:absolute; inset:16px 0 0 23px; border-radius:50%; border-right:1px solid #d2d3bc48; transform:rotate(-20deg); }

@@ -7,6 +7,7 @@ import '@fontsource/dm-sans/latin-700.css';
 import '@fontsource/space-mono/latin-400.css';
 import './teaser.css';
 import gameplayStill from './assets/teaser/underground-run.png';
+import frontierBanner from './assets/teaser/frontier-banner.png';
 
 const mark = `<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 42 48"><path d="M4 3h34v42H4zM12 13h18M21 13v23m-8-8 8 8 8-8"/><circle cx="21" cy="23" r="3"/></svg></span>`;
 const arrow = '<span aria-hidden="true">↗</span>';
@@ -28,7 +29,7 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
         <div class="hero-actions"><a class="button button-primary" href="${gameHref}">Enter the current build <span aria-hidden="true">→</span></a><a class="text-link" href="#first-look">Take a first look <span aria-hidden="true">↓</span></a></div>
         <div class="control-hint"><span>W</span><span>A</span><span>S</span><span>D</span><small>MOVE &amp; DRILL</small><b>·</b><small>NO DOWNLOAD</small></div>
       </div>
-      <div class="hero-art" aria-label="A mining pod descends into a mineral-rich alien world">
+      <div class="hero-art" style="--hero-art:url('${frontierBanner}')" aria-label="Ore Frontier pixel-art landscape with a miner exploring an alien world">
         <div class="hero-planet"></div><div class="hero-horizon"></div><div class="hero-star star-a">✦</div><div class="hero-star star-b">·</div><div class="hero-star star-c">·</div>
         <div class="hero-readout"><span>FIELD NOTE&nbsp; 01</span><b>THE FIRST DESCENT</b><small>CRYO SHELF · DEPTH 142 M</small></div>
         <div class="hero-cave"><span class="ore-vein vein-one"></span><span class="ore-vein vein-two"></span><span class="ore-vein vein-three"></span></div>
