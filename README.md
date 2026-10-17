@@ -103,7 +103,7 @@ When both cargo and storage are full, use **Discard** beside an ore in the Wareh
 
 Mobile controls group equipment under Tools and show the nearby ship action directly. Phone Warehouse rows expand into large transfer controls with amount presets; trading has Max buttons and Workshop has a component selector. Browser tests cover the earned camp → uplink → sale → upgrade → reload sequence, multitouch, rotation and save failures. See [mobile overhaul tracking](docs/MOBILE-OVERHAUL.md) for evidence and limitations. Physical Android/iPhone comfort, keyboard behaviour and sustained performance remain unverified.
 
-### Launch landing page update — 2026-10-17
+### Launch landing page update: 2026-10-17
 
 The custom-domain landing page includes launching-soon messaging, the game overview, proposed token utility and demand drivers, a staged product roadmap, and a non-clickable official X account placeholder. The agreed token name and ticker are **CREDIT**, targeting **Robinhood Chain** with a proposed CREDIT/WETH pair. The contract, supply, distribution, vesting and actual game utility remain unconfirmed; the page makes no claim of live token integration or economics. Gameplay and save schema are unchanged.
 

@@ -191,7 +191,7 @@ function render() {
       <section class="market-panel orderbook"><div class="panel-heading"><div><span class="eyebrow">LIVE ORDER BOOK</span><h1><i style="--ore:${oreColor}"></i>${esc(oreLabel)}</h1></div><button type="button" class="icon-button" id="refresh" aria-label="Refresh market">↻</button></div>
         <div class="book-head"><span>PRICE</span><span>QUANTITY</span><span>POSTED</span><span>TRADE</span></div>
         <section class="book-side"><div class="side-title sell-title"><b>SELL OFFERS</b><span>LOWEST ASK</span></div>${bookRows('sell')}</section>
-        <div class="spread-line"><span>SPREAD</span><b>${asks.length && bids.length ? `${money(Math.max(0, asks[0]!.unit_price - bids[0]!.unit_price))} TEST CREDITS` : '—'}</b><small>Prices are set by players. Fills settle atomically.</small></div>
+        <div class="spread-line"><span>SPREAD</span><b>${asks.length && bids.length ? `${money(Math.max(0, asks[0]!.unit_price - bids[0]!.unit_price))} TEST CREDITS` : 'N/A'}</b><small>Prices are set by players. Fills settle atomically.</small></div>
         <section class="book-side"><div class="side-title buy-title"><b>BUY OFFERS</b><span>HIGHEST BID</span></div>${bookRows('buy')}</section>
         <p class="fine-print">Order book refreshes every 15 seconds. Database transactions settle every fill; stale orders are rejected safely.</p>
       </section>

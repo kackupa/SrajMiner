@@ -30,3 +30,5 @@ import './expedition.css';
 import './mobile.css';
 
 import './frontier.css';
+
+import './game/ui/StarMap.css';

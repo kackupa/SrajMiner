@@ -1,8 +1,9 @@
+import { starMapMarkup, bindStarMap } from './StarMap';
 import { mobileTrade } from './MobileTrade';
 import { mobileStorage } from './MobileStorage';
 import { panelPages } from './PanelPages';
 import { codexPanel } from './Codex';
-import { atlasMarkup, planetArt } from './PlanetArt';
+import { atlasMarkup } from './PlanetArt';
 import { tradeTerminal, type PlannedBuilding } from './TradeTerminal';
 import { CIVILISATION_KEYS, CIVILISATIONS, type CivilisationId } from '../config';
 import { podPortrait } from './PodPortrait';
@@ -521,10 +522,10 @@ export class HUD {
         [this.actions.hasTradePost() ? 'sell' : 'construction', '02', this.actions.hasTradePost() ? 'Sell your ore' : this.actions.structures().some(s => s.kind === 'habitat') ? 'Build market uplink' : 'Build your camp', this.actions.hasTradePost() ? 'Turn your haul into upgrade credits.' : this.actions.structures().some(s => s.kind === 'habitat') ? 'Camp ready. Carry 4 copper, 4 iron and 2 silver to connect to the market.' : `First: ${Object.entries(UNDERGROUND_BUILDING.habitat.materials).map(([ore, units]) => `${units} ${ore}`).join(' + ')}. Then a Market uplink.`],
         ['warehouse', '03', 'Store materials', 'Keep construction ore safe for later.'],
         ['upgrades', '04', 'Upgrade your rig', 'A better drill. More room. Longer runs.'],
-      ].map(([page, number, heading, copy]) => `<button data-hub="${page}"><span>${number} / MOTHERSHIP</span><b>${heading} <i>↗</i></b><small>${copy}</small></button>`).join('')}</div>${this.mothershipBoarded ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Find a core to unlock flight'}</button>` : ''}<p class="hub-note">Return to mine deploys your rig immediately. Your expedition is paused while this screen is open.</p>`;
+      ].map(([page, number, heading, copy]) => `<button data-hub="${page}"><span>${number} / MOTHERSHIP</span><b>${heading} <i>↗</i></b><small>${copy}</small></button>`).join('')}</div>${this.mothershipBoarded ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Find a core to unlock flight'}</button>` : ''}<button data-hub="destinations" class="star-map-entry">Star map <small>Mining worlds & trade routes · Coming soon</small> ↗</button><p class="hub-note">Return to mine deploys your rig immediately. Your expedition is paused while this screen is open.</p>`;
     } else if (name === 'more') {
       title = 'Explore your expedition'; sub = 'Optional tools, records and destinations.';
-      content = `<div class="hub-grid">${[['paints', 'Paint shop'], ['archive', 'Mining log'], ['shipyard', 'Core drive'], ['destinations', 'Worlds'], ['codex', 'How things work']].map(([page,label]) => `<button data-hub="${page}"><b>${label} <i>↗</i></b></button>`).join('')}</div>`;
+      content = `<div class="hub-grid">${[['paints', 'Paint shop'], ['archive', 'Mining log'], ['shipyard', 'Core drive'], ['codex', 'How things work']].map(([page,label]) => `<button data-hub="${page}"><b>${label} <i>↗</i></b></button>`).join('')}</div>`;
     } else if (name === 'codex') {
       title = 'The Expedition Codex'; sub = 'ENGINEERING · WORLDS · FRONTIER HISTORY';
       content = '<button id="codex-back" class="text-button">← Back to '+this.codexReturn+'</button>'+codexPanel(p,this.codexEntry,this.codexQuery);
@@ -643,9 +644,7 @@ export class HUD {
       sub = 'MOTHERSHIP / CORE-POWERED FLIGHT';
       content = `<p>Board the mothership at its landing site with E. Once a planet’s core has powered the jump drive, choose Pilot mothership in the ship hub and hold W to take off. Review a route and confirm travel; core fuel is charged by distance. WASD remains for mining movement. Each recovered planetary core adds ${CORE_FUEL.unitsPerCore} core fuel, separate from the rig’s battery charge.</p><div class="sale-total"><span>ORE FRONTIER CORE FUEL</span><b>${p.coreFuel.toFixed(2)} FUEL AVAILABLE</b></div><p class="fine">Explore another planet to mine its core and replenish the jump reserve.</p>`;
     } else if (name === 'destinations') {
-      title = 'Plan the next expedition.'; sub = 'SURVEY ATLAS / MOTHERSHIP NAVIGATION';
-      content = '<div class="grounded-status"><b>'+(!p.shipComplete || p.coreFuel<=0 ? 'GROUNDED · CORE FUEL REQUIRED' : 'JUMP DRIVE READY')+'</b><p>'+p.coreFuel.toFixed(2)+' core fuel aboard. Browse worlds here. Board with E and choose Pilot mothership in the ship hub. Hold W to take off and select a destination in orbit.</p></div>'+atlasMarkup(this.mapId)+
-        '<section class="civilian-worlds"><h2>The worlds you supply</h2><div>'+CIVILISATION_KEYS.map(id=>'<button data-codex="'+id+'">'+planetArt(id)+'<b>'+CIVILISATIONS[id].name+'</b><small>'+CIVILISATIONS[id].title+'</small></button>').join('')+'</div></section>';
+      title = 'Star map';
     } else if (name === 'paints') {
       title = this.styleSection === 'paint' ? 'Make the pod yours.' : 'Suit up for the long haul.';
       sub = 'RIG CUSTOMIZATION';
@@ -713,16 +712,13 @@ export class HUD {
       ...(this.actions.serviceAccess() ? ['service'] : []),
       ...(this.nearSurface ? ['upgrades', 'construction', 'more'] : []),
       ...(this.actions.atWarehouse() ? ['warehouse'] : []),
+      ...(this.nearSurface ? ['destinations'] : []),
     ];
-    document.querySelector('#modal-layer')!.innerHTML = name === 'pause' ? content : campMenu
+    document.querySelector('#modal-layer')!.innerHTML = name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
       ? campShell(name, title, sub, content, p, this.mapId, campLinks, this.campNotice) :
       `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE CREDIT</span><b>$${p.money.toLocaleString()}</b></div></section>`;
-    document.querySelectorAll<HTMLButtonElement>('.camp-screen [data-world]').forEach(node => node.onclick = () => {
-      document.querySelectorAll('.camp-screen [data-world]').forEach(other => { other.setAttribute('aria-pressed', String(other===node)); other.classList.toggle('selected',other===node); });
-      const id=node.dataset.world as MapId;
-      document.querySelector('#atlas-title')!.textContent=MAPS[id].name;
-      document.querySelector('#atlas-copy')!.textContent=MAPS[id].strata.slice(0,2).join(' · ')+' — Resources: '+ORE_KEYS.filter(ore=>MAPS[id].oreFactors[ore]>0).map(ore=>ORES[ore].name).join(', ')+'. Core fuel is required to depart.';
-    });
+    if (name === 'destinations') bindStarMap(document.querySelector('#modal-layer')!, this.mapId);
+    this.on('star-map-back', () => this.open('hub'));
     const search = document.querySelector<HTMLInputElement>('#codex-search');
     if (search) { search.value = this.codexQuery; search.oninput = () => { const cursor=search.selectionStart; this.codexQuery=search.value; this.renderModal(); const next=document.querySelector<HTMLInputElement>('#codex-search'); next?.focus(); if(cursor!==null) next?.setSelectionRange(cursor,cursor); }; }
     this.on('open-codex', () => this.openCodex('drill'));
