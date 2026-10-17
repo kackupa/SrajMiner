@@ -1,3 +1,7 @@
+import { installRigUpgrade } from './economy/RigUpgrade';
+import { PREBUILD } from './config';
+import { PlacementControls } from './ui/PlacementControls';
+import { planetaryMaterials, spendPlanetaryMaterials } from './building/PlanetaryMaterials';
 import { RenderGraphics } from './RenderGraphics';
 import { drawMiner } from './player/MinerArt';
 import { advanceVehiclePose, restingVehiclePose } from './player/VehiclePose';
@@ -6,7 +10,7 @@ import { TouchControls } from './ui/TouchControls';
 import { settleCivilianShipment } from './economy/Civilisations';
 import { CIVILISATIONS, type CivilisationId } from './config';
 import { drawMothership } from './surface/MothershipArt';
-import { MOTHERSHIP } from './config';
+import { MOTHERSHIP, EXTRACTOR_TIERS } from './config';
 import { SolarView, solarDestinationUnlocked, solarRouteFuel, planetPosition, distance, type SolarCommanderIntel, type SolarPlanetIntel, type SolarPosition } from './campaign/SolarSystem';
 import Phaser from 'phaser';
 import { CORE, CORE_FUEL, SOLAR_SYSTEM, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
@@ -104,6 +108,8 @@ export class MiningScene extends Phaser.Scene {
   particles: Particle[] = [];
   atmosphere = new CaveAtmosphere();
   wallBuilder?: WallBuilder;
+  placementControls?: PlacementControls;
+  placementSnap = false;
   wallAutoStack = true;
   wallPulse?: { id: string; at: number };
   placementFocus?: { x: number; y: number };
@@ -333,6 +339,10 @@ export class MiningScene extends Phaser.Scene {
         }
       }
     }
+    if (!PREBUILD.travelEnabled && (this.solarPosition || isInOrbit(this.pod.y, this.world.planetChart))) {
+      this.pod.x = 680; this.pod.y = WORLD.spawnY; this.pod.vx = this.pod.vy = 0;
+      this.pod.docked = true; this.mothershipBoarded = false; this.solarPosition = null;
+    }
     this.hemisphereFar = this.pod.y >= this.world.coreWorldY;
     this.cameraFlip = this.hemisphereFar ? 1 : 0;
     this.cameraFlipStart = this.cameraFlipTarget = this.cameraFlip;
@@ -439,15 +449,9 @@ export class MiningScene extends Phaser.Scene {
           return ok;
         },
         buy: (k) => {
-          if (!this.surface || !this.marketOnline) return false;
-          const ok = this.progress.buy(k);
-          if (ok) {
-            this.soundFx.reward();
-            this.ui.toast(
-              `${k.toUpperCase()} upgraded to level ${this.progress.levels[k]}. Make it count.`,
-            );
-            this.save();
-          }
+          if (!this.surface) return false;
+          const ok = installRigUpgrade(this.progress, this.warehouseCargo, k, () => !!this.save());
+          if (ok) this.soundFx.reward(); else this.rememberCurrentMap();
           return ok;
         },
         buyCharges: () => {
@@ -714,6 +718,11 @@ export class MiningScene extends Phaser.Scene {
       CANCEL: () => this.cancelSurfacePlacement(),
       PLACE: () => this.confirmSurfacePlacement(),
     });
+    this.placementControls = new PlacementControls({
+      snap: () => { this.placementSnap = !this.placementSnap; this.updateSurfacePlacementLabel(); },
+      place: () => this.confirmSurfacePlacement(), cancel: () => this.cancelSurfacePlacement(),
+    });
+    this.placementControls.root.addEventListener('pointerenter', () => { this.placementPointer = undefined; });
     this.wallBuilder = new WallBuilder({
       lower: () => this.nudgeSurfaceWallHeight(-1),
       raise: () => this.nudgeSurfaceWallHeight(1),
@@ -766,6 +775,7 @@ export class MiningScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.touch?.destroy();
       this.wallBuilder?.destroy();
+      this.placementControls?.destroy();
       window.removeEventListener('resize', resize);
       viewportObserver.disconnect();
       this.solarView?.destroy(); this.solarView = undefined;
@@ -1003,7 +1013,7 @@ export class MiningScene extends Phaser.Scene {
     return onPlanetSurface(this.pod.x, this.pod.y, this.world.planetChart);
   }
   get inOrbit() {
-    return isInOrbit(this.pod.y, this.world.planetChart);
+    return PREBUILD.travelEnabled && isInOrbit(this.pod.y, this.world.planetChart);
   }
   isNearMothership() {
     // Older rectangular saves still have the landed ship at its authored pad.
@@ -1119,7 +1129,7 @@ export class MiningScene extends Phaser.Scene {
       if (!state) continue;
       if (mapId !== this.mapId) accumulateAutomatedProduction(state.structures, state.warehouse, mapId, elapsed);
     }
-    accumulateAutomatedProduction(this.structures, this.warehouseCargo, this.mapId, elapsed);
+    accumulateAutomatedProduction(this.structures, this.warehouseCargo, this.mapId, elapsed, MOTHERSHIP.storageCapacity);
     this.productionUpdatedAt = Number.isFinite(now) ? Math.max(0, now) : this.productionUpdatedAt;
   }
   upgradeWarehouseCapacity() {
@@ -1134,35 +1144,17 @@ export class MiningScene extends Phaser.Scene {
   upgradeAutomatedExtractor(id: string) {
     if (!this.planetSurface || !this.nearbyWarehouse) return false;
     this.applyAutomatedProduction(Date.now());
-    const extractor = this.structures.find((entry) => entry.id === id), purchase = extractor && upgradeExtractor(extractor, this.progress.cargo, this.progress.money);
+    const extractor = this.structures.find((entry) => entry.id === id), purchase = extractor && upgradeExtractor(extractor, this.constructionMaterials(), this.progress.money);
     if (!extractor || !purchase) return false;
-    const oldMoney = this.progress.money, oldCargo = this.progress.cargo, oldLevel = extractor.level;
-    this.progress.money = purchase.credits; this.progress.cargo = purchase.cargo; extractor.level = purchase.level;
-    if (!this.save()) { this.progress.money = oldMoney; this.progress.cargo = oldCargo; extractor.level = oldLevel; return false; }
+    const oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo }, oldLevel = extractor.level;
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, EXTRACTOR_TIERS[(extractor.level ?? 1) - 1].upgradeMaterials);
+    if (!payment) return false;
+    this.progress.money = purchase.credits; Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); extractor.level = purchase.level;
+    if (!this.save()) { this.progress.money = oldMoney; Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); extractor.level = oldLevel; this.rememberCurrentMap(); return false; }
     this.soundFx.reward(); return true;
   }
-  buildExtractor() {
-    if (!this.structures.some(entry => entry.kind === 'warehouse') || !this.planetSurface || !this.nearbyWarehouse || this.structures.filter((entry) => entry.kind === 'extractor').length >= UNDERGROUND_BUILDING.extractor.maxPerMap || this.structures.length >= UNDERGROUND_BUILDING.maxStructuresPerMap || !canAffordStructure('extractor', this.progress.cargo, this.progress.money)) return false;
-    const warehouse = this.structures.find((entry) => entry.kind === 'warehouse')!, worldLength = this.world.widthTiles * WORLD.tile,
-      spacing = UNDERGROUND_BUILDING.extractor.widthTiles * WORLD.tile + 45;
-    let site: { x: number; y: number } | undefined;
-    for (let i = 0; i < this.world.widthTiles; i++) {
-      const candidate = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, warehouse.x, warehouse.y) + (i % 2 ? -1 : 1) * (spacing + Math.ceil(i / 2) * 48));
-      if (candidate.x < 100 || candidate.x > worldLength - 100) continue;
-      const occupied = this.structures.some((entry) => {
-        const d = Math.abs(surfaceArcCoordinate(this.world, entry.x, entry.y) - surfaceArcCoordinate(this.world, candidate.x, candidate.y)), full = worldLength * 2;
-        return Math.min(d, full - d) < (UNDERGROUND_BUILDING.extractor.widthTiles + UNDERGROUND_BUILDING[entry.kind].widthTiles) * WORLD.tile / 2 + 12;
-      });
-      if (!occupied) { site = candidate; break; }
-    }
-    if (!site) return false;
-    const cost = UNDERGROUND_BUILDING.extractor, oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo },
-      structure: UndergroundStructure = { id: `extractor:${Math.round(site.x)}:${Math.round(site.y)}`, kind: 'extractor', ...site, level: 1, productionFraction: 0 };
-    this.progress.money -= cost.credits; for (const [ore, units] of Object.entries(cost.materials)) this.progress.cargo[ore as Ore] -= units;
-    this.structures.push(structure);
-    if (!this.save()) { this.structures.pop(); this.progress.money = oldMoney; this.progress.cargo = oldCargo; return false; }
-    this.soundFx.reward(); this.ui.toast('BASIC EXCAVATOR ONLINE · PRODUCING INTO THE PLANET WAREHOUSE.'); return true;
-  }
+  buildExtractor() { return this.beginSurfacePlacement('extractor'); }
+  constructionMaterials() { return planetaryMaterials(this.progress.cargo, this.warehouseCargo); }
   contributeSystemProject() {
     if (!this.nearbyWarehouse) return false;
     const oldWarehouse = { ...this.warehouseCargo }, oldMilestones = [...this.progress.milestones], oldMoney = this.progress.money,
@@ -1232,7 +1224,6 @@ export class MiningScene extends Phaser.Scene {
     });
   }
   beginSurfacePlacement(kind: SurfaceStructureKind) {
-    if (kind === 'trade-post' && !this.structures.some(s => s.kind === 'habitat')) { this.ui.toast('Build a mining camp before placing a Market uplink.'); return false; }
     if (!this.planetSurface || !this.world.planetChart) return false;
     const baseArc = surfaceArcCoordinate(this.world, this.pod.x, this.pod.y),
       surfaceY = this.pod.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
@@ -1242,7 +1233,7 @@ export class MiningScene extends Phaser.Scene {
     let site = surfaceArcPoint(this.world, baseArc + WORLD.tile * 5);
     for (let step = 5; step <= 48; step += 1) {
       const candidate = surfaceArcPoint(this.world, baseArc + WORLD.tile * step),
-        check = validateSurfaceStructureSite(this.world, kind, candidate, obstacles, this.progress.cargo, this.progress.money);
+        check = validateSurfaceStructureSite(this.world, kind, candidate, obstacles, this.constructionMaterials(), this.progress.money);
       site = candidate;
       if (check.valid || check.reason !== 'OCCUPIED') break;
     }
@@ -1279,7 +1270,7 @@ export class MiningScene extends Phaser.Scene {
     const surfacePolar = { x: polar.x * chart.radiusRows * WORLD.tile / radius, y: polar.y * chart.radiusRows * WORLD.tile / radius },
       chartPoint = planetCartesianToChart(surfacePolar, chart.columns, chart.radiusRows, WORLD.tile),
       row = chartPoint.v < chart.radiusRows ? 0 : this.world.farSurfaceY,
-      site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row)),
+      site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row), placement.kind === 'wall' || this.placementSnap),
       gravity = this.world.gravitySign(row);
     this.surfacePlacement = { ...placement, ...site, y: row - gravity * outwardOffset };
     this.snapWallStack();
@@ -1287,7 +1278,7 @@ export class MiningScene extends Phaser.Scene {
   nudgeSurfacePlacement(delta: number) {
     const placement = this.surfacePlacement;
     if (!placement) return;
-    const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta);
+    const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta, placement.kind === 'wall' || this.placementSnap);
     this.surfacePlacement = { ...placement, ...site };
     this.placementFocus = { x: site.x, y: site.y - this.world.gravitySign(site.y) * 22 };
     this.placementPointer = undefined;
@@ -1311,7 +1302,7 @@ export class MiningScene extends Phaser.Scene {
       y: placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
     }));
     stations.push({ id: 'mothership', kind: 'habitat', x: MOTHERSHIP.x, y: 0 });
-    return validateSurfaceStructureSite(this.world, placement.kind, placement, [...this.structures, ...stations], this.progress.cargo, this.progress.money);
+    return validateSurfaceStructureSite(this.world, placement.kind, placement, [...this.structures, ...stations], this.constructionMaterials(), this.progress.money);
   }
   updateSurfacePlacementLabel() {
     const placement = this.surfacePlacement;
@@ -1345,18 +1336,23 @@ export class MiningScene extends Phaser.Scene {
       this.soundFx.tone(170, 0.07, 'square', 0.02, 120);
       return false;
     }
-    const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo },
+    const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo },
       structure: UndergroundStructure = {
         id: `${placement.kind}:${Math.round(placement.x)}:${Math.round(placement.y)}`,
         kind: placement.kind, x: placement.x, y: placement.y, ...(placement.kind === 'extractor' ? { level: 1, productionFraction: 0 } : { integrity: structureIntegrity(placement.kind) }),
       };
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials);
+    if (!payment) return false;
     this.progress.money -= cost.credits;
-    for (const [ore, units] of Object.entries(cost.materials)) this.progress.cargo[ore as Ore] -= units;
+    Object.assign(this.progress.cargo, payment.cargo);
+    Object.assign(this.warehouseCargo, payment.storage);
     this.structures.push(structure);
     if (!this.save()) {
       this.structures.pop();
       this.progress.money = oldMoney;
       Object.assign(this.progress.cargo, oldCargo);
+      Object.assign(this.warehouseCargo, oldStorage);
+      this.rememberCurrentMap();
       this.ui.toast('SAVE FAILED · BUILD NOT PLACED · NOTHING SPENT.');
       this.updateSurfacePlacementLabel();
       return false;
@@ -1383,11 +1379,18 @@ export class MiningScene extends Phaser.Scene {
     this.ui.toast(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT · PLANETARY SITE SAVED.`);
     return true;
   }
+  commitStructure(structure: UndergroundStructure) {
+    const cost = UNDERGROUND_BUILDING[structure.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo };
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials);
+    if (!payment || oldMoney < cost.credits) return false;
+    this.progress.money -= cost.credits; Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); this.structures.push(structure);
+    if (!this.save()) { this.structures.pop(); this.progress.money = oldMoney; Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); this.rememberCurrentMap(); return false; }
+    return true;
+  }
   buildUndergroundStructure(kind: StructureKind) {
-    if (kind === 'trade-post' && !this.structures.some(s => s.kind === 'habitat')) return false;
     const cost = UNDERGROUND_BUILDING[kind], p = this.progress;
     if (this.planetSurface && this.world.planetChart &&
-      (kind === 'habitat' || kind === 'turret' || kind === 'trade-post' || kind === 'warehouse' || kind === 'wall' || kind === 'gate' || kind === 'fort'))
+      (kind === 'habitat' || kind === 'turret' || kind === 'trade-post' || kind === 'warehouse' || kind === 'wall' || kind === 'gate' || kind === 'fort' || kind === 'extractor'))
       return this.beginSurfacePlacement(kind);
     if (kind === 'fort') return false;
     if (kind === 'trade-post' || kind === 'habitat' || kind === 'warehouse' || kind === 'wall' || kind === 'gate' || kind === 'turret' && this.surface) {
@@ -1402,14 +1405,12 @@ export class MiningScene extends Phaser.Scene {
                 ? findSurfaceBarrierSite(this.world, this.pod.x, this.pod.y, this.structures, kind)
               : findSurfaceTurretSite(this.world, this.pod.x, this.pod.y, this.structures)
         : undefined;
-      if (!site || !canAffordStructure(kind, p.cargo, p.money)) return false;
-      p.money -= cost.credits;
-      for (const [ore, units] of Object.entries(cost.materials)) p.cargo[ore as Ore] -= units;
-      this.structures.push({ id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site, integrity: SURFACE_RAID.integrity });
+      if (!site || !canAffordStructure(kind, this.constructionMaterials(), p.money)) return false;
+      if (!this.commitStructure({ id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site, integrity: SURFACE_RAID.integrity })) return false;
       this.soundFx.reward();
       this.float(`${kind.toUpperCase()} ONLINE`, site.x, site.y - 54, '#9ce4cf');
       if (kind === 'trade-post') this.ui.toast('MARKET UPLINK ONLINE · ORE SALES AND UPGRADES UNLOCKED.');
-      else if (kind === 'habitat') this.ui.toast('MINING CAMP BUILT · NEXT: BUILD A MARKET UPLINK.');
+      else if (kind === 'habitat') this.ui.toast('MINING CAMP BUILT · YOUR SERVICE BASE IS READY.');
       else if (kind === 'warehouse') this.ui.toast('ORE WAREHOUSE ONLINE · PRESS E BESIDE IT TO STORE SELECTED ORE.');
       else if (kind === 'wall' || kind === 'gate') this.ui.toast(kind === 'wall' ? 'PERIMETER WALL ONLINE · RAIDERS MUST BREACH IT.' : 'SECURITY GATE ONLINE · IT OPENS FOR YOUR MINER.');
       else this.ui.toast('SURFACE SENTINEL ONLINE · ROCK SWIMMERS IN RANGE WILL BE INTERCEPTED.');
@@ -1417,11 +1418,9 @@ export class MiningScene extends Phaser.Scene {
       return true;
     }
     const site = findBuildSite(this.world, this.pod.x, this.pod.y, this.world.gravitySign(this.pod.y), kind, this.structures);
-    if (this.planetSurface || this.depth < UNDERGROUND_BUILDING.minimumDepthMeters || this.depth > 3400 || !site || !canAffordStructure(kind, p.cargo, p.money)) return false;
-    p.money -= cost.credits;
-    for (const [ore, units] of Object.entries(cost.materials)) p.cargo[ore as Ore] -= units;
+    if (this.planetSurface || this.depth < UNDERGROUND_BUILDING.minimumDepthMeters || this.depth > 3400 || !site || !canAffordStructure(kind, this.constructionMaterials(), p.money)) return false;
     const structure: UndergroundStructure = { id: `${kind}:${Math.round(site.x)}:${Math.round(site.y)}`, kind, ...site, integrity: SURFACE_RAID.integrity };
-    this.structures.push(structure);
+    if (!this.commitStructure(structure)) return false;
     this.pod.structures = this.structures;
     this.soundFx.reward();
     this.float(kind === 'service' ? 'REPAIR STATION BUILT' : kind === 'turret' ? 'DEFENSE TURRET BUILT' : 'ANCHOR DECK BUILT', site.x, site.y, '#9ce4cf');
@@ -1542,6 +1541,7 @@ export class MiningScene extends Phaser.Scene {
     this.ui.toast('MOTHERSHIP LANDED · E TO DISEMBARK'); this.save();
   }
   travelFromSolar(id: MapId) {
+    if (!PREBUILD.travelEnabled) return;
     if (!this.solarPosition || !this.mothershipBoarded || !this.inOrbit) return;
     if (!solarDestinationUnlocked(id, this.mapId, this.progress.shipComplete, this.progress.milestones)) return;
     const cost = solarRouteFuel(this.solarPosition, planetPosition(id));
@@ -1570,6 +1570,7 @@ export class MiningScene extends Phaser.Scene {
     return intel;
   }
   travelToMap(id: MapId) {
+    if (!PREBUILD.travelEnabled) { this.ui.toast('TRAVEL COMING SOON · EXPLORE THE STAR MAP PREVIEW'); return false; }
     if (!this.mothershipBoarded) {
       this.ui.toast('BOARD THE MOTHERSHIP TO TRAVEL BETWEEN PLANETS');
       return false;
@@ -1999,6 +2000,8 @@ export class MiningScene extends Phaser.Scene {
     this.touch?.available('PLACE', !!this.surfacePlacement);
     this.touch?.root.classList.toggle('placing', !!this.surfacePlacement);
     this.touch?.root.classList.toggle('wall-placing', this.surfacePlacement?.kind === 'wall');
+    const placementCheck = this.surfacePlacementCheck();
+    this.placementControls?.update(!!this.surfacePlacement && this.surfacePlacement.kind !== 'wall' && !this.ui.modal && !this.ui.paused, this.placementSnap, !!placementCheck?.valid, placementCheck && !placementCheck.valid ? placementCheck.reason : '');
     const wall = this.surfacePlacement?.kind === 'wall' ? this.surfacePlacement : undefined;
     const wallCheck = wall ? this.surfacePlacementCheck() : undefined;
     const wallLayer = wall ? 1 + Math.round(Math.abs(wall.y - (wall.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY)) / WORLD.tile) : 1;
@@ -2006,8 +2009,8 @@ export class MiningScene extends Phaser.Scene {
       this.structures.filter(entry => entry.kind === 'wall').length, UNDERGROUND_BUILDING.wall.maxPerMap, !!wallCheck?.valid,
       wallCheck?.valid ? 'Click to lock a block. Keep clicking to stack! Drag to pan · Done / Esc to finish.'
       : wallCheck && !wallCheck.valid && wallCheck.reason === 'OCCUPIED' ? 'Needs a clear, supported layer. Try Auto-stack.' : wallCheck && !wallCheck.valid ? wallCheck.reason : '');
-    const firstCampReady = this.planetSurface && !this.structures.some(entry => entry.kind === 'habitat') && canAffordStructure('habitat', this.progress.cargo, this.progress.money);
-    this.touch?.primary('BUILD', firstCampReady && !this.surfacePlacement, firstCampReady ? 'Build camp' : 'BUILD');
+    const firstCampReady = this.planetSurface && !this.structures.some(entry => entry.kind === 'habitat') && canAffordStructure('habitat', this.constructionMaterials(), this.progress.money);
+    this.touch?.primary('BUILD', firstCampReady && !this.surfacePlacement, firstCampReady ? 'Build colony' : 'BUILD');
     this.touch?.available('CHARGE', this.progress.charges > 0 && !this.surfacePlacement);
     this.touch?.available('R', this.progress.returnWinch && !this.mothershipBoarded);
     this.touch?.available('G', this.progress.grappleOwned && !this.mothershipBoarded);
@@ -2064,7 +2067,7 @@ export class MiningScene extends Phaser.Scene {
       const orbitalControls = previousOrbit && (input.left || input.right || input.down || input.up);
       // Thrust is still available in orbit so players can leave from either hemisphere.
       const flightInput = this.mothershipBoarded
-        ? { ...input, left: false, right: false, down: this.inOrbit && input.down, up: input.up && this.progress.shipComplete && this.progress.coreFuel > 0, stasis: false, reel: false, mothership: true }
+        ? { ...input, left: false, right: false, down: this.inOrbit && input.down, up: PREBUILD.travelEnabled && input.up && this.progress.shipComplete && this.progress.coreFuel > 0, stasis: false, reel: false, mothership: true }
         : input;
       const target = this.stranded || this.surfacePlacement || previousOrbit && !orbitalControls ? undefined : this.pod.update(dt, flightInput, (damage) => {
         if (this.progress.pilotEscaping || this.progress.hull <= 0) return;
@@ -2078,7 +2081,7 @@ export class MiningScene extends Phaser.Scene {
         this.float(`−${Math.ceil(damage)} HULL`, this.pod.x, this.pod.y - 25, '#ff927d');
       }, this.viewRotation);
       if (this.world.planetChart) {
-        if (this.progress.shipComplete && this.progress.coreFuel > 0 && this.mothershipBoarded) {
+        if (PREBUILD.travelEnabled && this.progress.shipComplete && this.progress.coreFuel > 0 && this.mothershipBoarded) {
           if (this.inOrbit && !input.down && !input.up) {
             this.pod.y = orbitalParkingY(this.pod.y, this.world.planetChart);
             this.pod.vy = 0;
@@ -2086,7 +2089,7 @@ export class MiningScene extends Phaser.Scene {
         } else if (this.pod.y < -MAX_TOWN_ALTITUDE) {
           this.pod.y = -MAX_TOWN_ALTITUDE;
           this.pod.vy = 0;
-          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('BOARD THE MOTHERSHIP AT ITS PAD TO LEAVE THE PLANET');
+          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('TRAVEL IS COMING SOON · CONTINUE MINING THIS WORLD');
         }
       }
       if (!this.mothershipBoarded && this.world.planetChart && this.pod.y > this.world.farSurfaceY + MAX_TOWN_ALTITUDE) {
@@ -3333,7 +3336,7 @@ export class MiningScene extends Phaser.Scene {
       g.strokeCircle(anchor.x, anchor.y, 7);
       g.lineBetween(anchor.x - 12, anchor.y, anchor.x + 12, anchor.y);
       g.lineBetween(anchor.x, anchor.y - 12, anchor.x, anchor.y + 12);
-      this.buildPlacementLabel.setPosition(w / 2, h - 56).setVisible(placement.kind !== 'wall');
+      this.buildPlacementLabel.setVisible(false);
     } else this.buildPlacementLabel.setVisible(false);
     for (const drop of this.oreDrops) {
       if (!isOnScreen(drop.x, drop.y, 24)) continue;

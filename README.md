@@ -29,7 +29,7 @@ The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewpo
 
 ## Ore Frontier teaser
 
-The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. Its copy describes building a mining empire through ore collection, camp/uplink construction, rig upgrades, warehouses, automated extraction, and planetary travel. The hero and video poster use an actual gameplay capture. The feature section uses large mining, workshop, and surface-colony captures from the game instead of illustrated placeholder cards. The embedded gameplay MP4 is hosted in the public Supabase media bucket. CREDIT is the planned ecosystem token; the page distinguishes the local game economy, the separate player-market beta, and future token integration. Unagreed seasonal expeditions, voting, and token cosmetics are not advertised.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. Its copy describes building a mining empire through ore collection, camp/uplink construction, rig upgrades, warehouses, automated extraction, and planetary travel. The hero and video poster use an actual gameplay capture. The feature section uses large mining, workshop, and surface-colony captures from the game instead of illustrated placeholder cards. The embedded gameplay MP4 is hosted in the public Supabase media bucket. The page identifies the official creator account and states that Ore Frontier has no official token. Unagreed seasonal expeditions, voting, and token cosmetics are not advertised.
 
 The custom domain is `https://playorefrontier.xyz/`; canonical and social-share metadata use that URL. Cloudflare Pages rewrites `/play` to `game.html`. Branch previews update after pushing; production remains on `master` until the PR is merged.
 
@@ -48,7 +48,7 @@ Near the core, aim at its glowing marker and hold the mouse button to extract it
 
 An earned opening campaign also passed core return with controlled browser frame timing, camp/uplink construction, first sales and the first drill upgrade, including save/reload. Shipment quantities update their quote while you type without losing focus when switching fields. These automated checks do not replace real-time navigation, raid-balance or human playtesting; see [QA](docs/QA.md).
 
-Camp and uplink construction uses ore carried in the rig. Withdraw stored materials first, press B, select a building, position its preview, then confirm. Materials are spent only after successful placement. The initial material seams provide enough ore for both buildings. Additional warehouses, extractors and existing colony structures remain available.
+Construction pools miner cargo and storage on the current planet, spending carried ore first. Press B, choose any surface building, position its preview and confirm. Free placement has optional snapping. Materials are spent only when placement saves successfully; cancelling or a failed save spends nothing. Mining camp, uplink, warehouse and extractor can each be built first with materials only.
 
 ## Controls and menus
 
@@ -61,7 +61,7 @@ Camp and uplink construction uses ore carried in the rig. Withdraw stored materi
 
 The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. **Pilot mothership** deliberately keeps you aboard for flight once core fuel is available.
 
-The opening screen teaches movement, drilling and return flight. The in-game objective tracks carried materials against building costs from `src/game/config.ts`. The build yard starts with just Mining camp and Market uplink; **More buildings** opens the rest. Optional records, appearance and worlds live under **Explore & customise**.
+The opening screen teaches movement, drilling and return flight. The fullscreen build catalogue groups Mining, Storage, Services and Defence without scrolling or dropdowns. It shows exact shortages from pooled planetary materials and retains repair/upgrade management. There is no camp prerequisite for an uplink. The Star map has its own menu entry.
 
 The game fits the viewport without browser scrollbars. Main menus use the full screen; longer reference/catalogue panels offer **Previous / Next** controls and still support wheel, touch and keyboard navigation. Phone service navigation uses a compact selector. The original illustrated title, lander, sky and mineral treatment share the new blue/orange visual style.
 
@@ -105,7 +105,7 @@ Mobile controls group equipment under Tools and show the nearby ship action dire
 
 ### Launch landing page update: 2026-10-17
 
-The custom-domain landing page includes launching-soon messaging, the game overview, proposed token utility and demand drivers, a staged product roadmap, and a non-clickable official X account placeholder. The agreed token name and ticker are **CREDIT**, targeting **Robinhood Chain** with a proposed CREDIT/WETH pair. The contract, supply, distribution, vesting and actual game utility remain unconfirmed; the page makes no claim of live token integration or economics. Gameplay and save schema are unchanged.
+The custom-domain landing page introduces the playable game, gameplay footage, product roadmap, and official creator account at https://x.com/Kac_Kupa_. It states that Ore Frontier has no official token; proposed token names, chains, pairs, launch details and integration promises have been removed. Gameplay and save schema are unchanged.
 
 Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
 
@@ -113,3 +113,15 @@ Validation: npm install, npm test, and npm run build passed. Local Chromium exer
 The mothership sidebar places Star map after Warehouse. A direct hub button also makes it reachable on mobile. This fullscreen, read-only preview shows six mining worlds, four civilised trading worlds, resource surveys and conceptual routes to a planned player exchange. Multiplayer orders and network expansion are labelled coming soon; tokenomics remain TBD. Existing mining, flight and saves are unchanged.
 The star map uses a central star and orbital tracks; planet distances are illustrative, not to scale.
 Mining worlds use distinct geological features; inhabited worlds show city lights and orbital stations. The exchange preview has no dotted trade connections.
+
+## Sandbox construction and planetary resources
+The surface catalogue is open from the start: Mining, Storage, Services and Defence. Camp, uplink, warehouse and extractor have material-only entry costs; other buildings retain their credit costs and physical limits. A camp is a service option, not an uplink prerequisite. All construction draws from carried ore first, then the current planet's stored ore; other planets are never charged. Surface placement has a ghost preview, occupancy validation, optional snapping, Place and Cancel. Existing wall stacking remains available.
+
+Copper, iron and silver occur on every world and cover building materials. Exclusive deposits are Nickel (Mars Frontier), Cryocrystal (Cryo Shelf), Titanium (Hull Graveyard), Diamond (Prism Fault), Cobalt (Cinder Vale) and Gold (Vesper-9). Local orders and surveys reflect this geography. Civilian projects can require imports; the planetary cores still supply travel fuel. Deep-core extractors can produce the local exclusive ore.
+
+An extractor can be placed before a warehouse and uses the mothership hold while that planet is active. A warehouse allows production while away. Full storage pauses production without banking excess. Extractor upgrades also draw on shared local materials. Existing inventory, mined cells, buildings and save schema are preserved; regenerated unmined deposits use the new geography.
+
+## Pre-build rig workshop and travel policy
+Basic rig upgrades through level 5 are installed at the mothership using common ores from the miner and active planet's storage, with carried materials spent first. No uplink or credits are required. The new fullscreen workshop separates Basic rig, Specialist plans, optional credit-funded Equipment and existing free Pilot setups. Specialist ore modules are previews only until travel is released. Purchased levels, including legacy levels above 5, remain intact.
+
+Interplanetary travel is disabled by the pre-build release policy, including scene travel entry points and mothership ascent. The star map remains browsable. Valid older orbital saves return to the same planet's mothership pad without spending core fuel or discarding inventory. Existing campaigns on other planets retain their active planet. Core recovery still saves fuel for a future release.

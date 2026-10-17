@@ -22,7 +22,7 @@ for(const e of entries)for(const id of e.related)assert.ok(entries.some(other=>o
 for(const id of CIVILISATION_KEYS)assert.ok(entries.some(e=>e.id===id));
 for(const ore of ORE_KEYS)assert.ok(entries.some(e=>e.id==='ore-'+ore));
 let crystal=0,titanium=0;
-for(const map of ['cryo-shelf','mars-frontier'] as const){
+for(const map of ['cryo-shelf','hull-graveyard'] as const){
  const world=new TileWorld(4201,[],[],map);
  for(let y=0;y<120;y++)for(let x=0;x<48;x++){
   const tile=world.get(x,y);if(!tile.ore)continue;

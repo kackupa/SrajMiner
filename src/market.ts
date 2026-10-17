@@ -175,7 +175,7 @@ function render() {
     return;
   }
   if (!session) {
-    root.innerHTML = `<section class="auth-screen"><a class="market-wordmark" href="/">ORE <em>FRONTIER</em></a><div class="auth-card"><span class="eyebrow">PLAYER EXCHANGE · PRIVATE BETA</span><h1>TRADE WITH<br><em>THE FRONTIER.</em></h1><p>Sign in with an email link to open your separate market vault. Campaign saves never add ore or credits to this account.</p><form id="signin-form"><label class="market-field"><span>EMAIL ADDRESS</span><input id="signin-email" type="email" autocomplete="email" required placeholder="you@example.com"></label><button class="market-action" type="submit">EMAIL ME A SIGN-IN LINK <span>↗</span></button></form><small>Test credits and market ore are separate from the offline campaign. They are not the CREDIT token.</small>${notice ? `<p class="notice ${noticeKind}" role="status">${esc(notice)}</p>` : ''}</div></section>`;
+    root.innerHTML = `<section class="auth-screen"><a class="market-wordmark" href="/">ORE <em>FRONTIER</em></a><div class="auth-card"><span class="eyebrow">PLAYER EXCHANGE · PRIVATE BETA</span><h1>TRADE WITH<br><em>THE FRONTIER.</em></h1><p>Sign in with an email link to open your separate market vault. Campaign saves never add ore or credits to this account.</p><form id="signin-form"><label class="market-field"><span>EMAIL ADDRESS</span><input id="signin-email" type="email" autocomplete="email" required placeholder="you@example.com"></label><button class="market-action" type="submit">EMAIL ME A SIGN-IN LINK <span>↗</span></button></form><small>Test credits and market ore are separate from the offline campaign. They have no cash or token value.</small>${notice ? `<p class="notice ${noticeKind}" role="status">${esc(notice)}</p>` : ''}</div></section>`;
     bind();
     return;
   }
@@ -204,7 +204,7 @@ function render() {
         ${notice ? `<p class="notice ${noticeKind}" role="status">${esc(notice)}</p>` : ''}
       </aside>
     </main>
-    <footer class="market-footer"><span>ORE FRONTIER · PLAYER EXCHANGE</span><span>TEST CREDITS ARE NOT THE CREDIT TOKEN</span><a href="/play">RETURN TO THE GAME ↗</a></footer>
+    <footer class="market-footer"><span>ORE FRONTIER · PLAYER EXCHANGE</span><span>TEST CREDITS HAVE NO CASH OR TOKEN VALUE</span><a href="/play">RETURN TO THE GAME ↗</a></footer>
   </section>
   ${pending ? `<div class="confirm-scrim"><section class="confirm-card" role="dialog" aria-modal="true" aria-labelledby="confirm-title"><span class="eyebrow">CHECK BEFORE SETTLEMENT</span><h2 id="confirm-title">${esc(pending.title)}</h2><p>${esc(pending.body)}</p><div class="confirm-actions"><button type="button" id="confirm-cancel">GO BACK</button><button type="button" class="market-action" id="confirm-submit">CONFIRM</button></div></section></div>` : ''}`;
   bind();

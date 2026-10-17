@@ -32,3 +32,7 @@ import './mobile.css';
 import './frontier.css';
 
 import './game/ui/StarMap.css';
+
+import './game/ui/BuildingCatalogue.css';
+
+import './game/ui/RigWorkshop.css';

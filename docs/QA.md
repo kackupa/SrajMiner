@@ -825,3 +825,28 @@ All four HTML entry points now use `miner-avatar.svg`, derived from the actual d
 Solar system follow-up: central luminous star, individual orbital tracks, separate exchange station. Browser checked at 1440x900 and 390x844; mobile map and inspector overflow both zero. Screenshots in output/playwright/solar-system-desktop.png and solar-system-mobile.png. Build and test suites passed.
 
 Planet identity pass: removed exchange dotted paths (browser confirmed zero route elements). Added individual original SVG surface features and palettes for all ten worlds; inhabited worlds have city lights, orbital infrastructure and explicit INHABITED labels. Desktop screenshot reviewed at 1440x900, Verdant inspector checked at 390x844 with zero overflow. Build and full tests passed.
+
+## Official-source landing-page update — 2026-10-17
+Removed token launch marketing and added the no-official-token notice plus the creator X link. Browser checked at 1440x900 and 390x844: notice and link present, no CREDIT/Robinhood/WETH/Tokenomics copy, no horizontal overflow, FAQ opens. Screenshots: output/playwright/official-sources-desktop.png and official-sources-mobile.png. npm install, npm test (177 systems plus supplemental suites), and production build passed; existing large game bundle warning remains. Live deployment not performed. X account ownership was not independently verified; handle follows the user's supplied identity.
+
+Follow-up: user corrected the handle to @Kac_Kupa_. Updated the displayed handle and link to https://x.com/Kac_Kupa_ and verified source references. Earlier browser screenshots and build checks predate this text-only correction.
+
+## 2026-10-17: sandbox building and exclusive planetary deposits
+- Implemented pooled construction costs (carried first, active-planet storage second), optional snapping and shared placement controls, extractor placement, and an open fullscreen category/detail catalogue. No camp prerequisite. Core economy and mining save schema retained.
+- All eight surface buildings checked in the browser at 1440x900, 390x844, 320x568 and 844x390. Initial landscape overflow was fixed; final compact layouts measured zero body/detail overflow. No select elements or pagination controls.
+- Isolated save: no buildings, zero credits, cargo 0.5 copper/1 iron and storage 8 copper/8 iron/4 silver. Uplink was available first. Cancel preserved both inventories. Simulated Storage.setItem failure left placement active; retry then reload produced exactly one uplink, empty cargo and storage 4.5 copper/5 iron/2 silver. No double debit or duplication.
+- Placed extractor without camp/warehouse using pooled materials, toggled snapping, confirmed via the phone-sized toolbar, then reloaded. Correct level-1 extractor and remaining stock persisted.
+- Mouse preview rejected an occupied site. Free placement succeeded at x=277.7916914084781, demonstrating unsnapped positioning; warehouse debited exactly 3 iron/1 silver from storage.
+- Added sandbox regression suite: fractional pooled spending, atomic insufficient-material rejection, all six worlds' common/exclusive generated deposits, independent uplink/extractor placement, production into mothership hold and full-storage pause. Updated geography/cost fixtures for the new balance. npm install, npm test (177 system tests plus supplemental and sandbox suites), npm run build passed.
+- QA uses isolated browser fixtures, not the user's save. Screenshots remain ignored under output/playwright/. Real Android touch and long-term economy balance are still untested. Existing large-bundle advisory remains.
+
+Sandbox copy audit: star-map exclusive labels and live flight-map profiles both use current ore geography. Corrected warehouse construction-withdrawal instructions and Codex carry-only wording, plus outdated Nickel/Titanium source locations. Rig upgrades still require an uplink; extractor upgrades still require a nearby warehouse. No change to those mechanics in this copy pass.
+
+## 2026-10-17: material rig upgrades and pre-build travel lock
+- Added common-ore rig installation through level 5, without market or credit prerequisites, using shared local materials. Install/save is atomic, including battery/hull adjustments and grapple ownership. Higher purchased levels stay intact.
+- Fullscreen workshop has basic components, specialist previews, equipment and pilot setups. Inspected all items at desktop and phone dimensions; fixed compact-layout overflow. Final 320x568 basic/specialist layouts and 844x390 layouts fit without scrolling or pagination. Optional equipment retains credit costs; specialist ore modules are explicitly unavailable.
+- Browser fixture with no uplink/credits: simulated storage failure followed by retry/reload installed one level-2 drill, consumed exactly 3 iron/2 copper across cargo and storage, and retained zero credits.
+- Valid legacy orbital fixture restored to y=-22 on the same planet, retaining level-12 drill, 8 core fuel, 2.5 carried copper and 7 stored iron. Pilot-flight button absent. Initial deliberately over-high fixture was rejected by existing save validation; valid orbital-height fixture confirmed recovery.
+- Travel guarded at entry points, orbital view detection and mothership thrust; no schema change. Intro, pause, core-drive and HUD text now explain that travel is coming soon.
+- npm install, npm run build and npm test passed (177 system tests, supplemental suites, sandbox and rig-upgrade regressions). Pure upgrade tests cover every component, insufficient ore, save exceptions/false results, cargo conservation, capacity adjustments and legacy-level preservation.
+- Screenshots under ignored output/playwright/rig-*.png. Physical Android input and long-run balancing remain untested.

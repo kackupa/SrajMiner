@@ -1,6 +1,6 @@
 /** Long reference screens stay reachable without nested scrollbar chrome. */
 export function panelPages(root: HTMLElement) {
-  if (root.querySelector('.star-map-screen')) return () => {};
+  if (root.querySelector('.star-map-screen, .build-catalogue, .rig-workshop')) return () => {};
   const panel = root.querySelector<HTMLElement>('.camp-main') ?? root.querySelector<HTMLElement>('.modal');
   if (!panel) return () => {};
   const nav = document.createElement('nav');
