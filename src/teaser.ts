@@ -6,12 +6,13 @@ import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-700.css';
 import '@fontsource/space-mono/latin-400.css';
 import './teaser.css';
-import gameplayStill from './assets/teaser/underground-run.png';
 import frontierBanner from './assets/teaser/frontier-banner.png';
 
 const mark = `<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 42 48"><path d="M4 3h34v42H4zM12 13h18M21 13v23m-8-8 8 8 8-8"/><circle cx="21" cy="23" r="3"/></svg></span>`;
 const arrow = '<span aria-hidden="true">↗</span>';
 const gameHref = import.meta.env.BASE_URL === '/' ? '/play' : import.meta.env.BASE_URL;
+const publicGameplayVideoUrl = 'https://ikxfacubyvtelvcdeiba.supabase.co/storage/v1/object/public/ore-frontier-gameplay/ore-frontier-gameplay-beta.mp4';
+const gameplayVideoUrl = import.meta.env.VITE_PUBLIC_GAMEPLAY_VIDEO_URL?.trim() || publicGameplayVideoUrl;
 
 document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
   <header class="site-header">
@@ -56,8 +57,8 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
       <div class="wrap first-look-inner">
         <div class="section-kicker"><span>02 / FIRST LOOK</span><span>CAPTURED IN THE CURRENT BUILD</span></div>
         <div class="first-look-layout">
-          <div class="first-look-copy"><span class="eyebrow">A RUN BELOW THE CRUST</span><h2>Not a mock-up.<br/><em>A real descent.</em></h2><p>Here’s a glimpse of the game as it plays today. We’re working on the next cut of the trailer while the expedition keeps growing.</p><a class="button button-outline" href="${gameHref}">Play the current build <span aria-hidden="true">→</span></a><small class="media-note">GAMEPLAY CLIP IN PROGRESS · THIS STILL IS FROM THE LIVE BUILD</small></div>
-          <figure class="gameplay-frame"><div class="frame-top"><span><i></i> LIVE FEED / SUBSURFACE</span><span>CRYO SHELF&nbsp; · &nbsp;142 M</span></div><img src="${gameplayStill}" alt="Ore Frontier gameplay: the miner cutting through ore-rich underground rock"/><figcaption><span>THE FIRST CUT</span><span>GAMEPLAY STILL&nbsp; / &nbsp;CURRENT BUILD</span></figcaption></figure>
+          <div class="first-look-copy"><span class="eyebrow">A RUN BELOW THE CRUST</span><h2>Not a mock-up.<br/><em>A real descent.</em></h2><p>See a complete run through Ore Frontier’s current mining loop: descend, bring the haul home, and prepare for what’s next.</p><a class="button button-outline" href="${gameHref}">Play the current build <span aria-hidden="true">→</span></a><small class="media-note">30-SECOND GAMEPLAY PREVIEW · CURRENT BUILD</small></div>
+          <figure class="gameplay-frame"><div class="frame-top"><span><i></i> GAMEPLAY / BETA PREVIEW</span><span>ORE FRONTIER&nbsp; · &nbsp;30 SEC</span></div>${gameplayVideoUrl ? `<video controls playsinline preload="metadata" poster="${frontierBanner}" aria-label="Ore Frontier 30-second gameplay preview"><source src="${gameplayVideoUrl}" type="video/mp4"/></video>` : `<div class="gameplay-video-pending" role="status"><span aria-hidden="true">▶</span><b>GAMEPLAY PREVIEW</b><small>PUBLIC VIDEO HOST COMING SOON</small></div>`}<figcaption><span>THE FIRST CUT</span><span>GAMEPLAY CAPTURE&nbsp; / &nbsp;CURRENT BUILD</span></figcaption></figure>
         </div>
       </div>
     </section>
