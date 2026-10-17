@@ -103,6 +103,6 @@ Mobile controls group equipment under Tools and show the nearby ship action dire
 
 ### Launch landing page update — 2026-10-17
 
-The agreed token name and ticker are CREDIT, targeting Robinhood Chain with a proposed CREDIT/WETH pair. Contract, supply, distribution, vesting and game utility remain unconfirmed; no live token integration or economics are implied. Gameplay and save schema are unchanged.
+The custom-domain landing page includes launching-soon messaging, the game overview, proposed token utility and demand drivers, a staged product roadmap, and a non-clickable official X account placeholder. The agreed token name and ticker are **CREDIT**, targeting **Robinhood Chain** with a proposed CREDIT/WETH pair. The contract, supply, distribution, vesting and actual game utility remain unconfirmed; the page makes no claim of live token integration or economics. Gameplay and save schema are unchanged.
 
 Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
