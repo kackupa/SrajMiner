@@ -797,3 +797,10 @@ Mobile rendering follow-up (2026-10-16): reduced repeated terrain projection and
 WebKit follow-up: game drawing-buffer readback contains terrain/miner pixels (658 sampled colours), confirmed visually in output/playwright/webkit-mobile-buffer.png. Normal Windows WebKit screenshots omit that layer even with stock Phaser Graphics; physical Safari composition remains unverified. Frame-local camera projection improves the 4x-throttled median to50ms; this is not yet a smooth-phone performance pass.
 
 Complete earned mobile progression now automated in tests/browser-mobile-earned.js: fresh save, camp/uplink construction from mined ore, free recharge, two-contact braking, sale, drill2 purchase and exact reload. Final controlled run retained100% hull/zero overlaps and102 credits after purchase. No resource injection. Braking is timed from read-only diagnostics, so this is not a human ease-of-play claim. See mobile-earned-complete.png in ignored output/playwright.
+
+
+## Landing-page copy pass — 2026-10-17
+
+Rewrote the full teaser around mining, camp/uplink construction, rig upgrades, warehouses, automated extraction, and expansion across planets. Removed mystery/adventure slogans and unagreed token utilities. The player-market beta is explicitly separate from campaign inventory and CREDIT. Search/share metadata and FAQ match this positioning.
+
+npm install, npm test, and the production build passed. Isolated Chromium loaded the production teaser at 1440×900 and 390×900; the actual gameplay image loaded, the player-market FAQ opened, and the phone viewport had no horizontal overflow. Screenshots: `output/playwright/copy-pass-1440.png` and `output/playwright/copy-pass-390.png`. These are local checks; this copy pass has not been deployed. Game logic and saves are unchanged.

@@ -29,7 +29,9 @@ The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewpo
 
 ## Ore Frontier teaser
 
-The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser uses original pixel-art hero artwork, a real current-build gameplay still, feature copy and FAQ. A 35-second gameplay trailer has now been exported locally in 4:5 and 16:9 formats; embedding it in the landing page remains a separate step. The custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. Cloudflare Pages generates preview deployments for the branch; the production `ore-frontier.pages.dev` deployment remains on `master` until the PR is merged. The custom domain is still waiting for nameserver propagation, so custom-domain browser testing remains pending.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. Its copy describes building a mining empire through ore collection, camp/uplink construction, rig upgrades, warehouses, automated extraction, and planetary travel. The hero and video poster use an actual gameplay capture. The embedded gameplay MP4 is hosted in the public Supabase media bucket. CREDIT is the planned ecosystem token; the page distinguishes the local game economy, the separate player-market beta, and future token integration. Unagreed seasonal expeditions, voting, and token cosmetics are not advertised.
+
+The custom domain is `https://playorefrontier.xyz/`; canonical and social-share metadata use that URL. Cloudflare Pages rewrites `/play` to `game.html`. Branch previews update after pushing; production remains on `master` until the PR is merged.
 
 ## The mining loop
 
