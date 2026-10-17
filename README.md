@@ -29,7 +29,7 @@ The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewpo
 
 ## Ore Frontier teaser
 
-The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser uses original pixel-art hero artwork, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. Cloudflare Pages generates preview deployments for the branch; the production `ore-frontier.pages.dev` deployment remains on `master` until the PR is merged. The custom domain is still waiting for nameserver propagation, so custom-domain browser testing remains pending.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser uses original pixel-art hero artwork, a real current-build gameplay still, feature copy and FAQ. A 35-second gameplay trailer has now been exported locally in 4:5 and 16:9 formats; embedding it in the landing page remains a separate step. The custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. Cloudflare Pages generates preview deployments for the branch; the production `ore-frontier.pages.dev` deployment remains on `master` until the PR is merged. The custom domain is still waiting for nameserver propagation, so custom-domain browser testing remains pending.
 
 ## The mining loop
 
@@ -83,7 +83,7 @@ Open the Expedition Codex from pause, the mothership terminal, workshop technolo
 
 ## Art and verification
 
-All runtime artwork is original and drawn locally in Phaser/SVG. The mothership is the initial surface landmark; player buildings appear through construction. Mining camp platforms and the camp surface zone protect against fall damage. The game has no backend; the market is an in-game economy.
+All runtime artwork is original and drawn locally in Phaser/SVG. The mothership is the initial surface landmark; player buildings appear through construction. Mining camp platforms and the camp surface zone protect against fall damage. The campaign stays local-first and keeps its save separate from the online player market. The private-beta exchange uses a dedicated Supabase project and separate test-credit and ore ledgers; it does not import campaign inventory and does not connect to the CREDIT token. See [the beta market notes](docs/BETA-MARKET.md) for limits and setup status.
 
 See [QA](docs/QA.md) for measured playtests and limitations, [architecture](docs/ARCHITECTURE.md) for save details, and [config](src/game/config.ts) for balance data. Historical QA entries describe the behavior tested on their dates and may refer to retired names or mechanics.
 
