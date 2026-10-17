@@ -1,4 +1,4 @@
-# Interplanetary Miner
+# Ore Frontier
 
 An original browser mining game built with TypeScript, Phaser 3 and Vite. Your mothership lands with a mining rig but no jump fuel, no camp and no credits. Mine to build an operation, connect to the market, upgrade your rig and fuel travel to other planets.
 
@@ -29,7 +29,7 @@ The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewpo
 
 ## Ore Frontier teaser
 
-The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser includes an original CSS hero illustration, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The intended custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. The Cloudflare Pages `ore-frontier.pages.dev` deployment is live; custom-domain DNS verification and browser testing of the custom domain remain pending.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser uses original pixel-art hero artwork, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. Cloudflare Pages generates preview deployments for the branch; the production `ore-frontier.pages.dev` deployment remains on `master` until the PR is merged. The custom domain is still waiting for nameserver propagation, so custom-domain browser testing remains pending.
 
 ## The mining loop
 
@@ -103,6 +103,6 @@ Mobile controls group equipment under Tools and show the nearby ship action dire
 
 ### Launch landing page update — 2026-10-17
 
-The custom-domain landing page now includes launching-soon messaging, the game overview, proposed token utility and demand drivers, TBA tokenomics, a staged product roadmap, and a non-clickable official X account placeholder. Utility is editorial proposal only; no token integration or confirmed economics are implied. Token name, ticker, chain, supply, distribution and vesting still need product decisions before final launch copy. Gameplay and save schema are unchanged.
+The agreed token name and ticker are CREDIT, targeting Robinhood Chain with a proposed CREDIT/WETH pair. Contract, supply, distribution, vesting and game utility remain unconfirmed; no live token integration or economics are implied. Gameplay and save schema are unchanged.
 
 Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
