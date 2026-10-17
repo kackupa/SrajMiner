@@ -10,8 +10,7 @@ export class TouchControls {
     const hold = (key: string, label: string, text: string) =>
       `<button type="button" data-hold="${key}" aria-label="${label}">${text}</button>`;
     this.root.innerHTML = `<div class="touch-primary">${Object.keys(actions).filter(label => ['INTERACT', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}<button type="button" data-tools aria-expanded="false" aria-controls="touch-equipment">Tools</button></div><div id="touch-equipment" class="touch-tools" hidden>${Object.keys(actions).filter(label => !['INTERACT', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}${hold('R', 'Hold return winch', 'WINCH')}${hold('X', 'Hold stasis', 'STASIS')}${hold('G', 'Toggle grapple', 'GRAPPLE')}</div>
-      <div class="touch-pad touch-flight"><span>MOVE / THRUST</span>${hold('W', 'Thrust upward', '↑')}${hold('A', 'Move left', '←')}${hold('D', 'Move right', '→')}</div>
-      <div class="touch-pad touch-drill"><span>HOLD TO DRILL</span>${hold('S', 'Drill down', '↓')}${hold('A', 'Drill left', '←')}${hold('D', 'Drill right', '→')}</div>
+      <div class="touch-pad touch-flight"><span>MOVE / DRILL</span>${hold('W', 'W: thrust upward', 'W')}${hold('A', 'A: move or drill left', 'A')}${hold('S', 'S: drill down', 'S')}${hold('D', 'D: move or drill right', 'D')}</div>
       <small class="touch-rotate">Rotate for a wider view</small>`;
     document.querySelector('#viewport')!.append(this.root);
     const options = { signal: this.abort.signal };

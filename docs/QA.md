@@ -850,3 +850,10 @@ Sandbox copy audit: star-map exclusive labels and live flight-map profiles both 
 - Travel guarded at entry points, orbital view detection and mothership thrust; no schema change. Intro, pause, core-drive and HUD text now explain that travel is coming soon.
 - npm install, npm run build and npm test passed (177 system tests, supplemental suites, sandbox and rig-upgrade regressions). Pure upgrade tests cover every component, insufficient ore, save exceptions/false results, cargo conservation, capacity adjustments and legacy-level preservation.
 - Screenshots under ignored output/playwright/rig-*.png. Physical Android input and long-run balancing remain untested.
+
+### Mobile WASD check (17 October 2026)
+- Replaced duplicate arrow pads with one left-hand WASD pad and right-hand action buttons.
+- Production build tested with Chromium touch emulation at 390x844, 320x568 and 844x390. Movement buttons and the expanded Tools tray remained in bounds, with no document scrolling. Touch targets were at least 48px.
+- Real CDP touch events held W and D simultaneously; both became active. Touch end and touch cancellation cleared held input. Sustained thrust/steering moved the miner out of ship interaction range. Tools > MAP opened the explored map.
+- Inspected output/playwright/mobile-wasd.png. npm install, npm test and npm run build passed (existing bundle-size advisory).
+- Physical Android comfort and sustained performance remain untested. This check did not repeat the full mining economy or every service panel.
