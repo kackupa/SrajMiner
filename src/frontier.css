@@ -394,3 +394,31 @@ footer .bank { margin-left:auto; font-size:10px; }
   .touch-primary button { min-width: 0; padding: 8px 12px; }
   .touch-tools { right: max(12px, env(safe-area-inset-right)); bottom: max(184px, calc(env(safe-area-inset-bottom) + 172px)); transform: none; max-width: calc(100% - 24px); }
 }
+
+/* Keep the welcome and its primary action together at every viewport size. */
+#modal-layer:has(.intro-step-title) { padding:0; }
+#modal-layer .modal.intro-step-title { height:100dvh; max-height:100dvh; box-sizing:border-box; overflow:hidden; padding:clamp(16px,4vh,48px) clamp(20px,7vw,100px); }
+.intro-step-title .intro-title-screen { width:min(680px,100%); }
+.intro-step-title .intro-title-screen h1 { font-size:clamp(40px,min(7vw,11vh),88px); margin:clamp(10px,2.5vh,22px) 0; }
+.intro-step-title .intro-title-screen > p { margin:0 0 clamp(10px,2.5vh,22px); font-size:clamp(13px,2vh,16px); line-height:1.5; }
+.intro-step-title .learn-loop > div { padding:10px 8px; }
+.intro-step-title .learn-loop kbd { margin-bottom:6px; }
+.intro-step-title .intro-title-screen #launch { margin:clamp(10px,2vh,18px) 0 0; min-height:48px; padding:12px 20px; }
+.intro-step-title .intro-secondary { margin-top:8px; }
+.intro-step-title .intro-secondary button { min-height:44px; }
+@media(max-width:560px) {
+ .intro-step-title .intro-title-screen h1 { font-size:clamp(36px,12vw,60px); }
+ .intro-step-title .intro-title-screen .eyebrow { font-size:8px; letter-spacing:1px; }
+ .intro-step-title .learn-loop > div { padding:8px 3px; }
+ .intro-step-title .learn-loop b { font-size:14px; }
+ .intro-step-title .learn-loop small { font-size:10px; }
+}
+@media(max-height:480px) and (min-width:561px) {
+ #modal-layer .modal.intro-step-title { padding:12px 28px; }
+ .intro-step-title .intro-title-screen { width:min(850px,100%); display:grid; grid-template-columns:1.1fr 1fr; column-gap:28px; align-items:center; }
+ .intro-step-title .eyebrow,.intro-step-title h1,.intro-step-title .intro-title-screen > p { grid-column:1; }
+ .intro-step-title .intro-title-screen h1 { font-size:clamp(36px,10vh,48px); margin:12px 0; }
+ .intro-step-title .learn-loop { grid-column:2; grid-row:1/4; }
+ .intro-step-title .intro-title-screen #launch { grid-column:1; width:100%; margin:0; }
+ .intro-step-title .intro-secondary { grid-column:2; grid-row:4; margin:0; gap:20px; }
+}

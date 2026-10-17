@@ -923,3 +923,9 @@ The entries above are chronological findings; this section supersedes their earl
 - Compatibility and regression: full npm test and build pass; migration v30 to v31 preserves campaign data. Fresh mining/return retained full hull. Existing physics regression coverage remains green.
 - Documentation updated; temporary screenshots and browser scripts remain under ignored output/playwright. No commit, push or deployment performed.
 - Limits: physical Android touch/performance is not certified; the existing large-bundle advisory and historical broader campaign/mobile limitations remain documented. Travel, refining and connected player trading are outside this colony update.
+
+## Welcome screen fit (2026-10-17)
+- Removed the title screen from generic panel pagination; compact responsive spacing and typography retain all content and the primary action together.
+- Playwright checked fresh and saved-game screens at 1597x777, 1280x720, 320x568, 390x844 and 844x390. Saved-game assertions passed: all content within viewport, no pager, no page overflow. Begin and Continue both close the intro.
+- Screenshots: output/playwright/welcome-*.png and welcome-saved-*.png. Physical phone not tested.
+- npm install, npm test and npm run build completed successfully; existing bundle-size warning remains.
