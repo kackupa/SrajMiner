@@ -1,4 +1,4 @@
-# Interplanetary Miner
+# Ore Frontier
 
 An original browser mining game built with TypeScript, Phaser 3 and Vite. Your mothership lands with a mining rig but no jump fuel, no camp and no credits. Mine to build an operation, connect to the market, upgrade your rig and fuel travel to other planets.
 
@@ -25,11 +25,13 @@ Touch inputs clear on rotation, menu entry, cancellation and loss of focus. Phon
 
 Verified with Chromium mobile emulation at 844×390 and 390×844, including mining, return, transactions and reload. Real iPhone Safari/Android hardware, thermal performance and extended interplanetary play still need device testing; this is not a claim of full mobile certification.
 
-The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewport, turns its destinations into a compact touch grid on narrow screens, hides scrollbar chrome, and replaces service/reserve/warehouse dropdowns with visible button choices. Build and automated tests pass. The local dev server could not be reached from the browser session, so this specific navigation layout still needs browser and Android playtesting.
+The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewport, turns its destinations into a compact touch grid on narrow screens, hides scrollbar chrome, and replaces service/reserve/warehouse dropdowns with visible button choices. Build and automated tests pass. The deployed PR preview was browser-tested at 1536×639: the full star map and launch button fit, world selection updates the detail panel, and neither the document nor modal overflows. Physical Android testing is still pending.
 
 ## Ore Frontier teaser
 
-Open `/teaser.html` in the development build for the separate Ore Frontier teaser page; the playable game remains at `/`. The teaser includes an original CSS hero illustration, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The intended custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages can rewrite `/` to `/teaser.html` and `/play` to `/index.html` with `public/_redirects`; local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. DNS, hosting, and browser visual QA are still pending.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. Its copy describes building a mining empire through ore collection, camp/uplink construction, rig upgrades, warehouses, automated extraction, and planetary travel. The hero and video poster use an actual gameplay capture. The feature section uses large mining, workshop, and surface-colony captures from the game instead of illustrated placeholder cards. The embedded gameplay MP4 is hosted in the public Supabase media bucket. CREDIT is the planned ecosystem token; the page distinguishes the local game economy, the separate player-market beta, and future token integration. Unagreed seasonal expeditions, voting, and token cosmetics are not advertised.
+
+The custom domain is `https://playorefrontier.xyz/`; canonical and social-share metadata use that URL. Cloudflare Pages rewrites `/play` to `game.html`. Branch previews update after pushing; production remains on `master` until the PR is merged.
 
 ## The mining loop
 
@@ -83,7 +85,7 @@ Open the Expedition Codex from pause, the mothership terminal, workshop technolo
 
 ## Art and verification
 
-All runtime artwork is original and drawn locally in Phaser/SVG. The mothership is the initial surface landmark; player buildings appear through construction. Mining camp platforms and the camp surface zone protect against fall damage. The game has no backend; the market is an in-game economy.
+All runtime artwork is original and drawn locally in Phaser/SVG. The mothership is the initial surface landmark; player buildings appear through construction. Mining camp platforms and the camp surface zone protect against fall damage. The campaign stays local-first and keeps its save separate from the online player market. The private-beta exchange uses a dedicated Supabase project and separate test-credit and ore ledgers; it does not import campaign inventory and does not connect to the CREDIT token. See [the beta market notes](docs/BETA-MARKET.md) for limits and setup status.
 
 See [QA](docs/QA.md) for measured playtests and limitations, [architecture](docs/ARCHITECTURE.md) for save details, and [config](src/game/config.ts) for balance data. Historical QA entries describe the behavior tested on their dates and may refer to retired names or mechanics.
 
@@ -100,3 +102,9 @@ Ore storage transfers are available directly in each ore row: choose a half-unit
 When both cargo and storage are full, use **Discard** beside an ore in the Warehouse screen. Enter the amount first; confirmation permanently removes only that ore from the miner, with no credits. Stored reserves are unaffected. Discard saves immediately and restores cargo if saving fails.
 
 Mobile controls group equipment under Tools and show the nearby ship action directly. Phone Warehouse rows expand into large transfer controls with amount presets; trading has Max buttons and Workshop has a component selector. Browser tests cover the earned camp → uplink → sale → upgrade → reload sequence, multitouch, rotation and save failures. See [mobile overhaul tracking](docs/MOBILE-OVERHAUL.md) for evidence and limitations. Physical Android/iPhone comfort, keyboard behaviour and sustained performance remain unverified.
+
+### Launch landing page update — 2026-10-17
+
+The custom-domain landing page includes launching-soon messaging, the game overview, proposed token utility and demand drivers, a staged product roadmap, and a non-clickable official X account placeholder. The agreed token name and ticker are **CREDIT**, targeting **Robinhood Chain** with a proposed CREDIT/WETH pair. The contract, supply, distribution, vesting and actual game utility remain unconfirmed; the page makes no claim of live token integration or economics. Gameplay and save schema are unchanged.
+
+Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
