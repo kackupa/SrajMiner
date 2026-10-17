@@ -804,3 +804,8 @@ Complete earned mobile progression now automated in tests/browser-mobile-earned.
 Rewrote the full teaser around mining, camp/uplink construction, rig upgrades, warehouses, automated extraction, and expansion across planets. Removed mystery/adventure slogans and unagreed token utilities. The player-market beta is explicitly separate from campaign inventory and CREDIT. Search/share metadata and FAQ match this positioning.
 
 npm install, npm test, and the production build passed. Isolated Chromium loaded the production teaser at 1440×900 and 390×900; the actual gameplay image loaded, the player-market FAQ opened, and the phone viewport had no horizontal overflow. Screenshots: `output/playwright/copy-pass-1440.png` and `output/playwright/copy-pass-390.png`. These are local checks; this copy pass has not been deployed. Game logic and saves are unchanged.
+
+
+### Actual-game feature section — 2026-10-17
+
+Replaced the three illustrated feature cards with alternating screenshot rows and short mining/workshop/colony descriptions. Workshop and colony captures come from the current game in an isolated staged save; they demonstrate actual rendering, not earned progression. The prior mining capture remains in use. No player save or game logic changed. Production build passed. Isolated Chromium verified all three images loaded and no horizontal document overflow at 1440×900 and 390×900. Inspected screenshots: `output/playwright/actual-features-1440.png` and `output/playwright/actual-features-390.png`. Local preview rebuilt; hosted deployment unchanged.

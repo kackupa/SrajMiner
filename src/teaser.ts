@@ -7,6 +7,8 @@ import '@fontsource/dm-sans/latin-700.css';
 import '@fontsource/space-mono/latin-400.css';
 import './teaser.css';
 import gameplayHero from './assets/teaser/gameplay-hero.png';
+import workshopGameplay from './assets/teaser/workshop-gameplay.png';
+import colonyGameplay from './assets/teaser/colony-gameplay.png';
 
 const mark = `<span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 42 48"><path d="M4 3h34v42H4zM12 13h18M21 13v23m-8-8 8 8 8-8"/><circle cx="21" cy="23" r="3"/></svg></span>`;
 const arrow = '<span aria-hidden="true">↗</span>';
@@ -38,10 +40,19 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
     <section id="expedition" class="expedition wrap">
       <div class="section-kicker"><span>01 / BUILD YOUR OPERATION</span><span>FROM FIRST CAMP TO MULTIPLE PLANETS</span></div>
       <div class="expedition-heading"><h2>One miner.<br/><em>A growing operation.</em></h2><p>Your first copper and iron go into a mining camp. Build a market uplink to sell ore and unlock paid upgrades. Add storage and extractors, then take your mothership to another planet.</p></div>
-      <div class="feature-grid">
-        <article class="feature-card"><div class="feature-art geology-art" aria-hidden="true"><span></span><span></span><span></span><i>◆</i></div><span class="feature-no">01 — MINE &amp; SELL</span><h3>Put your ore to work.</h3><p>Drill for resources, keep materials for construction, and sell surplus ore once your market uplink is built.</p></article>
-        <article class="feature-card"><div class="feature-art pod-art" aria-hidden="true"><span class="pod-mini"><i></i></span><span class="pulse pulse-a"></span><span class="pulse pulse-b"></span><b>↘</b></div><span class="feature-no">02 — UPGRADE</span><h3>Build a better miner.</h3><p>Spend in-game credits on your drill, cargo capacity, battery, hull, and engine. Bring back more ore to fund the next expansion.</p></article>
-        <article class="feature-card"><div class="feature-art camp-art" aria-hidden="true"><span class="camp-roof"></span><span class="camp-body"></span><span class="camp-light"></span><i>+</i></div><span class="feature-no">03 — AUTOMATE PRODUCTION</span><h3>Grow beyond your rig.</h3><p>Build warehouses and automated extractors. Recover planetary cores to fuel your mothership and establish operations on other worlds.</p></article>
+      <div class="operation-steps">
+        <article class="operation-step">
+          <div class="operation-capture"><img src="${gameplayHero}" alt="Ore Frontier's miner cutting a tunnel through copper and iron deposits" loading="lazy" width="1280" height="720"/></div>
+          <div class="operation-copy"><span class="operation-number">01 / MINING</span><h3>Mine ore.</h3><p>Drill your own tunnels. Keep ore for construction or sell it to fund your next upgrade.</p><span class="operation-detail">Copper · Iron · Silver · Gold &amp; more</span></div>
+        </article>
+        <article class="operation-step">
+          <div class="operation-capture"><img src="${workshopGameplay}" alt="The actual Ore Frontier workshop showing drill, battery, cargo, hull and engine upgrades" loading="lazy" width="1440" height="900"/></div>
+          <div class="operation-copy"><span class="operation-number">02 / WORKSHOP</span><h3>Upgrade your miner.</h3><p>Drill faster, carry more, and stay underground longer. Buy upgrades with the credits you earn from ore.</p><span class="operation-detail">Drill · Battery · Cargo · Hull · Engine</span></div>
+        </article>
+        <article class="operation-step">
+          <div class="operation-capture"><img src="${colonyGameplay}" alt="Ore Frontier gameplay showing the mothership, miner, mining camp and market uplink on the planet surface" loading="lazy" width="1440" height="900"/></div>
+          <div class="operation-copy"><span class="operation-number">03 / COLONY</span><h3>Build your colony.</h3><p>Start with a mining camp and market uplink. Add warehouses and automated extractors as your operation grows.</p><span class="operation-detail">Build · Store · Automate · Expand</span></div>
+        </article>
       </div>
     </section>
 
