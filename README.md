@@ -125,3 +125,6 @@ An extractor can be placed before a warehouse and uses the mothership hold while
 Basic rig upgrades through level 5 are installed at the mothership using common ores from the miner and active planet's storage, with carried materials spent first. No uplink or credits are required. The new fullscreen workshop separates Basic rig, Specialist plans, optional credit-funded Equipment and existing free Pilot setups. Specialist ore modules are previews only until travel is released. Purchased levels, including legacy levels above 5, remain intact.
 
 Interplanetary travel is disabled by the pre-build release policy, including scene travel entry points and mothership ascent. The star map remains browsable. Valid older orbital saves return to the same planet's mothership pad without spending core fuel or discarding inventory. Existing campaigns on other planets retain their active planet. Core recovery still saves fuel for a future release.
+
+### Mobile WASD controls
+Touch gameplay uses one W/A/S/D pad at the lower left: W thrusts upward, A/D move and drill sideways, and S drills downward. Contextual actions and Tools sit at the lower right. Multiple touches support thrust and steering together.
