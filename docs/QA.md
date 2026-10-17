@@ -813,3 +813,15 @@ Replaced the three illustrated feature cards with alternating screenshot rows an
 ### Miner tab icon and punctuation (2026-10-17)
 
 All four HTML entry points now use `miner-avatar.svg`, derived from the actual default `podPortrait` artwork. Site titles and social metadata use a vertical bar instead of an em dash. Production build passed. Isolated Chromium confirmed the updated title, loaded the new icon, and found no em dashes in visible teaser copy. Inspected favicon renders at 16, 32, and 64 pixels in `output/playwright/miner-favicon-sizes.png`. Local preview updated; production not deployed by this change.
+
+## 2026-10-17: fullscreen star map preview
+- Added standalone Star map after Warehouse plus a mobile-accessible hub entry. Removed the large destination heading/fuel instructions and pagination from this view.
+- Browser verified at 1440x900, 844x390, 390x844 and 320x568. Mining, civilian and exchange details had zero horizontal/vertical overflow in the map, modal and inspector. No pagination controls.
+- Selected all ten worlds and exchange through real browser clicks at 390x844. Checked keyboard Enter selection, back to mothership, Escape dismissal and reduced-motion animation disabled. Document overflow zero.
+- Original procedural planet art, conceptual trade routes and explicitly planned multiplayer exchange. No fabricated live player activity; no travel, cargo or save mutation from selections.
+- npm install, npm test (177 system tests plus all supplemental suites) and npm run build passed. Existing bundle size advisory remains. Real Android touch/performance remains untested.
+- Screenshots: ignored output/playwright/star-map-1440.png, star-map-844.png, star-map-390.png, star-map-320.png.
+
+Solar system follow-up: central luminous star, individual orbital tracks, separate exchange station. Browser checked at 1440x900 and 390x844; mobile map and inspector overflow both zero. Screenshots in output/playwright/solar-system-desktop.png and solar-system-mobile.png. Build and test suites passed.
+
+Planet identity pass: removed exchange dotted paths (browser confirmed zero route elements). Added individual original SVG surface features and palettes for all ten worlds; inhabited worlds have city lights, orbital infrastructure and explicit INHABITED labels. Desktop screenshot reviewed at 1440x900, Verdant inspector checked at 390x844 with zero overflow. Build and full tests passed.
