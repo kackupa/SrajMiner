@@ -25,6 +25,8 @@ Touch inputs clear on rotation, menu entry, cancellation and loss of focus. Phon
 
 Verified with Chromium mobile emulation at 844×390 and 390×844, including mining, return, transactions and reload. Real iPhone Safari/Android hardware, thermal performance and extended interplanetary play still need device testing; this is not a claim of full mobile certification.
 
+The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewport, turns its destinations into a compact touch grid on narrow screens, hides scrollbar chrome, and replaces service/reserve/warehouse dropdowns with visible button choices. Build and automated tests pass. The local dev server could not be reached from the browser session, so this specific navigation layout still needs browser and Android playtesting.
+
 ## The mining loop
 
 1. Deploy from the mothership on the Cryo Shelf. Mine copper and iron nearby.

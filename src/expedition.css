@@ -58,6 +58,51 @@
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media(max-width:1050px) { .flight-layout { grid-template-columns:1fr; }.flight-intel { display:block; }.flight-intel > .planet-art { float:right; width:160px; }.buyer-tabs { grid-template-columns:repeat(2,1fr); }.codex-layout { grid-template-columns:170px 1fr; gap:20px; }.build-reserve { flex-wrap:wrap; }.reserve-materials { flex-wrap:wrap; }.buyer-brief { grid-template-columns:120px 1fr; } }
 @media(max-width:700px) { .system-atlas .atlas-world { width:105px; }.system-atlas .atlas-world .planet-art { width:64px; height:64px; }.system-atlas .atlas-world strong { font-size:13px; }.system-atlas .atlas-world small { font-size:8px; }.atlas-map { height:390px; min-height:390px; }.codex-layout { grid-template-columns:1fr; }.codex-index nav { max-height:170px; display:grid; grid-template-columns:1fr 1fr; }.codex-hero { gap:12px; }.codex-hero > svg { width:90px; min-width:90px; }.flight-route { gap:10px; flex-wrap:wrap; }.flight-route button { margin:8px 0 0; width:100%; }.civilian-worlds > div { grid-template-columns:repeat(2,1fr); }.buyer-brief { grid-template-columns:1fr; }.buyer-brief > .planet-art { width:120px; margin:auto; }.manifest-header,.manifest-line { grid-template-columns:1.4fr .8fr .8fr .8fr; gap:8px; padding:12px 4px; }.manifest-line > div { flex-direction:column; align-items:start; gap:3px; }.shipment-checkout { padding:15px; flex-wrap:wrap; gap:20px; }.journey-planets { gap:16px; }.journey-planets .planet-art { width:120px; } }
+
+/* Navigation is a true flight-deck view: fit the route controls to the viewport. */
+.expedition-flight { display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:12px; overflow:hidden; padding:clamp(10px,2vh,24px) clamp(12px,2vw,32px); }
+.flight-header,.flight-layout,.flight-route { width:100%; max-width:1500px; min-width:0; }
+.flight-header h1 { margin:4px 0 8px; }
+.flight-layout { min-height:0; grid-template-columns:minmax(0,1.55fr) minmax(260px,.8fr); align-items:stretch; gap:16px; }
+.flight-layout main { min-height:0; display:flex; flex-direction:column; }
+.flight-layout .system-atlas { min-height:0; flex:1; display:flex; flex-direction:column; }
+.flight-layout .atlas-map { min-height:0; height:auto; flex:1; }
+.flight-layout .atlas-preview { display:none; }
+.flight-intel { min-height:0; overflow:hidden; padding:clamp(12px,1.8vw,24px); }
+.flight-intel > .planet-art { width:clamp(100px,17vh,180px); }
+.flight-intel h2 { font-size:clamp(24px,3vh,34px); }
+.flight-intel p { margin:8px 0; line-height:1.45; font-size:clamp(12px,1.5vh,15px); }
+.flight-intel dl > div { padding:7px 0; }
+.flight-route { margin:0 auto; padding:10px 16px; gap:clamp(8px,2vw,24px); min-height:76px; }
+.flight-route b { font-size:clamp(20px,3vh,32px); }
+.flight-route button { min-height:48px; }
+.choice-pills,.warehouse-source-picker { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.choice-pills button,.warehouse-source-picker button { min-height:40px; padding:8px 12px; color:#dceaf1; background:#111d2d; border:1px solid #34475a; border-radius:6px; cursor:pointer; }
+.choice-pills button[aria-pressed="true"],.warehouse-source-picker button[aria-pressed="true"] { color:#bdffe8; border-color:#69ddba; background:#173c3b; }
+.choice-pills button:focus-visible,.warehouse-source-picker button:focus-visible { outline:2px solid #b5f5dc; outline-offset:2px; }
+@media(max-width:700px) {
+  .expedition-flight { gap:8px; padding:calc(env(safe-area-inset-top) + 8px) 10px calc(env(safe-area-inset-bottom) + 8px); }
+  .flight-header { gap:8px; }
+  .flight-header h1 { font-size:clamp(24px,6vw,34px); }
+  .flight-header button { flex:none; padding:10px; font-size:11px; }
+  .flight-layout { display:block; }
+  .flight-layout main { height:100%; }
+  .flight-layout .system-atlas { height:100%; }
+  .flight-layout .atlas-map { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(3,minmax(0,1fr)); gap:4px; padding:8px; background-size:40px 40px; }
+  .system-orbits,.system-star { display:none; }
+  .system-atlas .atlas-world { position:static; transform:none; width:100%; min-height:0; height:100%; padding:3px; display:grid; grid-template-columns:42px minmax(0,1fr); grid-template-rows:1fr 1fr; column-gap:6px; text-align:left; }
+  .system-atlas .atlas-world .planet-art { grid-row:span 2; width:40px; height:40px; }
+  .system-atlas .atlas-world strong { align-self:end; font-size:clamp(11px,3vw,14px); }
+  .system-atlas .atlas-world small { align-self:start; margin-top:2px; font-size:7px; }
+  .flight-intel { display:none; }
+  .flight-route { min-height:0; display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:5px; padding:8px; }
+  .flight-route > div { min-width:0; }
+  .flight-route small { font-size:7px; letter-spacing:.05em; }
+  .flight-route b { font-size:20px; }
+  .flight-route > span { font-size:12px; }
+  .flight-route button { grid-column:1/-1; margin:0; width:100%; min-height:46px; padding:10px; font-size:12px; }
+  .civilian-worlds { display:none; }
+}
 @media(prefers-reduced-motion:reduce) { .planet-clouds,.orbital-traffic,.journey-ship { animation:none; }.system-atlas .atlas-world .planet-art { transition:none; } }
 @media(max-width:700px) { .atlas-map { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:16px; height:auto; min-height:0; }.system-atlas .atlas-world { position:static; transform:none; width:100%; min-height:145px; }.system-star,.system-orbits { display:none; } }
 .grounded-status { padding:16px 20px; border-left:3px solid #d3ad70; background:#223940; margin-bottom:20px; }.grounded-status p { color:#b9cbd0; line-height:1.6; margin-bottom:0; }

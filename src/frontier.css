@@ -1,6 +1,9 @@
 /* Frontier: one viewport, quiet instruments, full-screen destinations. */
 :root { --amber:#ffb36b; --mint:#8edfe5; --muted:#a3b8c8; --line:#91b9d126; color:#edf5fa; background:#081420; }
 html,body,#app { width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }
+/* Keep touch/trackpad scrolling where a paged panel needs it, without browser scrollbar chrome. */
+*,*::before,*::after { scrollbar-width:none; }
+*::-webkit-scrollbar { display:none; width:0; height:0; }
 * { scrollbar-width:none !important; }
 *::-webkit-scrollbar { display:none; width:0; height:0; }
 button { border-radius:8px; font-family:'DM Sans',sans-serif; letter-spacing:0; }
@@ -16,6 +19,16 @@ footer .bank { margin-left:auto; font-size:10px; }
 .telemetry { top:18px; left:18px; width:184px; padding:16px; background:#091a28dd; border:1px solid #8dbbd52b; border-radius:12px; box-shadow:0 8px 30px #0002; }
 .telemetry .eyebrow { margin-bottom:12px; }
 .telemetry .core-fuel-readout,.telemetry .cargo-worth,.telemetry .cargo-blocks { display:none; }
+.cargo-manifest { margin-top: 6px; color: #dce5df; font: 9px 'Space Mono', monospace; pointer-events: auto; }
+.cargo-manifest summary { width: fit-content; color: #9eb7bd; cursor: pointer; list-style: none; }
+.cargo-manifest summary::-webkit-details-marker { display: none; }
+.cargo-manifest summary::before { content: '＋ '; color: #ffb36b; }
+.cargo-manifest[open] summary::before { content: '− '; }
+#cargo-manifest-list { display: grid; gap: 5px; margin-top: 8px; padding: 8px; border: 1px solid #8dbbd52b; border-radius: 6px; background: #071722ed; }
+.cargo-manifest-ore { display: grid; grid-template-columns: 7px 1fr auto; align-items: center; gap: 6px; }
+.cargo-manifest-ore i { width: 6px; height: 6px; border-radius: 50%; background: var(--ore); }
+.cargo-manifest-ore b { color: #f1eee3; font-weight: 400; }
+.cargo-manifest-empty { color: #9eb7bd; }
 .meter { height:5px; border-radius:3px; background:#d4e9fa14; }
 .meter i { background:#83dce4; border-radius:3px; }
 .meter.hull i { background:#ffba7d; }
@@ -247,12 +260,19 @@ footer .bank { margin-left:auto; font-size:10px; }
   .warehouse-row-amount { grid-row: 3; max-width: none; }
   .warehouse-row-actions { grid-column: 1 / -1; grid-row: 4; }
 }
-.warehouse-row-amount input { background: #0a1a25; color: #f1eee3; border: 1px solid #385465; border-radius: 3px; font: inherit; font-size: 14px; color-scheme: dark; }
+.warehouse-row-amount input { appearance: textfield; -moz-appearance: textfield; background: #0a1a25; color: #f1eee3; border: 1px solid #385465; border-radius: 3px; font: inherit; font-size: 14px; color-scheme: dark; }
+.warehouse-row-amount input::-webkit-inner-spin-button, .warehouse-row-amount input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .warehouse-row-amount input:focus-visible { outline: 2px solid #ffb66d; outline-offset: 2px; }
-.warehouse-row-actions { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.warehouse-row-actions { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .warehouse-row-actions .discard-ore { color: #ffb0a0; border-color: #85534d; }
+.warehouse-row-actions .discard-all { color: #ff927a; border-color: #a95749; font-weight: 700; }
+.warehouse-discard-confirm { margin: 16px 0; padding: 18px 20px; border: 1px solid #a86b54; border-left: 4px solid #ff9b75; border-radius: 4px; background: linear-gradient(110deg, #291c1b, #111e27); box-shadow: 0 10px 28px #0006; }
+.warehouse-discard-confirm h3 { margin: 6px 0; color: #f4eee3; font-size: 20px; }
+.warehouse-discard-confirm p { margin: 0 0 14px; color: #c4b8aa; }
+.warehouse-discard-confirm > div:last-child { display: flex; justify-content: flex-end; gap: 8px; }
+.warehouse-discard-confirm button { min-height: 42px; padding: 8px 16px; }
 @media (min-width: 1051px) {
-  .ore-list.warehouse-stock > .warehouse-ore-row { grid-template-columns: minmax(100px, 1fr) 100px 100px 64px minmax(340px, 400px); }
+  .ore-list.warehouse-stock > .warehouse-ore-row { grid-template-columns: minmax(100px, 1fr) 100px 100px 64px minmax(370px, 420px); }
 }
 @media (min-width: 481px) and (max-width: 1050px) {
   .warehouse-row-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }

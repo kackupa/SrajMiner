@@ -56,7 +56,7 @@ Desktop-hosted Pixel 7 emulation frame-pacing sample: 601 animation frames over1
 
 ## Third pass — 2026-10-16
 
-Full-inventory mobile regression `tests/browser-mobile-storage.js` passes discard cancellation/confirmation, exact transfer totals, expanded-row and amount retention through rotation, and reload with no duplicated ore. Sizes320×740,390×844,844×390; no page-width overflow or page errors. Native confirmation is stubbed for deterministic branching in this test.
+Full-inventory mobile regression `tests/browser-mobile-storage.js` passes the in-game discard prompt, cancellation and confirmation, exact transfer totals, expanded-row and amount retention through rotation, and reload with no duplicated ore. Sizes320×740,390×844,844×390; no page-width overflow or page errors.
 
 Menu sweep `tests/browser-mobile-menus.js` covers hub, storage, construction, service, workshop, selling and optional tools at all three sizes. It found undersized paging buttons and preserved scroll position incorrectly carried between screens. Fixed44px paging,56px footer, compact landscape service selector, and focus without scrolling. All21 screen/size combinations now start at page1, have no page-width overflow and no rendered input/button/select below43px tall. Screenshot review led to compact service cards and a mobile component selector. Service fits a single page at320px. All7 miner components were selected successfully.
 

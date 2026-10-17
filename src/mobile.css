@@ -27,6 +27,9 @@
   .telemetry > .eyebrow, .telemetry > .meter, .telemetry > .return-estimate, .cargo-blocks, .cargo-worth, .core-fuel-readout, .tool-stock { display: none !important; }
   .telemetry .meter-head, .telemetry .cargo-line { margin: 0; padding: 0; font-size: 9px; display: flex; flex-direction: column; gap: 3px; border: 0; }
   .telemetry .meter-head strong, .telemetry .cargo-line strong { font-size: 12px; }
+  .telemetry .cargo-manifest { grid-column: 1 / -1; width: 100%; font-size: 10px; }
+  .telemetry .cargo-manifest summary { padding: 4px 0; }
+  #cargo-manifest-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .depth-panel { top: 6px; right: max(12px, env(safe-area-inset-right)); transform: none; }
   .depth-panel .eyebrow { font-size: 8px; }
   .depth-value { font-size: 25px; line-height: 1.1; }
