@@ -29,7 +29,7 @@ The 2026-10-17 beta UX pass changes the mothership flight deck to fit the viewpo
 
 ## Ore Frontier teaser
 
-Open `/teaser.html` in the development build for the separate Ore Frontier teaser page; the playable game remains at `/`. The teaser includes an original CSS hero illustration, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The intended custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages can rewrite `/` to `/teaser.html` and `/play` to `/index.html` with `public/_redirects`; local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. DNS, hosting, and browser visual QA are still pending.
+The Ore Frontier teaser is the homepage at `/` and is also available at `/teaser.html`; the playable game is at `/play`. The teaser includes an original CSS hero illustration, a real current-build gameplay still, feature copy and FAQ. A gameplay video has not been produced yet, and the page labels that footage slot honestly. The intended custom domain is `https://playorefrontier.xyz/`; its canonical and social-share metadata are set to that URL. Cloudflare Pages rewrites `/play` to the distinct `game.html` entry with `public/_redirects`. Local production builds use root-relative assets, while the GitHub Pages workflow retains its `/SrajMiner/` base. The Cloudflare Pages `ore-frontier.pages.dev` deployment is live; custom-domain DNS verification and browser testing of the custom domain remain pending.
 
 ## The mining loop
 
@@ -100,3 +100,9 @@ Ore storage transfers are available directly in each ore row: choose a half-unit
 When both cargo and storage are full, use **Discard** beside an ore in the Warehouse screen. Enter the amount first; confirmation permanently removes only that ore from the miner, with no credits. Stored reserves are unaffected. Discard saves immediately and restores cargo if saving fails.
 
 Mobile controls group equipment under Tools and show the nearby ship action directly. Phone Warehouse rows expand into large transfer controls with amount presets; trading has Max buttons and Workshop has a component selector. Browser tests cover the earned camp → uplink → sale → upgrade → reload sequence, multitouch, rotation and save failures. See [mobile overhaul tracking](docs/MOBILE-OVERHAUL.md) for evidence and limitations. Physical Android/iPhone comfort, keyboard behaviour and sustained performance remain unverified.
+
+### Launch landing page update — 2026-10-17
+
+The custom-domain landing page now includes launching-soon messaging, the game overview, proposed token utility and demand drivers, TBA tokenomics, a staged product roadmap, and a non-clickable official X account placeholder. Utility is editorial proposal only; no token integration or confirmed economics are implied. Token name, ticker, chain, supply, distribution and vesting still need product decisions before final launch copy. Gameplay and save schema are unchanged.
+
+Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
