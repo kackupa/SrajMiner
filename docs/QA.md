@@ -952,3 +952,17 @@ The entries above are chronological findings; this section supersedes their earl
 - Playwright checked fresh and saved-game screens at 1597x777, 1280x720, 320x568, 390x844 and 844x390. Saved-game assertions passed: all content within viewport, no pager, no page overflow. Begin and Continue both close the intro.
 - Screenshots: output/playwright/welcome-*.png and welcome-saved-*.png. Physical phone not tested.
 - npm install, npm test and npm run build completed successfully; existing bundle-size warning remains.
+
+## Homepage hero spacing (2026-10-18)
+Reduced the gap beneath the token notice to 24px desktop / 20px mobile. Chromium checked 1877x900, 1280x720, 390x844 and 320x568: no horizontal overflow, Play button visible in the initial viewport. Desktop and mobile screenshots visually inspected at output/playwright/hero-spacing-*.png. This verifies local styling, not production deployment or physical hardware.
+
+
+## Cargo clarity and direct sales (2026-10-18)
+- Unified cargo/storage/selling view. Side-by-side inventory quantities, capacities, explicit source and transfer destination, quoted best civilian offer and direct stored-ore sale. No save-schema change.
+- Chromium layout checks at 1280x720, 320x568, 390x844 and 844x390; both modes inspected. Initial compact overlap was caught visually and corrected; explicit no-overlap assertion passed at 320x568. No clipped buttons or panel overflow in tested views. Compact rows are paged with 44px targets.
+- Isolated fixture: 3 copper miner / 5 ship / 7 planet. Moved 1 miner -> ship, then sold 1 from each source for 24 credits each. Reload retained 1 miner / 5 ship / 6 planet and 72 credits. Phone hub Sell your ore opened the quote screen directly.
+- Automated named-inventory tests cover every source, untouched other inventories, negative requests, and false/throw save rollback. Existing suite passed before the new test; its initial test-fixture assumption about starting money was corrected, and the new test then passed. Build passed, existing bundle-size warning only.
+- Artifacts: output/playwright/cargo-*.png, cargo-final-phone.png, cargo-final-sale.png. Browser fixtures do not replace physical Android testing. Not deployed.
+Final verification: the complete npm test suite, including inventory-sale.test.ts, passed after the fixture correction.
+
+Cargo hover (2026-10-18): Chromium verified populated ore tooltip on mouse hover, dismissal on pointer leave, and click opening cargo management with tooltip hidden. Screenshot output/playwright/cargo-hover.png visually inspected. No inventory or save changes.

@@ -22,3 +22,7 @@
 .cargo-screen footer{flex-wrap:wrap}.cargo-screen footer button{flex:1}.cargo-screen footer span{flex-basis:100%}.discard-screen button{min-height:44px;min-width:44px}.discard-screen h2{margin:0!important;font-size:26px}.discard-screen p{font-size:12px;line-height:1.4}.colony-actions button{font-size:11px}.colony-screen button{min-width:44px}
 .cargo-screen footer{height:auto;min-height:0;flex-shrink:0;padding:8px 0 0}.colony-screen footer{height:auto;flex-shrink:0}
 @media(max-width:700px),(max-height:500px){.colony-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.colony-actions>button:first-child[id^="upgrade-"]{grid-column:span 2}}
+/* Quick miner manifest, without opening or shifting the HUD. */
+#cargo-manifest-list{position:fixed;z-index:100;box-sizing:border-box;width:220px;max-width:calc(100vw - 16px);margin:0;padding:12px;grid-template-columns:1fr;gap:7px;font:12px/1.4 'DM Sans',sans-serif;box-shadow:0 8px 28px #0008;pointer-events:none}
+#cargo-manifest-list::before{content:'MINER CARGO';color:#9ecbd5;font:10px 'Space Mono',monospace;letter-spacing:1px;margin-bottom:3px}
+#cargo-manifest-list::after{content:'Click to transfer or sell';color:#9eb7bd;font-size:10px;border-top:1px solid #ffffff20;padding-top:7px}

@@ -10,10 +10,10 @@ const labels: Record<string, [string, string]> = {
   hub: ['Mothership', 'Prepare your next run'],
   more: ['Explore & customise', 'Optional expedition tools'],
   codex: ['Expedition Codex', 'Engineering & frontier history'],
-  sell: ['Teletrade', 'Sell your haul'], service: ['Service bay', 'Recharge & repair'],
+  sell: ['Sell ore', 'Turn ore into credits'], service: ['Service bay', 'Recharge & repair'],
   upgrades: ['Workshop', 'Upgrade your miner'], paints: ['Paint shop', 'Make it yours'],
   archive: ['Mining log', 'Your progress'], shipyard: ['Core drive', 'Your way to other worlds'],
-  destinations: ['Star map', 'Depart for Cryo or Mars'], warehouse: ['Freight', 'Miner / Ship / Planet'],
+  destinations: ['Star map', 'Depart for Cryo or Mars'], warehouse: ['Cargo & selling', 'Miner / Mothership / Planet'],
   construction: ['Build yard', 'Grow your outpost'],
 };
 
