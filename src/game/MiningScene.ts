@@ -1,3 +1,8 @@
+import { installSpecialist } from './economy/SpecialistModules';
+import { coreExtractionStep } from './campaign/RenewableFuel';
+import { FRONTIER } from './config';
+import { cargoTotal, transferFreight, type InventorySource } from './economy/Freight';
+import { coreRecovered, travelQuote, commitTravel, productionInterval } from './campaign/Travel';
 import { dismantleBuilding, supportsWall } from './building/ColonyManagement';
 import { deliverColonyOrder } from './economy/ColonyOrders';
 import { extractionSeam, extractorStatus, type ExtractionLedger } from './economy/ExtractionSeams';
@@ -24,10 +29,10 @@ import { PlayerPod, type Controls } from './player/PlayerPod';
 import { loadGrappleEnabled, saveGrappleEnabled } from './player/GrapplePreference';
 import { Progress, emptyCargo, type Cargo } from './economy/Progress';
 import { tradeRouteEdges } from './economy/TradeNetwork';
-import { accumulateAutomatedProduction, transferWarehouseOre, type WarehouseDirection } from './economy/Warehouse';
+import { localProductionRoom, accumulateLocalProduction, accumulateAutomatedProduction, type WarehouseDirection } from './economy/Warehouse';
 import { buildSaleReceipt } from './economy/Sale';
 import { advanceMarketDemand } from './economy/MarketContracts';
-import { contributeCargoTug, contributeSurveyArray, contributeVesperRelay, CARGO_TUG_PROJECT, remoteWarehouseAccess, SURVEY_ARRAY_PROJECT, surveyScannerRadius, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
+import { contributeCargoTug, contributeSurveyArray, contributeVesperRelay, CARGO_TUG_PROJECT, SURVEY_ARRAY_PROJECT, surveyScannerRadius, VESPER_RELAY_PROJECT } from './economy/SystemProjects';
 import { MiningSystem, aimedDrillTarget, effectiveDrillReach, pointerDrillDirection, drillProtection, directionalDrillOrientation, chargeTargets, collectOreDrop, podWithinPickupReach, applySalvageMagnet, hasClearMagnetPath, updateOreDropPhysics, updateChargePhysics } from './mining/MiningSystem';
 import { advanceLaserThermal, drillImpactProfile, type DrillParticleKind, type LaserThermalState } from './mining/DrillEffects';
 import { SaveManager, type SaveData, type WorldSave, type OreDrop, type ActiveCharge } from './save/SaveManager';
@@ -101,6 +106,11 @@ export class MiningScene extends Phaser.Scene {
   labels: Phaser.GameObjects.Text[] = [];
   shipStatusLabel!: Phaser.GameObjects.Text;
   mothershipBoarded = false;
+  travelBusy = false;
+  departureStocks = new Map<MapId, Cargo>();
+  arrivalProductionSummary = '';
+  coreExtractionElapsed = 0;
+  coreFuelLabel?: Phaser.GameObjects.Text;
   solarPosition: SolarPosition | null = null;
   solarView?: SolarView;
   private grappleEnabled = loadGrappleEnabled();
@@ -165,6 +175,8 @@ export class MiningScene extends Phaser.Scene {
   };
   touch?: TouchControls;
   syncInput(paused: boolean) {
+    this.coreExtractionElapsed = 0;
+    this.coreFuelLabel?.setVisible(false);
     this.touch?.clear();
     this.placementPointer = undefined;
     this.placementDrag = undefined;
@@ -284,6 +296,7 @@ export class MiningScene extends Phaser.Scene {
   }
   create() {
     this.vehiclePose = restingVehiclePose();
+    this.coreFuelLabel = this.add.text(0, 0, '', { fontFamily: 'Space Mono', fontSize: '12px', color: '#a5eff0', backgroundColor: '#081722', padding: { x: 8, y: 6 } }).setDepth(100).setOrigin(.5, 0).setVisible(false);
     this.motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.reducedMotion = this.motionQuery.matches;
     this.motionQuery.addEventListener('change', this.motionPreferenceChanged);
@@ -300,6 +313,9 @@ export class MiningScene extends Phaser.Scene {
     this.mapId = saved?.activeMap ?? 'cryo-shelf';
     this.mapStates = saved?.maps ?? {};
     this.campaignChart = saved?.planetChart ?? STARTER_PLANET_CHART;
+    // Freeze the original campaign fallback for every visited legacy world
+    // before later saves change the active planet's top-level chart.
+    for (const state of Object.values(this.mapStates)) state.planetChart ??= { ...this.campaignChart };
     this.campaignSeed = saved?.campaignSeed ?? crypto.getRandomValues(new Uint32Array(1))[0];
     const savedMapState = this.mapStates[this.mapId];
     this.mothershipBoarded = saved?.mothershipBoarded ?? false;
@@ -583,7 +599,7 @@ export class MiningScene extends Phaser.Scene {
         moveBuilding: id => this.moveBuilding(id),
         dismantleBuilding: id => {
           this.applyAutomatedProduction(Date.now());
-          const result = dismantleBuilding(this.structures, this.warehouseCargo, id, MOTHERSHIP.storageCapacity, () => !!this.save());
+          const result = dismantleBuilding(this.structures, this.warehouseCargo, id, MOTHERSHIP.storageCapacity, () => !!this.save(), this.progress.shipCargo);
           if (!result.ok) this.rememberCurrentMap();
           this.ui.toast(result.reason); return result.ok;
         },
@@ -592,7 +608,8 @@ export class MiningScene extends Phaser.Scene {
         upgradeExtractor: (id: string) => this.upgradeAutomatedExtractor(id),
         upgradeWarehouse: () => this.upgradeWarehouseCapacity(),
         warehouseStock: (mapId) => ({ ...(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.warehouse ?? emptyCargo() : this.warehouseCargo) }),
-        warehouseCapacity: (mapId) => warehouseCapacity(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.structures ?? [] : this.structures) + (!mapId || mapId === this.mapId ? MOTHERSHIP.storageCapacity : 0),
+        warehouseCapacity: (mapId) => warehouseCapacity(mapId && mapId !== this.mapId ? this.mapStates[mapId]?.structures ?? [] : this.structures),
+        transferFreight: (source, target, ore, units) => this.moveFreight(source, target, ore, units),
         warehouseMaps: () => this.warehouseMaps(),
         discardOre: (ore, units) => this.discardOre(ore, units),
         transferWarehouse: (ore, direction, units, mapId) => this.transferWarehouse(ore, direction, units, mapId),
@@ -602,7 +619,7 @@ export class MiningScene extends Phaser.Scene {
         atWarehouse: () => !!this.nearbyWarehouse,
         placementActive: () => !!this.surfacePlacement,
         structures: () => this.structures,
-        extractorStatus: structure => extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity),
+        extractorStatus: structure => extractorStatus(this.mapId, structure, this.extraction, 0, localProductionRoom(this.structures, this.warehouseCargo, this.progress.shipCargo)),
         tradeNetworkCount: () => this.tradeNetworkCount(),
         tradePostMaps: () => this.tradePostMaps(),
         hasTradePost: () => this.structures.some((entry) => entry.kind === 'trade-post'),
@@ -615,10 +632,19 @@ export class MiningScene extends Phaser.Scene {
         serviceAccess: () => this.canService,
         rechargeAccess: () => this.isNearMothership(),
         failureReason: () => this.failureReason,
-        travelMap: (id: MapId) => this.travelToMap(id),
+        travelMap: (id: MapId, recovery?: 'relocate' | 'tow') => this.travelToMap(id, recovery),
+        installSpecialist: module => {
+          this.applyAutomatedProduction(Date.now());
+          const ok = installSpecialist(this.progress, this.warehouseCargo, module, this.mothershipBoarded && this.isNearMothership(), () => !!this.save());
+          if (!ok) this.rememberCurrentMap();
+          return ok;
+        },
+        arrivalSummary: () => this.arrivalProductionSummary,
+        travelReady: () => this.ui.hasStarted && this.mothershipBoarded && this.pod.docked && this.isNearMothership() && !this.surfacePlacement && !this.activeCharge && !this.travelBusy,
+        mapIntel: () => this.solarMapIntel(),
         exportSave: () => this.save(),
         importSave: (data: SaveData) => {
-          const ok = this.saves.write(data);
+          let ok = false; try { ok = this.saves.write(data); } catch { this.saves.warning = "Save failed. State retained."; }
           if (ok) {
             // Prevent this scene's pagehide save from replacing the imported campaign.
             this.ui.hasStarted = false;
@@ -652,6 +678,7 @@ export class MiningScene extends Phaser.Scene {
           Object.entries(this.mapStates).map(([id, state]) => [id, state.maxDepth]),
         ) as Partial<Record<MapId, number>>;
       },
+      this.saves.migratedLegacyStock,
     );
     this.ui.setMap(this.mapId);
     this.ui.setMothershipBoarded(this.mothershipBoarded);
@@ -953,6 +980,9 @@ export class MiningScene extends Phaser.Scene {
           gravitySign: this.world.gravitySign(this.pod.y),
           fuel: this.progress.fuel,
           hull: this.progress.hull,
+          shipCargo: { ...this.progress.shipCargo },
+          specialistModules: { ...this.progress.specialistModules },
+          coreExtractionElapsed: this.coreExtractionElapsed,
           coreFuel: this.progress.coreFuel,
           solarPosition: this.solarPosition ? { ...this.solarPosition } : null,
           mothershipBoarded: this.mothershipBoarded,
@@ -1130,49 +1160,42 @@ export class MiningScene extends Phaser.Scene {
     this.ui.toast('DISCARDED ' + removed + ' ' + ore.toUpperCase() + ' · Cargo space freed.');
     return removed;
   }
+  moveFreight(source: InventorySource, target: InventorySource, ore: Ore, units: number) {
+    if (!this.nearbyWarehouse || (source === 'ship' || target === 'ship') && !this.isNearMothership() || source === target) return 0;
+    this.applyAutomatedProduction(Date.now());
+    const inventories = { miner: this.progress.cargo, ship: this.progress.shipCargo, planet: this.warehouseCargo };
+    const capacities = { miner: this.progress.max('cargo'), ship: MOTHERSHIP.storageCapacity, planet: warehouseCapacity(this.structures) };
+    const moved = transferFreight(inventories[source], inventories[target], ore, units, capacities[target], true, () => !!this.save());
+    if (!moved) this.rememberCurrentMap();
+    return moved;
+  }
   transferWarehouse(ore: Ore, direction: WarehouseDirection, units: number, selectedMapId?: MapId) {
-    if (!this.nearbyWarehouse) return 0;
-    const targetMapId = direction === 'withdraw' && selectedMapId ? selectedMapId : this.mapId,
-      knownWarehouses = this.warehouseMaps();
-    if (!remoteWarehouseAccess(this.progress.milestones, this.mapId, targetMapId, knownWarehouses)) return 0;
-    const remoteState = targetMapId === this.mapId ? undefined : this.mapStates[targetMapId];
-    if (targetMapId !== this.mapId && !remoteState) return 0;
-    const targetWarehouse = targetMapId === this.mapId ? this.warehouseCargo : remoteState!.warehouse,
-      targetStructures = targetMapId === this.mapId ? this.structures : remoteState!.structures,
-      transfer = transferWarehouseOre(this.progress.cargo, targetWarehouse, ore, direction, units, this.progress.max('cargo'), warehouseCapacity(targetStructures) + (targetMapId === this.mapId ? MOTHERSHIP.storageCapacity : 0));
-    if (!transfer.moved) return 0;
-    const oldCargo = this.progress.cargo, oldWarehouse = targetWarehouse;
-    this.progress.cargo = transfer.cargo;
-    if (targetMapId === this.mapId) this.warehouseCargo = transfer.warehouse;
-    else this.mapStates[targetMapId] = { ...remoteState!, warehouse: transfer.warehouse };
-    if (!this.save()) {
-      this.progress.cargo = oldCargo;
-      if (targetMapId === this.mapId) this.warehouseCargo = oldWarehouse;
-      else this.mapStates[targetMapId] = remoteState!;
-      this.rememberCurrentMap();
-      this.ui.toast('STORAGE FAILED · ORE TRANSFER ROLLED BACK.');
-      return 0;
+    if (selectedMapId && selectedMapId !== this.mapId) return 0;
+    const moved = direction === 'store'
+      ? this.moveFreight('miner', 'planet', ore, units)
+      : this.moveFreight('planet', 'miner', ore, units);
+    if (moved) {
+      this.soundFx.tone(direction === 'store' ? 540 : 420, 0.08, 'sine', 0.025);
+      this.ui.toast(moved + ' ' + ore.toUpperCase() + (direction === 'store' ? ' stored on ' : ' retrieved from ') + MAPS[this.mapId].name + '.');
     }
-    this.soundFx.tone(direction === 'store' ? 540 : 420, 0.08, 'sine', 0.025, direction === 'store' ? 760 : 620);
-    this.ui.toast(`${direction === 'store' ? 'STORED' : 'RETRIEVED'} ${transfer.moved} ${ore.toUpperCase()} · ${MAPS[targetMapId].name.toUpperCase()} WAREHOUSE.`);
-    return transfer.moved;
+    return moved;
   }
   applyAutomatedProduction(now: number) {
-    if (!Number.isFinite(now) || now < this.productionUpdatedAt) { if (Number.isFinite(now)) this.productionUpdatedAt = Math.max(0, now); return; }
-    const elapsed = Math.min(UNDERGROUND_BUILDING.automation.offlineCapSeconds, (now - this.productionUpdatedAt) / 1000);
+    const interval = productionInterval(this.productionUpdatedAt, now, UNDERGROUND_BUILDING.automation.offlineCapSeconds);
+    const elapsed = interval.seconds;
     for (const mapId of Object.keys(this.mapStates) as MapId[]) {
       const state = this.mapStates[mapId];
       if (!state) continue;
       if (mapId !== this.mapId) accumulateAutomatedProduction(state.structures, state.warehouse, mapId, elapsed, 0, this.extraction);
     }
-    accumulateAutomatedProduction(this.structures, this.warehouseCargo, this.mapId, elapsed, MOTHERSHIP.storageCapacity, this.extraction);
+    accumulateLocalProduction(this.structures, this.warehouseCargo, this.progress.shipCargo, this.mapId, elapsed, this.extraction);
     for (const structure of this.structures.filter(s => s.kind === 'extractor')) {
-      const status = extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity), previous = this.productionStates.get(structure.id);
+      const status = extractorStatus(this.mapId, structure, this.extraction, 0, localProductionRoom(this.structures, this.warehouseCargo, this.progress.shipCargo)), previous = this.productionStates.get(structure.id);
       if (previous && previous !== status.state && this.ui?.hasStarted && (status.state === 'Storage full' || status.state === 'Deposit exhausted'))
         this.ui.toast(`${status.state}. Open Colony to manage your extractor.`);
       this.productionStates.set(structure.id, status.state);
     }
-    this.productionUpdatedAt = Number.isFinite(now) ? Math.max(0, now) : this.productionUpdatedAt;
+    this.productionUpdatedAt = interval.watermark;
   }
   upgradeWarehouseCapacity() {
     this.applyAutomatedProduction(Date.now());
@@ -1188,15 +1211,15 @@ export class MiningScene extends Phaser.Scene {
     this.applyAutomatedProduction(Date.now());
     const extractor = this.structures.find((entry) => entry.id === id), purchase = extractor && upgradeExtractor(extractor, this.constructionMaterials(), this.progress.money);
     if (!extractor || !purchase) return false;
-    const oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo }, oldLevel = extractor.level;
-    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, EXTRACTOR_TIERS[(extractor.level ?? 1) - 1].upgradeMaterials);
+    const oldMoney = this.progress.money, oldShip = { ...this.progress.shipCargo }, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo }, oldLevel = extractor.level;
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, EXTRACTOR_TIERS[(extractor.level ?? 1) - 1].upgradeMaterials, this.progress.shipCargo);
     if (!payment) return false;
-    this.progress.money = purchase.credits; Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); extractor.level = purchase.level;
-    if (!this.save()) { this.progress.money = oldMoney; Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); extractor.level = oldLevel; this.rememberCurrentMap(); return false; }
+    this.progress.money = purchase.credits; Object.assign(this.progress.shipCargo, payment.ship); Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); extractor.level = purchase.level;
+    if (!this.save()) { this.progress.money = oldMoney; Object.assign(this.progress.shipCargo, oldShip); Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); extractor.level = oldLevel; this.rememberCurrentMap(); return false; }
     this.soundFx.reward(); return true;
   }
   buildExtractor() { return this.beginSurfacePlacement('extractor'); }
-  constructionMaterials() { return planetaryMaterials(this.progress.cargo, this.warehouseCargo); }
+  constructionMaterials() { return planetaryMaterials(this.progress.cargo, this.warehouseCargo, this.progress.shipCargo); }
   contributeSystemProject() {
     if (!this.nearbyWarehouse) return false;
     const oldWarehouse = { ...this.warehouseCargo }, oldMilestones = [...this.progress.milestones], oldMoney = this.progress.money,
@@ -1411,21 +1434,21 @@ export class MiningScene extends Phaser.Scene {
       this.ui.toast('Building relocated. No materials spent.'); return true;
     }
     this.applyAutomatedProduction(Date.now());
-    const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo },
+    const cost = UNDERGROUND_BUILDING[placement.kind], oldMoney = this.progress.money, oldShip = { ...this.progress.shipCargo }, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo },
       structure: UndergroundStructure = {
         id: `${placement.kind}:${Math.round(placement.x)}:${Math.round(placement.y)}:${Date.now()}`,
         kind: placement.kind, x: placement.x, y: placement.y, ...(placement.kind === 'extractor' ? { level: 1, productionFraction: 0 } : { integrity: structureIntegrity(placement.kind) }),
       };
-    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials);
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials, this.progress.shipCargo);
     if (!payment) return false;
     this.progress.money -= cost.credits;
-    Object.assign(this.progress.cargo, payment.cargo);
+    Object.assign(this.progress.shipCargo, payment.ship); Object.assign(this.progress.cargo, payment.cargo);
     Object.assign(this.warehouseCargo, payment.storage);
     this.structures.push(structure);
     if (!this.save()) {
       this.structures.pop();
       this.progress.money = oldMoney;
-      Object.assign(this.progress.cargo, oldCargo);
+      Object.assign(this.progress.shipCargo, oldShip); Object.assign(this.progress.cargo, oldCargo);
       Object.assign(this.warehouseCargo, oldStorage);
       this.rememberCurrentMap();
       this.ui.toast('SAVE FAILED · BUILD NOT PLACED · NOTHING SPENT.');
@@ -1456,11 +1479,11 @@ export class MiningScene extends Phaser.Scene {
     return true;
   }
   commitStructure(structure: UndergroundStructure) {
-    const cost = UNDERGROUND_BUILDING[structure.kind], oldMoney = this.progress.money, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo };
-    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials);
+    const cost = UNDERGROUND_BUILDING[structure.kind], oldMoney = this.progress.money, oldShip = { ...this.progress.shipCargo }, oldCargo = { ...this.progress.cargo }, oldStorage = { ...this.warehouseCargo };
+    const payment = spendPlanetaryMaterials(this.progress.cargo, this.warehouseCargo, cost.materials, this.progress.shipCargo);
     if (!payment || oldMoney < cost.credits) return false;
-    this.progress.money -= cost.credits; Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); this.structures.push(structure);
-    if (!this.save()) { this.structures.pop(); this.progress.money = oldMoney; Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); this.rememberCurrentMap(); return false; }
+    this.progress.money -= cost.credits; Object.assign(this.progress.shipCargo, payment.ship); Object.assign(this.progress.cargo, payment.cargo); Object.assign(this.warehouseCargo, payment.storage); this.structures.push(structure);
+    if (!this.save()) { this.structures.pop(); this.progress.money = oldMoney; Object.assign(this.progress.shipCargo, oldShip); Object.assign(this.progress.cargo, oldCargo); Object.assign(this.warehouseCargo, oldStorage); this.rememberCurrentMap(); return false; }
     return true;
   }
   buildUndergroundStructure(kind: StructureKind) {
@@ -1579,8 +1602,11 @@ export class MiningScene extends Phaser.Scene {
     );
   }
   chartForUnvisitedMap(id: MapId): PlanetChartSize {
-    if (this.campaignChart.radiusRows === LEGACY_PLANET_CHART.radiusRows) return LEGACY_PLANET_CHART;
-    return id === 'cryo-shelf' ? STARTER_PLANET_CHART : PLANET_CHART;
+    // Older visited worlds may rely on the campaign-level geometry field.
+    // Compact defaults apply only to worlds that have never been generated.
+    if (this.mapStates[id]) return this.mapStates[id]!.planetChart ?? this.campaignChart;
+    if (!FRONTIER.worlds.includes(id) && this.campaignChart.radiusRows === LEGACY_PLANET_CHART.radiusRows) return LEGACY_PLANET_CHART;
+    return FRONTIER.worlds.includes(id) ? STARTER_PLANET_CHART : PLANET_CHART;
   }
   nearestClearPodPosition(x: number, y: number, frame: number) {
     const chart = this.world.planetChart, maxX = this.world.widthTiles * WORLD.tile - 16,
@@ -1598,37 +1624,8 @@ export class MiningScene extends Phaser.Scene {
     }
     return undefined;
   }
-  landFromSolar(destination: MapId) {
-    if (!this.solarPosition) return;
-    const id = destination;
-    if (distance(this.solarPosition, planetPosition(id)) > SOLAR_SYSTEM.landingRadius) return;
-    if (id === this.mapId) {
-      this.pod.x = 555; this.pod.y = WORLD.spawnY;
-      this.pod.vx = this.pod.vy = 0; this.pod.docked = true;
-      this.globeViewRequested = false; this.orbitalTransition = 0;
-      this.cameraZoom = this.cameraZoomTarget = 1;
-      this.ui.setInOrbit(false); this.ui.setOrbitalOverview(false);
-    } else if (!this.travelToMap(id)) return;
-    this.hemisphereFar = false;
-    this.cameraFlip = this.cameraFlipStart = this.cameraFlipTarget = 0;
-    this.cameraFlipElapsed = 0;
-    this.solarPosition = null;
-    this.solarView?.destroy(); this.solarView = undefined;
-    this.ui.toast('MOTHERSHIP LANDED · E TO DISEMBARK'); this.save();
-  }
-  travelFromSolar(id: MapId) {
-    if (!PREBUILD.travelEnabled) return;
-    if (!this.solarPosition || !this.mothershipBoarded || !this.inOrbit) return;
-    if (!solarDestinationUnlocked(id, this.mapId, this.progress.shipComplete, this.progress.milestones)) return;
-    const cost = solarRouteFuel(this.solarPosition, planetPosition(id));
-    if (cost > this.progress.coreFuel + 1e-8) {
-      this.ui.toast('NOT ENOUGH CORE FUEL FOR THAT ROUTE');
-      return;
-    }
-    this.progress.coreFuel = Math.max(0, this.progress.coreFuel - cost);
-    this.solarPosition = { ...planetPosition(id) };
-    this.landFromSolar(id);
-  }
+  landFromSolar(destination: MapId) { return this.travelToMap(destination); }
+  travelFromSolar(id: MapId) { return this.travelToMap(id); }
   solarMapIntel() {
     const intel = {} as Record<MapId, SolarPlanetIntel>;
     for (const id of Object.keys(MAPS) as MapId[]) {
@@ -1639,29 +1636,44 @@ export class MiningScene extends Phaser.Scene {
       intel[id] = {
         visited: id === this.mapId || !!state,
         tradingPost: !!state?.structures.some((entry) => entry.kind === 'trade-post'),
-        warehouse: hasWarehouse ? { ...(state?.warehouse ?? emptyCargo()) } : null,
-        facilities: 0,
+        warehouse: state ? { ...state.warehouse } : null,
+        facilities: state?.structures.filter(s => s.kind === 'extractor').length ?? 0,
+        production: !state?.structures.some(s => s.kind === 'extractor') ? 'No extractors' : !hasWarehouse && id !== this.mapId ? 'No warehouse: ship away' : [...new Set(state.structures.filter(s => s.kind === 'extractor').map(s => extractorStatus(id, s, this.extraction, id === this.mapId ? 0 : cargoTotal(state.warehouse), id === this.mapId ? localProductionRoom(state.structures, state.warehouse, this.progress.shipCargo) : warehouseCapacity(state.structures)).state))].join(', '),
       };
     }
     return intel;
   }
-  travelToMap(id: MapId) {
-    if (!PREBUILD.travelEnabled) { this.ui.toast('TRAVEL COMING SOON · EXPLORE THE STAR MAP PREVIEW'); return false; }
-    if (!this.mothershipBoarded) {
-      this.ui.toast('BOARD THE MOTHERSHIP TO TRAVEL BETWEEN PLANETS');
-      return false;
+  travelToMap(id: MapId, recovery?: 'relocate' | 'tow') {
+    if (this.travelBusy || !this.mothershipBoarded || !this.pod.docked || !this.isNearMothership() || this.surfacePlacement || this.activeCharge || this.stranded) {
+      this.ui.toast('Dock safely at the mothership before departure.'); return false;
     }
-    if (!this.inOrbit || id === this.mapId) {
-      if (!this.inOrbit && id !== this.mapId) this.ui.toast('HOLD W TO CLIMB ABOVE THE GLOBE · WORLDS OPEN IN ORBIT');
-      return false;
-    }
-    const unlocked = id === this.mapId || this.progress.shipComplete && (id !== 'vesper-9' || vesperChapterUnlocked(this.progress.milestones));
-    if (!unlocked) return false;
-    if (!this.solarPosition || distance(this.solarPosition, planetPosition(id)) > SOLAR_SYSTEM.landingRadius) {
-      this.ui.toast('FLY TO THE PLANET ON THE SOLAR SYSTEM MAP'); return false;
-    }
-    this.applyAutomatedProduction(Date.now());
-    this.rememberCurrentMap();
+    const quote = travelQuote(this.mapId, id, this.progress.coreFuel, this.progress.milestones);
+    const legacy = !FRONTIER.worlds.includes(this.mapId);
+    const tow = !legacy && this.mapId !== 'cryo-shelf' && !coreRecovered(this.mapId, this.progress.milestones) && !FRONTIER.worlds.some(world => travelQuote(this.mapId, world, this.progress.coreFuel, this.progress.milestones).canDepart);
+    const free = id === 'cryo-shelf' && (recovery === 'relocate' && legacy || recovery === 'tow' && tow);
+    if (!quote.canDepart && !free) { this.ui.toast('Route unavailable. Check fuel and the return reserve.'); return false; }
+    this.travelBusy = true;
+    this.syncInput(true);
+    const source = this.save();
+    if (!source) { this.travelBusy = false; this.ui.toast('Departure save failed. Source colony retained.'); return false; }
+    const candidate = structuredClone(source);
+    const destination = restoreMapState(candidate.maps[id], id, this.seedForMap(id), this.chartForUnvisitedMap(id));
+    candidate.maps[id] = snapshotMapState(candidate.maps[id], destination.world, 555, WORLD.spawnY, candidate.maps[id]?.maxDepth ?? 0, destination.drops, destination.activeCharge, destination.structures, destination.warehouse);
+    candidate.activeMap = id; candidate.solarPosition = null; candidate.mothershipBoarded = true;
+    candidate.coreFuel -= free ? 0 : quote.cost;
+    const committed = commitTravel(source, candidate, state => this.saves.write(state));
+    if (!committed) { this.travelBusy = false; this.ui.toast('Departure save failed. Fuel, cargo and source colony retained.'); return false; }
+    const previousStock = this.departureStocks.get(id);
+    const actual = previousStock ? ORE_KEYS.filter(ore => committed.maps[id]!.warehouse[ore] > previousStock[ore]).map(ore => (committed.maps[id]!.warehouse[ore] - previousStock[ore]) + ' ' + ORES[ore].name).join(' · ') : '';
+    const localState = committed.maps[id]!;
+    const localCapacity = warehouseCapacity(localState.structures);
+    const status = !localCapacity ? 'No warehouse: production pauses while the ship is away.' : cargoTotal(localState.warehouse) >= localCapacity ? 'Local storage full.' : localState.structures.some(s => s.kind === 'extractor' && extractorStatus(id, s, committed.extraction, cargoTotal(localState.warehouse), localCapacity).state === 'Deposit exhausted') ? 'Deposit exhausted.' : 'Local storage has room.';
+    this.arrivalProductionSummary = previousStock ? 'While away: ' + (actual || '0 ore produced') + '. ' + status : 'Away totals unavailable for this session. ' + status;
+    this.departureStocks.set(this.mapId, { ...source.maps[this.mapId]!.warehouse });
+    this.saves.restore(this.progress, committed);
+    this.mapStates = committed.maps;
+    this.extraction = { ...committed.extraction };
+    this.productionUpdatedAt = committed.productionUpdatedAt;
     this.mapId = id;
     this.mothershipBoarded = true;
     this.ui.setMothershipBoarded(true);
@@ -1701,7 +1713,7 @@ export class MiningScene extends Phaser.Scene {
     this.solarPosition = null;
     this.solarView?.destroy(); this.solarView = undefined;
     this.ui.toast(`MOTHERSHIP ARRIVED · ${this.progress.coreFuel.toFixed(2)} CORE FUEL · ${MAPS[id].name.toUpperCase()}`);
-    this.save();
+    this.travelBusy = false;
     return true;
   }
   pause() {
@@ -1715,7 +1727,9 @@ export class MiningScene extends Phaser.Scene {
     this.applyAutomatedProduction(Date.now());
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 31,
+      version: 32,
+      shipCargo: { ...p.shipCargo },
+      specialistModules: { ...p.specialistModules },
       extraction: { ...this.extraction },
       deliveries: { ...p.deliveries },
       productionUpdatedAt: this.productionUpdatedAt,
@@ -1753,7 +1767,7 @@ export class MiningScene extends Phaser.Scene {
       pilotEscaping: p.pilotEscaping,
       grappleOwned: p.grappleOwned,
     };
-    const ok = this.saves.write(data);
+    let ok = false; try { ok = this.saves.write(data); } catch { this.saves.warning = "Save failed. State retained."; }
     this.ui.saved(ok);
     if (!ok) this.ui.toast(this.saves.warning);
     return ok ? data : null;
@@ -2168,7 +2182,7 @@ export class MiningScene extends Phaser.Scene {
         } else if (this.pod.y < -MAX_TOWN_ALTITUDE) {
           this.pod.y = -MAX_TOWN_ALTITUDE;
           this.pod.vy = 0;
-          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('TRAVEL IS COMING SOON · CONTINUE MINING THIS WORLD');
+          if (previousPodY > -MAX_TOWN_ALTITUDE) this.ui.toast('Open the Star map at your mothership to depart.');
         }
       }
       if (!this.mothershipBoarded && this.world.planetChart && this.pod.y > this.world.farSurfaceY + MAX_TOWN_ALTITUDE) {
@@ -2249,6 +2263,19 @@ export class MiningScene extends Phaser.Scene {
         aimWorldX, aimWorldY,
         effectiveDrillReach(this.world, this.pod.x, this.pod.y, WORLD.tile * drillReachTiles(this.progress.levels.drill)),
       );
+      const recoveredCore = coreRecovered(this.mapId, this.progress.milestones);
+      const coreRow = this.world.planetChart?.radiusRows ?? Math.floor(this.world.coreWorldY / WORLD.tile);
+      const exposedCore = this.world.get(WORLD.homeColumn, coreRow).type === 'empty';
+      const nearCore = Math.abs(this.pod.y - this.world.coreWorldY) <= CORE.drillAssistReach && !this.mothershipBoarded && !this.stranded;
+      const extractingCore = nearCore && (input.down || mouseDrilling);
+      const extraction = coreExtractionStep(this.coreExtractionElapsed, dt, recoveredCore, exposedCore, extractingCore, this.progress.coreFuel);
+      this.coreExtractionElapsed = extraction.elapsed;
+      if (extraction.reward) {
+        const previous = this.progress.coreFuel; this.progress.coreFuel += extraction.reward;
+        if (!this.save()) { this.progress.coreFuel = previous; this.ui.toast('Fuel extraction save failed. Try again.'); }
+        else this.ui.toast('Core fuel extracted: +1.');
+      }
+      this.coreFuelLabel?.setVisible(nearCore && recoveredCore && exposedCore).setPosition(this.scale.width / 2, this.scale.height * .28).setText(this.progress.coreFuel >= CORE_FUEL.renewableCeiling ? 'Fuel reserve full' : this.coreExtractionElapsed > 0 ? 'Core extraction ' + Math.floor(this.coreExtractionElapsed) + ' / ' + CORE_FUEL.extractionSeconds + 's' : 'Exposed core: hold S or drill for 10s');
       const directionTarget = pointerAiming ? this.aimTile : target ?? this.mining.target;
       if (pointerAiming) {
         const aim = pointerDrillDirection(this.world, this.pod.x, this.pod.y, aimWorldX, aimWorldY);
@@ -3201,7 +3228,7 @@ export class MiningScene extends Phaser.Scene {
           rectangle(0, 9, 82, 5, 0xe4b877);
           rectangle(-37, 49, 12, 9, 0xc58c4e);
           rectangle(37, 49, 12, 9, 0x8eaa91);
-          const fill = Math.min(1, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0) / (warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity));
+          const fill = Math.min(1, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0) / Math.max(1, warehouseCapacity(this.structures)));
           rectangle(0, 46, 60, 4, 0x17292e);
           rectangle(-30 + fill * 30, 46, fill * 60, 4, fill >= 1 ? 0xffba79 : 0x8ee0cd);
           g.lineStyle(2, 0xf0c47f, 0.9);
@@ -3211,7 +3238,7 @@ export class MiningScene extends Phaser.Scene {
           continue;
         }
         if (structure.kind === 'extractor') {
-          const status = extractorStatus(this.mapId, structure, this.extraction, ORE_KEYS.reduce((n,o) => n + this.warehouseCargo[o], 0), warehouseCapacity(this.structures) + MOTHERSHIP.storageCapacity),
+          const status = extractorStatus(this.mapId, structure, this.extraction, 0, localProductionRoom(this.structures, this.warehouseCargo, this.progress.shipCargo)),
             working = status.state === 'Mining', accent = working ? 0xa4efd9 : status.state === 'Deposit exhausted' ? 0x71848a : 0xf0b779,
             stroke = working && !this.reducedMotion ? Math.sin(this.tick * 5) * 4 : 0;
           rectangle(0, 0, 100, 8, 0x263332);

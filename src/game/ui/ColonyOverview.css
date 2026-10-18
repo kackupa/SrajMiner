@@ -18,3 +18,7 @@
 .camp-dock .camp-full-services{background:#ffb36b!important;color:#112332!important;opacity:1}.station-dock.camp-dock{overflow:hidden}
 #viewport:has(.building-inspector)>.station-dock,#viewport:has(.building-inspector)>.mission-tip{visibility:hidden}@media(any-pointer:coarse) and (min-height:501px){.mission-tip{top:132px}}
 #modal-layer .modal.discard-screen{position:absolute;inset:0;width:100%;height:100%;max-height:none;max-width:none;padding:16px;margin:0;border:0;border-radius:0;display:grid;place-items:center;background:#0b1c29;overflow:hidden}.discard-screen .warehouse-discard-confirm{width:min(100%,540px);margin:0;padding:20px}.discard-screen h3{font-size:28px}.discard-screen button{min-height:44px}
+
+.cargo-screen footer{flex-wrap:wrap}.cargo-screen footer button{flex:1}.cargo-screen footer span{flex-basis:100%}.discard-screen button{min-height:44px;min-width:44px}.discard-screen h2{margin:0!important;font-size:26px}.discard-screen p{font-size:12px;line-height:1.4}.colony-actions button{font-size:11px}.colony-screen button{min-width:44px}
+.cargo-screen footer{height:auto;min-height:0;flex-shrink:0;padding:8px 0 0}.colony-screen footer{height:auto;flex-shrink:0}
+@media(max-width:700px),(max-height:500px){.colony-actions{grid-template-columns:repeat(3,minmax(0,1fr))}.colony-actions>button:first-child[id^="upgrade-"]{grid-column:span 2}}

@@ -1,7 +1,25 @@
-import { EXTRACTOR_TIERS, MAPS, ORE_KEYS, UNDERGROUND_BUILDING, type MapId, type Ore } from '../config';
+import { FRONTIER, EXTRACTOR_TIERS, MAPS, ORE_KEYS, UNDERGROUND_BUILDING, type MapId, type Ore } from '../config';
 import { warehouseCapacity, type UndergroundStructure } from '../building/UndergroundStructures';
 import type { Cargo } from './Progress';
 import { extractorStatus, type ExtractionLedger } from './ExtractionSeams';
+import { emptyCargo } from './Progress';
+import { cargoTotal } from './Freight';
+export const localProductionRoom = (structures: UndergroundStructure[], warehouse: Cargo, ship: Cargo) =>
+  Math.max(0, warehouseCapacity(structures) - cargoTotal(warehouse)) + Math.max(0, FRONTIER.shipCapacity - cargoTotal(ship));
+
+/** Generate into a bounded temporary output buffer, then route ore into distinct stores. */
+export function accumulateLocalProduction(structures: UndergroundStructure[], warehouse: Cargo, ship: Cargo, map: MapId, elapsed: number, extraction: ExtractionLedger) {
+  const localRoom = Math.max(0, warehouseCapacity(structures) - cargoTotal(warehouse));
+  const output = emptyCargo();
+  // Subtract building capacity because the established producer adds it itself.
+  const result = accumulateAutomatedProduction(structures, output, map, elapsed, localProductionRoom(structures, warehouse, ship) - warehouseCapacity(structures), extraction);
+  let room = localRoom;
+  for (const ore of ORE_KEYS) {
+    const local = Math.min(room, output[ore]);
+    warehouse[ore] += local; ship[ore] += output[ore] - local; room -= local;
+  }
+  return result.produced;
+}
 
 export type WarehouseDirection = 'store' | 'withdraw';
 
@@ -38,7 +56,10 @@ export function accumulateAutomatedProduction(
 ) {
   const elapsed = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.min(UNDERGROUND_BUILDING.automation.offlineCapSeconds, elapsedSeconds)) : 0,
     capacity = warehouseCapacity(structures) + extraCapacity, results: Record<string, number> = {};
-  if (capacity <= 0) return { warehouse, produced: results };
+  if (capacity <= 0) {
+    for (const facility of structures) if (facility.kind === 'extractor') facility.productionFraction = 0;
+    return { warehouse, produced: results };
+  }
   for (const facility of structures) {
     if (facility.kind !== 'extractor') continue;
     if (extraction) {
@@ -77,4 +98,3 @@ export function accumulateAutomatedProduction(
   }
   return { warehouse, produced: results };
 }
-

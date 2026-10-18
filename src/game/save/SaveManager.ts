@@ -1,3 +1,4 @@
+import { validCargo } from '../economy/Freight';
 import { COLONY_ORDER_IDS } from '../economy/ColonyOrders';
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
 import { structureIntegrity } from '../building/UndergroundStructures';
@@ -11,7 +12,9 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 31;
+  version: 32;
+  shipCargo: Cargo;
+  specialistModules: { reinforcedHull: boolean; efficientCooling: boolean };
   extraction: Record<string, number>;
   deliveries: Record<string, number>;
   productionUpdatedAt: number;
@@ -63,6 +66,12 @@ export type WorldSave = {
   planetChart?: PlanetChartSize;
 };
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const validSpecialists = (value: unknown): value is SaveData['specialistModules'] => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const modules = value as SaveData['specialistModules'];
+  return Object.keys(value).length === 2 && Object.hasOwn(value, 'reinforcedHull') && Object.hasOwn(value, 'efficientCooling') &&
+    typeof modules.reinforcedHull === 'boolean' && typeof modules.efficientCooling === 'boolean';
+};
 const chartIsSupported = (chart: PlanetChartSize | undefined) => !!chart && [STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, PLANET_CHART, LEGACY_PLANET_CHART].some(
   (supported) => chart.columns === supported.columns && chart.radiusRows === supported.radiusRows,
 );
@@ -92,7 +101,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 31 && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
+    d.version === 32 && validCargo(d.shipCargo) && validSpecialists(d.specialistModules) && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
     (d.solarPosition === null || !!d.solarPosition && finite(d.solarPosition.x) && finite(d.solarPosition.y) && Math.abs(d.solarPosition.x) < 100000000 && Math.abs(d.solarPosition.y) < 100000000 && d.mothershipBoarded) && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
@@ -170,6 +179,7 @@ export function migrateSave(s: unknown): SaveData | null {
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
+  if (version === 31) return migrateSave({ ...(s as object), version: 32, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } });
   if (version === 30) return migrateSave({ ...(s as object), version: 31, extraction: {} });
   if (version === 29) {
     const old = s as Record<string, unknown>;
@@ -345,13 +355,14 @@ export function parseSaveFile(contents: string): SaveData | null {
 }
 export class SaveManager {
   warning = '';
+  migratedLegacyStock = false;
   load(): SaveData | null {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const data: unknown = JSON.parse(raw);
       const migrated = migrateSave(data);
-      if (migrated) return migrated;
+      if (migrated) { this.migratedLegacyStock = (data as {version?:number}).version !== 32; return migrated; }
       this.warning = 'Save could not be read. A new expedition is ready.';
     } catch {
       this.warning = 'Storage unavailable. This session may not be saved.';
@@ -368,15 +379,17 @@ export class SaveManager {
     }
   }
   restore(p: Progress, d: SaveData) {
+    p.shipCargo = { ...d.shipCargo };
+    p.specialistModules = { ...d.specialistModules };
     p.deliveries = { ...d.deliveries };
     p.money = d.money;
     p.levels = { ...d.levels };
     p.grappleOwned = d.grappleOwned;
     p.specialization = d.specialization;
-    p.fuel = Math.min(d.fuel, p.max('fuel'));
-    p.hull = Math.min(d.hull, p.max('hull'));
+    p.fuel = d.fuel;
+    p.hull = d.hull;
     p.cargo = { ...emptyCargo(), ...d.cargo };
-    if (p.count > p.max('cargo')) p.cargo = emptyCargo();
+    // Legacy excess cargo remains reclaimable; never discard saved resources.
     p.maxDepth = d.maxDepth;
     p.artifact = d.artifact;
     p.milestones = [...d.milestones];

@@ -302,7 +302,7 @@ export const CORE_RELICS = [
   { id: 'core-vesper', mapId: 'vesper-9', name: 'Vesper core', tint: 0xb2e98e, detail: 'Concentrated planetary material used by the mothership jump drive.', record: 'Core extracted. Fuel transferred to the mothership.', bounty: 0 },
 ] as const satisfies readonly { id: string; mapId: MapId; name: string; tint: number; detail: string; record: string; bounty: number }[];
 /** A recovered planetary core powers several interplanetary jumps; this is separate from pod flight fuel. */
-export const CORE_FUEL = { unitsPerCore: 4, jumpCost: 1, legacyReserve: 6 } as const;
+export const CORE_FUEL = { unitsPerCore: 4, jumpCost: 1, legacyReserve: 6, extractionSeconds: 10, renewableCeiling: 4 } as const;
 export const CORE_SURVEY_CONCLUSION = {
   title: 'Six planetary cores extracted',
   transcript: 'All six planets are logged. Expand your mining camps and trade network.',
@@ -642,3 +642,10 @@ export const COLONY_ORDERS = [
   { key: 'survey', name: 'Survey request', ore: 'exclusive', units: 2, rewardMultiplier: 1.5 },
   { key: 'construction', name: 'Construction supply', ore: 'iron', units: 8, rewardMultiplier: 1.25 },
 ] as const;
+
+export const FRONTIER = { worlds: ['cryo-shelf', 'mars-frontier'] as readonly MapId[], shipCapacity: MOTHERSHIP.storageCapacity, transitMs: 2400 };
+export const SPECIALIST_MODULES = {
+  reinforcedHull: { name: 'Reinforced hull', materials: { nickel: 4, iron: 6 }, hullMultiplier: 1.2 },
+  efficientCooling: { name: 'Efficient cooling', materials: { cryocrystal: 4, copper: 4 }, drillingMultiplier: 0.9 },
+} as const;
+export type SpecialistModule = keyof typeof SPECIALIST_MODULES;

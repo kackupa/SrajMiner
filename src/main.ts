@@ -40,3 +40,4 @@ import './game/ui/RigWorkshop.css';
 import './game/ui/ColonyOverview.css';
 
 import './game/ui/ColonyOrders.css';
+import './game/ui/FreightView.css';

@@ -9,3 +9,5 @@
 @media(min-width:701px) and (max-height:500px){.rig-layout{padding:5px 10px}.rig-detail{gap:5px}.rig-notice:empty{display:none}.rig-picker{padding-bottom:0}}
 @media(max-width:700px) and (max-height:650px){.rig-picker{grid-auto-rows:48px}.rig-picker button{line-height:1.2}}
 .rig-installed .rig-art{animation:rig-installed .65s ease-out}.rig-installed .rig-notice{color:#a4efd9}@keyframes rig-installed{0%{filter:brightness(1);transform:scale(1)}40%{filter:brightness(1.8);transform:scale(1.08)}100%{filter:brightness(1);transform:scale(1)}}@media(prefers-reduced-motion:reduce){.rig-installed .rig-art{animation:none}}
+
+#modal-layer .rig-workshop button{min-height:44px}.rig-workshop footer{display:block!important;flex-shrink:0}#modal-layer .rig-picker button{padding:5px}
