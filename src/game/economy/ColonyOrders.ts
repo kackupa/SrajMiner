@@ -8,11 +8,11 @@ export const COLONY_ORDER_IDS=Object.keys(MAPS).flatMap(map=>colonyOrders(map as
 export function deliverColonyOrder(progress: Progress, storage: Cargo, map: MapId, id: string, save: ()=>boolean) {
  const order=colonyOrders(map).find(o=>o.id===id);
  if(!order||progress.milestones.includes(id))return false;
- const payment=spendPlanetaryMaterials(progress.cargo,storage,{[order.ore]:order.units});
+ const payment=spendPlanetaryMaterials(progress.cargo,storage,{[order.ore]:order.units}, progress.shipCargo);
  if(!payment)return false;
- const before={cargo:{...progress.cargo},storage:{...storage},money:progress.money,milestones:[...progress.milestones]};
- Object.assign(progress.cargo,payment.cargo);Object.assign(storage,payment.storage);progress.money+=order.reward;progress.milestones.push(id);
+ const before={cargo:{...progress.cargo},ship:{...progress.shipCargo},storage:{...storage},money:progress.money,milestones:[...progress.milestones]};
+ Object.assign(progress.cargo,payment.cargo);Object.assign(storage,payment.storage);Object.assign(progress.shipCargo,payment.ship);progress.money+=order.reward;progress.milestones.push(id);
  let saved=false;try{saved=save();}catch{}
- if(!saved){Object.assign(progress.cargo,before.cargo);Object.assign(storage,before.storage);progress.money=before.money;progress.milestones=before.milestones;}
+ if(!saved){Object.assign(progress.cargo,before.cargo);Object.assign(storage,before.storage);Object.assign(progress.shipCargo,before.ship);progress.money=before.money;progress.milestones=before.milestones;}
  return saved;
 }

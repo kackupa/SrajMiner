@@ -6,15 +6,7 @@ import { podPortrait } from './PodPortrait';
 export function pauseScreen(p: Progress, map: MapId, depth: number, docked: boolean,
   exportControl: string, saveStatus: string, campBuilt = true, marketOnline = true) {
   const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
-  const objective = !PREBUILD.travelEnabled ? { title: 'Grow your mining operation', text: 'Build in any order. Upgrade your rig using shared common ores. Recover the local core for future fuel; travel and specialist modules are coming soon.', done: Number(p.milestones.includes(CORE_RELICS.find(c => c.mapId === map)!.id)), total: 1, unit: 'local core recovered' } : !campBuilt && !marketOnline
-    ? { title: 'Build your colony', text: 'Choose storage, extraction or services. Mine common ores and build in any order using shared planetary materials.', done: 0, total: 2, unit: 'optional colony milestones' }
-    : !marketOnline
-      ? { title: 'Build a Market uplink', text: 'Use copper, iron and silver to connect to the interplanetary market. Then sell ore for upgrade credits.', done: 1, total: 2, unit: 'optional colony milestones' }
-    : !p.shipComplete
-    ? { title: 'Mine a planetary core', text: 'The core unlocks mothership flight and adds interplanetary fuel. Recharge the rig at the mothership.', done: 0, total: 1, unit: 'core recovered' }
-      : cores < 5
-      ? { title: 'Reach the planetary cores', text: `Recover cores to replenish core fuel. ${p.coreFuel.toFixed(2)} core fuel aboard. Recharge the rig at the mothership.`, done: cores, total: 5, unit: 'core records' }
-      : { title: 'Chart the final world', text: 'Five planetary cores have revealed Vesper-9. Recover its Vesper core.', done: cores, total: 6, unit: 'core records' };
+  const objective = {title:p.shipComplete?'Expand to Mars Frontier':'Recover your first core',text:p.shipComplete?'Load your ship and depart from the Star map. Build an independent colony, mine nickel and bring it home. Exposed cores supply renewable fuel.':'Mine the local core for four fuel units. Construction and upgrades use Miner, Ship and Planet materials. Recharge free at the mothership.',done:CORE_RELICS.filter(c=>['cryo-shelf','mars-frontier'].includes(c.mapId)&&p.milestones.includes(c.id)).length,total:2,unit:'live world cores'};
   const readout = (name: string, value: string, ratio: number) => `<div><dt>${name}</dt><dd>${value}</dd><i aria-hidden="true"><b style="width:${Math.max(0, Math.min(100, ratio * 100))}%"></b></i></div>`;
   return `<section class="modal pause-screen" role="dialog" aria-modal="true" aria-label="EXPEDITION PAUSED">
     <button class="close" id="close" aria-label="Close panel">×</button>

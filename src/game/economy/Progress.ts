@@ -1,4 +1,5 @@
 import {
+  SPECIALIST_MODULES,
   ORES,
   ORE_KEYS,
   CORE_RELICS,
@@ -42,6 +43,8 @@ export class Progress {
   fuel = 140;
   hull = 100;
   cargo = emptyCargo();
+  shipCargo = emptyCargo();
+  specialistModules = { reinforcedHull: false, efficientCooling: false };
   maxDepth = 0;
   specialization: Specialization = 'balanced';
   artifact = false;
@@ -188,7 +191,7 @@ export class Progress {
     const base = value(this.levels, key);
     return key === 'cargo'
       ? Math.round(base * SPECIALIZATIONS[this.specialization].cargoMultiplier * 2) / 2
-      : base;
+      : key === 'hull' && this.specialistModules.reinforcedHull ? base * SPECIALIST_MODULES.reinforcedHull.hullMultiplier : base;
   }
   drillTime(hardness: number) {
     const bonus = hardness >= 0.8 ? SPECIALIZATIONS[this.specialization].rockDrillMultiplier : 1;
@@ -237,23 +240,23 @@ export class Progress {
     return true;
   }
   serviceCost(key: 'fuel' | 'hull') {
-    return Math.ceil(
+    return Math.max(0, Math.ceil(
       (this.max(key) - this[key]) * SERVICE[key === 'fuel' ? 'fuelPrice' : 'hullPrice'],
-    );
+    ));
   }
   service(key: 'fuel' | 'hull') {
     const cost = this.serviceCost(key);
     if (this.money < cost) return false;
     this.money -= cost;
-    this[key] = this.max(key);
+    this[key] = Math.max(this[key], this.max(key));
     return true;
   }
   serviceAll() {
     const cost = this.serviceCost('fuel') + this.serviceCost('hull');
     if (this.money < cost) return false;
     this.money -= cost;
-    this.fuel = this.max('fuel');
-    this.hull = this.max('hull');
+    this.fuel = Math.max(this.fuel, this.max('fuel'));
+    this.hull = Math.max(this.hull, this.max('hull'));
     return true;
   }
   rescue() {

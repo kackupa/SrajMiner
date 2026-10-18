@@ -1,6 +1,6 @@
 /** Fit complete content blocks into explicit pages. Never scroll the panel. */
 export function panelPages(root: HTMLElement) {
- if(root.querySelector('.intro-step-title,.star-map-screen,.build-catalogue,.rig-workshop,.colony-screen,.orders-screen,.building-inspector,.cargo-screen,.codex-screen,.discard-screen'))return()=>{};
+ if(root.querySelector('.freight-screen,.intro-step-title,.star-map-screen,.build-catalogue,.rig-workshop,.colony-screen,.orders-screen,.building-inspector,.cargo-screen,.codex-screen,.discard-screen'))return()=>{};
  const panel=root.querySelector<HTMLElement>('.camp-main')??root.querySelector<HTMLElement>('.modal');if(!panel)return()=>{};
  const content=panel.querySelector<HTMLElement>('.camp-content,.modal-body,.intro-screen')??panel;
  const nav=document.createElement('nav');nav.className='panel-pages';nav.setAttribute('aria-label','Panel pages');nav.innerHTML='<button aria-label="Previous page">Previous</button><span></span><button aria-label="Next page">Next</button>';root.querySelector('.modal')!.append(nav);

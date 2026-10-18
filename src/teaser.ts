@@ -40,7 +40,7 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
 
     <section id="expedition" class="expedition wrap">
       <div class="section-kicker"><span>01 / BUILD YOUR OPERATION</span><span>FROM FIRST CAMP TO MULTIPLE PLANETS</span></div>
-      <div class="expedition-heading"><h2>One miner.<br/><em>A growing operation.</em></h2><p>Your first copper and iron go into a mining camp. Build a market uplink to sell ore and unlock paid upgrades. Add storage and extractors, then take your mothership to another planet.</p></div>
+      <div class="expedition-heading"><h2>One miner.<br/><em>A growing operation.</em></h2><p>Your first copper and iron go into a mining camp. Build storage and extractors with common ores. The next Ore Frontier update adds Cryo to Mars freight, independent colonies and two specialist installations. This update is in local verification and has not been deployed.</p></div>
       <div class="operation-steps">
         <article class="operation-step">
           <div class="operation-capture"><img src="${gameplayHero}" alt="Ore Frontier's miner cutting a tunnel through copper and iron deposits" loading="lazy" width="1280" height="720"/></div>
@@ -67,13 +67,13 @@ document.querySelector<HTMLDivElement>('#ore-frontier')!.innerHTML = `
       </div>
     </section>
 
-    <section class="status-band"><div class="wrap status-content"><span class="status-dot"></span><div><small>PLAYABLE NOW · STILL IN DEVELOPMENT</small><p>Try mining, construction, upgrades, and planetary travel in the early build. The multiplayer beta is still being prepared.</p></div><a class="button button-primary" href="${gameHref}">Play Ore Frontier <span aria-hidden="true">→</span></a></div></section>
+    <section class="status-band"><div class="wrap status-content"><span class="status-dot"></span><div><small>PLAYABLE NOW · STILL IN DEVELOPMENT</small><p>Try mining, construction and rig upgrades in the current public build. Two-world freight and specialist installations are in development. Multiplayer is coming soon.</p></div><a class="button button-primary" href="${gameHref}">Play Ore Frontier <span aria-hidden="true">→</span></a></div></section>
 
     <section id="roadmap" class="launch-section wrap">
       <div class="section-kicker"><span>03 / PRODUCT ROADMAP</span><span>DIRECTION, NOT FIXED DATES</span></div>
-      <div class="launch-heading"><h2>Building toward<br/><em>multiplayer.</em></h2><p>The next release focuses on clear controls, reliable mining, and a basic global ore market. The early game and player market are at different stages.</p></div>
+      <div class="launch-heading"><h2>Building toward<br/><em>multiplayer.</em></h2><p>The next update connects two persistent mining colonies through physical freight. Server-authoritative player ore trading follows later. Combat is deferred.</p></div>
       <ol class="roadmap-grid">
-        <li><span class="phase-status">01 / AVAILABLE NOW</span><h3>Mining &amp; colony building</h3><p>Playable browser build with mining, ore collection, rig upgrades, colony building, and planetary travel.</p></li>
+        <li><span class="phase-status">01 / AVAILABLE NOW</span><h3>Mining &amp; colony building</h3><p>Playable browser build with mining, ore collection, rig upgrades and colony building. Two-world freight is the next update.</p></li>
         <li><span class="phase-status">02 / NEXT · LAUNCH</span><h3>A smoother mining game</h3><p>Improve instructions, return navigation, mobile controls, and full-screen menus. Test the complete mine, build, sell, and upgrade loop.</p></li>
         <li><span class="phase-status">03 / IN DEVELOPMENT</span><h3>Global ore market</h3><p>Test player-to-player buy and sell orders with separate beta balances. Connecting the market to mined ore is a later step.</p></li>
       </ol>

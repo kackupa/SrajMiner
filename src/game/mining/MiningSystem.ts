@@ -1,4 +1,4 @@
-import { CHARGE, CORE, FUEL, PHYSICS, SALVAGE_MAGNET, WORLD, drillReachTiles, drillWidth, type Ore } from '../config';
+import { SPECIALIST_MODULES, CHARGE, CORE, FUEL, PHYSICS, SALVAGE_MAGNET, WORLD, drillReachTiles, drillWidth, type Ore } from '../config';
 import { Progress } from '../economy/Progress';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { planetCartesianToChart, planetCartesianVectorToWorld, planetChartToCartesian, planetChartVectorToCartesian, wrapPlanetWorldX } from '../world/PlanetChart';
@@ -293,7 +293,7 @@ export class MiningSystem {
     // Angular cells physically shrink toward the core. The extra adjacent cells
     // are mandatory hull clearance, not a free multi-drill upgrade, so only
     // charge additional fuel when the purchased tier exceeds that baseline.
-    this.progress.fuel = Math.max(0, this.progress.fuel - dt * FUEL.drilling * fuelWidth);
+    this.progress.fuel = Math.max(0, this.progress.fuel - dt * FUEL.drilling * fuelWidth * (this.progress.specialistModules.efficientCooling ? SPECIALIST_MODULES.efficientCooling.drillingMultiplier : 1));
     this.ratio = Math.min(1, this.elapsed / this.progress.drillTime(tile.hardness));
     if (this.ratio >= 1) {
       for (const target of this.affected) {

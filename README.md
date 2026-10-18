@@ -37,17 +37,17 @@ The custom domain is `https://playorefrontier.xyz/`; canonical and social-share 
 
 1. Deploy on Cryo Shelf and mine nearby copper, iron and silver.
 2. Choose your own first building: extractor, warehouse, camp or market uplink. Each uses shared local materials; none requires another building first.
-3. Install basic rig upgrades with common ores from your miner and planetary storage.
+3. Install basic rig upgrades with common ores from Miner, Ship and Planet stock.
 4. Build an uplink to sell carried ore to civilian buyers, or complete optional local contracts.
 5. Expand, relocate extractors as seams deplete, and keep storage from filling.
-6. Recover the planetary core for future mothership fuel. Travel and specialist modules remain coming soon in this pre-build.
+6. Recover the planetary core for four fuel. Load the 50-unit ship hold, depart for Mars Frontier through the Star map, establish a second colony and bring nickel home for reinforced hull. Re-mine exposed recovered cores for ten seconds per fuel unit, up to four.
 The rig runs on a **battery**, separate from mothership fuel. Return to the mothership and choose **Recharge** to fill it for free, even with zero credits. Hull repairs still cost credits. Signals, missing-crew quests and survey cash rewards are not part of the live expedition. Cores supply travel fuel, not cash.
 
-Near the core, aim at its glowing marker and hold the mouse button to extract it. The marker remains selectable when polar tiles become narrower than a screen pixel; intervening rock still needs to be drilled first. A fresh Cryo descent, core extraction and return to the surface has been browser-tested with earned cargo and no funded upgrades. A later core-crossing return stalled against rock, so reliable return navigation and the full six-world campaign remain under review.
+Near the core, aim at its glowing marker and hold the mouse button to extract it. The marker remains selectable when polar tiles become narrower than a screen pixel; intervening rock still needs to be drilled first. A fresh Cryo descent, core extraction and return to the surface has been browser-tested with earned cargo and no funded upgrades. Fresh real-time core recovery and return passed on 18 October 2026 at 100 hull, followed by an earned round trip, exposed-core refueling and another safe return. Only Cryo and Mars are reachable in this update; the historical six-world campaign is outside its scope.
 
 An earned opening campaign also passed core return with controlled browser frame timing, camp/uplink construction, first sales and the first drill upgrade, including save/reload. Shipment quantities update their quote while you type without losing focus when switching fields. These automated checks do not replace real-time navigation, raid-balance or human playtesting; see [QA](docs/QA.md).
 
-Construction pools miner cargo and storage on the current planet, spending carried ore first. Press B, choose any surface building, position its preview and confirm. Free placement has optional snapping. Materials are spent only when placement saves successfully; cancelling or a failed save spends nothing. Mining camp, uplink, warehouse and extractor can each be built first with materials only.
+Construction pools Miner, then Ship, then Planet stock on the active planet. Remote planets never contribute. Press B, choose any surface building, position its preview and confirm. Free placement has optional snapping. Materials are spent only when placement saves successfully; cancelling or a failed save spends nothing. Mining camp, uplink, warehouse and extractor can each be built first with materials only.
 
 ## Controls and menus
 
@@ -58,7 +58,7 @@ Construction pools miner cargo and storage on the current planet, spending carri
 - **B:** open the build yard. **M:** explored tunnel map. **Esc:** pause/close.
 - **R:** installed surface winch. **Q:** mining charge. **X:** installed stasis module.
 
-The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. Interplanetary flight is disabled in this pre-build.
+The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. The Star map performs departure and landing while docked. A journey costs one core fuel. An unrecovered destination requires one additional unit held as return reserve. Reload during transit starts landed and cannot charge again.
 
 The opening screen teaches movement, drilling and return flight. The fullscreen build catalogue groups Mining, Storage, Services and Defence without scrolling or dropdowns. It shows exact shortages from pooled planetary materials and retains repair/upgrade management. There is no camp prerequisite for an uplink. The Star map has its own menu entry.
 
@@ -68,13 +68,13 @@ The redesigned miner has a visible pilot, directional banking, gimballed thruste
 
 ## Saves and compatibility
 
-Campaigns remain under `mars-miner.v1`, save version 31. Version 30 campaigns gain an empty finite-seam depletion ledger. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
+Campaigns remain under `mars-miner.v1`, save version 32. Version 31 stock stays on its original planets, including legacy overflow; the new ship hold and specialist ownership start empty. Overflow can be spent or withdrawn but cannot accept deposits above real warehouse capacity. Version 30 campaigns gain an empty finite-seam depletion ledger. Existing credits, upgrades, structures, cargo, stored ore and excavation are retained; only fresh expeditions start at zero credits. The internal `fuel` field represents rig battery charge. Version 29 saves gain empty slots for the four new ores and a civilian delivery ledger. Retired survey IDs remain readable for older saves, but their collectibles and quest prompts are absent from live gameplay.
 
-Automated extractors stop at the planet warehouse's capacity and cap offline catch-up at 12 hours. Full storage discards blocked production instead of banking it for an immediate payout after withdrawal. The extractor upgrade panel shows the same credit and material costs that the purchase charges. Browser fixtures cover a Cryo–Mars round trip, upgrade persistence, full-store withdrawal/reload, and v28 migration; they do not replace an earned-resource campaign playthrough.
+Active extractors fill the local warehouse, then free landed-ship capacity. Away extractors use warehouse capacity only, and pause without a warehouse. Offline catch-up is capped at 12 hours. Full storage discards blocked production instead of banking it for an immediate payout after withdrawal. The extractor upgrade panel shows the same credit and material costs that the purchase charges. Browser fixtures cover a Cryo–Mars round trip, upgrade persistence, full-store withdrawal/reload, and v28 migration; an earned continuation also built both colonies, mined five nickel, returned and installed reinforced hull without resource grants. That longer run used controlled browser frames with actual key and mouse input.
 
 ## Worlds, customers and the Expedition Codex
 
-The fullscreen star map previews geology, mining worlds and inhabited trading partners. Travel is unavailable in this pre-build. Civilian worlds are trading partners, not playable mining destinations.
+The fullscreen Star map supports docked travel between Cryo and Mars, and read-only colony inspection. Other mining worlds and inhabited-world landings are coming soon. Civilian buyers remain the existing miner-only sale abstraction.
 
 Teletrade offers four customers: Helion's municipal works, Kepler's shipyards, Verdant's growers and Lyra's research institute. Each has three development projects. Selected shipments earn a capped 35% premium on the current project's remaining ore requirement; completed projects persist and add lights to the world's artwork. Shipment quantities are separate from carried and stored inventory. Select surplus reserves materials for a chosen camp, uplink or warehouse.
 
@@ -109,7 +109,7 @@ The custom-domain landing page introduces the playable game, gameplay footage, p
 Validation: npm install, npm test, and npm run build passed. Local Chromium exercised Tokenomics and X section navigation at 1440×900 and 390×844 and opened the launch FAQ. Screenshots are in ignored output/playwright/launch-desktop.png and launch-mobile.png. This checks the local landing page, not a deployed custom domain or real mobile hardware. The /play hosting rewrite and expedition gameplay were not retested in this content-only pass. These edits have not been deployed.
 
 ### Star map preview
-The mothership sidebar places Star map after Warehouse. A direct hub button also makes it reachable on mobile. This fullscreen, read-only preview shows six mining worlds, four civilised trading worlds, resource surveys and conceptual routes to a planned player exchange. Multiplayer orders and network expansion are labelled coming soon; tokenomics remain TBD. Existing mining, flight and saves are unchanged.
+The mothership sidebar places Star map after Warehouse. A direct hub button also makes it reachable on mobile. The fullscreen chart shows two live mining destinations, four mining previews and four inhabited-world previews. One solid selected route highlights live travel. Multiplayer remains coming soon; no live activity is simulated, and tokenomics remain TBD.
 The star map uses a central star and orbital tracks; planet distances are illustrative, not to scale.
 Mining worlds use distinct geological features; inhabited worlds show city lights and orbital stations. The exchange preview has no dotted trade connections.
 
@@ -120,10 +120,10 @@ Copper, iron and silver occur on every world and cover building materials. Exclu
 
 An extractor can be placed before a warehouse and uses the mothership hold while that planet is active. A warehouse allows production while away. Full storage pauses production without banking excess. Extractor upgrades also draw on shared local materials. Existing inventory, mined cells, buildings and save schema are preserved; regenerated unmined deposits use the new geography.
 
-## Pre-build rig workshop and travel policy
-Basic rig upgrades through level 5 are installed at the mothership using common ores from the miner and active planet's storage, with carried materials spent first. No uplink or credits are required. The new fullscreen workshop separates Basic rig, Specialist plans, optional credit-funded Equipment and existing free Pilot setups. Specialist ore modules are previews only until travel is released. Purchased levels, including legacy levels above 5, remain intact.
+## Rig workshop and travel policy
+Basic rig upgrades through level 5 use common ores from Miner, then Ship, then Planet stock. No uplink or credits are required. The new fullscreen workshop separates Basic rig, Specialist plans, optional credit-funded Equipment and existing free Pilot setups. Reinforced hull costs four nickel and six iron for 20% more effective maximum hull, retaining current hull percentage. Efficient cooling costs four cryocrystal and four copper for 10% less drilling battery expenditure. Both are one-time persistent installations; other plans remain previews. Purchased levels, including legacy levels above 5, remain intact.
 
-Interplanetary travel is disabled by the pre-build release policy, including scene travel entry points and mothership ascent. The star map remains browsable. Valid older orbital saves return to the same planet's mothership pad without spending core fuel or discarding inventory. Existing campaigns on other planets retain their active planet. Core recovery still saves fuel for a future release.
+Travel uses the Star map and a durable destination commit before animation. Manual orbital ascent remains disabled. Existing campaigns on other planets retain their active planet and all stock; a confirmed free relocation to Cryo leaves the old colony saved, with return unavailable in this release. A confirmed emergency tow handles legacy stranded Mars states without granting fuel or money.
 
 ### Mobile WASD controls
 Touch gameplay uses one W/A/S/D pad at the lower left: W thrusts upward, A/D move and drill sideways, and S drills downward. Contextual actions and Tools sit at the lower right. Multiple touches support thrust and steering together.
@@ -132,7 +132,7 @@ Touch gameplay uses one W/A/S/D pad at the lower left: W thrusts upward, A/D mov
 Build catalogue > Colony opens a fullscreen, paged building overview. Surface buildings can be relocated without spending materials or resetting levels; cancelling keeps the original location. Dismantling confirms a refund of half the base construction materials into planetary storage, protects storage capacity, and rolls back on save failure. Upgrades are not refunded. Supporting wall layers must remain until the layer above is removed. Touch placement includes explicit Left and Right buttons.
 The colony update is implemented and locally verified. The fresh-save mining/building/production loop, save migration, management transactions and responsive UI checks are documented in docs/QA.md. Physical Android testing and deployment are separate from this local acceptance.
 
-Finite extraction seams are now implemented with save version 31. A migration preserves version-30 campaign data and adds an empty depletion ledger. Each 320-world-unit surface sector has a deep seam with 60 units; these are separate from manually excavated shallow blocks. Placement surveys ore, remaining units and tier rate. Extractors share sector depletion; dismantling/rebuilding does not replenish it. Full storage and unsupported ore tiers pause production. Relocation preserves levels and resets only the fractional work when changing seams. Working drills animate and warehouses show their real storage fill. Production rates are 24/48/96 ore per hour for basic, industrial and deep extractors.
+Finite extraction seams were introduced in schema 31 and are preserved in schema 32. A migration preserves version-30 campaign data and adds an empty depletion ledger. Each 320-world-unit surface sector has a deep seam with 60 units; these are separate from manually excavated shallow blocks. Placement surveys ore, remaining units and tier rate. Extractors share sector depletion; dismantling/rebuilding does not replenish it. Full storage and unsupported ore tiers pause production. Relocation preserves levels and resets only the fractional work when changing seams. Working drills animate and warehouses show their real storage fill. Production rates are 24/48/96 ore per hour for basic, industrial and deep extractors.
 
 Optional local contracts are available through Colony > Contracts: bulk copper, a planetary-exclusive survey request, and iron construction supply. All three are independent, have no expiry and pay once. Delivery consumes the stated quantity from carried ore then local storage and saves atomically. Tracking is a session-only HUD aid. Phones use three explicit tabs and one full order card; larger screens show three cards.
 The top-bar Colony button marks extractor attention states. Locate opens a paused world inspection with Manage, Move and Dismantle; returning to the rig restores its camera without teleporting the player. Clicking a visible building also opens inspection.
@@ -141,3 +141,9 @@ Colony visual/feedback pass: cards now use original building silhouettes matchin
 Phone storage uses explicit ore cards with one transfer panel. Mobile buyer selection retains cards, and legacy generated select/details widgets were removed. Generic mothership pagination now hides/shows complete content blocks instead of scrolling. The final browser audit covered phone portrait (320×568), phone landscape (844×390) and desktop (1440×900), including complete field-guide and paint-shop pages. Discard uses a dedicated confirmation screen.
 
 Welcome screen: the title, movement guide and expedition button stay together on one responsive screen, without pagination or scrolling.
+
+## Two-world update verification (18 October 2026)
+
+The local Ore Frontier expansion is documented in [release notes](docs/ORE_FRONTIER_RELEASE_NOTES.md) and [the implementation log](docs/NEXT_UPDATE_PLAN.md). Real-time fresh-core and renewable-fuel return runs passed at full hull. A separate earned continuation built warehouses and extractors on Cryo and Mars, shipped mined nickel home and installed reinforced hull, then retained both colonies through reload. Fixture tests cover migration, freight/travel failures, legacy recovery, specialist ownership and responsive layouts. Controlled-clock checks are labelled separately in [QA](docs/QA.md).
+
+The homepage distinguishes the current public build from this undeployed local update. No commit, push, deployment or external publication has been performed. Promotional captures stay under ignored `output/marketing/`; QA stays under ignored `output/playwright/`. Physical Android hardware remains untested here.

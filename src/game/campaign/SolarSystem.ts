@@ -6,6 +6,7 @@ export type SolarPlanetIntel = {
   tradingPost: boolean;
   warehouse: Record<Ore, number> | null;
   facilities: number;
+  production?: string;
 };
 export type SolarCommanderIntel = { credits: number; cargo: number; cargoCapacity: number };
 export type SolarPosition = { x: number; y: number };
