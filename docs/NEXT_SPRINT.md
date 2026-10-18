@@ -34,6 +34,7 @@ Use the [15-minute playtest sheet](PLAYTEST.md) for a few normal trips, then a l
 
 These remain part of the backlog, after desktop campaign controls and balance are settled.
 
+- [ ] **Curated expedition generation (idea only).** First prove a fun hand-built expedition and scoped combat design. If that works, make reusable rooms, enemies, hazards and power interactions; assemble routes with a procedural generator; then consider RunPod for themed combinations and story drafts that are validated and curated before release. Evaluate any paid creation feature only after the playable content proves its value. This is deferred research, not approval to add combat, a backend, AI inference or monetization now.
 - [ ] **Civilized planets.** Implement inhabited surfaces, pedestrians on elevated decks, mineable underground city levels, and population growth tied to ore demand. [Design and visual studies](CIVILIZED_PLANETS_DESIGN.md) exist; city gameplay and pedestrian motion do not.
 - [ ] **Larger system.** Add gas giants and playable moons to the system map with travel and save support.
 - [ ] **More environments.** Add water/jungle biomes and their material or gameplay rules. The six existing landmark families are a visual pass only. See the [surface art guide](PLANET_SURFACE_ART_GUIDE.md).
