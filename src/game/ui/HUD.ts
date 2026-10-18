@@ -1,5 +1,5 @@
 import { showTransit, arrivalMarkup } from './TravelPresentation';
-import { freightView, bindFreight, initialFreight } from './FreightView';
+import { freightView, bindFreight, initialFreight, bestOreOffer } from './FreightView';
 import type { InventorySource } from '../economy/Freight';
 import { colonyOverview, buildingName } from './ColonyOverview';
 import { colonyOrdersPanel } from './ColonyOrders';
@@ -129,7 +129,7 @@ export type UIActions = {
   resume: () => void;
   recoverStranded: () => boolean;
   save: () => void;
-  shipCivilian: (buyer: CivilisationId, requested: Cargo) => number;
+  shipCivilian: (buyer: CivilisationId, requested: Cargo, source?: InventorySource) => number;
   sell: (buyerMapId?: MapId) => SaleReceipt | undefined;
   service: (key: 'fuel' | 'hull') => boolean;
   buy: (key: Upgrade) => boolean;
@@ -368,10 +368,12 @@ export class HUD {
   ) {
     this.mapId = mapId;
     this.displayedMoney = p.money;
+    matchMedia('(max-width:700px), (max-height:500px)').addEventListener('change', () => { if (['cargo','warehouse','sell'].includes(this.modal)) this.renderModal(); });
+    matchMedia('(max-height:650px)').addEventListener('change', () => { if (['cargo','warehouse','sell'].includes(this.modal)) this.renderModal(); });
     document.querySelector('#app')!.innerHTML = `
       <header class="topbar"><a class="brand" href="#" aria-label="Ore Frontier"><span class="brand-mark">O<span>F</span></span><span>ORE<span class="brand-light"> FRONTIER</span><small>MINE · BUILD · TRADE · EXPLORE</small></span></a><div class="expedition"><i></i> MINING RIG ONLINE <span>/</span> <b id="zone">ICE MOON / CRYO SHELF</b></div><div class="top-actions"><button id="open-colony" aria-label="Open colony">Colony</button><button id="market" title="Browse the Star map">WORLDS</button><button id="map-toggle" aria-label="Toggle explored map" title="Toggle explored map" aria-pressed="false">MAP</button><button id="audio" aria-label="Toggle sound" title="Toggle sound">SOUND ON</button><button id="audio-mix" aria-label="Open audio mixer" title="Open audio mixer">MIX</button><button id="pause" aria-label="Pause game">Ⅱ</button></div></header>
       <main id="viewport"><div id="game" aria-label="Mining campaign. Use WASD or arrow keys to move. Hold left mouse button to aim and drill." role="application" tabindex="0"></div>
-      <aside class="telemetry"><div class="eyebrow">RIG STATUS <span class="status-dot"></span></div><div class="meter-head"><span>BATTERY</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-manifest"><button id="open-cargo" class="cargo-line" aria-label="Open cargo inventory"><span>CARGO</span><strong id="cargo-label"></strong></button><div id="cargo-manifest-list" hidden></div></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Ore Frontier core fuel"><span>CORE FUEL · SPACE</span><b id="core-fuel-label">0</b></div><div id="colony-alert" aria-label="Colony raid status"></div></aside>
+      <aside class="telemetry"><div class="eyebrow">RIG STATUS <span class="status-dot"></span></div><div class="meter-head"><span>BATTERY</span><strong id="fuel-label"></strong></div><div class="meter"><i id="fuel-bar"></i></div><small id="return-estimate" class="return-estimate"></small><div class="meter-head"><span>HULL</span><strong id="hull-label"></strong></div><div class="meter hull"><i id="hull-bar"></i></div><div class="cargo-manifest"><button id="open-cargo" class="cargo-line" aria-label="Open cargo inventory" aria-describedby="cargo-manifest-list"><span>CARGO</span><strong id="cargo-label"></strong></button><div id="cargo-manifest-list" role="tooltip" hidden></div></div><div class="cargo-blocks" id="cargo-blocks"></div><div class="cargo-worth" id="cargo-worth"></div><div class="laser-thermal hidden" id="laser-thermal" role="status" aria-live="polite"><div><span id="laser-thermal-label">LASER HEAT</span><b id="laser-thermal-value">0%</b></div><div class="meter"><i id="laser-thermal-bar"></i></div></div><div class="tool-stock hidden" id="tool-stock"><span>Q · MINING CHARGE</span><b id="charge-count">0</b></div><div class="core-fuel-readout" aria-label="Ore Frontier core fuel"><span>CORE FUEL · SPACE</span><b id="core-fuel-label">0</b></div><div id="colony-alert" aria-label="Colony raid status"></div></aside>
       <aside class="depth-panel"><div class="eyebrow">CURRENT DEPTH</div><div class="depth-value"><span id="depth">0</span><small>m</small></div><div class="record">DEEPEST <span id="record">0m</span></div><div class="depth-rule"></div><div id="depth-note">SURFACE OPERATIONS</div><div id="gravity-note" aria-live="polite"></div></aside>
       <div class="location-label"><span class="eyebrow">ICE MOON / CRYO SHELF</span><span>VESPER-9 · Mothership HAB-07</span></div>
       <div id="tip" class="mission-tip hidden" aria-live="polite"><span class="tip-icon">✦</span><div><b id="mission-headline"></b><span id="mission-body"></span></div></div>
@@ -383,7 +385,23 @@ export class HUD {
     const tracker = document.createElement('div'); tracker.id = 'tracked-order'; tracker.className = 'tracked-order'; tracker.hidden = true;
     document.querySelector('#viewport')!.append(tracker);
     this.on('pause', () => actions.pause());
-    this.on('open-cargo', () => this.open('cargo'));
+    const cargoButton = document.getElementById('open-cargo')!;
+    const cargoTooltip = document.getElementById('cargo-manifest-list')!;
+    const hideCargo = () => { cargoTooltip.hidden = true; };
+    const showCargo = () => {
+      if (this.modal) return;
+      cargoTooltip.hidden = false;
+      const rect = cargoButton.getBoundingClientRect();
+      cargoTooltip.style.left = `${Math.max(8, Math.min(rect.right + 12, innerWidth - cargoTooltip.offsetWidth - 8))}px`;
+      cargoTooltip.style.top = `${Math.max(8, Math.min(rect.top, innerHeight - cargoTooltip.offsetHeight - 8))}px`;
+    };
+    cargoButton.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') showCargo(); });
+    cargoButton.addEventListener('pointerleave', hideCargo);
+    cargoButton.addEventListener('focus', () => { if (cargoButton.matches(':focus-visible')) showCargo(); });
+    cargoButton.addEventListener('blur', hideCargo);
+    cargoButton.addEventListener('keydown', event => { if (event.key === 'Escape') hideCargo(); });
+    window.addEventListener('resize', hideCargo);
+    this.on('open-cargo', () => { hideCargo(); this.open('cargo'); });
     this.on('open-colony', () => this.open('colony'));
     this.on('market', () => this.open('destinations'));
     this.on('audio', () => this.updateMuteButton(actions.mute()));
@@ -463,7 +481,7 @@ export class HUD {
   open(name: string) {
     if(name === 'destinations') this.starMapReturn = this.modal;
     if (name === 'service' && !this.actions.serviceAccess()) return;
-    if (name === 'sell' && !this.actions.sellAccess()) { this.open('construction'); return; }
+    if (['cargo', 'warehouse', 'sell'].includes(name)) { this.freightSelection.selling = name === 'sell'; this.freightSelection.notice = ''; }
     if (name === 'sell') this.selectedSaleBuyer = this.mapId;
     if (name === 'warehouse' && !this.actions.atWarehouse()) return;
     if (name === 'warehouse') this.warehouseSourceMap = this.mapId;
@@ -578,7 +596,7 @@ export class HUD {
       title = 'The Expedition Codex'; sub = 'ENGINEERING · WORLDS · FRONTIER HISTORY';
       content = codexPanel(p,this.codexEntry,this.codexQuery,this.codexListing,this.codexPage,this.codexSection);
     } else if (name === 'cargo') {
-      content = `<section class="modal cargo-screen" role="dialog" aria-modal="true" aria-label="Cargo inventory"><header><div><small>MINER INVENTORY</small><h1>Your haul</h1></div><button id="close">Return to mine</button></header><p>${p.count} / ${p.max('cargo')} ore aboard. Builds and upgrades also use Ship and Planet stock.</p><div class="cargo-cards">${ORE_KEYS.map(o=>`<article><i style="background:${ORES[o].hex}"></i><b>${ORES[o].name}</b><strong>${p.cargo[o]}</strong></article>`).join('')}</div><footer><button id="cargo-discard">Discard from miner</button><button id="cargo-storage" ${this.actions.atWarehouse()?'':'disabled'}>Open storage</button><span>${this.actions.atWarehouse()?'Transfer ore between local inventories.':'Return to the mothership or a warehouse to unload.'}</span></footer></section>`;
+      content = freightView(p, this.actions.warehouseStock(), this.actions.warehouseCapacity(), this.mapId, this.freightSelection, this.actions.atWarehouse(), this.actions.rechargeAccess(), this.actions.sellAccess(), this.actions.hasTradePost());
     } else if (name === 'building') {
       const selected = this.actions.structures()[this.colonySelection];
       if (!selected) { this.open('colony'); return; }
@@ -618,9 +636,9 @@ export class HUD {
       content += `<div class="service-row"><div><b>CAVE ATMOSPHERE</b><small>Drifting dust and thruster wakes. Hidden with reduced motion.</small></div><button id="atmosphere-toggle" aria-label="Cave atmosphere" aria-pressed="${this.actions.atmosphereEnabled()}">${this.actions.atmosphereEnabled() ? 'ON' : 'OFF'}</button></div>`;
     } else if (name === 'sell') {
       title = 'Ore for living worlds.'; sub = 'TELETRADE / CIVILIAN EXCHANGE';
-      content = tradeTerminal(p, this.actions.warehouseStock(), this.shipment, this.civilianBuyer, this.plannedBuilding, this.actions.atWarehouse());
+      content = freightView(p, this.actions.warehouseStock(), this.actions.warehouseCapacity(), this.mapId, this.freightSelection, this.actions.atWarehouse(), this.actions.rechargeAccess(), this.actions.sellAccess(), this.actions.hasTradePost());
     } else if (name === 'warehouse') {
-      content = freightView(p, this.actions.warehouseStock(), this.actions.warehouseCapacity(), this.mapId, this.freightSelection, this.actions.atWarehouse(), this.actions.rechargeAccess());
+      content = freightView(p, this.actions.warehouseStock(), this.actions.warehouseCapacity(), this.mapId, this.freightSelection, this.actions.atWarehouse(), this.actions.rechargeAccess(), this.actions.sellAccess(), this.actions.hasTradePost());
     } else if (name === 'discard') {
       const pending=this.pendingWarehouseDiscard ?? {ore:'copper' as Ore, units:1};
       this.pendingWarehouseDiscard=pending;
@@ -714,12 +732,16 @@ export class HUD {
       ...(this.actions.atWarehouse() ? ['warehouse'] : []),
       ...(this.nearSurface ? ['destinations'] : []),
     ];
-    document.querySelector('#modal-layer')!.innerHTML = name === 'discard' || name === 'arrival' || name === 'warehouse' || name === 'codex' || name === 'cargo' || name === 'building' || name === 'orders' || name === 'colony' || name === 'upgrades' ? content : name === 'construction' && this.actions.planetSurfaceAccess() ? content : name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
+    document.querySelector('#modal-layer')!.innerHTML = name === 'sell' || name === 'discard' || name === 'arrival' || name === 'warehouse' || name === 'codex' || name === 'cargo' || name === 'building' || name === 'orders' || name === 'colony' || name === 'upgrades' ? content : name === 'construction' && this.actions.planetSurfaceAccess() ? content : name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
       ? campShell(name, title, sub, content, p, this.mapId, campLinks, this.campNotice) :
       `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE CREDIT</span><b>$${p.money.toLocaleString()}</b></div></section>`;
-    if (name === 'warehouse') {
+    if (['cargo','warehouse','sell'].includes(name)) {
       const state=this.freightSelection, inventories={miner:p.cargo,ship:p.shipCargo,planet:this.actions.warehouseStock()}, capacities={miner:p.max('cargo'),ship:FRONTIER.shipCapacity,planet:this.actions.warehouseCapacity()};
-      bindFreight(document.querySelector('#modal-layer')!,state,()=>this.renderModal(),()=>this.actions.transferFreight(state.source,state.target,state.ore,state.amount),()=>Math.max(0, Math.min(inventories[state.source][state.ore],capacities[state.target]-ORE_KEYS.reduce((n,o)=>n+inventories[state.target][o],0))));
+      bindFreight(document.querySelector('#modal-layer')!,state,()=>this.renderModal(),()=>{
+        if (!state.selling) return this.actions.transferFreight(state.source,state.target,state.ore,state.amount);
+        const offer=bestOreOffer(p,inventories[state.source],state);
+        return this.actions.shipCivilian(offer.buyer,offer.shipment,state.source);
+      },()=>state.selling?inventories[state.source][state.ore]:Math.max(0, Math.min(inventories[state.source][state.ore],capacities[state.target]-ORE_KEYS.reduce((n,o)=>n+inventories[state.target][o],0))));
       this.on('freight-back',()=>this.open('hub'));
     }
     if (name === 'destinations') bindStarMap(document.querySelector('#modal-layer')!, this.mapId, {
@@ -1249,7 +1271,7 @@ export class HUD {
       `$${Math.round(this.displayedMoney).toLocaleString()}`;
     document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('hidden', !surface);
     document.querySelector<HTMLElement>('#orbit-worlds')!.classList.toggle('hidden', !this.inOrbit);
-    document.getElementById('camp-sell-hint')!.textContent = !this.actions.hasTradePost() ? 'Build a Market uplink to unlock sales' : p.count ? `${p.count} ore on board · base value ${credits(p.cargoValue)}` : 'Cargo empty · bring back ore to sell';
+    document.getElementById('camp-sell-hint')!.textContent = !this.actions.hasTradePost() ? 'Build a Market uplink to unlock sales' : p.count ? `${p.count} ore on board · base value ${credits(p.cargoValue)}` : 'Sell ore from Miner, Mothership or Planet warehouse';
     const serviceTotal = p.serviceCost('fuel') + p.serviceCost('hull');
     document.getElementById('camp-service-hint')!.textContent = serviceTotal || p.fuel < p.max('fuel') ? `Recharge free · repairs ${credits(serviceTotal)}` : 'Battery and hull ready.';
     this.updateMissionTip();

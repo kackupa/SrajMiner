@@ -147,3 +147,11 @@ Welcome screen: the title, movement guide and expedition button stay together on
 The local Ore Frontier expansion is documented in [release notes](docs/ORE_FRONTIER_RELEASE_NOTES.md) and [the implementation log](docs/NEXT_UPDATE_PLAN.md). Real-time fresh-core and renewable-fuel return runs passed at full hull. A separate earned continuation built warehouses and extractors on Cryo and Mars, shipped mined nickel home and installed reinforced hull, then retained both colonies through reload. Fixture tests cover migration, freight/travel failures, legacy recovery, specialist ownership and responsive layouts. Controlled-clock checks are labelled separately in [QA](docs/QA.md).
 
 The homepage distinguishes the current public build from this undeployed local update. No commit, push, deployment or external publication has been performed. Promotional captures stay under ignored `output/marketing/`; QA stays under ignored `output/playwright/`. Physical Android hardware remains untested here.
+
+Homepage spacing: the hero starts 24px below the token notice on desktop and 20px on phones; oversized minimum height and duplicate top padding are removed.
+
+
+## Cargo and selling
+The cargo HUD, mothership storage and Sell ore entry now open one fullscreen view showing Miner, Mothership and current Planet warehouse quantities side by side. Select an ore quantity in its source column, choose Transfer or Sell for credits, then .5/1/5/Max. The sell button names the exact quantity and credit payout and uses the best current civilian offer. Sales debit only the named source; ship sales require mothership access and planetary sales require local storage access, in addition to an online uplink and sales access. Remote warehouses remain inaccessible. No transfer into the miner is required before selling accessible stored stock. Discard remains miner-only. Compact screens page ore rows while keeping all three totals and action controls visible.
+
+Hover over the HUD Cargo readout for a live miner-only ore breakdown. Keyboard focus also reveals it; clicking or tapping opens full cargo management.

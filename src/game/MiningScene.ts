@@ -1,3 +1,4 @@
+import { sellInventory } from './economy/InventorySale';
 import { installSpecialist } from './economy/SpecialistModules';
 import { coreExtractionStep } from './campaign/RenewableFuel';
 import { FRONTIER } from './config';
@@ -419,14 +420,13 @@ export class MiningScene extends Phaser.Scene {
           this.save();
           this.ui.toast(this.saves.warning || 'Expedition saved. Your tunnels are here to stay.');
         },
-        shipCivilian: (buyer: CivilisationId, requested: Cargo) => {
+        shipCivilian: (buyer: CivilisationId, requested: Cargo, source: 'miner' | 'ship' | 'planet' = 'miner') => {
           if (!this.sellAccess || !Object.hasOwn(CIVILISATIONS, buyer)) return 0;
-          const p = this.progress, previous = { cargo: p.cargo, money: p.money, deliveries: p.deliveries };
-          const result = settleCivilianShipment(p.cargo, requested, buyer, p.deliveries);
-          if (!result.total) return 0;
-          p.cargo = result.remaining; p.money += result.total; p.deliveries = result.deliveries;
-          if (!this.save()) { Object.assign(p, previous); this.rememberCurrentMap(); this.ui.toast('Shipment not saved. Ore and credits restored.'); return 0; }
-          this.soundFx.reward(); return result.total;
+          if (source === 'ship' && !this.isNearMothership() || source === 'planet' && !this.nearbyWarehouse) return 0;
+          const p = this.progress, stock = source === 'miner' ? p.cargo : source === 'ship' ? p.shipCargo : this.warehouseCargo;
+          const total = sellInventory(p, stock, buyer, requested, () => !!this.save());
+          if (!total) { this.rememberCurrentMap(); this.ui.toast('Sale not completed. Ore retained.'); return 0; }
+          this.soundFx.reward(); return total;
         },
         sell: (buyerMapId?: MapId) => {
           if (!this.sellAccess) return undefined;
