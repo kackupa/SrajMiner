@@ -18,6 +18,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
         <button id="save" aria-label="SAVE EXPEDITION">Save expedition <span aria-hidden="true">↓</span></button>
         ${exportControl}
         <button id="import-save" aria-label="IMPORT SAVE">Import save <span aria-hidden="true">↥</span></button>
+        <button id="account" aria-label="ACCOUNT AND BACKUPS">Account <span aria-hidden="true">↗</span></button>
       </div>
       <p class="pause-save-state" id="pause-save-state" role="status">${saveStatus}</p>
       <div class="pause-secondary"><button id="rescue">Emergency recovery</button><button id="new">New expedition</button></div>

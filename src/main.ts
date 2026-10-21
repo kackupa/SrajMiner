@@ -41,3 +41,5 @@ import './game/ui/ColonyOverview.css';
 
 import './game/ui/ColonyOrders.css';
 import './game/ui/FreightView.css';
+import './game/ui/AccountPanel.css';
+import './game/ui/VerifiedMiningPanel.css';

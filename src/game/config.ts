@@ -620,6 +620,9 @@ export const CIVILIAN_DEMAND = { premium: 0.35 } as const;
 
 /** Pre-build release policy. Core collection is retained; interplanetary flight is not released. */
 export const PREBUILD = { travelEnabled: false, basicRigMaxLevel: 5 } as const;
+/** Verified starter workshop exposes only tracks already wired into server replay. */
+export const ONLINE_BASIC_UPGRADES = ['drill','fuel','cargo','hull','engine'] as const;
+export type OnlineBasicUpgrade = typeof ONLINE_BASIC_UPGRADES[number];
 export const RIG_MATERIAL_BASE: Record<Upgrade, Partial<Record<Ore, number>>> = {
   drill: { iron: 3, copper: 2 }, fuel: { copper: 3, silver: 1 }, cargo: { iron: 3, copper: 3 },
   hull: { iron: 4, copper: 1 }, engine: { copper: 3, iron: 2 }, scanner: { copper: 2, silver: 2 }, grapple: { iron: 2, copper: 2 },
@@ -649,3 +652,20 @@ export const SPECIALIST_MODULES = {
   efficientCooling: { name: 'Efficient cooling', materials: { cryocrystal: 4, copper: 4 }, drillingMultiplier: 0.9 },
 } as const;
 export type SpecialistModule = keyof typeof SPECIALIST_MODULES;
+
+/** Beta exchange limits. Server rules must use the same versioned values. */
+export const ONLINE_RULESET = 'online-1' as const;
+export const PLAYER_EXCHANGE_LIMITS = {
+  activeListings: 10,
+  minQuantityHalfUnits: 1,
+  maxQuantityHalfUnits: 2_000,
+  minPriceCreditsPerOre: 1,
+  maxPriceCreditsPerOre: 100_000,
+  maxListingTotalCreditMinor: 1_000_000_000,
+} as const;
+export const ONLINE_INPUT_LIMITS = {
+  fixedStepMs: 20,
+  maxSegmentMs: 240,
+  maxSegmentsPerBatch: 20,
+  maxBatchMs: 1_000,
+} as const;

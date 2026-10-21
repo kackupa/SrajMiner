@@ -39,6 +39,8 @@ import { contractReady, marketContract, marketDemand, marketDemandBonus } from '
 import type { WarehouseDirection } from '../economy/Warehouse';
 import { CARGO_TUG_PROJECT, SURVEY_ARRAY_PROJECT, VESPER_RELAY_PROJECT, cargoTugProgress, surveyArrayProgress, vesperRelayProgress } from '../economy/SystemProjects';
 import { pauseScreen } from './PauseScreen';
+import { AccountPanel } from './AccountPanel';
+import { onlineSignInErrorMessage } from '../online/AuthClient';
 import { campDock, campShell, servicePanel, workshopPanel, CAMP_MENUS, credits, type WorkshopSection } from './CampUI';
 export const flightWarning = (input: {
   surface: boolean;
@@ -247,6 +249,8 @@ export class HUD {
   warehouseSourceMap: MapId = 'cryo-shelf';
   returnFocus: HTMLElement | null = null;
   introStep: 'title' | 'atlas' | 'controls' = 'title';
+  private accountPanel?: AccountPanel;
+  private accountReturn: 'intro' | 'pause' = 'intro';
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     document.querySelector('#route-map-panel')!.classList.toggle('hidden', !this.mapOpen);
@@ -440,6 +444,12 @@ export class HUD {
     });
     document.querySelector('.brand')!.addEventListener('click', (e) => e.preventDefault());
     this.showIntro();
+    const url = new URL(location.href);
+    if (url.searchParams.get('account') === '1' || onlineSignInErrorMessage(url.hash)) {
+      url.searchParams.delete('account');
+      history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+      this.openAccount('intro');
+    }
   }
   on(id: string, fn: () => void) {
     document.getElementById(id)?.addEventListener('click', fn);
@@ -479,6 +489,7 @@ export class HUD {
     this.colonySelection = index; this.open('building');
   }
   open(name: string) {
+    this.accountPanel?.close();
     if(name === 'destinations') this.starMapReturn = this.modal;
     if (name === 'service' && !this.actions.serviceAccess()) return;
     if (['cargo', 'warehouse', 'sell'].includes(name)) { this.freightSelection.selling = name === 'sell'; this.freightSelection.notice = ''; }
@@ -514,6 +525,7 @@ export class HUD {
     (document.querySelector('#game') as HTMLElement).focus();
   }
   showIntro() {
+    this.accountPanel?.close();
     this.clearPages();
     this.modal = 'intro';
     this.paused = true;
@@ -537,7 +549,7 @@ export class HUD {
     const touch = matchMedia('(any-pointer: coarse)').matches;
     const atlas = legacyMars ? '' : atlasMarkup(this.mapId);
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
-    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${intro.eyebrow}</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Return</b><small>Fly up your open tunnel</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button></nav></div>`;
+    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${intro.eyebrow}</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Return</b><small>Fly up your open tunnel</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button><button type="button" id="intro-account">Account</button></nav></div>`;
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
     const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP · BRAKE DESCENT</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>NEARBY STATION · BOARD AT SHIP</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>G</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">Q MINING CHARGE · X STASIS · R SURFACE WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
@@ -552,6 +564,7 @@ export class HUD {
       document.querySelector('#atlas-copy')!.textContent = node.dataset.copy ?? '';
     }));
     this.on('intro-atlas', () => this.open('destinations'));
+    this.on('intro-account', () => this.openAccount('intro'));
     this.on('intro-controls', () => { this.introStep = 'controls'; this.showIntro(); });
     this.on('intro-back', () => { this.introStep = 'title'; this.showIntro(); });
     this.on('launch', () => {
@@ -566,6 +579,23 @@ export class HUD {
     document.getElementById(step === 'title' ? 'launch' : 'intro-back')?.focus();
   }
   private lastRenderedModal = "";
+  private openAccount(origin: 'intro' | 'pause') {
+    this.clearPages();
+    this.accountReturn = origin;
+    this.modal = 'account';
+    this.setMode(true);
+    const host = document.querySelector<HTMLElement>('#modal-layer')!;
+    this.accountPanel = new AccountPanel(host, () => {
+      this.accountPanel?.close();
+      if (this.accountReturn === 'intro') this.showIntro();
+      else this.open('pause');
+    }, () => {
+      this.saveFailed = false;
+      this.actions.save();
+      return !this.saveFailed;
+    });
+    void this.accountPanel.open();
+  }
   renderModal() {
     this.clearPages();
     const name = this.modal,
@@ -768,6 +798,7 @@ export class HUD {
     this.on('codex-next', () => { this.codexPage++; this.renderModal(); });
     document.querySelectorAll<HTMLButtonElement>('[data-codex-section]').forEach(b => b.onclick = () => { this.codexSection=Number(b.dataset.codexSection); this.codexPage=0; this.renderModal(); });
     this.on('codex-back', () => this.open(this.codexReturn));
+    if (name === 'pause') this.on('account', () => this.openAccount('pause'));
     document.querySelectorAll<HTMLButtonElement>('[data-codex]').forEach(node => node.onclick = () => this.openCodex(node.dataset.codex!));
     for (const key of campLinks) this.on(`camp-nav-${key}`, () => this.open(key));
     document.querySelectorAll<HTMLButtonElement>('[data-hub]').forEach(node => node.onclick = () => this.open(node.dataset.hub!));
