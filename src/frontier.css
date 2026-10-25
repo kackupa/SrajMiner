@@ -422,3 +422,79 @@ footer .bank { margin-left:auto; font-size:10px; }
  .intro-step-title .intro-title-screen #launch { grid-column:1; width:100%; margin:0; }
  .intro-step-title .intro-secondary { grid-column:2; grid-row:4; margin:0; gap:20px; }
 }
+
+/* Hints reveal on proximity without consuming gameplay clicks. */
+#tip { pointer-events: none; transition: opacity .4s ease; }
+@media (prefers-reduced-motion: reduce) { #tip { transition: none; } }
+
+#quick-unload { width:100%; min-height:48px; margin-bottom:8px; padding:12px; background:#173e43; border:1px solid #8edac2; color:#d5f5e9; font:inherit; cursor:pointer; }
+#quick-unload:disabled { opacity:.65; cursor:default; }
+#quick-unload[hidden] { display:none; }
+
+/* Stable operations home: every core destination fits together. */
+.camp-hub .camp-sidebar { display:none; }
+.camp-hub .camp-main { grid-column:1 / -1; min-height:0; display:flex; flex-direction:column; padding:clamp(12px,3vh,28px) clamp(16px,5vw,80px); overflow:hidden; }
+.camp-hub .camp-heading { flex:none; margin:0 0 6px; }
+.camp-hub .camp-heading h2 { font-size:clamp(26px,4vh,40px); margin:4px 0; }
+.camp-hub .camp-heading p { margin:4px 0; }
+.camp-hub .camp-content { flex:1; min-height:0; display:flex; flex-direction:column; }
+.camp-hub .hub-status { flex:none; padding:8px 0 12px; flex-wrap:wrap; gap:12px 24px; }
+.camp-hub .operations-grid { flex:1; min-height:0; grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); gap:12px; }
+.camp-hub .operations-grid button { min-height:0; padding:clamp(10px,2vh,22px); }
+.camp-hub .operations-grid b { font-size:clamp(18px,2.6vh,26px); margin:8px 0; }
+.camp-hub .hub-secondary { display:flex; gap:12px; flex:none; padding-top:10px; }
+.camp-hub .hub-secondary button { padding:8px 12px; font-size:12px; }
+@media(max-width:600px) and (min-height:501px) {
+ .camp-hub .operations-grid { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:repeat(3,minmax(0,1fr)); gap:8px; }
+ .camp-hub .operations-grid small { font-size:11px; }
+ .camp-hub .hub-secondary { flex-wrap:wrap; gap:4px; }
+}
+@media(max-height:500px) {
+ .camp-hub .camp-main { padding:6px 16px; }
+ .camp-hub .camp-heading { display:none; }
+ .camp-hub .hub-status { padding:2px 0 6px; }
+ .camp-hub .operations-grid { gap:6px; }
+ .camp-hub .operations-grid button { padding:7px 10px; }
+ .camp-hub .operations-grid b { font-size:18px; margin:2px 0; }
+ .camp-hub .operations-grid small { font-size:10px; line-height:1.2; }
+ .camp-hub .operations-grid button > span { display:none; }
+ .camp-hub .hub-secondary { padding-top:4px; }
+ .camp-hub .hub-secondary button { padding:5px 10px; }
+}
+
+@media (max-width:900px) {
+ #modal-layer:has(.intro) { background-color:#081420; background-image:linear-gradient(180deg,#081420 0%,#081420 64%,#08142055 73%,#08142000 84%),url('/frontier-mobile.svg'); background-position:center,bottom right; background-size:100% 100%,100% auto; background-repeat:no-repeat; }
+}
+
+/* Core actions stay on the launch screen, including combat and cargo drop-off. */
+.intro-step-title .learn-loop { max-width:680px; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px 12px; }
+.intro-step-title .learn-loop > div { display:block; padding:8px 4px; min-width:0; }
+.intro-step-title .learn-loop kbd { max-width:100%; white-space:normal; font-size:10px; }
+@media(max-width:560px) {
+ .intro-step-title .learn-loop { gap:2px 6px; }
+ .intro-step-title .learn-loop kbd { font-size:9px; padding:3px; }
+ .intro-step-title .learn-loop small { line-height:1.3; }
+}
+@media(max-height:600px) and (min-width:600px) {
+ .intro-step-title .learn-loop { grid-template-columns:repeat(2,minmax(0,1fr)); gap:2px 10px; }
+ .intro-step-title .learn-loop > div { padding:5px 2px; }
+ .intro-step-title .learn-loop kbd { margin-bottom:3px; }
+ .intro-step-title .learn-loop b { font-size:14px; }
+ .intro-step-title .learn-loop small { font-size:10px; line-height:1.2; }
+}
+/* Shared navigation stays in the same place across operation screens. */
+#modal-layer:has(.operations-nav) { --operations-nav-height:52px; }
+.operations-nav { position:fixed; inset:0 0 auto; height:var(--operations-nav-height); z-index:100; display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:4px; padding:6px 12px; background:#081923; border-bottom:1px solid #395462; box-sizing:border-box; }
+.operations-nav button { min-width:0; padding:6px; font:12px 'DM Sans',sans-serif; color:#a9c4d0; background:transparent; border:1px solid transparent; }
+.operations-nav button[aria-current="page"] { color:#ffbc73; background:#203744; border-color:#b88145; }
+.operations-nav button:focus-visible { outline:2px solid #91dedc; }
+#modal-layer .modal.operations-panel { position:fixed!important; inset:var(--operations-nav-height) 0 0!important; transform:none!important; margin:0!important; width:100%!important; max-width:none!important; height:calc(100dvh - var(--operations-nav-height))!important; max-height:calc(100dvh - var(--operations-nav-height))!important; min-height:0!important; box-sizing:border-box; }
+.operations-panel .camp-sidebar { display:none; }
+.operations-panel .camp-main { grid-column:1/-1; }
+#quick-repair { width:100%; min-height:44px; padding:10px; margin-bottom:6px; background:#233e48; border:1px solid #e3b371; color:#ffe0b5; font:inherit; cursor:pointer; }
+#quick-repair:disabled { opacity:.65; cursor:default; }
+#quick-repair[hidden] { display:none; }
+@media(max-width:600px) { #modal-layer:has(.operations-nav) { --operations-nav-height:88px; } .operations-nav { grid-template-columns:repeat(4,minmax(0,1fr)); padding:4px 6px; gap:2px; } .operations-nav button { font-size:11px; padding:4px; } }
+@media(max-height:500px) and (min-width:601px) { #modal-layer:has(.operations-nav) { --operations-nav-height:40px; } .operations-nav { padding:3px 8px; } }
+
+#station-dock.warehouse-only > :not(#quick-unload) { display:none !important; }

@@ -173,7 +173,7 @@ export class VerifiedMiningPanel {
       this.stopped = false;
       this.recoveryArmed = false;
       this.status = recoveringSale && this.controller.lastSaleReceipt
-        ? `SALE CONFIRMED · +${(this.controller.lastSaleReceipt.total_credit_minor / 100).toFixed(2)} CREDITS`
+        ? `SALE CONFIRMED · +${(this.controller.lastSaleReceipt.total_credit_minor / 100).toFixed(2)} KREDITS`
         : recoveringService && this.controller.lastServiceReceipt
           ? 'SERVICE CONFIRMED'
         : recoveringUpgrade && this.controller.lastUpgradeReceipt
@@ -271,7 +271,7 @@ export class VerifiedMiningPanel {
       ship.textContent = `SHIP ${units / 2}/${(state.ship_capacity_half_units ?? 100) / 2}`;
     }
     const credits = this.host.querySelector<HTMLElement>('#verified-credits');
-    if (credits && state) credits.textContent = `${(state.credit_minor / 100).toFixed(2)} CREDITS`;
+    if (credits && state) credits.textContent = `${(state.credit_minor / 100).toFixed(2)} KREDITS`;
     const stranded = this.isStranded();
     this.host.querySelector<HTMLElement>('.verified-modal')?.classList.toggle('stranded-mode',stranded);
     for (const button of Array.from(this.host.querySelectorAll<HTMLButtonElement>('[data-control]')))
@@ -502,7 +502,7 @@ export class VerifiedMiningPanel {
       : `${Number(upgradeValue(key,level).toFixed(2))} → ${Number(upgradeValue(key,level+1).toFixed(2))} ${UPGRADES[key].unit}`;
     this.host.querySelector<HTMLElement>('#verified-upgrade-cost')!.textContent = maxed
       ? 'NO FURTHER BASIC INSTALLATION'
-      : `${materialLines.join(' · ')} · NO CREDITS`;
+      : `${materialLines.join(' · ')} · NO KREDITS`;
     for (const button of Array.from(this.host.querySelectorAll<HTMLButtonElement>('[data-rig-upgrade]')))
       button.setAttribute('aria-pressed',String(button.dataset.rigUpgrade===key));
     const action = this.host.querySelector<HTMLButtonElement>('#verified-upgrade-install')!;
@@ -553,9 +553,9 @@ export class VerifiedMiningPanel {
     this.host.querySelector<HTMLElement>('#verified-service-fuel')!.textContent =
       `BATTERY ${(state.snapshot.fuel_milli / 1000).toFixed(1)} / ${maxFuel / 1000} · FREE RECHARGE`;
     this.host.querySelector<HTMLElement>('#verified-service-hull')!.textContent =
-      `HULL ${(state.snapshot.hull_milli / 1000).toFixed(1)} / ${maxHull / 1000} · REPAIR ${(repairMinor / 100).toFixed(2)} CREDITS`;
+      `HULL ${(state.snapshot.hull_milli / 1000).toFixed(1)} / ${maxHull / 1000} · REPAIR ${(repairMinor / 100).toFixed(2)} KREDITS`;
     this.host.querySelector<HTMLElement>('#verified-service-wallet')!.textContent =
-      `${(state.credit_minor / 100).toFixed(2)} CREDITS AVAILABLE`;
+      `${(state.credit_minor / 100).toFixed(2)} KREDITS AVAILABLE`;
     this.host.querySelector<HTMLButtonElement>('#verified-service-recharge')!.disabled =
       this.busy || this.stopped || missingFuel === 0;
     this.host.querySelector<HTMLButtonElement>('#verified-service-repair')!.disabled =
@@ -580,7 +580,7 @@ export class VerifiedMiningPanel {
       const message = error instanceof Error ? error.message : '';
       if (message.includes('ACCESS_REQUIRED')) this.status = 'RETURN NEAR SHIP';
       else if (message.includes('INSUFFICIENT_CREDITS')) {
-        await this.reloadAfterRejected('CREDITS CHANGED · STATE REFRESHED');
+        await this.reloadAfterRejected('KREDITS CHANGED · STATE REFRESHED');
         return;
       } else if (message.includes('NO_SERVICE_NEEDED')) {
         await this.reloadAfterRejected('RIG ALREADY SERVICED');
@@ -602,7 +602,7 @@ export class VerifiedMiningPanel {
       `${this.transferSource.toUpperCase()} · ${ORES[this.selectedOre].name.toUpperCase()} · ${stock / 2} AVAILABLE`;
     this.host.querySelector<HTMLElement>('#verified-sale-amount')!.textContent = `${this.transferQuantity / 2} ORE`;
     this.host.querySelector<HTMLElement>('#verified-sale-wallet')!.textContent =
-      `CREDITS ${(this.controller.state?.credit_minor ?? 0) / 100}`;
+      `KREDITS ${(this.controller.state?.credit_minor ?? 0) / 100}`;
     this.host.querySelector<HTMLElement>('#verified-sale-notice')!.textContent = this.saleNotice;
     for (const button of Array.from(this.host.querySelectorAll<HTMLButtonElement>('[data-civilian-buyer]')))
       button.setAttribute('aria-pressed', String(button.dataset.civilianBuyer === this.saleBuyer));
@@ -616,7 +616,7 @@ export class VerifiedMiningPanel {
       offer.source === this.transferSource && offer.buyer === this.saleBuyer &&
       offer.ore === this.selectedOre && offer.quantity_half_units === this.transferQuantity;
     this.host.querySelector<HTMLElement>('#verified-sale-offer')!.textContent = matches
-      ? `${offer.project ?? 'NO ACTIVE PROJECT'} · BASE ${(offer.gross_credit_minor / 100).toFixed(2)} + BONUS ${(offer.bonus_credit_minor / 100).toFixed(2)} = ${(offer.total_credit_minor / 100).toFixed(2)} CREDITS`
+      ? `${offer.project ?? 'NO ACTIVE PROJECT'} · BASE ${(offer.gross_credit_minor / 100).toFixed(2)} + BONUS ${(offer.bonus_credit_minor / 100).toFixed(2)} = ${(offer.total_credit_minor / 100).toFixed(2)} KREDITS`
       : 'NO CONFIRMED OFFER';
     this.host.querySelector<HTMLButtonElement>('#verified-sale-confirm')!.disabled =
       this.busy || this.stopped || !matches;
@@ -660,7 +660,7 @@ export class VerifiedMiningPanel {
       const receipt = this.controller.lastSaleReceipt;
       this.saleQuote = null;
       this.saleNotice = receipt
-        ? `SALE CONFIRMED · +${(receipt.total_credit_minor / 100).toFixed(2)} CREDITS`
+        ? `SALE CONFIRMED · +${(receipt.total_credit_minor / 100).toFixed(2)} KREDITS`
         : 'SALE CONFIRMED';
       this.status = 'SERVER CONNECTED';
       this.showStatus();
@@ -749,12 +749,12 @@ export class VerifiedMiningPanel {
   private renderShell(): void {
     this.host.innerHTML = `<section class="modal verified-modal" role="dialog" aria-modal="true" aria-label="Verified Online mining">
       <div class="verified-top"><div><span class="eyebrow">ORE FRONTIER / VERIFIED ONLINE</span><h2 id="verified-title">Mining expedition</h2></div><button id="verified-exit">RETURN TO LOCAL</button></div>
-      <div class="verified-readouts"><span id="verified-status" role="status">CONNECTING</span><span id="verified-depth">0 M</span><span id="verified-ship">SHIP 0/50</span><span id="verified-credits">0.00 CREDITS</span><span id="verified-cargo">EMPTY HOLD</span></div>
+      <div class="verified-readouts"><span id="verified-status" role="status">CONNECTING</span><span id="verified-depth">0 M</span><span id="verified-ship">SHIP 0/50</span><span id="verified-Kredits">0.00 KREDITS</span><span id="verified-cargo">EMPTY HOLD</span></div>
       <canvas id="verified-world" aria-label="Canonical online mining world"></canvas>
       <div class="verified-controls" aria-label="Mining controls"><button data-control="left">◀ LEFT</button><button data-control="down">▼ DRILL</button><button data-control="right">RIGHT ▶</button><button data-control="up">▲ UP</button></div>
       <div id="verified-cargo-view" class="verified-cargo-view" hidden><div class="verified-cargo-title"><b>MOVE EARNED ORE</b><button id="verified-cargo-back">BACK TO MINING</button></div><div class="verified-cargo-choice"><button id="verified-transfer-source">MINER → SHIP</button><div><button id="verified-ore-prev" aria-label="Previous ore">◀</button><strong id="verified-transfer-ore">COPPER</strong><button id="verified-ore-next" aria-label="Next ore">▶</button></div></div><div class="verified-cargo-quantity"><span id="verified-transfer-stock">SOURCE 0 · ROOM 0</span><div><button id="verified-transfer-minus" aria-label="Remove half ore">−</button><b id="verified-transfer-amount">0.5 ORE</b><button id="verified-transfer-plus" aria-label="Add half ore">+</button></div></div><button id="verified-transfer" class="primary">TRANSFER ORE</button><button id="verified-build-uplink">BUILD MARKET UPLINK · 4 CU / 4 FE / 2 AG</button><button id="verified-open-sale" hidden>SELL TO CIVILIANS</button><button id="verified-open-service">RECHARGE & REPAIR</button><button id="verified-open-upgrade">RIG UPGRADES</button></div>
-      <div id="verified-sale-view" class="verified-sale-view" hidden><div class="verified-sale-title"><b>SELL TO CIVILIANS</b><button id="verified-sale-back">BACK TO CARGO</button></div><div class="verified-sale-summary"><span id="verified-sale-source">MINER · COPPER</span><span id="verified-sale-wallet">CREDITS 0</span></div><div class="verified-sale-buyers" role="group" aria-label="Civilian buyer">${CIVILISATION_KEYS.map(buyer => `<button data-civilian-buyer="${buyer}" aria-pressed="${buyer === this.saleBuyer}">${CIVILISATIONS[buyer].name}</button>`).join('')}</div><div class="verified-sale-quantity"><button id="verified-sale-minus" aria-label="Remove half ore from sale">−</button><b id="verified-sale-amount">0.5 ORE</b><button id="verified-sale-plus" aria-label="Add half ore to sale">+</button></div><div class="verified-sale-offer"><output id="verified-sale-offer">NO CONFIRMED OFFER</output><small id="verified-sale-notice" role="status">Check a server offer before selling.</small></div><div class="verified-sale-actions"><button id="verified-sale-quote">CHECK SERVER OFFER</button><button id="verified-sale-confirm" class="primary" disabled>CONFIRM CIVILIAN SALE</button></div></div>
-      <div id="verified-service-view" class="verified-service-view" hidden><div class="verified-service-title"><b>SHIP SERVICE BAY</b><button id="verified-service-back">BACK TO CARGO</button></div><div class="verified-service-items"><article><b id="verified-service-fuel">BATTERY</b><button id="verified-service-recharge">RECHARGE · FREE</button></article><article><b id="verified-service-hull">HULL</b><button id="verified-service-repair">REPAIR HULL</button></article></div><div class="verified-service-bottom"><span id="verified-service-wallet">0.00 CREDITS AVAILABLE</span><button id="verified-service-both" class="primary">RECHARGE & REPAIR</button><small>Dock near the landed ship. The server checks condition and cost at confirmation.</small></div></div>
+      <div id="verified-sale-view" class="verified-sale-view" hidden><div class="verified-sale-title"><b>SELL TO CIVILIANS</b><button id="verified-sale-back">BACK TO CARGO</button></div><div class="verified-sale-summary"><span id="verified-sale-source">MINER · COPPER</span><span id="verified-sale-wallet">KREDITS 0</span></div><div class="verified-sale-buyers" role="group" aria-label="Civilian buyer">${CIVILISATION_KEYS.map(buyer => `<button data-civilian-buyer="${buyer}" aria-pressed="${buyer === this.saleBuyer}">${CIVILISATIONS[buyer].name}</button>`).join('')}</div><div class="verified-sale-quantity"><button id="verified-sale-minus" aria-label="Remove half ore from sale">−</button><b id="verified-sale-amount">0.5 ORE</b><button id="verified-sale-plus" aria-label="Add half ore to sale">+</button></div><div class="verified-sale-offer"><output id="verified-sale-offer">NO CONFIRMED OFFER</output><small id="verified-sale-notice" role="status">Check a server offer before selling.</small></div><div class="verified-sale-actions"><button id="verified-sale-quote">CHECK SERVER OFFER</button><button id="verified-sale-confirm" class="primary" disabled>CONFIRM CIVILIAN SALE</button></div></div>
+      <div id="verified-service-view" class="verified-service-view" hidden><div class="verified-service-title"><b>SHIP SERVICE BAY</b><button id="verified-service-back">BACK TO CARGO</button></div><div class="verified-service-items"><article><b id="verified-service-fuel">BATTERY</b><button id="verified-service-recharge">RECHARGE · FREE</button></article><article><b id="verified-service-hull">HULL</b><button id="verified-service-repair">REPAIR HULL</button></article></div><div class="verified-service-bottom"><span id="verified-service-wallet">0.00 KREDITS AVAILABLE</span><button id="verified-service-both" class="primary">RECHARGE & REPAIR</button><small>Dock near the landed ship. The server checks condition and cost at confirmation.</small></div></div>
       <div id="verified-upgrade-view" class="verified-upgrade-view" hidden><div class="verified-upgrade-title"><b>RIG WORKSHOP</b><button id="verified-upgrade-back">BACK TO CARGO</button></div><div class="verified-upgrade-keys" role="group" aria-label="Basic rig upgrades">${ONLINE_BASIC_UPGRADES.map(key => `<button data-rig-upgrade="${key}" aria-pressed="${key===this.selectedUpgrade}">${UPGRADES[key].name}</button>`).join('')}</div><div class="verified-upgrade-detail"><b id="verified-upgrade-level">DRILL · LEVEL 1 / 5</b><span id="verified-upgrade-effect">1 → 1.5</span><span id="verified-upgrade-cost">MINER + SHIP MATERIALS</span></div><button id="verified-upgrade-install" class="primary">INSTALL UPGRADE</button></div>
       <div class="verified-actions"><span id="verified-control-hint">WASD or arrow keys · hold S to drill</span><button id="verified-cargo-open">CARGO</button><button id="verified-travel" hidden>JUMP TO MARS</button><button id="verified-recover" hidden>RECOVER POD</button><button id="verified-retry" hidden>RETRY</button><button id="verified-refresh" hidden>REFRESH STATE</button><button id="verified-takeover" hidden>TAKE OVER SESSION</button></div>
     </section>`;

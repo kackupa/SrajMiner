@@ -181,7 +181,7 @@ export class PlayerPod {
       const nextY = y + vy * step;
       const townLanding = this.townPlatformCrossing(x, y, nextY, gravitySign, !!input.down);
       const structureLanding = crossedStructureDeck(this.structures, x, y, nextY, gravitySign, P.halfHeight, !!input.down);
-      const surfaceY = surfaceYAt(y, this.world.planetChart), dockY = surfaceY - gravitySign * 22;
+      const surfaceY = this.world.surfaceHeight(x, y), dockY = surfaceY - gravitySign * 22;
       const movingOutward = vy * -gravitySign > 0;
       const crossesDock = movingOutward && (gravitySign > 0
         ? y >= dockY && nextY <= dockY
@@ -348,9 +348,11 @@ export class PlayerPod {
         hitsY = this.overlaps(this.x, ny, cameraRotation);
       const platformY = this.townPlatformCrossing(this.x, this.y, ny, stepGravity, input.down);
       const builtDeckY = crossedStructureDeck(this.structures, this.x, this.y, ny, stepGravity, P.halfHeight, input.down);
-      const surfaceY = surfaceYAt(this.y, this.world.planetChart), dockY = surfaceY - stepGravity * 22,
+      const surfaceY = this.world.surfaceHeight(this.x, this.y), dockY = surfaceY - stepGravity * 22,
         movingOutward = this.vy * -stepGravity > 0,
-        surfaceBoundary = this.world.planetChart
+        surfaceBoundary = this.world.terrain
+          ? this.world.solid(Math.floor(this.x / WORLD.tile), Math.floor((surfaceY + stepGravity) / WORLD.tile))
+          : this.world.planetChart
           ? onPlanetSurface(this.x, dockY, this.world.planetChart)
           : atSurface(this.x, dockY),
         crossesDock = stepGravity > 0 ? this.y >= dockY && ny <= dockY : this.y <= dockY && ny >= dockY;

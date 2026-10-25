@@ -2,7 +2,7 @@ import { UPGRADES, UPGRADE_KEYS, upgradeValue, upgradeGateLabel, DRILL_TIERS, dr
 import type { Progress } from '../economy/Progress';
 import { podPortrait } from './PodPortrait';
 
-export const credits = (n: number) => `$${Math.ceil(n).toLocaleString()}`;
+export const credits = (n: number) => `K ${Math.ceil(n).toLocaleString()}`;
 const number = (n: number) => Number(n.toFixed(2)).toLocaleString();
 export type WorkshopSection = 'miner' | 'equipment' | 'pilot';
 export const CAMP_MENUS = ['hub', 'more', 'codex', 'sell', 'service', 'upgrades', 'paints', 'archive', 'shipyard', 'destinations', 'warehouse', 'construction'];
@@ -10,11 +10,12 @@ const labels: Record<string, [string, string]> = {
   hub: ['Mothership', 'Prepare your next run'],
   more: ['Explore & customise', 'Optional expedition tools'],
   codex: ['Expedition Codex', 'Engineering & frontier history'],
-  sell: ['Sell ore', 'Turn ore into credits'], service: ['Service bay', 'Recharge & repair'],
+  sell: ['Sell ore', 'Turn ore into Kredits'], service: ['Service bay', 'Recharge & repair'],
   upgrades: ['Workshop', 'Upgrade your miner'], paints: ['Paint shop', 'Make it yours'],
   archive: ['Mining log', 'Your progress'], shipyard: ['Core drive', 'Your way to other worlds'],
   destinations: ['Star map', 'Depart for Cryo or Mars'], warehouse: ['Cargo & selling', 'Miner / Mothership / Planet'],
-  construction: ['Build yard', 'Grow your outpost'],
+  construction: ['Build structures', 'Grow your outpost'],
+  colony: ['Your colony', 'Manage your buildings'],
 };
 
 /** Original line illustrations, deliberately readable at both card and detail sizes. */
@@ -40,7 +41,7 @@ export function campDock() {
   return `<nav class="station-dock camp-dock" id="station-dock" aria-label="Mining camp services">
     <header class="camp-dock-head"><span class="camp-live">● MOTHERSHIP SERVICES</span><h2>Expedition hub.</h2><span id="town-status">Landed expedition hub</span></header>
     <div class="camp-quick-label">QUICK SERVICES</div><div class="camp-dock-actions">
-      <button id="open-sell"><span class="camp-action-icon">↗</span><span><b>Sell ore</b><small id="camp-sell-hint">Turn your haul into credits</small></span><span class="camp-arrow">›</span></button>
+      <button id="open-sell"><span class="camp-action-icon">↗</span><span><b>Sell ore</b><small id="camp-sell-hint">Turn your haul into Kredits</small></span><span class="camp-arrow">›</span></button>
       <button id="open-service"><span class="camp-action-icon">＋</span><span><b>Recharge & repair</b><small id="camp-service-hint">Get ready for another run</small></span><span class="camp-arrow">›</span></button>
       <button id="open-upgrades"><span class="camp-action-icon">⚙</span><span><b>Upgrade miner</b><small>Better tools. Longer expeditions.</small></span><span class="camp-arrow">›</span></button>
     </div>
@@ -51,7 +52,7 @@ export function campDock() {
 export function campShell(name: string, title: string, subtitle: string, content: string, p: Progress,
   mapId: MapId, links: string[], notice: string) {
   return `<section class="modal camp-screen camp-${name}" role="dialog" aria-modal="true" aria-label="${labels[name]?.[0] ?? title}">
-    <header class="camp-top"><div><span class="camp-live">● EXPEDITION / ${MAPS[mapId].name}</span><b>${p.milestones.includes('mothership-origin') ? 'Mothership operations' : 'Mining camp'}</b></div><div class="camp-wallet"><small>YOUR CREDITS</small><strong>${credits(p.money)}</strong></div><button id="close" class="close camp-exit" aria-label="Return to mine">Return to mine <kbd>Esc</kbd></button></header>
+    <header class="camp-top"><div><span class="camp-live">● EXPEDITION / ${MAPS[mapId].name}</span><b>${p.milestones.includes('mothership-origin') ? 'Mothership operations' : 'Mining camp'}</b></div><div class="camp-wallet"><small>YOUR KREDITS</small><strong>${credits(p.money)}</strong></div><button id="close" class="close camp-exit" aria-label="Return to mine">Return to mine <kbd>Esc</kbd></button></header>
     <aside class="camp-sidebar"><div class="camp-rig">${podPortrait(p)}<span>YOUR MINER · ${Math.round(p.hull / p.max('hull') * 100)}% HULL</span></div><nav aria-label="Camp services">${links.map(key => `<button id="camp-nav-${key}" aria-current="${key === name ? 'page' : 'false'}"><span>${labels[key]?.[0] ?? key}</span><span aria-hidden="true">${key === name ? '●' : '›'}</span></button>`).join('')}</nav></aside>
     <main class="camp-main"><header class="camp-heading"><span class="eyebrow">${labels[name]?.[0] ?? 'CAMP SERVICES'}</span><h2>${title}</h2><p>${subtitle}</p></header><div id="camp-notice" class="camp-notice ${notice ? '' : 'is-empty'}" role="status" aria-live="polite">${notice}</div><div class="camp-content">${content}</div></main>
     <footer class="camp-bottom"><span>● Expedition paused · Purchases save automatically</span><span>MOTHERSHIP / FIELD OPERATIONS</span></footer>
@@ -63,7 +64,7 @@ export function servicePanel(p: Progress, rechargeAvailable = true) {
   return `<p class="camp-section-intro">Your rig runs on a battery. Return to the mothership to recharge for free. Planetary core fuel powers the mothership’s travel.</p><div class="camp-service-grid">
     <article class="camp-service-card">${equipmentArt('fuel')}<span class="eyebrow">RIG BATTERY</span><h3>${Math.ceil(p.fuel / p.max('fuel') * 100)}<small>% charged</small></h3><div class="camp-gauge"><i style="width:${p.fuel / p.max('fuel') * 100}%"></i></div><p>${rechargeAvailable ? 'Mothership charging connection ready.' : 'Return to the mothership to recharge.'}</p><button id="service-fuel" ${!needsCharge || !rechargeAvailable ? 'disabled' : ''}>${!needsCharge ? 'Fully charged' : rechargeAvailable ? 'Recharge · Free' : 'Mothership required'}</button></article>
     <article class="camp-service-card">${equipmentArt('hull')}<span class="eyebrow">HULL CONDITION</span><h3>${Math.ceil(p.hull / p.max('hull') * 100)}<small>% intact</small></h3><div class="camp-gauge"><i style="width:${p.hull / p.max('hull') * 100}%"></i></div><p>Repair damage from your last run.</p><button id="service-hull" ${!needsRepair || p.money < hullCost ? 'disabled' : ''}>${needsRepair ? `Repair · ${credits(hullCost)}` : 'No repairs needed'}</button>${p.money < hullCost ? `<small class="purchase-reason">Need ${credits(hullCost - p.money)} more. Recharging is still free.</small>` : ''}</article>
-    </div><div class="camp-checkout"><div><b>Ready for another run</b><small>Recharging costs no credits. ${needsRepair ? `Hull repairs: ${credits(hullCost)}.` : 'Hull is fully repaired.'}</small></div><button id="service-all" class="primary" ${!rechargeAvailable || !needsCharge && !needsRepair || p.money < hullCost ? 'disabled' : ''}>Recharge & repair · ${credits(hullCost)}</button></div>`;
+    </div><div class="camp-checkout"><div><b>Ready for another run</b><small>Recharging costs no Kredits. ${needsRepair ? `Hull repairs: ${credits(hullCost)}.` : 'Hull is fully repaired.'}</small></div><button id="service-all" class="primary" ${!rechargeAvailable || !needsCharge && !needsRepair || p.money < hullCost ? 'disabled' : ''}>Recharge & repair · ${credits(hullCost)}</button></div>`;
 }
 
 const upgradeCopy: Record<Upgrade, [string, string]> = {
@@ -102,5 +103,5 @@ export function workshopPanel(p: Progress, selected: Upgrade, section: WorkshopS
     <div class="component-info"><h3>${u.name}</h3><button class="text-button" data-codex="${selected}">Read about this technology ↗</button><p>${upgradeCopy[selected][0]}</p><div class="stat-comparison" aria-label="${upgradeCopy[selected][1]} comparison"><div><small>${install ? 'CURRENT' : 'NOW'}</small><strong>${install ? 'Not installed' : stat(current)}</strong></div><span aria-hidden="true">→</span><div><small>AFTER ${install ? 'INSTALLATION' : 'UPGRADE'}</small><strong>${stat(next)}</strong></div></div>
     ${selected === 'drill' ? `<p class="component-extra">${DRILL_TIERS[drillVisualTier(level + 1) - 1]!.name} · ${number(drillReachTiles(level + 1))} tile reach · ${drillWidth(level + 1)}-wide cut</p>` : ''}
     <div class="component-checkout"><div><small>PRICE · INSTALLATION INCLUDED</small><b>${credits(cost)}</b></div><button id="buy-${selected}" class="primary" ${locked || !enough ? 'disabled' : ''}>${locked ? 'Locked' : install ? 'Install equipment' : 'Buy upgrade'}</button></div>
-    <p class="purchase-reason">${locked ? `Unlocks after: ${upgradeGateLabel(level + 1)?.toLowerCase()}.` : !enough ? `Need ${credits(cost - p.money)} more. Sell ore to earn credits.` : `${credits(p.money - cost)} left after purchase. Fitted immediately.`}</p></div></article></div>`;
+    <p class="purchase-reason">${locked ? `Unlocks after: ${upgradeGateLabel(level + 1)?.toLowerCase()}.` : !enough ? `Need ${credits(cost - p.money)} more. Sell ore to earn Kredits.` : `${credits(p.money - cost)} left after purchase. Fitted immediately.`}</p></div></article></div>`;
 }

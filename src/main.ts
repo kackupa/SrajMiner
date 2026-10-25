@@ -36,6 +36,7 @@ import './game/ui/StarMap.css';
 import './game/ui/BuildingCatalogue.css';
 
 import './game/ui/RigWorkshop.css';
+import './game/ui/LoadoutView.css';
 
 import './game/ui/ColonyOverview.css';
 

@@ -1,3 +1,4 @@
+import { terrainHeight, naturalCave, type SurfaceTerrain } from './SurfaceTerrain';
 import { STARTER_MATERIAL_SEAMS, CORE, WORLD, ORES, ORE_KEYS, bandAt, coreDepthMetersFor, coreWorldYFor, depthAtWorldY, farSurfaceRowFor, farSurfaceYFor, MAPS, CORE_RELICS, REGION_FINDS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, gravityDirectionAt, type Ore, type MapId, type CoreRelicId } from '../config';
 import { planetChartCellIntersectsCoreRadius, wrapPlanetTile, type PlanetChartSize } from './PlanetChart';
 export type Tile = {
@@ -34,6 +35,13 @@ function routeFragmentRow(row: number, mapId: MapId, chart?: PlanetChartSize) {
 // Chunks are deterministic and disposable; excavation and exploration are separate durable state.
 export class TileWorld {
   miningOnly = false;
+  terrain?: SurfaceTerrain;
+  clearedTerritories = new Set<string>();
+  surfaceHeight(x:number,y:number) { const h=terrainHeight(this,x,y)*WORLD.tile; return y<this.coreWorldY?h:this.farSurfaceY-h; }
+  aboveTerrain(x:number,y:number) { const h=this.surfaceHeight(x,y); return y<this.coreWorldY?y<h:y>=h; }
+  atTerrainSurface(x:number,y:number) { const h=this.surfaceHeight(x,y); return (y-h)*this.gravitySign(y)<8; }
+
+  clearedCaves = new Set<string>();
   chunks = new Map<string, Tile[]>();
   destroyed = new Set<string>();
   discovered = new Set<string>();
@@ -70,6 +78,7 @@ export class TileWorld {
     if (x < 0 || x >= this.widthTiles) return { ...tile, type: 'boundary', hardness: Infinity };
     if (y < 0) return { ...tile, type: 'empty' };
     if (y >= this.farSurfaceRow) return { ...tile, type: 'empty', ore: undefined };
+    if (this.aboveTerrain((x+.5)*WORLD.tile,(y+.5)*WORLD.tile) || naturalCave(this,x,y)) return {...tile,type:'empty',ore:undefined};
     const coreY = this.coreWorldY, coreRow = Math.round(coreY / WORLD.tile), centerX = WORLD.homeColumn;
     const coreRelic = CORE_RELICS.find((entry) => entry.mapId === this.mapId);
     if (x === centerX && y === coreRow && coreRelic)

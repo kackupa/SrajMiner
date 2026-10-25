@@ -1,3 +1,4 @@
+import { createSurfaceTerrain } from '../world/SurfaceTerrain';
 import type { MapId } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 import { TileWorld } from '../world/TileWorld';
@@ -18,9 +19,12 @@ export function snapshotMapState(
 ): WorldSave {
   return {
     seed: world.seed,
+    terrain: world.terrain,
+    clearedTerritories: [...world.clearedTerritories],
     x,
     y,
     maxDepth: Math.max(previous?.maxDepth ?? 0, depth),
+    clearedCaves: [...world.clearedCaves],
     destroyed: [...world.destroyed],
     discovered: [...world.discovered],
     drops: drops.map((drop) => ({ ...drop })),
@@ -37,8 +41,12 @@ export function restoreMapState(
   firstVisitSeed: number,
   firstVisitChart?: PlanetChartSize,
 ) {
+  const world = new TileWorld(state?.seed ?? firstVisitSeed, state?.destroyed, state?.discovered, mapId, state?.planetChart ?? firstVisitChart);
+  world.terrain = state?.terrain ?? createSurfaceTerrain(world,state?.structures);
+  world.clearedTerritories = new Set(state?.clearedTerritories ?? []);
+  world.clearedCaves = new Set(state?.clearedCaves ?? []);
   return {
-    world: new TileWorld(state?.seed ?? firstVisitSeed, state?.destroyed, state?.discovered, mapId, state?.planetChart ?? firstVisitChart),
+    world,
     drops: state?.drops.map((drop) => ({ ...drop })) ?? [],
     activeCharge: state?.activeCharge ? { ...state.activeCharge } : undefined,
     structures: state?.structures.map((structure) => ({ ...structure })) ?? [],

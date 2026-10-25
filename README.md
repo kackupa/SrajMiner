@@ -4,6 +4,28 @@ An experimental, standalone Unity ship boarding prototype lives in [`unity-ship-
 
 An original browser mining game built with TypeScript, Phaser 3 and Vite. Your mothership lands with a mining rig but no jump fuel, no camp and no credits. Mine to build an operation, connect to the market, upgrade your rig and fuel travel to other planets.
 
+## Living Frontier local sandbox update (24 October 2026)
+
+The local sandbox now has 20 equipment models across hull, drill, engine, battery, weapon and utility slots. Buy a model directly with shared materials: compatible purchases fit immediately. Items that exceed fitting capacity remain owned with an explicit explanation; refit owned parts for free in the fullscreen loadout. Battery fitting capacity and remaining battery charge are separate. Fits that exceed capacity or would discard carried ore are blocked. Existing level upgrades remain part of migrated saves.
+
+Start unarmed. Equip a machine gun, autocannon or beam laser; hold **Shift + left click** to aim and fire. Touch uses **FIRE** on the right with enemy aiming assistance and WASD on the left. Rock blocks shots. Surface raiders pursue above ground and withdraw when you hide underground; underground creatures withdraw at the surface or when you enter a shelter.
+
+Build up to four underground shelters in cleared space using iron and copper. Deployment takes four seconds; movement cancels without spending materials. Press **E** nearby to enter or leave. Hull and battery recover gradually while the world continues running, including while refitting. Mining charges offer rock breaker, excavation and repulsor modes. Original rig attachments, shot traces, recoil, impacts, drilling effects and shelter lights give actions visible feedback. In-game currency is **Kredits**.
+
+Save version 33 migrates existing local saves and preserves legacy inventory/upgrades. These new mechanics are **local sandbox features**; the existing verified-online rules have not gained equipment/combat parity. No token integration is included.
+
+Validation: npm install, the automated suite and production build passed. Chromium playtests covered buying/fitting, drilling, weapon fire and defeating a creature, shelter deployment/entry/recovery/refitting, and save/reload conservation. Loadout/build/equipment panels were checked at desktop, 320×568, 390×844 and 844×390 sizes without document scrolling. An isolated touch-context test checked held FIRE, release and shelter entry. Actual Android hardware and long-session balance/performance remain untested. Vite still reports its large game-bundle warning. QA captures remain ignored under output/playwright/.
+
+The equipment art pass gives Scout fins, Hauler cargo pods, Bastion armour, distinct engine housings, battery banks, utility fittings and three weapon silhouettes. Shared geometry keeps workshop portraits and the moving rig consistent; fitted drill models also change the working drill width and colour. Chromium touch firing/shelter/refit checks passed at 390×844 without overflow; a three-loadout visual comparison is saved under ignored QA output. Physical device visual testing remains pending.
+
+The approved miner concept is now interpreted by a shared articulated 2D model: caged work lamp, offset glazed cockpit with pilot, jointed drill arm and piston engine legs. Drill teeth rotate during cutting; legs fold under thrust, step on the surface and compress on touchdown. The workshop uses the same geometry. These are gameplay-scale drawings, not the high-detail concept bitmap. Appearance remains independent of collisions and save data. Chromium keyboard playtesting recorded thrust/gear animation, touchdown compression, three newly mined tiles and reduced-motion suppression with no Vite error overlay. Mobile firing/refitting and physical-device limitations are recorded above.
+
+Mouse movement now steers the work lamp without holding a button. Its beam and occlusion rays originate at the animated searchlight lens, including mirrored facing, banking and suspension movement; the old drill-centred light cone has been removed. A bounded ray fan reveals open space and the first rock face, with newly discovered tiles retained by normal saving. Rock blocks the beam. The pilot looks toward aim, the chassis turns smoothly, and the articulated weapon follows aim with recoil while the drill retains its mining direction. Touch uses movement direction and firing target assistance for the lamp. Browser checks verified left/right turning, different illuminated tile sets, firing recoil and pause freeze; touch firing/refitting remained usable without overflow. Unit checks cover rock occlusion, sky filtering and pose transitions.
+
+The searchlight now has a swivelling barrel, lens and mechanical yoke. Housing and beam share the same smoothed aim and moving lens origin, with automated alignment coverage for both facings, banking and landing. The miner also lifts its feet when stepping, braces wider while drilling, tucks its drill during flight and moves its helmet visor with its gaze. Browser playtests exercised looking/firing, flight, landing, drilling, pause and reduced motion; physical-device testing is still pending.
+
+Cargo now opens in Simple view: Miner, Mothership and Planet warehouse cards show where ore is held, and only owned ores appear below. Each row has an explicit Store/Take quantity and Sell quantity with the quoted Kredits. The existing exact-quantity/source/destination controls remain behind Advanced; discard retains its confirmation. Simple view never automatically sells ore or combines inventories. Chromium checks verified storing 3 copper (Miner 3→0, Ship 6→9), selling 5 iron (+189 Kredits in the test fixture), switching views and resizing at 1280×720, 390×844, 320×568 and 844×390 without scrolling or clipped buttons. Existing economy transaction/rollback rules remain unchanged.
+
 ## Run locally
 
 Use Node.js 22.12 or newer:
@@ -62,7 +84,7 @@ Construction pools Miner, then Ship, then Planet stock on the active planet. Rem
 
 The **Open mothership** button and E open the same full-screen hub: recharge, build/sell, storage and upgrades. Leaving the terminal restores miner controls immediately, including Space to thrust; no second E is required. The Star map performs departure and landing while docked. A journey costs one core fuel. An unrecovered destination requires one additional unit held as return reserve. Reload during transit starts landed and cannot charge again.
 
-The opening screen teaches movement, drilling and return flight. The fullscreen build catalogue groups Mining, Storage, Services and Defence without scrolling or dropdowns. It shows exact shortages from pooled planetary materials and retains repair/upgrade management. There is no camp prerequisite for an uplink. The Star map has its own menu entry.
+The opening screen teaches movement, drilling and return flight. The fullscreen build catalogue groups Services (camp, uplink), Mining & storage (extractor, warehouse) and Defence (wall, pylon, fort) without scrolling or dropdowns. It shows exact shortages from pooled planetary materials and retains repair/upgrade management. There is no camp prerequisite for an uplink. The Star map has its own menu entry.
 
 The game fits the viewport without browser scrollbars. Main menus use the full screen; longer panels use explicit **Previous / Next** pages rather than scrolling. Phone menus use buttons, cards and tabs, without text dropdowns or checkboxes. The original illustrated title, lander, sky and mineral treatment share the new blue/orange visual style.
 
@@ -116,7 +138,7 @@ The star map uses a central star and orbital tracks; planet distances are illust
 Mining worlds use distinct geological features; inhabited worlds show city lights and orbital stations. The exchange preview has no dotted trade connections.
 
 ## Sandbox construction and planetary resources
-The surface catalogue is open from the start: Mining, Storage, Services and Defence. Camp, uplink, warehouse and extractor have material-only entry costs; other buildings retain their credit costs and physical limits. A camp is a service option, not an uplink prerequisite. All construction draws from carried ore first, then the current planet's stored ore; other planets are never charged. Surface placement has a ghost preview, occupancy validation, optional snapping, Place and Cancel. Existing wall stacking remains available.
+The surface catalogue is open from the start, grouped by purpose: Services, Mining & storage and Defence. These are categories, not unlock requirements. Camp, uplink, warehouse and extractor have material-only entry costs; other buildings retain their credit costs and physical limits. A camp is a service option, not an uplink prerequisite. All construction draws from carried ore first, then the current planet's stored ore; other planets are never charged. Surface placement has a ghost preview, occupancy validation, optional snapping, Place and Cancel. Existing wall stacking remains available.
 
 Copper, iron and silver occur on every world and cover building materials. Exclusive deposits are Nickel (Mars Frontier), Cryocrystal (Cryo Shelf), Titanium (Hull Graveyard), Diamond (Prism Fault), Cobalt (Cinder Vale) and Gold (Vesper-9). Local orders and surveys reflect this geography. Civilian projects can require imports; the planetary cores still supply travel fuel. Deep-core extractors can produce the local exclusive ore.
 
@@ -194,3 +216,140 @@ The still-unapplied Verified Online travel migration now stores each planet’s 
 The two locally implemented Verified planets now share canonical cargo, service, upgrade and recovery transactions, while each requires its own Market uplink. An isolated Mars SQL fixture transferred cargo, built the Mars uplink and sold nickel; the nickel and construction materials were fixture-supplied, so the earned campaign proof remains open.
 
 A separate local browser run now starts with zero Verified resources, mines the Cryo core using the real controls, returns to dock and jumps to Mars through the in-game action. The server read after arrival retained the earned cargo, one spent fuel and zero credits. This is local browser-to-PostgreSQL proof with a fixed QA world seed; Mars nickel, a completed earned return, deployed staging Auth/Edge and player exchange are still open.
+
+Mothership menu exit regression check: Return to mine and Escape from workshop or nested discard now deploy the landed miner and restore movement without pressing E again. Explicit ship-pilot mode retains boarding. Chromium playtests confirmed boarding cleared, pause cleared and D moved the miner after each of those three exit paths.
+
+Building menu QA (24 October): selected all eight surface structures at 1280×720, 390×844, 320×568 and 844×390 in an isolated browser save. All controls and material panels fit within the viewport; narrow phones use a two-row header. Physical Android touch testing remains outstanding.
+
+Building cost feedback QA (24 October): checked all eight surface buildings with funded and empty inventory fixtures at four desktop/mobile viewport sizes. Affordable ore and Kredits rows, including zero-cost Kredits, are green; shortages are red with exact missing amounts. No tested controls or cost panels overflowed.
+
+### Workhorse mothership and surface defences (24 October)
+The landed carrier uses the selected asymmetric Workhorse direction: raised warm-lit crew bridge, segmented cargo spine, amber prow, articulated landing struts and ramp. Crew silhouettes shift, radar sweeps, the cargo hoist moves, engine lamps breathe, vents exhaust and a physical worklamp sweeps its apron. Reduced-motion mode freezes ambient movement. The shared renderer also supplies flight and transit art.
+
+Landed mothership guns now replace automatic near-ship flyer retreat with actual defensive bursts: 340 surface-distance range, 220 altitude limit, one damage per 1.6-second volley. A normal two-health flyer requires two volleys. Guns do not fire while the ship is boarded/absent, against underground targets, or during underground retreat. Balance lives in MOTHERSHIP in config.ts; no save schema changes. Mining-driven escalation remains future work.
+
+Planetary walls and gates render 65% taller; surface pylons now have 138-unit braced towers and elevated guns. Saved placement footprints, stacking increments and collision rules are unchanged. Catalogue silhouettes reflect the higher walls and tower design.
+
+QA: full npm test and production build passed. Isolated Chromium playtests covered desktop 1440x900 and mobile 390x844, movement beside defences, reduced motion and ship-menu exit. A browser encounter with only its initial wait shortened verified real tracking/fire, two volleys, flyer removal and unchanged miner hull. Dedicated tests cover cooldown, range, altitude, absent ship and underground retreat. Physical Android performance and a natural 55-second initial raid wait were not verified. QA artifacts remain in ignored output/playwright. These changes are local browser gameplay, not a deployment of the verified online engine.
+
+Security gates are no longer offered in the building catalogue. Existing saved gates retain their rendering, behaviour and colony management; no save migration is required.
+
+Planet crust QA (24 October): a continuous opaque globe and two-tile crust backing now remain visible outside the local terrain window. Discovered excavations paint dark openings through that backing; no ore discovery, collision or save state changes. Desktop/mobile surface screenshots and browser flight, landing and drilling checks passed (two additional tiles excavated during the sampled drill). Physical Android remains untested.
+
+### Cryo Shelf globe-anchored scenery (24 October)
+The painted panorama was rejected and is no longer loaded or shipped. Cryo Shelf uses original geometric ice shelves and fractured escarpments in the foreground palette. Three relief layers are projected through the same spherical camera as the crust, so they curve with the world, rotate with the camera and fall away during ascent. Sky objects remain distant; atmospheric colour and world-anchored frost fade with altitude. There is no clamped screen-space landscape horizon. Other worlds are unchanged. Reduced motion stops ambient frost movement. No save, ore discovery, collision or balance changes.
+
+QA: isolated desktop checks at surface level and approximately 289/583 units above the surface verified that the landscape recedes out of view, with zero panorama requests and no page errors. Portrait 390x844 was also checked. Physical Android performance remains untested. The rejected asset is preserved only under ignored output/playwright.
+
+Cryo refinement QA (24 October): mixed glacier-wall, split-peak and shelf silhouettes replace the repeated ridge profile. Added restrained snow caps, fracture strata, sparse near-surface ice clusters and wind streaks. All scenery still uses globe projection and stays behind terrain/actors. Rechecked surface, two ascent heights and portrait mobile with no page errors; no gameplay or save changes. Physical Android remains untested.
+
+Free-fire QA (24 October): mobile FIRE now uses the miner's directional aim when no enemy is present instead of projecting the FIRE button into the world. Existing nearby-enemy aim assistance remains. Desktop Shift + click already fires toward the cursor without a target. Browser-tested machine gun, autocannon and beam laser with no enemies on desktop and touch-layout contexts: all produced shots, consumed charge and stopped after release. Added an empty-sky range regression check; rock occlusion remains tested. Physical Android touch remains untested.
+
+Workhorse refinement (24 October): detailed cargo ribs/amber stripes, lower maintenance passage with moving technician, bridge crew working consoles and walking between stations, engine plumbing and cycling vanes, landing pistons, illuminated ramp and flight-stowed cargo hoist. Existing defensive balance is unchanged. Desktop/mobile visual checks and an accelerated browser defensive encounter passed. Ambient animation/reduced-motion stability and flight geometry were checked with an isolated renderer probe. Physical Android remains untested.
+
+Hint and weapon QA (updated 25 October): the mission hint appears for the first five seconds of play, then is removed for the rest of that session. Hovering, changing objectives and reopening menus cannot bring it back. Desktop and mobile Chromium verified dismissal and menu/hover persistence without page errors. Earlier weapon QA checked continuous left/right aiming and targetless machine-gun firing in empty sky and a cleared underground chamber. Purchases now fit automatically when compatible; existing unfitted weapons still need Workshop > Weapon > Fit. Attempting to fire unarmed or without charge explains why.
+
+Mothership visibility pass (24 October): idle guns sweep independently across the sky, then track nearby flyers. Recoil, muzzle flashes and travelling tracers originate at each rendered barrel tip. Surface flyers now arrive after 25 seconds of active surface play (65 seconds between encounters), approach at 125 units above the surface, and dive after their warning. Larger animated wings improve their silhouette. A normal-timing Chromium encounter verified ship interception at about 27 seconds, no miner hull loss, and movement after closing the ship menu. Reduced-motion art remains stable; natural spawn/dive tests pass. Physical Android testing remains pending.
+
+Mothership component art pass (24 October): rotating guns now have armoured breeches, ammunition boxes, recoil cylinders, slotted cooling jackets and muzzle brakes. Shot origins follow the new muzzle geometry. Distinct cargo locking bars, exposed power modules, aft exhaust nozzle, lift-engine bells, hydraulic landing legs and ramp rails replace generic repeated shapes. Chromium inspected desktop/narrow views and defensive firing with no page errors; the accelerated encounter verified interception and movement after ship-menu exit. Geometry checks cover ambient motion, reduced motion and retracted gear. This pass changes rendering only.
+
+
+Cave inhabitants (24 October): underground enemies no longer appear on an arrival timer or phase through geology. Deterministic natural cave homes activate as the miner explores nearby; excavating new space does not create new inhabitants. Residents patrol their home and follow bounded routes through open tiles. Solid rock blocks body movement, charges, contact damage and defensive turret fire. Surface/shelter breaks pursuit. Cleared habitat IDs are stored per world outside disposable chunks; save version 34 migrates existing campaigns without changing ore or excavations. Unrevealed cave residents are hidden by exploration fog.
+Cave QA: Chromium entered a real seeded Cryo cave at approximately 170 m, observed its resident immediately and moved the miner with no page errors. Automated checks cover deterministic homes, no inhabitants created by excavation, sealed walls, routes opened by mining, high-speed charge collision, turret occlusion, cleared-home map reload and v33-to-v34 migration. Physical Android and long-session population balance remain untested.
+
+Creature and surface art pass (25 October): shared original creature anatomy replaces abstract enemy markers. Cave hunters have segmented shells, alternating jointed legs, antennae and bite jaws; scrappers have armoured fronts and claws; flyers and mantas have membrane wings, tails, crests and attack folding. Wind-up, charge, contact and hit states drive the art, with stable reduced-motion poses. Ground scenery uses seeded irregular ice shards/slabs, mineral formations, rocks, wreckage and wind-blown growth projected onto the globe. It clears ship/building access and disappears with mined support. This is a visual surface pass, not new terrain collision or elevation. Chromium cave movement and surface views passed without page errors; art checks cover all four movement/attack silhouettes and reduced motion. Physical Android remains untested.
+
+
+### Surface terrain and creature territories (25 October 2026)
+
+Local expeditions now use a saved, deterministic surface profile: real stepped ridges, shallow basins, building shelves and open shafts into roofed cave chambers. The same profile drives solid tiles, the globe silhouette, surface classification, decoration and placement checks. New structures require supported, level ground. The mothership landing apron stays level.
+
+Save version 35 accepts version 34 and older migrations. On the first load, existing building footprints and columns around old excavations retain their original terrain. The generated profile is then stored rather than recalculated as the player mines. Existing ore inventories, structures and destroyed tile records are retained.
+
+Bone-and-chitin nests mark surface territories. Entering a territory wakes its flyer; leaving its range or hiding underground breaks pursuit. Defeated territories remain cleared in that world's save. Cave creatures inhabit natural chambers and cannot move through solid blocks or emerge onto the surface. No new menus, scrolling or dropdowns were added.
+
+Browser QA used isolated saves at 1440x900, 1280x800 and 390x844: terrain and cave rendering, visible nest encounter, far-side flight, mothership close-and-move, and no document overflow. A condition-based cave escape test flew from y=347.6 to y=-22 with battery remaining. The cave inhabitant dealt damage before escape, as intended. Some earlier browser attempts were interrupted by hot reload or page-load timeout and were retried. Physical Android testing remains outstanding. QA screenshots and scripts are ignored under `output/playwright/terrain-*`.
+
+Validation: npm install, the complete npm test suite, the terrain persistence/territory tests and npm run build passed. The build retains the existing large-bundle warning. These changes are local and have not been committed, pushed or deployed.
+
+
+### Quick mothership unloading
+
+Near the landed mothership, press **F**, click **Unload ore**, or tap **Unload ore** in the mobile action buttons. The miner remains playable; no menu is opened. A single saved transaction moves carried ores into the ship hold, retaining any excess in the miner. Empty/full hold states are explicit, and failed saves roll back the complete transfer. The cosmetic sequence opens the intake shutter, arcs a bounded set of cargo crates into the ship and feeds them past a roller bed, loading arm and operator. Reduced motion uses a static intake indication instead of flying crates.
+
+Browser checks at 1440x900 and touch-emulated 390x844 confirmed full-haul transfer, partial capacity with the remainder retained, repeated-input safety, persistence after reload, no page errors and no document overflow. Unit coverage includes fractional units, a single save per haul and false/throwing save rollback. Artifacts are in ignored `output/playwright/unload-*`. Physical Android remains untested.
+
+Quick-unload validation: npm install, npm test and npm run build passed. The keyboard F shortcut and reduced-motion presentation also passed browser checks. The build retains the existing large-bundle warning. Changes remain local, uncommitted and unpushed.
+
+Unloading animation iteration: the miner opens a cargo hatch and recoils on each ejection. Up to four cosmetic crates launch from the moving hatch, tumble onto a telescoping receiving platform, bounce, and are lifted into a visible stack by a larger jointed loader. Hydraulic rails retract, the shutter closes and completion lights turn green, with ejection, landing and completion sounds. Reduced motion keeps a static handling presentation. Cargo transactions are unchanged. npm install, npm test and npm run build passed; browser checks confirmed movement during unloading, completed retraction, mobile layout, reduced motion, capacity and reload safety. Physical Android remains untested. QA artifacts: output/playwright/unload-refine-*. Changes remain local and unpushed.
+
+### Fresh-save gameplay review (25 October 2026)
+
+Played a new, isolated browser context on the local game without granting items or changing inventory. The user's browser profile and save were not accessed. Three normal drilling runs reached about 330 m; returned using W, unloaded using F, built a Market uplink with earned ship-held ore, sold copper and silver, bought/fitted a cargo rack (16 to 20 capacity), and paid for repairs. Reload preserved ore, Kredits, equipment, the uplink and all mined cells exactly. Descending an existing shaft caused substantial impact damage; W braking is now explicit on the start screen. Physics and damage balance were not changed from this single run.
+
+Review fixes: Cargo & selling opens on accessible stocked inventory instead of an empty miner; the HUD Cargo button still explicitly inspects the miner. Empty cargo points to existing ship/planet stock. Mothership navigation uses consistent Cargo & selling wording, and explains that construction/equipment use shared ore. Construction copy distinguishes travelling ship stock from stationary warehouse stock. Equipment previews display projected fitting power and numerical changes to rig stats before buying. The dedicated loadout screen bypasses generic page splitting, with compact spacing for landscape phones.
+
+Browser checks: desktop 1440x900, portrait 390x844, landscape 844x390; loadout and simple cargo panels fit without scroll overflow. Purchases, sales, repair, recharge and reload were exercised through normal controls. No page errors in the final recovery/reload check. This covers the opening mining/economy loop, not a full campaign or long-session balance review. Physical Android touch/performance, later automation, multi-world travel and multiplayer were not retested in this pass. QA scripts/screenshots live under ignored output/playwright/fresh-*.
+
+Validation for this review: npm install, the full npm test suite, and npm run build passed. The production build retains the existing large-chunk warning.
+
+### Continued base/combat playthrough (25 October 2026)
+
+Continued the isolated earned save with normal controls, no inventory grants. Bought/fitted the machine gun, defeated a surface nest inhabitant, encountered a cave manta, and escaped through excavated passages. Built a warehouse on the cleared territory, rejected an unsupported silver extraction seam, moved to iron and built an extractor. Observed real iron production into planetary storage across reload. Bought excavation charges, excavated a chamber, built/entered an underground shelter, observed automatic recovery to full hull/battery, then left and returned to the surface. Sold three individual silver units through Advanced to afford a pylon; the new pylon intercepted the next territory's flyer with no miner damage. A further flyer took a visible gun hit (2 to 1.65 health) and withdrew when the miner went underground; its uncleared nest activated again later. Five buildings, equipment and earned currency survived reload. The user's existing browser profile/save was never accessed.
+
+Fixes from this pass:
+- B and the touch Build action open the underground catalogue even above the minimum construction depth. The footer explains the 180 m rule or the required chamber clearance, and an invalid site cannot spend materials.
+- Underground placement searches nearby clear space instead of demanding one exact anchor. It retains footprint, depth and building-spacing checks and rejects solid-rock paths to separate cavities. Browser-tested against the actual excavated QA chamber.
+- Armed surface combat prompts explain firing as well as retreat (touch uses FIRE); damaged/attacking flyers show a small health bar. Gun victories distinguish a cleared territory from a cave creature defeat; cleared nearby nests are labelled quiet.
+- Extractor copy explains the warehouse dependency and 0.5 ore/75-second starter cadence. Colony details name the receiving inventory and explain storage blockage. Removed obsolete fort copy promising timer-driven raids. Production/combat economy rates were not changed.
+- Fixed an old flat-surface docking rule that made the rig hover over terrain dips. Landings follow local terrain height, and open cave mouths have no invisible landing plane. Browser-tested returning from the saved shaft and settling into a dip with zero rock overlaps; regression tests cover relief and cave mouths.
+
+Building feedback fits 390x844 and 844x390 without panel overflow. Placement regression tests cover nearby chambers, solid rock, depth and overlap restrictions. Remaining balance questions: starter extraction is slow compared with active mining; later enemy variety and repeated long-session defence need a longer balance pass. Physical Android controls/performance, full campaign travel, and multiplayer were not retested here. QA artifacts are ignored under output/playwright/base-*.
+
+Additional browser check: a separate touch-enabled 390x844 context, copied only from the QA save, opened Tools > Build by tapping; no overflow or page errors.
+
+Final validation: npm install, the full npm test suite (including nearby-chamber and terrain-docking regression cases), and npm run build passed. Existing large-bundle warning remains. Changes are local and unpushed.
+
+
+### Mothership operations navigation review (2026-10-25)
+- Six permanent home destinations separate Build structures, Your colony, Cargo & selling, Miner loadout, Recharge & repair, and Star map. Building an uplink updates the cargo status without replacing construction.
+- Home uses a responsive single-screen grid, with no pagination, scrolling or dropdowns. Secondary paint/log/help tools remain below it.
+- Cargo inspection no longer silently refuses to open away from storage; individual freight actions retain proximity checks.
+- Browser-tested a disposable copy of the earned QA save with an existing uplink at 1440×900, 390×844 and 844×390: no card/content overflow, construction and cargo both open. Original user save untouched. Physical Android testing remains outstanding.
+- Validation: npm install, the full npm test suite and npm run build passed; build retains the existing large-bundle warning.
+
+### Menu artwork refresh (2026-10-25)
+- Start/pause artwork and browser miner icon now use the current in-game vehicle drawing code. Regenerate with npx tsx scripts/export-menu-art.ts after model changes.
+- Mobile has its own framing so both vehicles remain visible. Continuing saves say Your expedition instead of First deployment.
+- Browser checked at 1440x900, 780x817 and 390x844 without overflow, in a disposable context. User save untouched.
+- Menu-art validation: npm install, npm test and npm run build passed; existing bundle-size warning remains.
+
+### Launch control guide (2026-10-25)
+- Launch screen now teaches move, mine, fly/brake, shoot (Shift + click, fitted weapon required), fast unload (F near ship, available storage) and build (B). Touch labels show FIRE, Unload ore and Tools to Build.
+- Full desktop and touch guides include combat and menu-free unloading. No input or save changes.
+- Browser checked 1440x900, 780x817, 390x844 and 844x390: six controls fit without scrolling.
+- Launch-guide validation: npm install, full npm test and npm run build passed; existing bundle warning remains. Touch FIRE/Unload/Build labels and guide verified in an isolated mobile browser.
+
+### Operations navigation and quick rig exchange (2026-10-25)
+- Persistent Home / Build / Colony / Cargo / Loadout / Repair / Worlds / More navigation across operations screens, with an eight-tab desktop row and two phone rows. No scrolling or dropdowns.
+- Land beside the mothership and press G (or tap Repair) for full hull repair plus free recharge at the existing service price shown on the button. F remains fast unload; grapple is now H.
+- The 3.2-second visual exchange lifts the pilot with support drones, returns the empty chassis towards the ship and flies replacement sections into place. The actual game model and fitted equipment are reused. Reduced-motion presentation avoids flying parts.
+- Service is saved atomically before the cosmetic sequence, prevents duplicate requests, preserves cargo/loadout and rolls back money/hull/battery if saving fails. Movement, drilling and firing wait for exchange completion; the world continues.
+- QA uses disposable copies only, leaving the user save and the earned playthrough save untouched. Tested desktop and phone operation navigation and a damaged-rig exchange.
+- Browser verification: G pressed twice charged once (K 25 from 500), full hull and battery survived reload, cargo unchanged. Touch Repair matched. Navigation/content checks passed at 1440x900, 390x844 and 844x390 after tightening the landscape loadout panel. Physical Android and extended combat during exchange remain untested.
+- Validation: npm install, full npm test (including quick-repair transaction cases), and npm run build passed. Existing large-bundle warning remains.
+
+### Unlimited colony building (2026-10-25)
+- Removed per-type and per-planet building-count caps from catalogue, placement/site selection and save validation. Building still requires materials, a valid footprint and support; overlapping buildings remain blocked.
+- Additional warehouses add their own capacity to planetary storage. Colony upgrades target the selected warehouse. Wall counts no longer show a quota.
+- Save data shape is unchanged; existing saves remain compatible. Added coverage for 40-warehouse save import and mixed-tier storage capacity.
+- Isolated browser QA loaded 29 structures including 25 warehouses: the catalogue showed 25 built, kept Choose placement enabled, and entered a valid additional warehouse placement. The user's save was untouched. Very large-colony performance has not been stress-tested.
+- Final validation: all 21 focused building/save checks, full npm test, npm install and npm run build passed. Legacy quota assertions were replaced with expanded-colony expectations; normal data validation remains. Build retains its existing bundle-size warning.
+
+
+### Warehouse quick unload (25 October 2026)
+- F or the touch Unload action now transfers the miner haul into shared planetary storage beside an ore warehouse. A nearby warehouse takes precedence over the ship; the action names its destination. Storage limits preserve excess cargo, and the existing atomic saved transfer rolls back on save failure.
+- Warehouse receiving animation adds ejected crates, moving conveyor rollers, a loader robot and a completion pulse. It follows the building projection, supports reduced motion, and does not trigger the mothership loader. Animation is cosmetic; cargo is saved first.
+- Isolated browser fixtures verified a 1.5-unit partial transfer, repeated F, a full 9.5-unit touch transfer, full storage, unchanged ship inventory and reload conservation. Phone 390 × 844 had no page overflow. User save was not accessed or modified. Physical Android and far-hemisphere animation were not tested.
+- Suggested future world actions, not implemented: repair drones for nearby damaged defences; explicitly priced quick sales at the uplink with a cargo pickup; building relocation with a packing/crawler sequence. Avoid adding manual collection chores to extractors that already feed storage automatically.
+- Validation: npm install and the complete npm test suite passed; production build passed (existing large-chunk warning). A final build after the cargo-help wording update is recorded in output/playwright/warehouse-final-build.log.

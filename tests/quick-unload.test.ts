@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {emptyCargo} from '../src/game/economy/Progress';
+import {unloadFreight,cargoTotal} from '../src/game/economy/Freight';
+const miner={...emptyCargo(),copper:3.5,iron:6},ship=emptyCargo();let writes=0;
+assert.equal(unloadFreight(miner,ship,50,()=>{writes++;return true;}),9.5);
+assert.equal(cargoTotal(miner),0);assert.equal(cargoTotal(ship),9.5);assert.equal(writes,1);
+assert.equal(unloadFreight(miner,ship,50,()=>{writes++;return true;}),0);assert.equal(writes,1);
+miner.iron=5;ship.copper=48.5;ship.iron=0;
+assert.equal(unloadFreight(miner,ship,50,()=>true),1.5);assert.equal(miner.iron,3.5);assert.equal(cargoTotal(ship),50);
+assert.equal(unloadFreight(miner,ship,50,()=>true),0);assert.equal(miner.iron,3.5);
+ship.copper=0;ship.iron=0;const before={...miner};
+assert.equal(unloadFreight(miner,ship,50,()=>false),0);assert.deepEqual(miner,before);assert.equal(cargoTotal(ship),0);
+assert.equal(unloadFreight(miner,ship,50,()=>{throw Error('disk');}),0);assert.deepEqual(miner,before);
+assert.equal(unloadFreight(miner,miner,50,()=>true),0);
+console.log('PASS quick unload: mixed haul, half units, one save, full/partial hold, duplicate click and save failure rollback');

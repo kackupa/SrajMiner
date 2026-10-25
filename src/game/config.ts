@@ -1,4 +1,35 @@
+export const WORK_LAMP = { range: 440, halfAngle: Math.PI / 6, rays: 40, step: 8 };
 export const WORLD = { tile: 40, width: 48, homeColumn: 24, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
+export type RigSlot = 'hull' | 'drill' | 'engine' | 'battery' | 'weapon' | 'utility';
+export type RigItem = { id: string; slot: RigSlot; name: string; description: string; power: number; materials: Partial<Record<Ore, number>>; stats?: Partial<Record<Upgrade, number>>; capacity?: number; weapon?: { cooldown: number; energy: number; damage: number; range: number; color: number } };
+export const RIG_ITEMS: RigItem[] = [
+  { id: 'scout', slot: 'hull', name: 'Scout hull', description: 'Light cabin. Quick handling, less armour.', power: 8, materials: {}, stats: { hull: .85, engine: 1.15 } },
+  { id: 'hauler', slot: 'hull', name: 'Hauler hull', description: 'External cargo pods. More ore, slower handling.', power: 20, materials: { copper: 6, iron: 4 }, stats: { cargo: 1.6, engine: .85 } },
+  { id: 'bastion', slot: 'hull', name: 'Bastion hull', description: 'Heavy armour for dangerous expeditions. Slower thrust.', power: 30, materials: { iron: 10, silver: 3 }, stats: { hull: 1.7, engine: .8 } },
+  { id: 'standard-hull', slot: 'hull', name: 'Frontier hull', description: 'Balanced cabin for everyday expeditions.', power: 12, materials: {} },
+  { id: 'borer', slot: 'drill', name: 'Borer drill', description: 'Reliable standard cutting head.', power: 20, materials: {} },
+  { id: 'excavator', slot: 'drill', name: 'Excavator drill', description: 'High torque cutter. 65% faster cutting, higher power requirement.', power: 38, materials: { iron: 8, copper: 5 }, stats: { drill: 1.65 } },
+  { id: 'precision', slot: 'drill', name: 'Precision drill', description: 'Compact cutter. Frees fitting power for other equipment.', power: 10, materials: { copper: 4, silver: 2 }, stats: { drill: .9 } },
+  { id: 'standard-engine', slot: 'engine', name: 'Survey engines', description: 'Balanced lift and handling.', power: 15, materials: {} },
+  { id: 'lift-engine', slot: 'engine', name: 'Heavy lift engines', description: '35% stronger engine performance for steep return journeys.', power: 28, materials: { iron: 6, copper: 6 }, stats: { engine: 1.35 } },
+  { id: 'efficient-engine', slot: 'engine', name: 'Compact engines', description: 'Lower fitting power with gentler movement.', power: 8, materials: { copper: 4 }, stats: { engine: .9 } },
+  { id: 'standard-cell', slot: 'battery', name: 'Survey battery', description: '100 fitting power. Standard charge reserve.', power: 0, capacity: 100, materials: {} },
+  { id: 'expedition-cell', slot: 'battery', name: 'Expedition battery', description: '140 fitting power and 50% more charge.', power: 0, capacity: 140, materials: { copper: 10, silver: 4 }, stats: { fuel: 1.5 } },
+  { id: 'industrial-cell', slot: 'battery', name: 'Industrial battery', description: '190 fitting power. Double charge, heavier handling.', power: 0, capacity: 190, materials: { copper: 16, silver: 8, iron: 8 }, stats: { fuel: 2, engine: .9 } },
+  { id: 'unarmed', slot: 'weapon', name: 'No weapon', description: 'Keep power available for mining. Retreat to escape creatures.', power: 0, materials: {} },
+  { id: 'machine-gun', slot: 'weapon', name: 'Machine gun', description: 'Rapid shots. Hold Shift + click. Uses battery charge.', power: 15, materials: { iron: 4, copper: 2 }, weapon: { cooldown: .14, energy: .45, damage: .35, range: 340, color: 0xffd18a } },
+  { id: 'autocannon', slot: 'weapon', name: 'Autocannon', description: 'Slow, forceful rounds. Heavy hits and bright impact bursts.', power: 28, materials: { iron: 10, silver: 2 }, weapon: { cooldown: .65, energy: 2, damage: 1.5, range: 420, color: 0xff9873 } },
+  { id: 'beam-laser', slot: 'weapon', name: 'Beam laser', description: 'Precise energy pulses. High power demand and charge use.', power: 40, materials: { copper: 12, silver: 6 }, weapon: { cooldown: .08, energy: .65, damage: .3, range: 460, color: 0x8af4e2 } },
+  { id: 'empty-utility', slot: 'utility', name: 'Empty utility bay', description: 'Leave room in your power budget.', power: 0, materials: {} },
+  { id: 'cargo-rack', slot: 'utility', name: 'Cargo rack', description: '25% more cargo capacity.', power: 12, materials: { iron: 4 }, stats: { cargo: 1.25 } },
+  { id: 'survey-array', slot: 'utility', name: 'Survey array', description: '50% greater scanner performance.', power: 16, materials: { copper: 5, silver: 2 }, stats: { scanner: 1.5 } },
+];
+export const SHELTER = { deploySeconds: 4, repairPerSecond: .035, rechargePerSecond: .05, retreatSeconds: 1.8 };
+export const CHARGE_MODES = {
+  focused: { name: 'Rock breaker', description: 'Compact excavation blast. Uses one charge.', radius: 2, cost: 1, color: 0xffc07a },
+  excavation: { name: 'Excavation charge', description: 'Wide cavern blast. Uses two charges.', radius: 4, cost: 2, color: 0xff986a },
+  pulse: { name: 'Repulsor pulse', description: 'Repels creatures within 360 px without destroying ore. Uses one charge.', radius: 0, cost: 1, color: 0x93eadb },
+} as const;
 export const CAVE_ATMOSPHERE = {
   maxParticles: 96,
   spawnAttemptsPerSecond: 100,
@@ -61,17 +92,16 @@ export const PHYSICS = {
 export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 180,
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
-  service: { credits: 420, materials: { iron: 3, silver: 2 }, widthTiles: 5, uniquePerMap: true },
-  turret: { credits: 560, materials: { iron: 4, silver: 3 }, widthTiles: 3, range: 440, reloadSeconds: 1.4, maxPerMap: 3 },
-  'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5, maxPerMap: 1 },
-  habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, maxPerMap: 3, serviceRadius: 220 },
-  warehouse: { credits: 0, materials: { iron: 3, silver: 1 }, widthTiles: 5, maxPerMap: 1, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
-  extractor: { credits: 0, materials: { copper: 3, iron: 1 }, widthTiles: 4, maxPerMap: 4, ratesPerHour: [0, 24, 48, 96], upgradeCredits: [0, 0, 680, 1800] },
+  service: { credits: 0, materials: { iron: 4, copper: 4 }, widthTiles: 5 },
+  turret: { credits: 560, materials: { iron: 4, silver: 3 }, widthTiles: 3, range: 440, reloadSeconds: 1.4 },
+  'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5 },
+  habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, serviceRadius: 220 },
+  warehouse: { credits: 0, materials: { iron: 3, silver: 1 }, widthTiles: 5, baseCapacity: 40, capacityUpgrade: [0, 240, 520, 900] },
+  extractor: { credits: 0, materials: { copper: 3, iron: 1 }, widthTiles: 4, ratesPerHour: [0, 24, 48, 96], upgradeCredits: [0, 0, 680, 1800] },
   automation: { offlineCapSeconds: 43200 },
-  wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1, maxPerMap: 12 },
-  gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3, maxPerMap: 3 },
-  fort: { credits: 1400, materials: { iron: 8, silver: 5 }, widthTiles: 7, maxPerMap: 1, integrity: 4, linkRadius: 640, rangeBonus: 120 },
-  maxStructuresPerMap: 20,
+  wall: { credits: 80, materials: { copper: 1 }, widthTiles: 1 },
+  gate: { credits: 220, materials: { iron: 2 }, widthTiles: 3 },
+  fort: { credits: 1400, materials: { iron: 8, silver: 5 }, widthTiles: 7, integrity: 4, linkRadius: 640, rangeBonus: 120 },
   serviceRadius: 100,
 } as const;
 export const EXTRACTOR_TIERS = [
@@ -82,8 +112,8 @@ export const EXTRACTOR_TIERS = [
 export const EXTRACTION_SEAMS = { width: 320, units: 60 } as const;
 export const WAREHOUSE_CAPACITY_TIERS = [40, 100, 200, 360] as const;
 export const SURFACE_RAID = {
-  firstWarningSeconds: 55,
-  repeatWarningSeconds: 82,
+  firstWarningSeconds: 25,
+  repeatWarningSeconds: 65,
   telegraphSeconds: 7,
   approachSpeed: 52,
   interceptRange: 440,
@@ -95,6 +125,7 @@ export const SURFACE_RAID = {
   fortFirstWarningSeconds: 20,
   fortRepeatWarningSeconds: 45,
   arrivalDistance: 360,
+  approachAltitude: 125,
   visibleColonyRadius: 900,
 } as const;
 export const TURRET_TIERS = [
@@ -470,11 +501,11 @@ export const RETURN_WINCH = { cost: 880, pullMultiplier: 1.7, fuelMultiplier: 1.
 export const estimateWinchReturnFuel = (standardReturnEstimate: number) =>
   Math.ceil(Math.max(0, standardReturnEstimate) * RETURN_WINCH.fuelMultiplier / RETURN_WINCH.pullMultiplier);
 export const AUTO_GRAPPLE = { fallSpeed: 205, impactWindowSeconds: 1.5, predictionStepSeconds: 1 / 30, minRise: 26, hangSeconds: 0.85, cooldownSeconds: [7, 6, 5, 4, 3] };
+export const CAVE_CREATURES = {
+ minimumDepth: 160, sectorColumns: 12, sectorRows: 8, bodyRadius: 12,
+ activationTiles: 12, pathLimit: 320, contactCooldown: 2,
+} as const;
 export const ROCK_SWIMMER = {
-  firstDepth: 420,
-  firstArrivalSeconds: 18,
-  repeatSeconds: 58,
-  swimSeconds: 24,
   speed: 48,
   warningRadius: 190,
   contactRadius: 27,
@@ -588,7 +619,7 @@ export const SOLAR_SYSTEM = {
   },
 } as const;
 
-export const MOTHERSHIP = { x: 555, serviceRadius: 190, storageCapacity: 50 };
+export const MOTHERSHIP = { x: 555, serviceRadius: 190, storageCapacity: 50, defenceRange: 340, defenceAltitude: 220, defenceReload: 1.6 };
 
 export const STARTER_MATERIAL_SEAMS = [
   { ore: 'copper', left: 16, right: 19, top: 0, bottom: 2 },
@@ -669,3 +700,6 @@ export const ONLINE_INPUT_LIMITS = {
   maxSegmentsPerBatch: 20,
   maxBatchMs: 1_000,
 } as const;
+
+/** Terrain and wildlife remain deterministic between visits. Heights are inward tile offsets. */
+export const SURFACE_TERRAIN = { maxRelief: 4, caveSpacing: 28, territoryRadius: 260, leashRadius: 390, padRadius: 360 } as const;

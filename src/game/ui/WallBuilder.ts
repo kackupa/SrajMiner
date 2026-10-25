@@ -16,13 +16,13 @@ export class WallBuilder {
     });
     document.getElementById('viewport')!.append(this.root);
   }
-  update(active: boolean, layer = 1, auto = true, count = 0, limit = 12, valid = false, hint = '') {
+  update(active: boolean, layer = 1, auto = true, count = 0, valid = false, hint = '') {
     this.root.hidden = !active;
-    const signature = [layer, auto, count, limit, valid, hint].join('|');
+    const signature = [layer, auto, count, valid, hint].join('|');
     if (!active || signature === this.signature) return;
     this.signature = signature;
     this.root.querySelector('#wall-layer')!.textContent = `LAYER ${layer}`;
-    this.root.querySelector('#wall-budget')!.textContent = `${count} / ${limit} blocks · $${UNDERGROUND_BUILDING.wall.credits} + ${UNDERGROUND_BUILDING.wall.materials.copper} copper each`;
+    this.root.querySelector('#wall-budget')!.textContent = `${count} blocks built · K ${UNDERGROUND_BUILDING.wall.credits} + ${UNDERGROUND_BUILDING.wall.materials.copper} copper each`;
     this.root.querySelector('[data-wall="auto"]')!.setAttribute('aria-pressed', String(auto));
     this.root.querySelector<HTMLButtonElement>('[data-wall="lower"]')!.disabled = layer <= 1;
     this.root.querySelector<HTMLButtonElement>('[data-wall="place"]')!.disabled = !valid;

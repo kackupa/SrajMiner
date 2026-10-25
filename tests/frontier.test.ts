@@ -12,7 +12,7 @@ const legacy = { ...p, version: 31, extraction: { 'cryo-shelf:near:0': 3.5 }, pr
     seed:i, x:680, y:-22, maxDepth:0, destroyed:['24,0'], discovered:[], drops:[], activeCharge:null, structures:[], warehouse:{...emptyCargo(),copper:80.5+i}, planetChart:STARTER_PLANET_CHART,
   }])), levels:{...p.levels,drill:17}, cargo:{...emptyCargo(),iron:100.5}, coreFuel:7.25 };
 delete (legacy as any).shipCargo; delete (legacy as any).specialistModules;
-const migrated=migrateSave(legacy)!; assert.ok(migrated); assert.equal(migrated.version,32);
+const migrated=migrateSave(legacy)!; assert.ok(migrated); assert.equal(migrated.version,35);
 assert.deepEqual(migrated.maps,legacy.maps); assert.equal(migrated.cargo.iron,100.5); assert.equal(migrated.coreFuel,7.25);
 assert.deepEqual(migrated.shipCargo,emptyCargo()); assert.deepEqual(migrateSave(migrated),migrated);
 assert.deepEqual(parseSaveFile(JSON.stringify(migrated)),migrated);

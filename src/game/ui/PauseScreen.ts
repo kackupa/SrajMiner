@@ -22,7 +22,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
       </div>
       <p class="pause-save-state" id="pause-save-state" role="status">${saveStatus}</p>
       <div class="pause-secondary"><button id="rescue">Emergency recovery</button><button id="new">New expedition</button></div>
-      <p class="pause-recovery-note">Recovery lands near your current longitude and planet side. Unsold ore is forfeited; credits and tunnels stay.</p>
+      <p class="pause-recovery-note">Recovery lands near your current longitude and planet side. Unsold ore is forfeited; Kredits and tunnels stay.</p>
       <div class="pause-keyhint"><kbd>ESC</kbd> Return to the expedition</div>
     </div>
     <aside class="pause-rig" aria-label="Expedition status">
@@ -35,7 +35,7 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
       </dl>
       <div class="pause-objective"><span>MOTHERSHIP EXPEDITION</span><h3>${objective.title}</h3><p>${objective.text}</p><div class="pause-progress" aria-hidden="true">${Array.from({ length: objective.total }, (_, i) => `<i class="${i < objective.done ? 'complete' : ''}"></i>`).join('')}</div><small>${objective.done} / ${objective.total} ${objective.unit}</small></div>
       <div class="pause-credit"><span>Core fuel · interplanetary jumps</span><b>${p.coreFuel}</b></div>
-      <div class="pause-credit"><span>Banked credits</span><b>$${p.money.toLocaleString()}</b></div>
+      <div class="pause-credit"><span>Banked Kredits</span><b>K ${p.money.toLocaleString()}</b></div>
     </aside>
   </section>`;
 }

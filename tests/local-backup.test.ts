@@ -1,3 +1,4 @@
+import { defaultLoadout } from '../src/game/economy/Loadout';
 import assert from 'node:assert/strict';
 import { PLANET_CHART } from '../src/game/config';
 import { emptyCargo, Progress } from '../src/game/economy/Progress';
@@ -7,7 +8,7 @@ import { SAVE_KEY, validateSave, type SaveData } from '../src/game/save/SaveMana
 const p = new Progress();
 p.money = 0;
 const original = {
-  version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false },
+  version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false },
   extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART,
   campaignSeed: 1, activeMap: 'cryo-shelf' as const,
   maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], warehouse: emptyCargo() } },

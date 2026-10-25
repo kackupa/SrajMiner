@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import { Progress, emptyCargo } from '../src/game/economy/Progress';
+import { defaultLoadout, fittingCapacity, fittingPower, purchaseOrFit, validLoadout } from '../src/game/economy/Loadout';
+import { TileWorld } from '../src/game/world/TileWorld';
+import { weaponRay } from '../src/game/player/Weapon';
+import { RockSwimmer } from '../src/game/world/RockSwimmer';
+import { SurfaceRaid } from '../src/game/world/SurfaceRaid';
+import { STARTER_PLANET_CHART, WORLD } from '../src/game/config';
+import { migrateSave, validateSave } from '../src/game/save/SaveManager';
+const p=new Progress(), stock={...emptyCargo(),iron:100,copper:100,silver:100};
+assert.ok(validLoadout(p.loadout));assert.equal(fittingPower(p.loadout),47);
+const initialFuel=p.fuel;
+const before=structuredClone(stock);
+assert.match(purchaseOrFit(p,stock,'industrial-cell',()=>true),/purchased/);
+assert.equal(p.loadout.fitted.battery,'industrial-cell');
+assert.equal(stock.copper,before.copper-16);
+assert.equal(p.fuel,initialFuel,'purchase and fit never grants charge');
+assert.match(purchaseOrFit(p,stock,'machine-gun',()=>true),/purchased and fitted/);
+assert.equal(p.loadout.fitted.weapon,'machine-gun');
+const fuel=p.fuel;
+assert.match(purchaseOrFit(p,stock,'industrial-cell',()=>true),/fitted/);
+assert.equal(p.fuel,fuel,'larger battery never grants charge on fit');assert.equal(fittingCapacity(p.loadout),190);
+for(const id of ['bastion','excavator','beam-laser','lift-engine']) { purchaseOrFit(p,stock,id,()=>true);purchaseOrFit(p,stock,id,()=>true); }
+assert.match(purchaseOrFit(p,stock,'standard-cell',()=>true),/Not enough/);
+assert.equal(p.loadout.fitted.battery,'industrial-cell');
+for(const save of [()=>false,()=>{throw Error('full')}]){
+ const snapshot=JSON.stringify([p,stock]);purchaseOrFit(p,stock,'cargo-rack',save);assert.equal(JSON.stringify([p,stock]),snapshot);
+}
+purchaseOrFit(p,stock,'hauler',()=>true);purchaseOrFit(p,stock,'hauler',()=>true);
+p.cargo.iron=p.max('cargo');
+assert.match(purchaseOrFit(p,stock,'scout',()=>true),/Unload/);
+assert.equal(p.cargo.iron,p.max('cargo'));
+assert.equal(validLoadout({...defaultLoadout(),fitted:{...defaultLoadout().fitted,weapon:'industrial-cell'}}),false);
+const world=new TileWorld(12);
+for(let x=20;x<30;x++)for(let y=1;y<6;y++)world.break(x,y);
+let ray=weaponRay(world,{x:820,y:100},{x:1100,y:100},300,[{x:1020,y:100}]);assert.equal(ray.hit,0);
+world.destroyed.delete('24,2');world.get(24,2).type='rock';ray=weaponRay(world,{x:820,y:100},{x:1100,y:100},300,[{x:1020,y:100}]);assert.equal(ray.hit,-1,'solid rock blocks weapons');
+const cave=new RockSwimmer(12,'cryo-shelf');cave.active={x:900,y:900,vx:0,vy:0,life:20,phase:0,health:3,drillCooldown:0,hitFlash:0};
+cave.update(.1,0,900,-22);assert.equal(cave.active,undefined,'surface breaks pursuit without tunnelling through rock');cave.update(2,0,900,-22);assert.equal(cave.active,undefined);
+const globe=new TileWorld(12,[],[],'cryo-shelf',STARTER_PLANET_CHART),raid=new SurfaceRaid(12,'cryo-shelf');
+raid.active={x:900,y:-26,targetId:'player',health:3,timer:1,phase:0,hitFlash:0,drillCooldown:0};
+raid.update(.1,false,globe,[]);assert.ok(raid.active);assert.ok(raid.active.y<0);raid.update(2,false,globe,[]);assert.equal(raid.active,undefined);
+const freeShot=weaponRay(globe,{x:700,y:-100},{x:700,y:-500},340,[]);
+assert.equal(freeShot.hit,-1,'empty sky needs no target');
+assert.ok(Math.hypot(freeShot.end.x-700,freeShot.end.y+100)>300,'empty sky shot travels to range');
+const legacy={...new Progress(),version:32,extraction:{},productionUpdatedAt:1,solarPosition:null,planetChart:STARTER_PLANET_CHART,campaignSeed:12,activeMap:'cryo-shelf',mothershipBoarded:false,maps:{'cryo-shelf':{seed:12,x:555,y:-22,maxDepth:0,destroyed:[],discovered:[],drops:[],activeCharge:null,structures:[],warehouse:emptyCargo(),planetChart:STARTER_PLANET_CHART}}};
+const migrated=migrateSave(legacy)!;assert.ok(migrated);assert.equal(migrated.version,35);assert.deepEqual(migrated.loadout,defaultLoadout());assert.deepEqual(migrateSave(migrated),migrated);
+assert.equal(validateSave({...migrated,loadout:{...defaultLoadout(),owned:['invented']}}),false);
+assert.equal(migrated.cargo.iron,legacy.cargo.iron);
+console.log('PASS loadout: direct purchase, capacity, cargo protection, no free recharge, rollback, migration, wall occlusion and enemy retreat');
+
+const v33={...migrated,version:33};
+assert.equal(migrateSave(v33)?.version,35);
+assert.deepEqual(migrateSave(v33)?.maps,migrated.maps,'migration preserves ore and excavation exactly');
+assert.equal(validateSave({...migrated,maps:{'cryo-shelf':{...migrated.maps['cryo-shelf'],clearedCaves:['bad']}}}),false);

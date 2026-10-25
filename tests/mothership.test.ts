@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import {SurfaceRaid} from '../src/game/world/SurfaceRaid';
+import {TileWorld} from '../src/game/world/TileWorld';
+import {MOTHERSHIP, SURFACE_RAID} from '../src/game/config';
+const world=new TileWorld(8128);
+let shots=0;const ship={x:555,y:0,onFire:()=>shots++};
+const enemy=(x:number,y=-26)=>({x,y,targetId:'player',health:2,timer:20,phase:0,hitFlash:0,drillCooldown:0});
+const raid=new SurfaceRaid(1,'cryo-shelf');raid.active=enemy(650);
+const step=(dt:number,s:typeof ship|undefined=ship)=>raid.update(dt,true,world,[],undefined,{x:555,y:-22},true,s);
+step(.01);assert.equal(shots,1);assert.equal(raid.active?.health,1);
+step(.1);assert.equal(shots,1,'cooldown prevents continuous damage');
+assert.equal(step(MOTHERSHIP.defenceReload)?.type,'intercepted');assert.equal(shots,2);assert.equal(raid.active,undefined);
+raid.active=enemy(555+MOTHERSHIP.defenceRange+50);step(2);assert.equal(shots,2,'out of range');
+raid.active=enemy(555,-MOTHERSHIP.defenceAltitude-30);step(2);assert.equal(shots,2,'high targets out of reach');
+raid.active=enemy(650);raid.update(2,false,world,[],undefined,{x:555,y:100},true,ship);assert.equal(shots,2,'underground retreat never fires');
+const absent=new SurfaceRaid(2,'cryo-shelf');absent.active=enemy(650);absent.update(.1,true,world,[],undefined,{x:555,y:-22},true);assert.equal(absent.active?.health,2,'no landed ship no protection');
+console.log('PASS mothership range, altitude, cooldown, damage, retreat and absent-ship protection');
+
+const natural=new SurfaceRaid(3,'cryo-shelf');
+for(let i=0;i<Math.ceil(SURFACE_RAID.firstWarningSeconds*10)+1;i++)natural.update(.1,true,world,[],undefined,{x:555,y:-22},true);
+assert.ok(natural.active,'natural surface arrival needs no debug trigger');
+assert.ok(natural.active!.y < -100,'flyer approaches above the surface');
+for(let i=0;i<100;i++)natural.update(.1,true,world,[],undefined,{x:555,y:-22},true);
+assert.ok(!natural.active || natural.active.y > -60,'flyer descends to attack after warning');
+console.log('PASS natural flyer arrival, elevated approach and dive');

@@ -1,4 +1,6 @@
-import { SURFACE_RAID, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
+import { surfaceNests } from './SurfaceTerrain';
+import { SURFACE_TERRAIN } from '../config';
+import { MOTHERSHIP, SURFACE_RAID, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import { globeSurfaceDistance, surfaceArcCoordinate, surfaceArcPoint, structureIntegrity, surfaceTurretRange, turretStats } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
@@ -6,6 +8,9 @@ import { random } from './TileWorld';
 import { planetCartesianToChart, planetChartToCartesian, planetChartVectorToCartesian } from './PlanetChart';
 
 export type SurfaceRaiderState = {
+  nestId?: string;
+  homeX?: number;
+  homeY?: number;
   x: number;
   y: number;
   targetId: string;
@@ -17,8 +22,9 @@ export type SurfaceRaiderState = {
 };
 
 export type SurfaceRaidEvent =
+  | { type: 'player-hit'; x: number; y: number }
   | { type: 'warning'; target: UndergroundStructure }
-  | { type: 'intercepted'; x: number; y: number }
+  | { type: 'intercepted'; x: number; y: number; source?: 'mothership' }
   | { type: 'damaged' | 'destroyed'; target: UndergroundStructure };
 
 /** A brief colony raid that is telegraphed and has drill/turret counterplay. */
@@ -26,6 +32,11 @@ export class SurfaceRaid {
   active?: SurfaceRaiderState;
   private wait: number = SURFACE_RAID.firstWarningSeconds;
   private encounter = 0;
+  private world?: TileWorld;
+  private retreatTime = 0;
+  private shipReload = 0;
+  repel() { if(this.active?.nestId)this.world?.clearedTerritories.add(this.active.nestId); this.active = undefined; this.retreatTime = 0; this.resetWait(); }
+
   private fortOnline = false;
   get secondsUntilArrival() { return Math.max(0, Math.ceil(this.wait)); }
 
@@ -42,27 +53,40 @@ export class SurfaceRaid {
     structures: UndergroundStructure[],
     onTurretFire: (x: number, y: number) => void = () => {},
     playerPosition?: { x: number; y: number },
+    huntPlayer = false,
+    ship?: { x:number; y:number; onFire:(x:number,y:number)=>void },
   ): SurfaceRaidEvent | undefined {
-    if (!playerAtSurface) return undefined;
+    this.world=world;
+    this.shipReload = Math.max(0, this.shipReload - dt);
+    if (!playerAtSurface || this.retreatTime > 0) {
+      if (this.active) {
+        this.resetWait();
+        this.retreatTime += dt;
+        this.active.y -= world.gravitySign(this.active.y) * 140 * dt;
+        if (this.retreatTime >= 1.8) { this.active=undefined;this.retreatTime=0; }
+      }
+      return undefined;
+    }
     const hasFort = structures.some(entry => entry.kind === 'fort');
     if (hasFort && !this.fortOnline) this.wait = Math.min(this.wait, SURFACE_RAID.fortFirstWarningSeconds);
     this.fortOnline = hasFort;
     if (!this.active) {
-      const targets = structures.filter((entry) => ['habitat', 'turret', 'fort'].includes(entry.kind) &&
+      const targets: UndergroundStructure[] = huntPlayer && playerPosition ? [{ id:'player',kind:'habitat',x:playerPosition.x,y:playerPosition.y }] : structures.filter((entry) => ['habitat', 'turret', 'fort'].includes(entry.kind) &&
         Math.min(Math.abs(entry.y), Math.abs(entry.y - world.farSurfaceY)) <= WORLD.tile * 4 &&
         (!playerPosition || globeSurfaceDistance(world, entry.x, entry.y, playerPosition.x, playerPosition.y) <= SURFACE_RAID.visibleColonyRadius));
       if (!targets.length) {
         return undefined;
       }
-      this.wait -= dt;
-      if (this.wait > 0) return undefined;
+      const nest=world.terrain && playerPosition ? surfaceNests(world).find(n=>!world.clearedTerritories.has(n.id)&&Math.abs(playerPosition.y-world.surfaceHeight(playerPosition.x,playerPosition.y))<240&&globeSurfaceDistance(world,n.x,n.y,playerPosition.x,playerPosition.y)<SURFACE_TERRAIN.territoryRadius) : undefined;
+      if(world.terrain){if(!nest)return undefined;}else{this.wait -= dt;if(this.wait>0)return undefined;}
       const encounter = this.encounter++;
       const target = targets.find(entry => entry.kind === 'fort') ?? targets[Math.floor(random(this.seed, encounter, this.mapId.length, 801) * targets.length)]!;
       const sign = random(this.seed, encounter, this.mapId.length, 802) < 0.5 ? -1 : 1;
-      const arrival = surfaceArcPoint(world, surfaceArcCoordinate(world, target.x, target.y) - sign * SURFACE_RAID.arrivalDistance, false);
+      const arrival = nest ?? surfaceArcPoint(world, surfaceArcCoordinate(world, target.x, target.y) - sign * SURFACE_RAID.arrivalDistance, false);
       this.active = {
+        nestId:nest?.id, homeX:nest?.x, homeY:nest?.y,
         x: arrival.x,
-        y: arrival.y - world.gravitySign(arrival.y) * 26,
+        y: arrival.y - world.gravitySign(arrival.y) * (huntPlayer ? SURFACE_RAID.approachAltitude : 26),
         targetId: target.id,
         health: SURFACE_RAID.drillHitsToRepel,
         timer: SURFACE_RAID.telegraphSeconds,
@@ -74,13 +98,27 @@ export class SurfaceRaid {
     }
 
     const raider = this.active;
+    if(raider.nestId && playerPosition && globeSurfaceDistance(world,raider.homeX!,raider.homeY!,playerPosition.x,playerPosition.y)>SURFACE_TERRAIN.leashRadius){this.retreatTime=.001;return undefined;}
     raider.hitFlash = Math.max(0, raider.hitFlash - dt);
     raider.drillCooldown = Math.max(0, raider.drillCooldown - dt);
-    const target = structures.find((entry) => entry.id === raider.targetId);
+    const target = huntPlayer && playerPosition ? {id:'player',kind:'habitat' as const,x:playerPosition.x,y:playerPosition.y} : structures.find((entry) => entry.id === raider.targetId);
     if (!target) {
       this.active = undefined;
       this.resetWait();
       return undefined;
+    }
+
+    // Limited local protection, never through the planet or into underground territory.
+    if (ship && raider.y <= 0 && this.shipReload === 0 && world.gravitySign(raider.y) === world.gravitySign(ship.y) &&
+        Math.abs(raider.y-ship.y) <= MOTHERSHIP.defenceAltitude &&
+        globeSurfaceDistance(world, ship.x, ship.y, raider.x, raider.y) <= MOTHERSHIP.defenceRange) {
+      this.shipReload = MOTHERSHIP.defenceReload;
+      ship.onFire(raider.x,raider.y);
+      raider.health--; raider.hitFlash = .14;
+      if (raider.health <= 0) {
+        this.repel();
+        return { type:'intercepted', x:ship.x, y:ship.y, source:'mothership' };
+      }
     }
 
     for (const turret of structures) {
@@ -89,8 +127,7 @@ export class SurfaceRaid {
       if (globeSurfaceDistance(world, turret.x, turret.y, raider.x, raider.y) > surfaceTurretRange(world, turret, structures)) continue;
       turret.reload = turretStats(turret).reloadSeconds;
       onTurretFire(turret.x, turret.y);
-      this.active = undefined;
-      this.resetWait();
+      this.repel();
       return { type: 'intercepted', x: turret.x, y: turret.y };
     }
 
@@ -99,7 +136,7 @@ export class SurfaceRaid {
       rawDelta = ((targetArc - raiderArc) % fullArc + fullArc) % fullArc,
       routeDelta = rawDelta > fullArc / 2 ? rawDelta - fullArc : rawDelta,
       routeDirection = Math.sign(routeDelta), step = Math.min(Math.abs(routeDelta), SURFACE_RAID.approachSpeed * dt),
-      barriers = structures.filter((entry) => entry.kind === 'wall' || entry.kind === 'gate')
+      barriers = (huntPlayer ? [] : structures).filter((entry) => entry.kind === 'wall' || entry.kind === 'gate')
         .map((entry) => {
           const difference = ((surfaceArcCoordinate(world, entry.x, entry.y) - raiderArc) % fullArc + fullArc) % fullArc,
             signed = difference > fullArc / 2 ? difference - fullArc : difference,
@@ -114,7 +151,7 @@ export class SurfaceRaid {
       const stopArc = raiderArc + routeDirection * Math.max(0, barrier.along - UNDERGROUND_BUILDING[barrier.entry.kind].widthTiles * WORLD.tile / 2 - 8),
         point = surfaceArcPoint(world, stopArc, false);
       raider.x = point.x;
-      raider.y = point.y - world.gravitySign(point.y) * 26;
+      if (!huntPlayer) raider.y = point.y - world.gravitySign(point.y) * 26;
       raider.timer -= dt;
       if (raider.timer > 0) return undefined;
       const integrity = barrier.entry.integrity ?? structureIntegrity(barrier.entry.kind);
@@ -130,11 +167,23 @@ export class SurfaceRaid {
     if (step > 0) {
       const point = surfaceArcPoint(world, raiderArc + routeDirection * step, false);
       raider.x = point.x;
-      raider.y = point.y - world.gravitySign(point.y) * 26;
+      if (!huntPlayer) raider.y = point.y - world.gravitySign(point.y) * 26;
+    }
+    if(huntPlayer && playerPosition) {
+      const gravity=world.gravitySign(raider.y), surface=world.surfaceHeight(raider.x,raider.y);
+      const altitude = raider.timer > 0 ? SURFACE_RAID.approachAltitude : 26;
+      const wanted=gravity>0?Math.min(surface-altitude,playerPosition.y):Math.max(surface+altitude,playerPosition.y);
+      raider.y += (wanted-raider.y)*Math.min(1,dt*3);
+      raider.y=gravity>0?Math.min(raider.y,surface-26):Math.max(raider.y,surface+26);
+      raider.phase += dt*3;
     }
     raider.timer -= dt;
     if (raider.timer > 0 || Math.abs(routeDelta) > step + UNDERGROUND_BUILDING[target.kind].widthTiles * WORLD.tile / 2) return undefined;
 
+    if(huntPlayer && playerPosition) {
+      if(globeSurfaceDistance(world,raider.x,raider.y,playerPosition.x,playerPosition.y)>36 || Math.abs(raider.y-playerPosition.y)>45) return undefined;
+      const hit={type:'player-hit' as const,x:raider.x,y:raider.y};this.retreatTime=.001;return hit;
+    }
     const integrity = target.integrity ?? structureIntegrity(target.kind);
     if (integrity > 1) {
       target.integrity = integrity - 1;
