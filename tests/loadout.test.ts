@@ -44,12 +44,20 @@ const freeShot=weaponRay(globe,{x:700,y:-100},{x:700,y:-500},340,[]);
 assert.equal(freeShot.hit,-1,'empty sky needs no target');
 assert.ok(Math.hypot(freeShot.end.x-700,freeShot.end.y+100)>300,'empty sky shot travels to range');
 const legacy={...new Progress(),version:32,extraction:{},productionUpdatedAt:1,solarPosition:null,planetChart:STARTER_PLANET_CHART,campaignSeed:12,activeMap:'cryo-shelf',mothershipBoarded:false,maps:{'cryo-shelf':{seed:12,x:555,y:-22,maxDepth:0,destroyed:[],discovered:[],drops:[],activeCharge:null,structures:[],warehouse:emptyCargo(),planetChart:STARTER_PLANET_CHART}}};
-const migrated=migrateSave(legacy)!;assert.ok(migrated);assert.equal(migrated.version,35);assert.deepEqual(migrated.loadout,defaultLoadout());assert.deepEqual(migrateSave(migrated),migrated);
+const migrated=migrateSave(legacy)!;assert.ok(migrated);assert.equal(migrated.version,37);assert.deepEqual(migrated.loadout,defaultLoadout());assert.deepEqual(migrateSave(migrated),migrated);
 assert.equal(validateSave({...migrated,loadout:{...defaultLoadout(),owned:['invented']}}),false);
 assert.equal(migrated.cargo.iron,legacy.cargo.iron);
 console.log('PASS loadout: direct purchase, capacity, cargo protection, no free recharge, rollback, migration, wall occlusion and enemy retreat');
 
 const v33={...migrated,version:33};
-assert.equal(migrateSave(v33)?.version,35);
+assert.equal(migrateSave(v33)?.version,37);
 assert.deepEqual(migrateSave(v33)?.maps,migrated.maps,'migration preserves ore and excavation exactly');
 assert.equal(validateSave({...migrated,maps:{'cryo-shelf':{...migrated.maps['cryo-shelf'],clearedCaves:['bad']}}}),false);
+
+assert.equal(migrated.mothershipHull,3000);assert.equal(migrated.minerDisabled,false);
+const dead=structuredClone(migrated);dead.hull=0;dead.minerDisabled=true;dead.mothershipHull=0;
+dead.maps['cryo-shelf']!.wrecks=[{id:'wreck-1',x:555,y:-22,cargo:{...emptyCargo(),copper:7.5}}];
+assert.equal(validateSave(dead),true);assert.deepEqual(migrateSave(dead),dead);
+assert.equal(validateSave({...dead,mothershipHull:-1}),false);assert.equal(validateSave({...dead,minerDisabled:false}),false);
+dead.maps['cryo-shelf']!.wrecks[0].cargo.copper=-1;assert.equal(validateSave(dead),false);
+console.log('PASS v36 migration, mothership defeat, disabled miner and persisted wreck cargo validation');

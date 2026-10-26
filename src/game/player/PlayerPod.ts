@@ -298,6 +298,10 @@ export class PlayerPod {
       coreTransit = !!this.world.planetChart && Math.abs(this.y - this.world.coreWorldY) <= CORE_CROSSING_CLEARANCE,
       maxOutward = coreTransit ? Math.max(maxRise, P.fall) : maxRise;
     this.vy = gravitySign > 0 ? Math.max(-maxOutward, Math.min(P.fall, this.vy)) : Math.max(-P.fall, Math.min(maxOutward, this.vy));
+    // Powered drilling feeds into newly opened space instead of accelerating a damaging fall.
+    // Freefall, depleted batteries and the core crossing retain their existing physics.
+    if (input.down && p.fuel > 0 && !input.mothership && !coreTransit && this.vy * gravitySign > P.drillingDescent)
+      this.vy = gravitySign * P.drillingDescent;
     if (p.grappleOwned && input.grappleEnabled !== false && !input.mothership && this.grappleCooldown <= 0 && gravitySign * this.vy >= AUTO_GRAPPLE.fallSpeed && !input.up && !input.releaseGrapple && !requestWinch && !this.stasisActive && this.predictsDamagingImpact(input, cameraRotation)) {
       const anchor = findGrappleAnchor(this.world, this.x, this.y, value(p.levels, 'grapple'), gravitySign);
       if (anchor) {

@@ -1,12 +1,11 @@
-import { PREBUILD, CORE_RELICS, MAPS, SPECIALIZATIONS } from '../config';
+import { MAPS, SPECIALIZATIONS } from '../config';
 import type { MapId } from '../config';
 import type { Progress } from '../economy/Progress';
 import { podPortrait } from './PodPortrait';
 
 export function pauseScreen(p: Progress, map: MapId, depth: number, docked: boolean,
   exportControl: string, saveStatus: string, campBuilt = true, marketOnline = true) {
-  const cores = CORE_RELICS.filter(relic => p.milestones.includes(relic.id)).length;
-  const objective = {title:p.shipComplete?'Expand to Mars Frontier':'Recover your first core',text:p.shipComplete?'Load your ship and depart from the Star map. Build an independent colony, mine nickel and bring it home. Exposed cores supply renewable fuel.':'Mine the local core for four fuel units. Construction and upgrades use Miner, Ship and Planet materials. Recharge free at the mothership.',done:CORE_RELICS.filter(c=>['cryo-shelf','mars-frontier'].includes(c.mapId)&&p.milestones.includes(c.id)).length,total:2,unit:'live world cores'};
+  const objective = {title:'Grow your mining operation',text:'Explore caves, fit equipment and build where it helps. Shelters restore your rig underground. Sell surplus ore at a market uplink.',done:0,total:0,unit:''};
   const readout = (name: string, value: string, ratio: number) => `<div><dt>${name}</dt><dd>${value}</dd><i aria-hidden="true"><b style="width:${Math.max(0, Math.min(100, ratio * 100))}%"></b></i></div>`;
   return `<section class="modal pause-screen" role="dialog" aria-modal="true" aria-label="EXPEDITION PAUSED">
     <button class="close" id="close" aria-label="Close panel">×</button>
@@ -33,8 +32,8 @@ export function pauseScreen(p: Progress, map: MapId, depth: number, docked: bool
         ${readout('Hull', `${Math.ceil(p.hull / p.max('hull') * 100)}<small>%</small>`, p.hull / p.max('hull'))}
         ${readout('Cargo', `${p.count}<small> / ${p.max('cargo')}</small>`, p.count / p.max('cargo'))}
       </dl>
-      <div class="pause-objective"><span>MOTHERSHIP EXPEDITION</span><h3>${objective.title}</h3><p>${objective.text}</p><div class="pause-progress" aria-hidden="true">${Array.from({ length: objective.total }, (_, i) => `<i class="${i < objective.done ? 'complete' : ''}"></i>`).join('')}</div><small>${objective.done} / ${objective.total} ${objective.unit}</small></div>
-      <div class="pause-credit"><span>Core fuel · interplanetary jumps</span><b>${p.coreFuel}</b></div>
+      <div class="pause-objective"><span>MOTHERSHIP EXPEDITION</span><h3>${objective.title}</h3><p>${objective.text}</p><div class="pause-progress" aria-hidden="true">${Array.from({ length: objective.total }, (_, i) => `<i class="${i < objective.done ? 'complete' : ''}"></i>`).join('')}</div><small>Choose your next expedition.</small></div>
+      <div class="pause-credit"><span>Core fuel · reserved for future travel</span><b>${p.coreFuel}</b></div>
       <div class="pause-credit"><span>Banked Kredits</span><b>K ${p.money.toLocaleString()}</b></div>
     </aside>
   </section>`;

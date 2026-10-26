@@ -1,3 +1,6 @@
+import { podPortrait } from './PodPortrait';
+import { shipStoreArt } from './MenuArt';
+import { buildingArt } from './BuildingArt';
 import { CIVILISATIONS, CIVILISATION_KEYS, FRONTIER, MAPS, ORE_KEYS, ORES, type MapId, type Ore } from '../config';
 import { cargoTotal, type InventorySource } from '../economy/Freight';
 import { quoteCivilianShipment } from '../economy/Civilisations';
@@ -19,14 +22,14 @@ function simpleFreight(p:Progress,planet:Cargo,capacity:number,map:MapId,state:F
  const transferAccess=access&&available&&(transferTarget!=='ship'||shipAccess);
  const room=Math.max(0,caps[transferTarget]-cargoTotal(stores[transferTarget]));
  return `<section class="modal freight-screen simple-ore" role="dialog" aria-modal="true" aria-label="Your ore">
- <header><div><h1>Your ore</h1><small>${p.money.toLocaleString()} Kredits</small></div><nav><button id="freight-complexity">Advanced</button><button id="close">Return to mine</button></nav></header>
- <nav class="simple-stores" aria-label="Where your ore is">${(['miner','ship','planet'] as const).map(key=>`<button data-freight-source="${key}" aria-pressed="${state.source===key}"><b>${inventoryNames[key]}</b><strong>${cargoTotal(stores[key])}<small> / ${caps[key]}</small></strong><span>${key==='miner'?'What you carry':key==='ship'?'Stored on your ship':'Stored on this planet'}</span></button>`).join('')}</nav>
- <div class="simple-explainer"><b>${inventoryNames[state.source]}</b><span>${state.source==='miner'?'Store ore to free cargo space.':state.source==='ship'?'This ore is already stored on your mothership.':'This ore stays on '+MAPS[map].name+'.'} Building and equipment use Miner, Ship and Planet ore automatically.</span></div>
+ <header><div><h1>My ore</h1><small>${p.money.toLocaleString()} Kredits</small></div><nav><button id="freight-complexity">Advanced</button><button id="close">Return to mine</button></nav></header>
+ <nav class="simple-stores" aria-label="Where your ore is">${(['miner','ship','planet'] as const).map(key=>`<button data-freight-source="${key}" aria-pressed="${state.source===key}"><span class="store-picture" aria-hidden="true">${key==='miner'?podPortrait(p):key==='ship'?shipStoreArt():buildingArt('warehouse')}</span><b>${inventoryNames[key]}</b><strong>${cargoTotal(stores[key])}<small> / ${caps[key]}</small></strong><span>${key==='miner'?'What you carry':key==='ship'?'Stored on your ship':'Stored on this planet'}</span></button>`).join('')}</nav>
+ <div class="simple-explainer"><b>${inventoryNames[state.source]}</b><span>${state.source==='miner'?'Store ore to free cargo space.':state.source==='ship'?'This ore is already stored on your mothership.':'This ore stays on '+MAPS[map].name+'.'} Building and buying parts use ore from all three stores.</span></div>
  <section class="simple-ore-list" aria-label="Ore in selected location">${held.length?held.slice(page*size,(page+1)*size).map(ore=>{
  const amount=stores[state.source][ore],move=Math.min(amount,room),offer=bestOreOffer(p,stores[state.source],{...state,ore,amount});
  return `<article class="simple-ore-row"><div><i style="background:${ORES[ore].hex}"></i><h2>${ORES[ore].name}</h2><strong>${amount} <small>ore</small></strong></div><nav>
- <button data-simple-ore="${ore}" data-simple-action="store" data-target="${transferTarget}" data-amount="${move}" ${!transferAccess||move<.5?'disabled':''}>${state.source==='miner'?'Store':'Take'} ${move>0?move:amount}<small>${state.source==='miner'?'in '+inventoryNames[transferTarget]:'into Miner'}</small></button>
- <button class="simple-sell" data-simple-ore="${ore}" data-simple-action="sell" data-amount="${amount}" ${!uplink||!sellAccess||!available||offer.total<=0?'disabled':''}>Sell ${amount}<small>+${offer.total} Kredits</small></button></nav></article>`;
+ <button data-simple-ore="${ore}" data-simple-action="store" data-target="${transferTarget}" data-amount="${move}" ${!transferAccess||move<.5?'disabled':''}>${state.source==='miner'?'Store':'Take'} ${move>0?move:amount} ore<small>${state.source==='miner'?'in '+inventoryNames[transferTarget]:'into Miner'}</small></button>
+ <button class="simple-sell" data-simple-ore="${ore}" data-simple-action="sell" data-amount="${amount}" ${!uplink||!sellAccess||!available||offer.total<=0?'disabled':''}>Sell → +${offer.total} Kredits<small>${amount} ${ORES[ore].name}</small></button></nav></article>`;
  }).join(''):`<div class="simple-empty"><h2>${state.source==='miner'?'Your miner is empty.':'Nothing stored here yet.'}</h2><p>${state.source==='miner'?cargoTotal(p.shipCargo)>0?'Your ore is on the mothership. Select Mothership above to use or sell it.':cargoTotal(planet)>0?'Your ore is in the planet warehouse. Select it above to use or sell it.':'Mine ore, then press F near the mothership or an ore warehouse to unload.':'Choose Miner above to store the ore you are carrying.'}</p></div>`}</section>
  ${pages>1?`<nav class="simple-pages"><button id="inventory-prev" ${page===0?'disabled':''}>← Previous</button><span>${page+1} / ${pages}</span><button id="inventory-next" ${page===pages-1?'disabled':''}>Next →</button></nav>`:''}
  <output role="status">${state.notice||(!transferAccess?'Visit the mothership or a warehouse to move ore. ':room<.5?'Storage is full. Sell ore or use Advanced to move it elsewhere. ':'')+saleReason}</output>

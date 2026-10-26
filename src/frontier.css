@@ -497,4 +497,74 @@ footer .bank { margin-left:auto; font-size:10px; }
 @media(max-width:600px) { #modal-layer:has(.operations-nav) { --operations-nav-height:88px; } .operations-nav { grid-template-columns:repeat(4,minmax(0,1fr)); padding:4px 6px; gap:2px; } .operations-nav button { font-size:11px; padding:4px; } }
 @media(max-height:500px) and (min-width:601px) { #modal-layer:has(.operations-nav) { --operations-nav-height:40px; } .operations-nav { padding:3px 8px; } }
 
-#station-dock.warehouse-only > :not(#quick-unload) { display:none !important; }
+#station-dock.warehouse-only > :not(#quick-unload):not(#quick-sell) { display:none !important; }
+
+#quick-sell { width:100%; min-height:48px; margin-bottom:8px; padding:12px; background:#173e43; border:1px solid #ffb36b; color:#fff0d4; font:inherit; cursor:pointer; }
+#quick-sell:disabled { opacity:.65; cursor:default; }
+#quick-sell[hidden] { display:none; }
+
+#quick-building-repair { position:absolute;right:18px;bottom:145px;z-index:25;max-width:280px;padding:14px;background:#173e43;color:#d5f5e9;border:1px solid #8edac2;border-radius:8px;font:inherit; }
+#quick-building-repair:disabled {opacity:.6} #quick-building-repair[hidden],#ship-health[hidden]{display:none}
+#ship-health{position:absolute;top:68px;left:50%;transform:translateX(-50%);font:11px monospace;color:#a5e6d4;background:#102b34dd;padding:8px;pointer-events:none}
+@media(any-pointer:coarse){#quick-building-repair{display:none}#ship-health{top:58px;font-size:9px}}
+
+/* One consistent navigation hierarchy across mothership operations. */
+.operations-nav { grid-template-columns:repeat(6,minmax(0,1fr)); }
+.operations-tabs { position:fixed;top:var(--operations-nav-height);left:0;right:0;height:44px;z-index:99;display:flex;justify-content:center;gap:8px;padding:5px 12px;background:#0b202c;border-bottom:1px solid #395462; }
+.operations-tabs button { min-width:120px;padding:4px 16px;border:0;border-radius:5px;background:transparent;color:#adcad4;font-size:13px; }
+.operations-tabs button[aria-current="page"] { background:#244653;color:#fff0d6; }
+#modal-layer.has-operation-tabs .operations-panel { top:calc(var(--operations-nav-height) + 44px);height:calc(100dvh - var(--operations-nav-height) - 44px);max-height:calc(100dvh - var(--operations-nav-height) - 44px); }
+@media(max-width:600px) {
+ #modal-layer:has(.operations-nav) { --operations-nav-height:88px; }
+ .operations-nav { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .operations-tabs { gap:2px;padding-inline:6px; }
+ .operations-tabs button { min-width:0;flex:1;padding-inline:4px;font-size:12px; }
+}
+/* Picture-led choices keep the same game art and a single clear action. */
+.hub-picture { display:flex!important;align-items:center;justify-content:center;width:76px;height:64px;flex-shrink:0; }
+.hub-picture svg { width:100%;height:100%; }
+.camp-hub .operations-grid>button { display:grid;grid-template-columns:76px 1fr;align-content:center;column-gap:16px; }
+.camp-hub .operations-grid>button .hub-picture { grid-row:1/3; }
+.camp-hub .operations-grid>button b,.camp-hub .operations-grid>button small { grid-column:2; }
+.build-choices button .colony-building-art { width:64px;height:54px;flex-shrink:0; }
+.build-choices button { gap:10px; }
+.build-choices button b { flex:1; }
+.operations-panel #catalogue-back,.operations-panel #catalogue-colony,.operations-panel .build-survey { display:none; }
+.loadout-slots button { display:flex;align-items:center;justify-content:center;gap:8px; }
+.loadout-slots button svg { width:48px;height:40px;flex-shrink:0; }
+.loadout-slots button small { color:#9ee2b6; }
+.store-picture { display:block;height:46px; }
+.store-picture svg { width:64px;height:46px; }
+.simple-ore-row>div>i { width:26px!important;height:26px!important;clip-path:polygon(30% 0,85% 15%,100% 65%,60% 100%,0 75%,8% 25%); }
+.simple-ore-row nav button { min-height:52px; }
+@media(max-width:700px) {
+ .camp-hub .operations-grid>button { grid-template-columns:44px 1fr;column-gap:8px; }
+ .hub-picture { width:44px;height:46px; }
+ .build-choices button .colony-building-art { width:40px;height:38px; }
+ .loadout-slots button { gap:4px; }
+ .loadout-slots button svg { width:28px;height:28px; }
+ .loadout-slots button small { display:none; }
+ .store-picture { height:32px; }.store-picture svg { width:44px;height:32px; }
+}
+@media(max-height:500px) {
+ .hub-picture { width:42px;height:36px; }
+ .camp-hub .operations-grid>button { grid-template-columns:42px 1fr; }
+ .build-choices button .colony-building-art { width:36px;height:30px; }
+ .loadout-slots button svg { width:26px;height:24px; }
+ .loadout-slots button small,.store-picture { display:none; }
+ .simple-ore-row nav button { min-height:40px; }
+}
+#modal-layer.has-operation-tabs .modal.operations-panel { top:calc(var(--operations-nav-height) + 44px)!important;height:calc(100dvh - var(--operations-nav-height) - 44px)!important;max-height:calc(100dvh - var(--operations-nav-height) - 44px)!important; }
+.operations-tabs { box-sizing:border-box; }
+.loadout-item>nav.part-choices { display:flex;gap:5px;align-items:stretch; }
+.part-choices button { flex:1;min-width:0;white-space:normal;font-size:12px;padding:7px; }
+.part-choices button small { display:block;margin-top:3px;font-size:10px; }
+@media(max-height:500px) { .part-choices button { font-size:10px;padding:4px; }.part-choices button small { display:none; } }
+.placement-controls { display:grid;grid-template-columns:44px 44px minmax(130px,1fr) 80px;width:min(620px,calc(100% - 24px));box-sizing:border-box; }
+.placement-controls>span { grid-column:1/-1;min-width:0;text-align:center;font-size:13px; }
+.placement-controls [data-place=place] { background:#ffb76c;color:#102331;font-weight:700;grid-column:auto!important; }
+.placement-controls [data-place=place]:disabled { background:#34454b;color:#b6c4c8; }
+.placement-controls button { min-height:48px; }
+@media(max-height:500px){.placement-controls { bottom:6px;padding:6px;gap:4px; }.placement-controls button { min-height:40px; }.placement-controls>span {font-size:11px;} }
+#viewport .placement-controls { grid-template-columns:44px 44px minmax(110px,1fr) 70px; }
+#viewport .placement-controls [data-place=place] {grid-column:auto;}

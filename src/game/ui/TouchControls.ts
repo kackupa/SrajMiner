@@ -9,7 +9,7 @@ export class TouchControls {
     this.root.setAttribute('aria-label', 'Flight and mining controls');
     const hold = (key: string, label: string, text: string) =>
       `<button type="button" data-hold="${key}" aria-label="${label}">${text}</button>`;
-    this.root.innerHTML = `<div class="touch-primary">${hold('FIRE', 'Hold to fire at nearest creature', 'FIRE')}${Object.keys(actions).filter(label => ['INTERACT', 'UNLOAD', 'REPAIR', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}<button type="button" data-tools aria-expanded="false" aria-controls="touch-equipment">Tools</button></div><div id="touch-equipment" class="touch-tools" hidden>${Object.keys(actions).filter(label => !['INTERACT', 'UNLOAD', 'REPAIR', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}${hold('R', 'Hold return winch', 'WINCH')}${hold('X', 'Hold stasis', 'STASIS')}${hold('H', 'Toggle grapple', 'GRAPPLE')}</div>
+    this.root.innerHTML = `<div class="touch-primary">${hold('FIRE', 'Hold to fire at nearest creature', 'FIRE')}${Object.keys(actions).filter(label => ['INTERACT', 'UNLOAD', 'SELL', 'FIX', 'REPAIR', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}<button type="button" data-tools aria-expanded="false" aria-controls="touch-equipment">Tools</button></div><div id="touch-equipment" class="touch-tools" hidden>${Object.keys(actions).filter(label => !['INTERACT', 'UNLOAD', 'SELL', 'FIX', 'REPAIR', 'PLACE', 'CANCEL'].includes(label)).map(label => `<button type="button" data-action="${label}">${label}</button>`).join('')}${hold('R', 'Hold return winch', 'WINCH')}${hold('X', 'Hold stasis', 'STASIS')}${hold('H', 'Toggle grapple', 'GRAPPLE')}</div>
       <div class="touch-pad touch-flight"><span>MOVE / DRILL</span>${hold('W', 'W: thrust upward', 'W')}${hold('A', 'A: move or drill left', 'A')}${hold('S', 'S: drill down', 'S')}${hold('D', 'D: move or drill right', 'D')}</div>
       <small class="touch-rotate">Rotate for a wider view</small>`;
     document.querySelector('#viewport')!.append(this.root);
@@ -49,7 +49,7 @@ export class TouchControls {
         return;
       }
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-action]');
-      if (button && !this.root.hidden) { this.clear(); actions[button.dataset.action!]?.(); }
+      if (button && !this.root.hidden) { this.clear(); this.root.querySelector<HTMLElement>('.touch-tools')!.hidden=true; this.root.querySelector('[data-tools]')!.setAttribute('aria-expanded','false'); actions[button.dataset.action!]?.(); }
     }, options);
     window.addEventListener('blur', () => this.clear(), options);
     window.addEventListener('resize', () => this.clear(), options);

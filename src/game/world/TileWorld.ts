@@ -1,5 +1,5 @@
 import { terrainHeight, naturalCave, type SurfaceTerrain } from './SurfaceTerrain';
-import { STARTER_MATERIAL_SEAMS, CORE, WORLD, ORES, ORE_KEYS, bandAt, coreDepthMetersFor, coreWorldYFor, depthAtWorldY, farSurfaceRowFor, farSurfaceYFor, MAPS, CORE_RELICS, REGION_FINDS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, gravityDirectionAt, type Ore, type MapId, type CoreRelicId } from '../config';
+import { OPENING_EXPEDITION, STARTER_MATERIAL_SEAMS, CORE, WORLD, ORES, ORE_KEYS, bandAt, coreDepthMetersFor, coreWorldYFor, depthAtWorldY, farSurfaceRowFor, farSurfaceYFor, MAPS, CORE_RELICS, REGION_FINDS, ROUTE_FRAGMENTS, NAVIGATION_HASHES, gravityDirectionAt, type Ore, type MapId, type CoreRelicId } from '../config';
 import { planetChartCellIntersectsCoreRadius, wrapPlanetTile, type PlanetChartSize } from './PlanetChart';
 export type Tile = {
   x: number;
@@ -35,6 +35,7 @@ function routeFragmentRow(row: number, mapId: MapId, chart?: PlanetChartSize) {
 // Chunks are deterministic and disposable; excavation and exploration are separate durable state.
 export class TileWorld {
   miningOnly = false;
+  openingLayout = false;
   terrain?: SurfaceTerrain;
   clearedTerritories = new Set<string>();
   surfaceHeight(x:number,y:number) { const h=terrainHeight(this,x,y)*WORLD.tile; return y<this.coreWorldY?h:this.farSurfaceY-h; }
@@ -78,7 +79,21 @@ export class TileWorld {
     if (x < 0 || x >= this.widthTiles) return { ...tile, type: 'boundary', hardness: Infinity };
     if (y < 0) return { ...tile, type: 'empty' };
     if (y >= this.farSurfaceRow) return { ...tile, type: 'empty', ore: undefined };
-    if (this.aboveTerrain((x+.5)*WORLD.tile,(y+.5)*WORLD.tile) || naturalCave(this,x,y)) return {...tile,type:'empty',ore:undefined};
+    if (this.aboveTerrain((x+.5)*WORLD.tile,(y+.5)*WORLD.tile) || (!(this.openingLayout && this.miningOnly && x >= 28 && x <= 47 && y <= 22) && naturalCave(this,x,y))) return {...tile,type:'empty',ore:undefined};
+    if (this.openingLayout && this.miningOnly) {
+      const a = OPENING_EXPEDITION;
+      // A safe staging chamber, a rock divider, then a deeper inhabited pocket.
+      if ((x >= a.caveColumn - 1 && x <= a.caveColumn + 1 && y >= 0 && y <= 12) ||
+          (x >= a.safeLeft && x <= a.safeRight && y >= 8 && y < a.caveFloor) ||
+          (x >= 37 && x <= 38 && y >= 11 && y <= 17) ||
+          (x >= 39 && x <= 46 && y >= 14 && y <= 19)) return { ...tile, type: 'empty', ore: undefined };
+      if (x === 36 && y >= 11 && y <= 12) return {...tile,type:'dirt',hardness:.8,ore:'iron',oreUnits:1};
+      const seam = a.seams.find(v => x >= v.left && x <= v.right && y >= v.top && y <= v.bottom);
+      if (seam) return { ...tile, type: 'dirt', hardness: .8, ore: seam.ore, oreUnits: 1 };
+      if (x >= 14 && x <= 22 && y <= 12) return { ...tile, type: 'dirt', hardness: .8, ore: undefined };
+      // Solid divider and chamber supports prevent random generation joining the nest to the safe bay.
+      if (x >= 28 && x <= 47 && y >= 7 && y <= 22) return { ...tile, type: 'dirt', hardness: .8, ore: undefined };
+    }
     const coreY = this.coreWorldY, coreRow = Math.round(coreY / WORLD.tile), centerX = WORLD.homeColumn;
     const coreRelic = CORE_RELICS.find((entry) => entry.mapId === this.mapId);
     if (x === centerX && y === coreRow && coreRelic)

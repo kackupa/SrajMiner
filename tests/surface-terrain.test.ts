@@ -27,8 +27,8 @@ assert.equal(restored.get(65,9).type,'empty','old excavation kept');
 const saved=snapshotMapState(old,restored,555,-22,200,[],undefined,old.structures);
 assert.deepEqual(restoreMapState(saved,'cryo-shelf',999).world.terrain,restored.terrain,'profile frozen on reload');
 const raid=new SurfaceRaid(w.seed,w.mapId),nest=surfaceNests(w)[0];
-for(let i=0;i<1000;i++)raid.update(.1,true,w,[],undefined,{x:555,y:-22},true);
-assert.equal(raid.active,undefined,'no timed spawning at home');
+for(let i=0;i<700;i++)raid.update(.1,true,w,[],undefined,{x:555,y:-22},true);
+assert.equal(raid.active,undefined,'no creature spawning at home before the human raid grace ends');
 raid.update(.1,true,w,[],undefined,{x:nest.x,y:nest.y-22},true);
 assert.equal(raid.active?.nestId,nest.id,'entering territory wakes its inhabitant');
 raid.repel();assert.ok(w.clearedTerritories.has(nest.id));
@@ -47,3 +47,32 @@ const cavePod=new PlayerPod(w,new Progress());cavePod.x=(mouth+.5)*40;cavePod.y=
 for(let i=0;i<90;i++)cavePod.update(1/60,{left:false,right:false,up:false,down:false},()=>{});
 assert.ok(cavePod.y>height*40+30,'cave entrance has no invisible surface landing deck');
 console.log('PASS miner follows relief and enters natural cave mouths');
+// A nest targets an extractor in its own territory on a building encounter.
+w.clearedTerritories.delete(nest.id);
+const outpostRaid=new SurfaceRaid(w.seed,w.mapId);
+const outpost=[{id:'extractor:territory',kind:'extractor' as const,x:nest.x,y:nest.y,level:1},{id:'warehouse:territory',kind:'warehouse' as const,x:nest.x+80,y:nest.y}];
+outpostRaid.update(.1,true,w,outpost,undefined,{x:nest.x,y:nest.y-22},false);
+assert.equal(outpostRaid.active?.targetId,'extractor:territory');
+for(let i=0;i<25;i++)outpostRaid.update(.1,false,w,outpost,undefined,{x:nest.x,y:nest.y+400},false);
+assert.equal(outpostRaid.active,undefined,'underground retreat ends the outpost encounter');
+assert.equal(outpost.length,2,'retreat does not secretly damage outposts');
+console.log('PASS territorial extractor targeting and safe underground retreat');
+
+// Foundations bridge gentle relief without excavating or moving saved structures.
+import { surfaceFoundation, validateSurfaceStructureSite } from '../src/game/building/UndergroundStructures';
+import { expandSurfaceNests } from '../src/game/world/SurfaceTerrain';
+const fw=new TileWorld(123,[],[],'cryo-shelf',chart);fw.terrain={heights:Array(252).fill(0),caves:[],nests:[]};
+fw.terrain.heights[61]=1;fw.terrain.heights[62]=2;
+const originalProfile=[...fw.terrain.heights],base=surfaceFoundation(fw,'warehouse',{x:61*40,y:40});
+assert.ok(base.valid);assert.equal(base.y,0);assert.ok(base.feet.some(f=>f.y>base.y));assert.deepEqual(fw.terrain.heights,originalProfile);
+const rich={...emptyCargo(),iron:100,copper:100,silver:100};
+assert.equal(validateSurfaceStructureSite(fw,'warehouse',base,[],rich,10000).valid,true);
+assert.equal(validateSurfaceStructureSite(fw,'warehouse',base,[{id:'old',kind:'warehouse',x:base.x,y:base.y}],rich,10000).valid,false);
+const protectedBuilding={x:70*40,y:0};expandSurfaceNests(fw,[protectedBuilding]);
+assert.ok(fw.terrain.nests.length>0);assert.ok(fw.terrain.nests.every(i=>Math.abs(i-70)*40>=390));
+const nestCount=fw.terrain.nests.length;expandSurfaceNests(fw,[protectedBuilding]);assert.equal(fw.terrain.nests.length,nestCount,'nest expansion idempotent');
+const melee=new SurfaceRaid(fw.seed,fw.mapId),den=surfaceNests(fw)[0];
+melee.update(.1,true,fw,[],undefined,{x:den.x,y:den.y-22},true);
+assert.ok(melee.active);melee.active!.x=den.x+30;melee.active!.y=-22;melee.active!.health=1;
+assert.equal(melee.hitByDrill(fw,den.x,-22,1,0,70),true);assert.ok(fw.clearedTerritories.has(den.id),'drill kill clears the territory');
+console.log('PASS automatic foundations, retained terrain, protected extra nests and drill territory clear');

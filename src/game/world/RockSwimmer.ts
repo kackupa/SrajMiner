@@ -1,6 +1,6 @@
 import { caveHome, caveMove, caveSight, caveStep } from './CaveHabitat';
 import { turretStats } from '../building/UndergroundStructures';
-import { CAVE_CREATURES, HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
+import { OPENING_EXPEDITION, CAVE_CREATURES, HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
@@ -54,7 +54,7 @@ export class RockSwimmer {
     for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
       const a=sx+ox,b=sy+oy,key=a+','+b;if(a<0||b<0||this.surveyed.has(key))continue;
       this.surveyed.add(key);const home=caveHome(world,a,b);if(!home||world.clearedCaves.has(home.id))continue;
-      const n=Math.floor(random(this.seed,a,b,141)*9),kind=swimmerKindForEncounter(n,this.mapId);
+      const n=Math.floor(random(this.seed,a,b,141)*9),kind=world.openingLayout&&home.id===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow?'rock-swimmer':swimmerKindForEncounter(n,this.mapId);
       this.residents.set(home.id,{habitat:home.id,homeX:home.x,homeY:home.y,x:home.x,y:home.y,kind,mode:'hunt',vx:0,vy:0,
         life:0,phase:random(this.seed,a,b,143)*Math.PI*2,health:kind==='shard-manta'?SHARD_MANTA.drillHitsToDefeat:kind==='hull-scrapper'?HULL_SCRAPPER.drillHitsToDefeat:ROCK_SWIMMER.drillHitsToDefeat,drillCooldown:0,hitFlash:0});
     }
@@ -86,7 +86,10 @@ export class RockSwimmer {
       this.navigationTime=.3;
       this.waypoint=caveStep(this.world,swimmer,{x:podX,y:podY});
     }
-    const goal=this.world&&!visible?(this.waypoint??{x:(swimmer.homeX??swimmer.x)+Math.sin(swimmer.life*.6)*18,y:(swimmer.homeY??swimmer.y)+Math.cos(swimmer.life*.5)*12}):{x:podX,y:podY};
+    const home={x:swimmer.homeX??swimmer.x,y:swimmer.homeY??swimmer.y};
+    const retreating=!!this.world?.openingLayout&&swimmer.habitat===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow&&Math.hypot(podX-home.x,podY-home.y)>OPENING_EXPEDITION.retreatRadius;
+    const homeStep=retreating&&this.world?caveStep(this.world,swimmer,home):undefined;
+    const goal=retreating?(homeStep??home):this.world&&!visible?(this.waypoint??{x:(swimmer.homeX??swimmer.x)+Math.sin(swimmer.life*.6)*18,y:(swimmer.homeY??swimmer.y)+Math.cos(swimmer.life*.5)*12}):{x:podX,y:podY};
     const dx = goal.x - swimmer.x, dy = goal.y - swimmer.y;
     const distance = Math.hypot(dx, dy);
     for (const turret of structures) {

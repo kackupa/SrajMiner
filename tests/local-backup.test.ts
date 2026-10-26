@@ -8,7 +8,7 @@ import { SAVE_KEY, validateSave, type SaveData } from '../src/game/save/SaveMana
 const p = new Progress();
 p.money = 0;
 const original = {
-  version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false },
+  version: 36 as const, mothershipHull: 3000, minerDisabled: false, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false },
   extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART,
   campaignSeed: 1, activeMap: 'cryo-shelf' as const,
   maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], warehouse: emptyCargo() } },

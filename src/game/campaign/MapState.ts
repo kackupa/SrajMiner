@@ -1,8 +1,8 @@
-import { createSurfaceTerrain } from '../world/SurfaceTerrain';
-import type { MapId } from '../config';
+import { createSurfaceTerrain, expandSurfaceNests } from '../world/SurfaceTerrain';
+import { OPENING_EXPEDITION, type MapId } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 import { TileWorld } from '../world/TileWorld';
-import type { ActiveCharge, OreDrop, WorldSave } from '../save/SaveManager';
+import type { ActiveCharge, OreDrop, MinerWreck, WorldSave } from '../save/SaveManager';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import { emptyCargo, type Cargo } from '../economy/Progress';
 
@@ -16,9 +16,12 @@ export function snapshotMapState(
   activeCharge?: ActiveCharge,
   structures: UndergroundStructure[] = [],
   warehouse: Cargo = previous?.warehouse ?? emptyCargo(),
+  wrecks: MinerWreck[] = previous?.wrecks ?? [],
 ): WorldSave {
   return {
+    wrecks: structuredClone(wrecks),
     seed: world.seed,
+    openingLayout: world.openingLayout,
     terrain: world.terrain,
     clearedTerritories: [...world.clearedTerritories],
     x,
@@ -42,11 +45,19 @@ export function restoreMapState(
   firstVisitChart?: PlanetChartSize,
 ) {
   const world = new TileWorld(state?.seed ?? firstVisitSeed, state?.destroyed, state?.discovered, mapId, state?.planetChart ?? firstVisitChart);
-  world.terrain = state?.terrain ?? createSurfaceTerrain(world,state?.structures);
+  world.openingLayout = state ? state.openingLayout === true : mapId === 'cryo-shelf';
+  world.terrain = state?.terrain ? structuredClone(state.terrain) : createSurfaceTerrain(world,state?.structures);
+  if (!state && world.openingLayout) {
+    world.terrain.caves = world.terrain.caves.filter(c => c < 25 || c > 48);
+    world.terrain.caves.push(OPENING_EXPEDITION.caveColumn);
+    world.terrain.nests = world.terrain.nests.filter(c => c < 25 || c > 48);
+  }
+  expandSurfaceNests(world,state?.structures);
   world.clearedTerritories = new Set(state?.clearedTerritories ?? []);
   world.clearedCaves = new Set(state?.clearedCaves ?? []);
   return {
     world,
+    wrecks: structuredClone(state?.wrecks??[]),
     drops: state?.drops.map((drop) => ({ ...drop })) ?? [],
     activeCharge: state?.activeCharge ? { ...state.activeCharge } : undefined,
     structures: state?.structures.map((structure) => ({ ...structure })) ?? [],

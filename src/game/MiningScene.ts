@@ -1,3 +1,11 @@
+import { BUILD_PLACEMENT } from './config';
+import { surfaceFoundation } from './building/UndergroundStructures';
+import { drawHumanRaider } from './world/HumanRaiderArt';
+import { HUMAN_RAID } from './config';
+import { drawWreck, drawRepairDrones } from './surface/FieldEffects';
+import { FIELD_REPAIR, MINER_DEATH } from './config';
+import type { MinerWreck } from './save/SaveManager';
+import { drawCargoPickup, PICKUP_SECONDS } from './surface/CargoPickup';
 import { drawWarehouseUnload } from './surface/WarehouseUnload';
 import { quickRepair } from './economy/QuickRepair';
 import { drawRigSwap, RIG_SWAP_SECONDS } from './surface/RigSwap';
@@ -9,7 +17,7 @@ import { traceWorkLamp } from './world/WorkLamp';
 import { weaponRay } from './player/Weapon';
 import { purchaseOrFit, rigItem } from './economy/Loadout';
 import { SHELTER, CHARGE_MODES } from './config';
-import { sellInventory } from './economy/InventorySale';
+import { quoteQuickSale, sellInventory } from './economy/InventorySale';
 import { installSpecialist } from './economy/SpecialistModules';
 import { coreExtractionStep } from './campaign/RenewableFuel';
 import { FRONTIER } from './config';
@@ -30,7 +38,7 @@ import { TouchControls } from './ui/TouchControls';
 import { settleCivilianShipment } from './economy/Civilisations';
 import { CIVILISATIONS, type CivilisationId } from './config';
 import { drawMothership } from './surface/MothershipArt';
-import { MOTHERSHIP, EXTRACTOR_TIERS } from './config';
+import { MOTHERSHIP, EXTRACTOR_TIERS, SURFACE_TERRAIN } from './config';
 import { SolarView, solarDestinationUnlocked, solarRouteFuel, planetPosition, distance, type SolarCommanderIntel, type SolarPlanetIntel, type SolarPosition } from './campaign/SolarSystem';
 import Phaser from 'phaser';
 import { CORE, CORE_FUEL, SOLAR_SYSTEM, PLANET_CHART, STARTER_PLANET_CHART, LEGACY_PLANET_CHART, TRADE_NETWORK, SURFACE_RAID, WORLD, FUEL, PHYSICS, ORES, ORE_SILHOUETTES, CORE_RELICS, vesperChapterUnlocked, REGION_FINDS, CHARGE, SALVAGE_MAGNET, STASIS_MODULE, ESCAPE_SUIT, ROCK_SWIMMER, SHARD_MANTA, HULL_SCRAPPER, POD_PAINTS, PILOT_SUITS, POD_DECALS, POD_PROFILES, SPECIALIZATIONS, UNDERGROUND_BUILDING, estimateVerticalReturnFuel, estimateWinchReturnFuel, depthAtWorldY, farHemisphereAfterCoreExit, fallCameraLookAhead, fallMotionCueIntensity, surfaceYAt, surfaceDockYAt, CAMPAIGN_MILESTONES, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, ROUTE_PART_RECOVERY_BONUS, SHIP_COMPONENTS, NAVIGATION_HASHES, MAPS, drillPreviewDimensions, drillReachTiles, drillVisualTier, podVisualScale, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from './config';
@@ -137,7 +145,7 @@ export class MiningScene extends Phaser.Scene {
     this.soundFx.tone(weapon.damage>1?80:480,.06,'square',.018,weapon.damage>1?35:160);
     if(ray.hit>=0){ const enemy=enemies[ray.hit]; enemy.health-=weapon.damage;enemy.hitFlash=.15;
       this.burst(enemy.x,enemy.y,weapon.color,weapon.damage>1?14:5);
-      if(enemy.health<=0){const underground=enemy===this.rockSwimmer.active;if(underground){this.rockSwimmer.repel();this.save();}else {this.surfaceRaid.repel();this.save();}this.float(underground ? 'CAVE CREATURE DEFEATED' : 'TERRITORY CLEARED',enemy.x,enemy.y-25,'#a2edcf');}
+      if(enemy.health<=0){const underground=enemy===this.rockSwimmer.active;if(underground){this.rockSwimmer.repel();this.save();}else {this.surfaceRaid.repel();this.save();}this.float(underground ? 'CAVE CREATURE DEFEATED' : 'ATTACKER DEFEATED',enemy.x,enemy.y-25,'#a2edcf');}
     }
   }
 
@@ -157,6 +165,7 @@ export class MiningScene extends Phaser.Scene {
   productionUpdatedAt = Date.now();
   extraction: ExtractionLedger = {};
   productionStates = new Map<string, string>();
+  outpostDeliveries: {from: {x:number;y:number}; to: {x:number;y:number}; at:number; color:number}[] = [];
   oreDrops: OreDrop[] = [];
   activeCharge?: ActiveCharge;
   pod!: PlayerPod;
@@ -185,15 +194,57 @@ export class MiningScene extends Phaser.Scene {
   private repairButton?: HTMLButtonElement;
   private rigSwap?: { age:number; stage:number };
   quickRepairRig() {
-    if(!this.ui.hasStarted||this.ui.modal||this.rigSwap||this.surfacePlacement||this.mothershipBoarded||this.sheltered||this.travelBusy||this.progress.pilotEscaping||!this.isNearMothership()||Math.abs(this.pod.y)>160)return;
-    if(this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION){this.ui.toast('Finish unloading first.');return;}
-    if(!this.pod.docked){this.ui.toast('Land beside the mothership to exchange your rig.');return;}
+    if(!this.ui.hasStarted||this.ui.modal||this.rigSwap||this.stranded||this.mothershipHull<=0||this.surfacePlacement||this.mothershipBoarded||this.sheltered||this.travelBusy||this.progress.pilotEscaping||!this.isNearMothership()||Math.abs(this.pod.y)>160)return;
+    if(this.pickupActive||this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION){this.ui.toast('Finish cargo handling first.');return;}
     const cost=this.progress.serviceCost('hull')+this.progress.serviceCost('fuel');
     if(this.progress.money<cost){this.ui.toast(`Full repair needs K ${cost}. Recharge is free in the service bay.`);return;}
     if(!quickRepair(this.progress,()=>!!this.save())){this.ui.toast('No service completed. Rig may already be fully serviced, or the save failed.');return;}
-    this.pod.vx=0;this.pod.vy=0;this.pod.grappleAnchor=undefined;
+    this.pod.vx=0;this.pod.vy=0;this.pod.thrusting=false;this.pod.grappleAnchor=undefined;
     this.rigSwap={age:0,stage:0};this.soundFx.tone(280,.2,'triangle',.035,700);
     this.ui.toast(`Rig exchange · K ${cost} · cargo and equipment retained`);
+  }
+  mothershipHull: number = MOTHERSHIP.maxHull;
+  wrecks: MinerWreck[]=[];
+  private deathAge?:number;
+  private buildingRepair?:{x:number;y:number;at:number};
+  private buildingRepairButton?:HTMLButtonElement;
+  private shipHealthLabel?:HTMLElement;
+  private get repairTarget() {
+    const near=this.structures.filter(s=>Math.hypot(globeSurfaceDistance(this.world,s.x,s.y,this.pod.x,this.pod.y),s.y-this.pod.y)<FIELD_REPAIR.radius&&(s.integrity??structureIntegrity(s.kind))<structureIntegrity(s.kind));
+    return near.sort((a,b)=>Math.hypot(a.x-this.pod.x,a.y-this.pod.y)-Math.hypot(b.x-this.pod.x,b.y-this.pod.y))[0];
+  }
+  quickBuildingRepair() {
+    if(!this.ui.hasStarted||this.ui.modal||this.stranded||this.mothershipHull<=0||this.surfacePlacement||this.mothershipBoarded||this.buildingRepair&&this.tick-this.buildingRepair.at<FIELD_REPAIR.duration)return;
+    const target=this.repairTarget,ship=!target&&this.isNearMothership()&&this.mothershipHull<MOTHERSHIP.maxHull;
+    if(!target&&!ship||this.progress.money<SURFACE_RAID.repairCredits)return;
+    if(target){if(!this.repairStructure(target.id))return;}
+    else {const money=this.progress.money,hull=this.mothershipHull;this.progress.money-=SURFACE_RAID.repairCredits;this.mothershipHull=MOTHERSHIP.maxHull;if(!this.save()){this.progress.money=money;this.mothershipHull=hull;return;}}
+    this.buildingRepair={x:target?.x??MOTHERSHIP.x,y:target?.y??-80,at:this.tick};
+    this.ui.toast(`${target?target.kind.replaceAll('-',' '):'Mothership'} repaired · −${SURFACE_RAID.repairCredits} Kredits`);
+  }
+  private leaveWreck() {
+    const wreck:MinerWreck={id:crypto.randomUUID(),x:this.pod.x,y:this.pod.y,cargo:{...this.progress.cargo}};
+    this.wrecks.push(wreck);this.progress.cargo=emptyCargo();
+  }
+  private sellButton?: HTMLButtonElement;
+  private cargoPickup?: {at:number;uplinkId:string;x:number;y:number};
+  private get pickupActive() { return !!this.cargoPickup&&this.tick-this.cargoPickup.at<PICKUP_SECONDS; }
+  private get nearbyUplink() { return this.planetSurface&&nearbyGlobeSurfaceStructure(this.structures,this.pod.x,this.pod.y,this.world,'trade-post'); }
+  quickSell() {
+    const uplink=this.nearbyUplink;
+    if(!uplink||!this.ui.hasStarted||this.ui.modal||this.rigSwap||this.pickupActive||this.surfacePlacement||this.mothershipBoarded||this.sheltered||this.travelBusy||(this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION))return;
+    const quote=quoteQuickSale(this.progress),count=cargoTotal(quote.shipment);
+    if(!count)return;
+    const paid=sellInventory(this.progress,this.progress.cargo,quote.buyer,quote.shipment,()=>!!this.save());
+    if(!paid){this.ui.toast('Sale could not be saved. Your ore is still in the miner.');return;}
+    this.cargoPickup={at:this.tick,uplinkId:uplink.id,x:this.pod.x,y:this.pod.y-20};
+    this.soundFx.reward();
+    this.ui.toast(`${count} ore sold · +${paid.toLocaleString()} Kredits · Cargo drone inbound`);
+  }
+  private drawUplinkPickup(g:Phaser.GameObjects.Graphics,id:string,point:(x:number,y:number)=>{x:number;y:number}) {
+    if(!this.pickupActive||this.cargoPickup!.uplinkId!==id)return;
+    const job=this.cargoPickup!;
+    drawCargoPickup(g,point,this.worldPointToScreen(job.x,job.y,this.scale.width,this.scale.height),this.tick-job.at,this.reducedMotion);
   }
   private unloadDestination() {
     const warehouse = this.planetSurface && nearbyGlobeSurfaceStructure(this.structures,this.pod.x,this.pod.y,this.world,'warehouse');
@@ -203,7 +254,7 @@ export class MiningScene extends Phaser.Scene {
   }
   quickUnload() {
     const destination=this.unloadDestination();
-    if(!destination||!this.ui.hasStarted||this.ui.modal||this.rigSwap||this.surfacePlacement||this.mothershipBoarded||this.sheltered||this.travelBusy||(this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION))return;
+    if(this.pickupActive||!destination||!this.ui.hasStarted||this.ui.modal||this.rigSwap||this.surfacePlacement||this.mothershipBoarded||this.sheltered||this.travelBusy||(this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION))return;
     if(!cargoTotal(this.progress.cargo)){this.ui.toast('Miner cargo is empty.');return;}
     this.applyAutomatedProduction(Date.now());
     const moved=unloadFreight(this.progress.cargo,destination.cargo,destination.capacity,()=>!!this.save());
@@ -248,7 +299,8 @@ export class MiningScene extends Phaser.Scene {
   atmosphere = new CaveAtmosphere();
   wallBuilder?: WallBuilder;
   placementControls?: PlacementControls;
-  placementSnap = false;
+  placementSnap = true;
+  meleeUntil = 0;
   wallAutoStack = true;
   wallPulse?: { id: string; at: number };
   constructionPulse?: { id: string; at: number };
@@ -433,6 +485,9 @@ export class MiningScene extends Phaser.Scene {
     const saved = this.saves.load();
     if (saved) this.saves.restore(this.progress, saved);
     else { this.progress.milestones.push('mothership-origin'); this.progress.money = 0; }
+    this.mothershipHull=saved?.mothershipHull??MOTHERSHIP.maxHull;
+    this.stranded=!!saved?.minerDisabled;
+    this.failureReason=saved?.disabledReason??(saved?.hull===0?'hull':'fuel');
     this.productionUpdatedAt = saved?.productionUpdatedAt ?? Date.now();
     this.extraction = { ...saved?.extraction };
     this.progress.pilotEscaping = saved?.pilotEscaping ?? false;
@@ -450,6 +505,7 @@ export class MiningScene extends Phaser.Scene {
     this.structures = mapState.structures;
     this.warehouseCargo = mapState.warehouse;
     this.applyAutomatedProduction(Date.now());
+    this.wrecks=mapState.wrecks;
     this.oreDrops = mapState.drops;
     this.activeCharge = mapState.activeCharge;
     this.world = mapState.world;
@@ -723,7 +779,7 @@ export class MiningScene extends Phaser.Scene {
           if (this.depth < UNDERGROUND_BUILDING.minimumDepthMeters) return `Build underground from ${UNDERGROUND_BUILDING.minimumDepthMeters} m. Current depth: ${Math.floor(this.depth)} m.`;
           if (this.depth > 3400) return 'Too close to the core. Build above 3400 m.';
           if (this.sheltered || this.shelterBuild) return 'Leave your shelter before building another structure.';
-          if (!findBuildSite(this.world, this.pod.x, this.pod.y, this.world.gravitySign(this.pod.y), kind, this.structures)) return kind === 'platform' ? 'Clear a wide horizontal space and move away from other buildings.' : 'Clear a nearby chamber 5 blocks wide and 5 high; keep 6 blocks from other buildings.';
+          if (!findBuildSite(this.world, this.pod.x, this.pod.y, this.world.gravitySign(this.pod.y), kind, this.structures)) return kind === 'platform' ? 'Clear a wide horizontal space and move away from other buildings.' : kind === 'service' ? 'Shelter needs 5 clear blocks across and 3 high above its floor. Keep 6 blocks from other buildings.' : 'Clear a nearby chamber 5 blocks wide and 5 high; keep 6 blocks from other buildings.';
           return '';
         },
         locateBuilding: id => {
@@ -911,6 +967,14 @@ export class MiningScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-E', interact);
     this.input.keyboard!.on('keydown-G', (event:KeyboardEvent)=>{if(!event.repeat)this.quickRepairRig();});
     this.input.keyboard!.on('keydown-F', (event:KeyboardEvent)=>{if(!event.repeat)this.quickUnload();});
+    this.input.keyboard!.on('keydown-J', (event:KeyboardEvent)=>{if(!event.repeat)this.quickBuildingRepair();});
+    this.buildingRepairButton=document.createElement('button');this.buildingRepairButton.id='quick-building-repair';this.buildingRepairButton.type='button';this.buildingRepairButton.onclick=()=>this.quickBuildingRepair();document.querySelector('#viewport')!.append(this.buildingRepairButton);
+    this.shipHealthLabel=document.createElement('div');this.shipHealthLabel.id='ship-health';document.querySelector('#viewport')!.append(this.shipHealthLabel);
+    this.events.once('shutdown',()=>{this.buildingRepairButton?.remove();this.shipHealthLabel?.remove();});
+    this.input.keyboard!.on('keydown-T',(event:KeyboardEvent)=>{if(!event.repeat)this.quickSell();});
+    this.sellButton=document.createElement('button');this.sellButton.id='quick-sell';this.sellButton.type='button';this.sellButton.hidden=true;
+    this.sellButton.onclick=()=>{this.quickSell();this.sellButton?.blur();};
+    document.querySelector('#station-dock')!.prepend(this.sellButton);
     this.unloadButton=document.createElement('button');
     this.unloadButton.id='quick-unload';this.unloadButton.type='button';this.unloadButton.hidden=true;
     this.unloadButton.addEventListener('click',()=>{this.quickUnload();this.unloadButton?.blur();});
@@ -918,9 +982,11 @@ export class MiningScene extends Phaser.Scene {
     this.repairButton=document.createElement('button');this.repairButton.id='quick-repair';this.repairButton.type='button';this.repairButton.hidden=true;
     this.repairButton.onclick=()=>{this.quickRepairRig();this.repairButton?.blur();};
     document.querySelector('#station-dock')!.prepend(this.repairButton);
-    this.events.once('shutdown',()=>{this.unloadButton?.remove();this.repairButton?.remove();});
+    this.events.once('shutdown',()=>{this.unloadButton?.remove();this.repairButton?.remove();this.sellButton?.remove();});
     this.touch = new TouchControls({
       INTERACT: interact,
+      FIX: () => this.quickBuildingRepair(),
+      SELL: () => this.quickSell(),
       UNLOAD: () => this.quickUnload(),
       REPAIR: () => this.quickRepairRig(),
       SERVICES: () => { if (!this.surfacePlacement && this.surface) this.ui.open('service'); },
@@ -1125,6 +1191,7 @@ export class MiningScene extends Phaser.Scene {
         configurable: true,
         get: () => ({
           project: (x: number,y: number) => this.worldPointToScreen(x,y,this.scale.width,this.scale.height),
+          mothershipHull:this.mothershipHull, wrecks:structuredClone(this.wrecks),
           loadout: structuredClone(this.progress.loadout),
           sheltered: !!this.sheltered,
           shots: this.shots.length,
@@ -1345,6 +1412,13 @@ export class MiningScene extends Phaser.Scene {
     }
     return moved;
   }
+  outpostCoverage(site: { x: number; y: number }) {
+    const distance = (x: number, y: number) => globeSurfaceDistance(this.world, site.x, site.y, x, y);
+    const nest = surfaceNests(this.world).some(n => !this.world.clearedTerritories.has(n.id) && distance(n.x, n.y) < SURFACE_TERRAIN.territoryRadius);
+    const ship = this.world.gravitySign(site.y) === this.world.gravitySign(0) && distance(MOTHERSHIP.x, 0) < MOTHERSHIP.defenceRange;
+    const tower = this.structures.some(s => s.kind === 'turret' && Math.abs(s.y - this.world.surfaceHeight(s.x, s.y)) <= WORLD.tile * 4 && distance(s.x, s.y) < surfaceTurretRange(this.world, s, this.structures));
+    return `${nest ? 'Active nest nearby' : 'Outside known nest territory'} · ${tower ? 'Tower cover' : ship ? 'Mothership cover' : 'No gun cover'}`;
+  }
   applyAutomatedProduction(now: number) {
     const interval = productionInterval(this.productionUpdatedAt, now, UNDERGROUND_BUILDING.automation.offlineCapSeconds);
     const elapsed = interval.seconds;
@@ -1353,7 +1427,15 @@ export class MiningScene extends Phaser.Scene {
       if (!state) continue;
       if (mapId !== this.mapId) accumulateAutomatedProduction(state.structures, state.warehouse, mapId, elapsed, 0, this.extraction);
     }
-    accumulateLocalProduction(this.structures, this.warehouseCargo, this.progress.shipCargo, this.mapId, elapsed, this.extraction);
+    accumulateLocalProduction(this.structures, this.warehouseCargo, this.progress.shipCargo, this.mapId, elapsed, this.extraction, (id, ore, units, destination) => {
+      if (!this.ui?.hasStarted || this.ui.paused || elapsed <= 0 || elapsed >= 5) return;
+      const source = this.structures.find(s => s.id === id);
+      if (!source || Math.hypot(source.x-this.pod.x, source.y-this.pod.y)>650) return;
+      const receiver = destination === 'planet' ? this.structures.filter(s=>s.kind==='warehouse').sort((a,b)=>globeSurfaceDistance(this.world,source.x,source.y,a.x,a.y)-globeSurfaceDistance(this.world,source.x,source.y,b.x,b.y))[0] : {x:MOTHERSHIP.x,y:0};
+      if (!receiver) return;
+      this.outpostDeliveries.push({from:{x:source.x,y:source.y},to:{x:receiver.x,y:receiver.y},at:this.tick,color:ORES[ore].color});
+      this.float(`+${units} ${ORES[ore].name} → ${destination === 'planet' ? 'warehouse' : 'ship'}`,source.x,source.y-this.world.gravitySign(source.y)*80,'#a4efd9');
+    });
     for (const structure of this.structures.filter(s => s.kind === 'extractor')) {
       const status = extractorStatus(this.mapId, structure, this.extraction, 0, localProductionRoom(this.structures, this.warehouseCargo, this.progress.shipCargo)), previous = this.productionStates.get(structure.id);
       if (previous && previous !== status.state && this.ui?.hasStarted && (status.state === 'Storage full' || status.state === 'Deposit exhausted'))
@@ -1483,6 +1565,8 @@ export class MiningScene extends Phaser.Scene {
     this.placementDrag = undefined;
     this.wallAutoStack = true;
     this.surfacePlacement = { kind, ...site };
+    if(kind!=='wall')Object.assign(this.surfacePlacement,surfaceFoundation(this.world,kind,site));
+    this.placementFocus={x:this.surfacePlacement.x,y:this.surfacePlacement.y-this.world.gravitySign(this.surfacePlacement.y)*22};
     this.snapWallStack();
     this.updateSurfacePlacementLabel();
     return true;
@@ -1502,7 +1586,7 @@ export class MiningScene extends Phaser.Scene {
   updateSurfacePlacementFromPointer(screenX: number, screenY: number) {
     const placement = this.surfacePlacement, chart = this.world.planetChart;
     if (!placement || !chart) return;
-    const oldSurfaceY = placement.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY,
+    const oldSurfaceY = this.world.surfaceHeight(placement.x,placement.y),
       outwardOffset = placement.kind === 'wall' ? Math.max(0, Math.abs(placement.y - oldSurfaceY)) : 0;
     const point = this.screenPointToWorld(screenX, screenY, this.scale.width, this.scale.height),
       polar = planetChartToCartesian({ u: point.x / WORLD.tile, v: point.y / WORLD.tile }, chart.columns, chart.radiusRows, WORLD.tile),
@@ -1513,7 +1597,8 @@ export class MiningScene extends Phaser.Scene {
       row = chartPoint.v < chart.radiusRows ? 0 : this.world.farSurfaceY,
       site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, chartPoint.u * WORLD.tile, row), placement.kind === 'wall' || this.placementSnap),
       gravity = this.world.gravitySign(row);
-    this.surfacePlacement = { ...placement, ...site, y: row - gravity * outwardOffset };
+    this.surfacePlacement = { ...placement, ...site, y: site.y - gravity * outwardOffset };
+    if(placement.kind!=='wall')Object.assign(this.surfacePlacement,surfaceFoundation(this.world,placement.kind,site));
     this.snapWallStack();
   }
   nudgeSurfacePlacement(delta: number) {
@@ -1521,6 +1606,7 @@ export class MiningScene extends Phaser.Scene {
     if (!placement) return;
     const site = surfaceArcPoint(this.world, surfaceArcCoordinate(this.world, placement.x, placement.y) + delta, placement.kind === 'wall' || this.placementSnap);
     this.surfacePlacement = { ...placement, ...site };
+    if(placement.kind!=='wall')Object.assign(this.surfacePlacement,surfaceFoundation(this.world,placement.kind,site));
     this.placementFocus = { x: site.x, y: site.y - this.world.gravitySign(site.y) * 22 };
     this.placementPointer = undefined;
     this.updateSurfacePlacementLabel();
@@ -1573,7 +1659,7 @@ export class MiningScene extends Phaser.Scene {
     this.surfacePlacement = undefined;
     this.buildPlacementLabel.setVisible(false);
     this.wallBuilder?.update(false);
-    this.ui.toast('BUILD MODE CLOSED · Unplaced preview discarded.');
+    this.ui.toast('Back to mining. Your buildings are saved.');
   }
   confirmSurfacePlacement() {
     const placement = this.surfacePlacement;
@@ -1634,13 +1720,21 @@ export class MiningScene extends Phaser.Scene {
       this.updateSurfacePlacementLabel();
       return true;
     }
-    this.surfacePlacement = undefined;
-    this.buildPlacementLabel.setVisible(false);
+    this.placementPointer=undefined;
+    const next=surfaceArcPoint(this.world,surfaceArcCoordinate(this.world,structure.x,structure.y)+(cost.widthTiles+1)*WORLD.tile);
+    this.surfacePlacement={kind:structure.kind as SurfaceStructureKind,...surfaceFoundation(this.world,structure.kind as SurfaceStructureKind,next)};
+    for(let step=1;step<=24;step++){
+      const check=this.surfacePlacementCheck();
+      if(check?.valid || check?.reason==='NEED MATERIALS / CREDITS')break;
+      const candidate=surfaceArcPoint(this.world,surfaceArcCoordinate(this.world,structure.x,structure.y)+(cost.widthTiles+1+step)*WORLD.tile);
+      this.surfacePlacement={kind:structure.kind as SurfaceStructureKind,...surfaceFoundation(this.world,structure.kind as SurfaceStructureKind,candidate)};
+    }
+    this.placementFocus={x:this.surfacePlacement.x,y:this.surfacePlacement.y-this.world.gravitySign(this.surfacePlacement.y)*22};
     this.constructionPulse = { id: structure.id, at: this.tick };
     this.burst(structure.x, structure.y, structure.kind === 'turret' ? 0xf0b779 : 0xa4efd9, 18);
     this.float(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT`, structure.x, structure.y - 42, '#9ce4cf');
     this.soundFx.reward();
-    this.ui.toast(`${structure.kind.replace('-', ' ').toUpperCase()} BUILT · PLANETARY SITE SAVED.`);
+    this.ui.toast('Built! Place another, or press Done.');
     return true;
   }
   commitStructure(structure: UndergroundStructure) {
@@ -1712,7 +1806,7 @@ export class MiningScene extends Phaser.Scene {
   repairStructure(id: string) {
     const structure = this.structures.find((entry) => entry.id === id);
     const repair = structure && repairSurfaceStructure(structure, this.progress.money);
-    if (!this.surface || !structure || !repair) return false;
+    if ((!this.surface && !this.repairTarget) || !structure || !repair) return false;
     const oldMoney = this.progress.money, oldIntegrity = structure.integrity;
     this.progress.money = repair.credits;
     structure.integrity = repair.integrity;
@@ -1770,7 +1864,7 @@ export class MiningScene extends Phaser.Scene {
   rememberCurrentMap() {
     this.mapStates[this.mapId] = snapshotMapState(
       this.mapStates[this.mapId], this.world, this.pod.x, this.pod.y, this.depth,
-      this.oreDrops, this.activeCharge, this.structures, this.warehouseCargo,
+      this.oreDrops, this.activeCharge, this.structures, this.warehouseCargo, this.wrecks,
     );
   }
   chartForUnvisitedMap(id: MapId): PlanetChartSize {
@@ -1857,6 +1951,7 @@ export class MiningScene extends Phaser.Scene {
     this.surfaceFeatures = surfaceLandmarks(this.world, id);
     this.rockSwimmer = new RockSwimmer(this.world.seed, id, this.world);
     this.surfaceRaid = new SurfaceRaid(this.world.seed, id);
+    this.wrecks=state.wrecks;
     this.oreDrops = state.drops;
     this.activeCharge = state.activeCharge;
     this.pod.world = this.world;
@@ -1899,7 +1994,10 @@ export class MiningScene extends Phaser.Scene {
     this.applyAutomatedProduction(Date.now());
     this.rememberCurrentMap();
     const data: SaveData = {
-      version: 35,
+      version: 37,
+      mothershipHull:this.mothershipHull,
+      minerDisabled:this.stranded,
+      disabledReason:this.failureReason,
       loadout: structuredClone(p.loadout),
       shipCargo: { ...p.shipCargo },
       specialistModules: { ...p.specialistModules },
@@ -1947,15 +2045,19 @@ export class MiningScene extends Phaser.Scene {
   }
   fail(recovery = false, reason: 'fuel' | 'hull' | 'impact' = 'impact') {
     if (!recovery) {
+      if(this.stranded)return;
       this.stranded = true;
       this.failureReason = reason;
       this.mining.target = undefined;
       this.mining.ratio = 0;
-      this.ui.open('failure');
+      if(reason!=='fuel'){this.leaveWreck();this.deathAge=0;this.soundFx.tone(140,.6,'sawtooth',.04,25);}else this.ui.open('failure');
       this.ui.toast(reason === 'fuel' ? 'FUEL EMPTY · Miner secured in place. Choose a recovery option.' : 'MINER DISABLED · Choose a recovery option to return to the surface.');
       this.save();
       return;
     }
+    if(this.mothershipHull<=0)return;
+    if(cargoTotal(this.progress.cargo)>0)this.leaveWreck();
+    this.deathAge=undefined;
     const recoveryDock = emergencyRecoveryDock(this.pod.x, this.pod.y, this.world.planetChart);
     this.progress.pilotEscaping = false;
     this.progress.rescue();
@@ -1979,13 +2081,14 @@ export class MiningScene extends Phaser.Scene {
     this.ui.open('failure');
     this.ui.toast(
       recovery
-        ? 'Recovery complete. Unsold cargo forfeited.'
+        ? 'Recovery complete. Return to your wreck to collect the dropped ore.'
         : 'Rig recovered. Ready to try again.',
     );
     this.soundFx.tone(100, 0.6, 'sawtooth', 0.04, 25);
     this.save();
   }
   beginPilotEscape() {
+    this.leaveWreck();
     this.progress.escapeSuit = false;
     this.progress.pilotEscaping = true;
     this.pod.docked = false;
@@ -2017,7 +2120,7 @@ export class MiningScene extends Phaser.Scene {
     this.camX = this.pod.x - this.scale.width / 2;
     this.camY = this.surfaceCameraY;
     this.wasSurface = this.surface;
-    this.ui.toast(atBeacon ? 'BEACON RESCUE · RETURNED TO THIS SIDE OF THE PLANET · ORE LOST' : 'SURFACE REACHED · PILOT SAFE · LANDED HERE · MINER AND ORE LOST');
+    this.ui.toast(atBeacon ? 'BEACON RESCUE · RETURNED TO THIS SIDE OF THE PLANET · ORE LEFT AT WRECK' : 'SURFACE REACHED · PILOT SAFE · LANDED HERE · RETURN TO YOUR WRECK FOR ORE');
     this.soundFx.reward();
     this.save();
   }
@@ -2245,7 +2348,7 @@ export class MiningScene extends Phaser.Scene {
     for (const drop of this.oreDrops) {
       if (this.progress.salvageMagnet) applySalvageMagnet(this.world, drop, this.pod.x, this.pod.y, dt);
       updateOreDropPhysics(this.world, drop, dt, this.world.gravitySign(drop.y));
-      if (podWithinPickupReach(this.pod.x, this.pod.y, drop.x, drop.y, this.world)) {
+      if (!this.stranded&&!this.progress.pilotEscaping&&podWithinPickupReach(this.pod.x, this.pod.y, drop.x, drop.y, this.world)) {
         const gained = collectOreDrop(this.progress, drop);
         if (gained > 0) {
           collectedAny = true;
@@ -2256,6 +2359,12 @@ export class MiningScene extends Phaser.Scene {
       if (drop.units > 0) remaining.push(drop);
     }
     if (remaining.length !== this.oreDrops.length) this.oreDrops = remaining;
+    if(!this.stranded&&!this.progress.pilotEscaping)for(const wreck of this.wrecks){
+      if(!podWithinPickupReach(this.pod.x,this.pod.y,wreck.x,wreck.y,this.world))continue;
+      const cargo={...this.progress.cargo},left={...wreck.cargo};let recovered=0;
+      for(const ore of ORE_KEYS){const drop={ore,units:wreck.cargo[ore]};recovered+=collectOreDrop(this.progress,drop);wreck.cargo[ore]=drop.units;}
+      if(recovered){if(!this.save()){this.progress.cargo=cargo;wreck.cargo=left;}else this.ui.toast(`${recovered} ore recovered from wreck.`);}
+    }
     if (collectedAny) this.save();
   }
   updateCharge(dt: number) {
@@ -2266,22 +2375,47 @@ export class MiningScene extends Phaser.Scene {
   }
   update(_time: number, delta: number) {
     if (!this.ui) return;
+    if(this.ui.hasStarted&&this.mothershipHull<=0){if(!['defeat','new'].includes(this.ui.modal??''))this.ui.open('defeat');return;}
+    if(this.ui.hasStarted&&this.stranded&&this.deathAge===undefined&&!this.ui.modal)this.ui.open('failure');
+    if(this.deathAge!==undefined&&!this.ui.paused){this.deathAge+=Math.min(delta/1000,.05);if(this.deathAge>=MINER_DEATH.duration){this.deathAge=undefined;this.ui.open('failure');}}
+    const repairTarget=this.repairTarget,shipRepair=!repairTarget&&this.isNearMothership()&&this.mothershipHull<MOTHERSHIP.maxHull;
+    const repairVisible=this.ui.hasStarted&&!this.ui.paused&&!this.stranded&&!this.mothershipBoarded&&!this.surfacePlacement&&!!(repairTarget||shipRepair);
+    const repairBusy=!!this.buildingRepair&&this.tick-this.buildingRepair.at<FIELD_REPAIR.duration;
+    const repairLabel=`Repair ${repairTarget?repairTarget.kind.replaceAll('-',' '):'mothership'} · ${SURFACE_RAID.repairCredits} Kredits`;
+    if(this.buildingRepairButton){this.buildingRepairButton.hidden=!repairVisible;this.buildingRepairButton.disabled=repairBusy||this.progress.money<SURFACE_RAID.repairCredits;this.buildingRepairButton.textContent=repairBusy?'Repair drones working…':`${repairLabel} · J`;}
+    this.touch?.available('FIX',repairVisible&&!repairBusy&&this.progress.money>=SURFACE_RAID.repairCredits,repairLabel);
+    if(this.shipHealthLabel){this.shipHealthLabel.hidden=!this.ui.hasStarted||!!this.ui.modal||!this.isNearMothership();this.shipHealthLabel.textContent=`MOTHERSHIP HULL ${this.mothershipHull} / ${MOTHERSHIP.maxHull}`;}
+
     document.getElementById('viewport')?.classList.toggle('surface-placement-active', !!this.surfacePlacement);
     this.ui.sheltered=!!this.sheltered;
     document.getElementById('viewport')?.classList.toggle('sheltered',!!this.sheltered);
     this.touch?.update(this.ui.hasStarted && !this.ui.paused && !this.ui.modal && !this.solarView && !this.sheltered);
+    if (this.world.openingLayout && this.ui.hasStarted && !this.ui.paused && !this.ui.modal) {
+      const col=Math.floor(this.pod.x/WORLD.tile), row=Math.floor(this.pod.y/WORLD.tile);
+      const discovery=col>=29&&col<=35&&row>=8&&row<=12?'opening-cave':col>=39&&col<=46&&row>=14&&row<=21?'opening-nest':undefined;
+      if(discovery&&!this.progress.milestones.includes(discovery)) {
+        this.progress.milestones.push(discovery);
+        this.ui.toast(discovery==='opening-cave'?'SHELTERED HOLLOW · Ore below. Room for a shelter here.':'CRYSTAL DEN · Rich deposits. Inhabited.');
+        this.soundFx.reward(); this.save();
+      }
+    }
     const repairCost=this.progress.serviceCost('hull')+this.progress.serviceCost('fuel');
     const repairNeeded=this.progress.hull<this.progress.max('hull')||this.progress.fuel<this.progress.max('fuel');
     const repairNear=this.ui.hasStarted&&!this.ui.modal&&!this.mothershipBoarded&&!this.surfacePlacement&&!this.sheltered&&this.isNearMothership()&&Math.abs(this.pod.y)<=160;
-    if(this.repairButton){this.repairButton.hidden=!repairNear;this.repairButton.disabled=!!this.rigSwap||!repairNeeded||this.progress.money<repairCost||!this.pod.docked;this.repairButton.textContent=this.rigSwap?'Exchanging rig…':!repairNeeded?'Rig fully serviced':!this.pod.docked?'Land to repair':`Full repair · G · K ${repairCost}`;}
+    if(this.repairButton){this.repairButton.hidden=!repairNear;this.repairButton.disabled=!!this.rigSwap||!repairNeeded||this.progress.money<repairCost;this.repairButton.textContent=this.rigSwap?'Exchanging rig…':!repairNeeded?'Rig fully serviced':`Full repair · G · K ${repairCost}`;}
     this.touch?.available('REPAIR',repairNear&&repairNeeded&&!this.rigSwap,`Repair · K ${repairCost}`);
     const unloading=!!this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION;
+    const canQuickSell=!!this.nearbyUplink&&this.ui.hasStarted&&!this.ui.modal&&!this.mothershipBoarded&&!this.surfacePlacement&&!this.sheltered&&!this.travelBusy;
+    const sale=canQuickSell?quoteQuickSale(this.progress):undefined;
+    const saleLabel=sale&&sale.total>0?`Sell ${cargoTotal(sale.shipment)} miner ore · +${sale.total.toLocaleString()} Kredits`:'Miner cargo empty';
+    if(this.sellButton){this.sellButton.hidden=!canQuickSell;this.sellButton.disabled=this.pickupActive||!!this.rigSwap||unloading||!sale?.total;this.sellButton.textContent=this.pickupActive?'Cargo drone collecting…':`${saleLabel} · T`;}
+    this.touch?.available('SELL',canQuickSell&&!this.pickupActive&&!this.rigSwap&&!unloading&&!!sale?.total,saleLabel);
     const destination=this.unloadDestination();
     const canUnload=!!destination&&this.ui.hasStarted&&!this.ui.modal&&!this.mothershipBoarded&&!this.surfacePlacement&&!this.sheltered&&!this.travelBusy;
     const storageFull=!!destination&&cargoTotal(destination.cargo)>=destination.capacity;
-    if(this.unloadButton){this.unloadButton.hidden=!canUnload;this.unloadButton.disabled=!!this.rigSwap||unloading||!cargoTotal(this.progress.cargo)||storageFull;
-      this.unloadButton.textContent=this.rigSwap?'Wait for rig exchange':unloading?'Unloading cargo…':!cargoTotal(this.progress.cargo)?'Miner cargo empty':storageFull?`${destination?.label} full`:`Unload → ${destination?.label} · F`;}
-    this.touch?.available('UNLOAD',canUnload&&!this.rigSwap&&!unloading&&!storageFull&&cargoTotal(this.progress.cargo)>0,`Unload → ${destination?.label??'storage'}`);
+    if(this.unloadButton){this.unloadButton.hidden=!canUnload;this.unloadButton.disabled=this.pickupActive||!!this.rigSwap||unloading||!cargoTotal(this.progress.cargo)||storageFull;
+      this.unloadButton.textContent=this.rigSwap?'Wait for rig exchange':unloading?'Unloading cargo…':!cargoTotal(this.progress.cargo)?'Miner cargo empty':storageFull?`${destination?.label} full`:`F · Unload ${cargoTotal(this.progress.cargo)} ore → ${destination?.label}`;}
+    this.touch?.available('UNLOAD',canUnload&&!this.pickupActive&&!this.rigSwap&&!unloading&&!storageFull&&cargoTotal(this.progress.cargo)>0,`Unload → ${destination?.label??'storage'}`);
     this.touch?.available('SERVICES', this.surface && !this.surfacePlacement);
     this.touch?.available('BUILD', !this.surfacePlacement);
     this.touch?.available('CANCEL', !!this.surfacePlacement);
@@ -2290,8 +2424,8 @@ export class MiningScene extends Phaser.Scene {
     this.touch?.root.classList.toggle('wall-placing', this.surfacePlacement?.kind === 'wall');
     const placementCheck = this.surfacePlacementCheck();
     const seam = this.surfacePlacement?.kind === 'extractor' ? extractionSeam(this.mapId, this.surfacePlacement, this.extraction) : undefined;
-    const survey = seam ? `${ORES[seam.ore].name} seam · ${seam.remaining} ore · ${EXTRACTOR_TIERS[(this.structures.find(s => s.id === this.surfacePlacement?.movingId)?.level ?? 1)-1].rate}/hour` : '';
-    this.placementControls?.update(!!this.surfacePlacement && this.surfacePlacement.kind !== 'wall' && !this.ui.modal && !this.ui.paused, this.placementSnap, !!placementCheck?.valid, placementCheck && !placementCheck.valid ? placementCheck.reason : survey);
+    const survey = seam ? `${ORES[seam.ore].name} seam · ${seam.remaining} ore · ${EXTRACTOR_TIERS[(this.structures.find(s => s.id === this.surfacePlacement?.movingId)?.level ?? 1)-1].rate}/hour · ${this.outpostCoverage(this.surfacePlacement!)}` : '';
+    this.placementControls?.update(!!this.surfacePlacement && this.surfacePlacement.kind !== 'wall' && !this.ui.modal && !this.ui.paused, this.placementSnap, !!placementCheck?.valid, placementCheck && !placementCheck.valid ? ({OCCUPIED:'Too close to another building', 'NEED MATERIALS / CREDITS':'Not enough ore or Kredits', 'NEEDS SOLID GROUND':'Choose solid ground for the supports'}[placementCheck.reason] ?? placementCheck.reason) : survey);
     const wall = this.surfacePlacement?.kind === 'wall' ? this.surfacePlacement : undefined;
     const wallCheck = wall ? this.surfacePlacementCheck() : undefined;
     const wallLayer = wall ? 1 + Math.round(Math.abs(wall.y - (wall.y < this.world.coreWorldY ? 0 : this.world.farSurfaceY)) / WORLD.tile) : 1;
@@ -2472,7 +2606,7 @@ export class MiningScene extends Phaser.Scene {
       const pointer = this.input.activePointer;
       const orbitalView = !!this.world.planetChart && this.orbitalTransition >= 0.5;
       const mouseAimAvailable = !pointer.wasTouch && !this.mothershipBoarded && !this.surfacePlacement && !orbitalView && !this.progress.pilotEscaping &&
-        this.ui.hasStarted && !this.ui.modal && !this.pod.docked && this.pod.y > 0;
+        this.ui.hasStarted && !this.ui.modal && !this.stranded;
       const firing = k.SHIFT.isDown && pointer.leftButtonDown() || this.touch?.down('FIRE') === true;
       const mouseDrilling = !this.sheltered && !firing && mouseAimAvailable && pointer.leftButtonDown();
       const pointerAiming = mouseAimAvailable && (pointer.leftButtonDown() ||
@@ -2532,6 +2666,7 @@ export class MiningScene extends Phaser.Scene {
         this.drillAimX = 0;
         this.drillAimY = 1;
       }
+      if(this.touch?.down('S') && mobileEnemy && Math.hypot(mobileEnemy.x-this.pod.x,mobileEnemy.y-this.pod.y)<90){const d=Math.hypot(mobileEnemy.x-this.pod.x,mobileEnemy.y-this.pod.y)||1;this.drillAimX=(mobileEnemy.x-this.pod.x)/d;this.drillAimY=(mobileEnemy.y-this.pod.y)/d;}
       const incomingSwimmerKind = this.rockSwimmer.active?.kind ?? 'rock-swimmer';
       if ((this.sheltered ? (this.rockSwimmer.withdraw(dt), false) : this.rockSwimmer.update(dt, this.planetSurface ? 0 : this.depth, this.pod.x, this.pod.y, this.structures, (x, y) => {
         this.soundFx.tone(620, 0.1, 'square', 0.025, 240);
@@ -2567,33 +2702,34 @@ export class MiningScene extends Phaser.Scene {
         this.soundFx.tone(680, 0.11, 'square', 0.03, 220);
         this.float('COLONY DEFENSE FIRE', x, y - 36, '#f0b779');
       }, this.planetSurface ? { x: this.pod.x, y: this.pod.y } : undefined, true,
-        !this.mothershipBoarded ? {x:MOTHERSHIP.x,y:0,onFire:(x,y)=>{
+        !this.mothershipBoarded ? {x:MOTHERSHIP.x,y:0,onHit:()=>{this.mothershipHull=Math.max(0,this.mothershipHull-MOTHERSHIP.raidDamage);this.burst(MOTHERSHIP.x,-70,0xffb36b,this.mothershipHull?18:70);this.save();this.ui.toast(this.mothershipHull?'MOTHERSHIP HIT · Repair its hull with J nearby.':'MOTHERSHIP DESTROYED');},onFire:(x,y)=>{
           this.shipShot={x,y,at:this.tick};
           this.soundFx.tone(160,.09,'square',.025,65);
           this.burst(x,y,0xffce83,5);
         }} : undefined);
-      if (raidEvent?.type === 'player-hit') { this.progress.hull=Math.max(0,this.progress.hull-12);this.burst(this.pod.x,this.pod.y,0xffad85,10);this.ui.toast('FLYER STRIKE · HIDE UNDERGROUND TO ESCAPE');this.save(); }
+      if (raidEvent?.type === 'player-hit') { this.progress.hull=Math.max(0,this.progress.hull-12);this.burst(this.pod.x,this.pod.y,0xffad85,10);this.ui.toast('HOSTILE HIT · TAKE COVER OR RETURN TO THE SHIP');this.save(); }
       else if (raidEvent?.type === 'warning') {
-        this.ui.toast(`NEST TERRITORY · WITHDRAW, FIGHT OR HIDE UNDERGROUND.`);
+        this.ui.toast(this.surfaceRaid.active?.human ? `${this.surfaceRaid.active.human.kind === 'ground' ? 'HOSTILE GROUND RIG' : 'HOSTILE GUNSHIP'} INBOUND · ${raidEvent.target.id === 'player' ? 'TAKE COVER OR FIGHT' : 'DEFEND YOUR ' + raidEvent.target.kind.toUpperCase()}` : raidEvent.target.id==='player'?'NEST TERRITORY · WITHDRAW, FIGHT OR HIDE UNDERGROUND.':`${raidEvent.target.id === 'mothership' ? 'MOTHERSHIP' : raidEvent.target.kind.replace('-', ' ').toUpperCase()} TARGETED · Defend it or retreat underground.`);
         this.soundFx.tone(440, 0.12, 'triangle', 0.035, 660);
       } else if (raidEvent?.type === 'intercepted') {
-        this.ui.toast(raidEvent.source === 'mothership' ? 'MOTHERSHIP GUNS · FLYER REPELLED' : 'RAIDER REPELLED · DEFENSE PYLON HELD THE COLONY.');
+        this.ui.toast(raidEvent.source === 'mothership' ? 'MOTHERSHIP GUNS · ATTACKER REPELLED' : 'RAIDER REPELLED · DEFENSE PYLON HELD THE COLONY.');
         this.float('RAIDER INTERCEPTED', raidEvent.x, raidEvent.y - 34, '#a4efd9');
         this.save();
       } else if (raidEvent?.type === 'damaged' || raidEvent?.type === 'destroyed') {
         const lost = raidEvent.type === 'destroyed';
+        this.burst(raidEvent.target.x,raidEvent.target.y-25,0xe5a25d,lost?28:8);
         this.float(lost ? 'COLONY MODULE LOST' : 'COLONY MODULE DAMAGED', raidEvent.target.x, raidEvent.target.y - 45, '#ff987e');
-        this.ui.toast(lost ? 'COLONY MODULE LOST · Rebuild it from the surface yard.' : 'COLONY MODULE DAMAGED · Repair it from the surface yard for $180.');
+        this.ui.toast(lost ? 'BUILDING DESTROYED · Build a replacement from the building catalogue.' : 'BUILDING DAMAGED · Open Colony to inspect and repair.');
         this.save();
       }
       const nearbyColony = this.structures.some(entry => ['fort', 'habitat', 'turret'].includes(entry.kind) && globeSurfaceDistance(this.world, entry.x, entry.y, this.pod.x, this.pod.y) <= SURFACE_RAID.visibleColonyRadius);
       this.ui.setColonyAlert(this.planetSurface && !this.isNearMothership()
-        ? this.surfaceRaid.active ? (rigItem(this.progress.loadout.fitted.weapon)?.weapon ? (this.touch && !this.touch.root.hidden ? 'FLYER · HOLD FIRE · TUNNELS ARE SAFE' : 'FLYER · SHIFT + CLICK TO FIRE · TUNNELS ARE SAFE') : 'FLYER · HIDE BELOW GROUND OR WITHDRAW') : surfaceNests(this.world).some(n => this.world.clearedTerritories.has(n.id) && globeSurfaceDistance(this.world,n.x,n.y,this.pod.x,this.pod.y)<260) ? 'TERRITORY CLEARED · THIS NEST IS QUIET' : 'SURFACE · WATCH FOR NESTS'
+        ? this.surfaceRaid.active ? (rigItem(this.progress.loadout.fitted.weapon)?.weapon ? (this.touch && !this.touch.root.hidden ? 'HOSTILE · HOLD FIRE · TUNNELS ARE SAFE' : 'HOSTILE · SHIFT + CLICK TO FIRE · TUNNELS ARE SAFE') : 'HOSTILE · AIM + HOLD CLICK TO DRILL UP CLOSE · S ON TOUCH') : surfaceNests(this.world).some(n => this.world.clearedTerritories.has(n.id) && globeSurfaceDistance(this.world,n.x,n.y,this.pod.x,this.pod.y)<260) ? 'TERRITORY CLEARED · THIS NEST IS QUIET' : 'SURFACE · WATCH FOR NESTS'
         : '');
       const swimmerPosition = this.rockSwimmer.active ? { x: this.rockSwimmer.active.x, y: this.rockSwimmer.active.y } : undefined,
         swimmerName = this.rockSwimmer.active?.kind === 'shard-manta' ? 'SHARD MANTA'
           : this.rockSwimmer.active?.kind === 'hull-scrapper' ? 'HULL SCRAPPER' : 'ROCK SWIMMER';
-      const enemyBeamHeld = !this.sheltered && !firing && (mouseDrilling || input.down || input.left || input.right);
+      const enemyBeamHeld = !this.sheltered && !this.surfacePlacement && !this.mothershipBoarded && !this.stranded && this.progress.fuel>0 && !firing && (mouseDrilling || input.down);
       const swimmerHealthBefore = this.rockSwimmer.active?.health;
       const armorFlashBefore = this.rockSwimmer.active?.armorBlockedFlash ?? 0;
       const swimmerDefeated = enemyBeamHeld && this.rockSwimmer.hitByDrill(
@@ -2620,14 +2756,21 @@ export class MiningScene extends Phaser.Scene {
         this.soundFx.tone(260, 0.1, 'square', 0.025, 170);
       }
       const raiderPosition = this.surfaceRaid.active ? { x: this.surfaceRaid.active.x, y: this.surfaceRaid.active.y } : undefined;
+      const raidHealthBefore=this.surfaceRaid.active?.health;
       if (enemyBeamHeld && this.surfaceRaid.hitByDrill(
         this.world, this.pod.x, this.pod.y, this.drillAimX, this.drillAimY,
         WORLD.tile * drillReachTiles(this.progress.levels.drill),
       )) {
         this.burst(raiderPosition?.x ?? this.pod.x, raiderPosition?.y ?? this.pod.y, 0xf0b779, 12);
         this.save();
-        this.ui.toast('NEST CLEARED · THIS TERRITORY IS SAFE');
+        this.ui.toast('ATTACKER DEFEATED · DRILL STRIKE');
         this.soundFx.tone(540, 0.12, 'triangle', 0.035, 200);
+      }
+      if(raidHealthBefore!==undefined && this.surfaceRaid.active && this.surfaceRaid.active.health<raidHealthBefore){
+        this.burst(this.surfaceRaid.active.x,this.surfaceRaid.active.y,0xffc67e,10);
+        this.meleeUntil=this.tick+.25;
+        this.float('DRILL HIT',this.surfaceRaid.active.x,this.surfaceRaid.active.y-30,'#ffcf89');
+        this.soundFx.tone(160,.09,'sawtooth',.03,65);
       }
       this.updateOreDrops(dt);
       let drillTarget = this.sheltered || firing || this.mothershipBoarded || orbitalView ? undefined : mouseDrilling ? this.aimTile : target;
@@ -2661,7 +2804,7 @@ export class MiningScene extends Phaser.Scene {
         }
       }
       if (newMilestone) this.save();
-      if (!this.progress.pilotEscaping && this.progress.hull <= 0) {
+      if (!this.progress.pilotEscaping && !this.stranded && this.progress.hull <= 0) {
         this.fail(false, 'hull');
         return;
       }
@@ -2682,6 +2825,7 @@ export class MiningScene extends Phaser.Scene {
         this.warned = true;
       }
       if (this.progress.fuel / this.progress.max('fuel') > 0.3) this.warned = false;
+      if (Date.now() - this.productionUpdatedAt >= 1000) this.applyAutomatedProduction(Date.now());
       this.saveClock += dt;
       if (this.saveClock > 8) {
         this.saveClock = 0;
@@ -2786,7 +2930,7 @@ export class MiningScene extends Phaser.Scene {
       lookingX: this.lookDirection.x, lookingY: this.lookDirection.y, firing: this.shots.length>0,
       facing: Math.abs(this.lookDirection.x)>.15 ? Math.sign(this.lookDirection.x) : this.pod.facing, thrust: this.pod.thrusting,
       grounded: this.pod.docked || Math.abs(this.pod.vy) < 0.1 && !this.pod.thrusting,
-      drilling: !!this.mining.target, paused: this.ui.paused, reducedMotion: this.reducedMotion,
+      drilling: !!this.mining.target || this.tick<this.meleeUntil, paused: this.ui.paused, reducedMotion: this.reducedMotion,
     }, dt);
     if(!this.ui.paused) {
       const center=this.worldPointToScreen(this.pod.x,this.pod.y,this.scale.width,this.scale.height);
@@ -2804,7 +2948,7 @@ export class MiningScene extends Phaser.Scene {
     const cameraY = cameraFocusY(this.pod.y, this.cameraLookAhead, this.viewRotation);
     return { x: this.pod.x - this.scale.width / 2, y: cameraY - this.scale.height / 2, width: this.scale.width, height: this.scale.height,
       podX: this.pod.x, podY: this.pod.y, thrusting: this.pod.thrusting,
-      drilling: !!this.mining.target, aimX: this.drillAimX, aimY: this.drillAimY };
+      drilling: !!this.mining.target || this.tick<this.meleeUntil, aimX: this.drillAimX, aimY: this.drillAimY };
   }
   private inCoreDrillHalo() {
     const chart = this.world.planetChart;
@@ -3373,11 +3517,12 @@ export class MiningScene extends Phaser.Scene {
     }
     if (ground > 0 && this.world.planetChart && !this.mothershipBoarded) drawMothership(g, (dx, dy) => project(MOTHERSHIP.x + dx, dy), false, undefined, this.shipActivity(project));
     if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), (x) => project(x, this.pod.y).x, (y) => project(this.pod.x, y).y, false);
-    for (const structure of this.structures) {
+    const preview: UndergroundStructure[] = this.surfacePlacement ? [{id:'placement-preview',kind:this.surfacePlacement.kind,x:this.surfacePlacement.x,y:this.surfacePlacement.y}] : [];
+    for (const structure of [...this.structures,...preview]) {
       if (!isOnScreen(structure.x, structure.y, 150)) continue;
       if (this.world.planetChart) {
         const assembly = !this.reducedMotion && this.constructionPulse?.id === structure.id
-          ? Phaser.Math.Clamp((this.tick - this.constructionPulse.at) / 0.65, 0, 1) : 1;
+          ? Phaser.Math.Clamp((this.tick - this.constructionPulse.at) / BUILD_PLACEMENT.assemblySeconds, 0, 1) : 1;
         const rise = 1 - Math.pow(1 - assembly, 3);
         const pointAt = (tangent: number, outward: number) => localProject(structure.x, structure.y, tangent, outward * rise * (structure.kind === 'wall' || structure.kind === 'gate' ? 1.65 : 1));
         const polygon = (points: { tangent: number; outward: number }[]) =>
@@ -3397,6 +3542,35 @@ export class MiningScene extends Phaser.Scene {
           g.lineStyle(lineWidth, color, alpha);
           g.strokePoints(points, true);
         };
+        if(!['service','platform','wall'].includes(structure.kind) && Math.min(Math.abs(structure.y),Math.abs(structure.y-this.world.farSurfaceY))<=WORLD.tile*4){
+          const support=surfaceFoundation(this.world,structure.kind as SurfaceStructureKind,structure);
+          rectangle(0,-3,UNDERGROUND_BUILDING[structure.kind].widthTiles*WORLD.tile,6,0x516967);
+          for(const foot of support.feet){
+            const dx=foot.x-structure.x, drop=(foot.y-structure.y)*this.world.gravitySign(structure.y);
+            if(drop>0){rectangle(dx,-drop,8,drop,0x738b88);rectangle(dx,-drop,22,5,0xe1ba78);}
+          }
+        }
+        if(assembly<1){
+          const droneY=110+Math.abs(assembly-.55)*110;
+          rectangle(0,droneY,48,12,0x839f9d);rectangle(0,droneY+3,20,7,0xffc27f);
+          rectangle(-20,droneY-8,7,8,0x8ce9dc);rectangle(20,droneY-8,7,8,0x8ce9dc);
+          const a=pointAt(-16,droneY),b=pointAt(-16,60),c=pointAt(16,droneY),d=pointAt(16,60);
+          g.lineStyle(1,0xa3d8d1,.65);g.lineBetween(a.x,a.y,b.x,b.y);g.lineBetween(c.x,c.y,d.x,d.y);
+        }
+        const health = (structure.integrity ?? structureIntegrity(structure.kind)) / structureIntegrity(structure.kind);
+        if (health < 1) {
+          rectangle(0, 73, 50, 4, 0x562e2a);
+          rectangle(-25+25*health, 73, 50*health, 4, 0xffb36b);
+          for(let i=0;i<3;i++) {
+            const age=this.reducedMotion?.5:(this.tick*.35+i/3)%1, p=pointAt(18+Math.sin(i*2+age*3)*8,48+age*35);
+            g.fillStyle(0x80929b,(1-age)*.45);g.fillCircle(p.x,p.y,3+age*7);
+          }
+        }
+        if (this.surfaceRaid.active?.targetId === structure.id) {
+          const alpha=this.reducedMotion?1:.65+Math.sin(this.tick*6)*.3;
+          rectangle(0,82,66,3,0xff987e,alpha);
+          const mark=pointAt(0,94);g.lineStyle(2,0xff987e,alpha);g.strokeTriangle(mark.x,mark.y-7,mark.x-7,mark.y+5,mark.x+7,mark.y+5);
+        }
         if (structure.kind === 'wall') {
           const layer = Math.round(Math.min(Math.abs(structure.y), Math.abs(structure.y - this.world.farSurfaceY)) / WORLD.tile);
           rectangle(0, 0, 38, WORLD.tile, layer % 2 ? 0x657d7c : 0x59635f);
@@ -3505,6 +3679,7 @@ export class MiningScene extends Phaser.Scene {
           g.fillStyle(0xa4efd9, this.reducedMotion ? 0.9 : 0.72 + Math.sin(this.tick * 4) * 0.2);
           g.fillCircle(mastTop.x, mastTop.y, 4);
           ring(34, 87, this.reducedMotion ? 10 : 10 + Math.sin(this.tick * 4) * 2, 0xa4efd9, 0.6, 1.5);
+          this.drawUplinkPickup(g,structure.id,pointAt);
           continue;
         }
         if (structure.kind === 'warehouse') {
@@ -3537,6 +3712,16 @@ export class MiningScene extends Phaser.Scene {
           rectangle(22, 31, 13, 19, 0x1c2928);
           rectangle(0, 58, 76, 6, accent);
           rectangle(0, 11, 5, 10, accent);
+          // Open cargo bin fills with the actual batch; a loader arm feeds it.
+          rectangle(40, 8, 20, 3, 0xb58a53);
+          rectangle(31, 11, 3, 14, 0x647c7b); rectangle(49, 11, 3, 14, 0x647c7b);
+          rectangle(40, 11, 14, status.batchProgress * 12, ORES[status.ore].color);
+          const armBase=pointAt(22,29), elbow=pointAt(32,39+(working&&!this.reducedMotion?Math.sin(this.tick*3)*4:0)), claw=pointAt(40,27);
+          g.lineStyle(3,0xa6b1a0,1);g.lineBetween(armBase.x,armBase.y,elbow.x,elbow.y);g.lineBetween(elbow.x,elbow.y,claw.x,claw.y);
+          g.fillStyle(0xffc17d,1);g.fillCircle(elbow.x,elbow.y,3);
+          // The machine's gauge follows real saved production, not a decorative timer.
+          rectangle(0, 46, 54, 5, 0x10252d);
+          rectangle(-27 + status.batchProgress * 27, 46, status.batchProgress * 54, 5, accent);
           if (working && !this.reducedMotion) {
             const pulse = Math.sin(this.tick * (structure.level ?? 1) * 2.2) * 2;
             const lamp = pointAt(0, 20 + pulse), foot = pointAt(0, 6);
@@ -3680,6 +3865,7 @@ export class MiningScene extends Phaser.Scene {
         g.fillCircle(x + 34, top + gravity * 2, 4);
         g.lineStyle(1, 0xa4efd9, 0.65);
         g.strokeCircle(x + 34, top + gravity * 2, this.reducedMotion ? 10 : 10 + Math.sin(this.tick * 4) * 2);
+        this.drawUplinkPickup(g,structure.id,(dx,up)=>({x:sx(structure.x+dx),y:sy(structure.y-gravity*up)}));
         continue;
       }
       if (structure.kind === 'warehouse') {
@@ -3735,6 +3921,18 @@ export class MiningScene extends Phaser.Scene {
         }
       }
     }
+    this.outpostDeliveries = this.outpostDeliveries.filter(d=>this.tick-d.at<3.5);
+    for(const delivery of this.outpostDeliveries) {
+      const age=this.tick-delivery.at, t=Math.min(1,Math.max(0,(age-.6)/2.3));
+      const a=project(delivery.from.x,delivery.from.y-this.world.gravitySign(delivery.from.y)*32);
+      const b=project(delivery.to.x,delivery.to.y-this.world.gravitySign(delivery.to.y)*34);
+      const x=a.x+(b.x-a.x)*t, y=a.y+(b.y-a.y)*t-(this.reducedMotion?0:Math.sin(t*Math.PI)*65);
+      if(this.reducedMotion) continue;
+      g.fillStyle(0x90a8a7,1);g.fillRoundedRect(x-12,y-13,24,9,3);
+      g.fillStyle(0x8ee8dd,.8);g.fillTriangle(x-14,y-5,x-9,y-5,x-12,y+3);g.fillTriangle(x+9,y-5,x+14,y-5,x+12,y+3);
+      g.lineStyle(2,0xb1bca8,1);g.lineBetween(x-6,y-4,x-6,y+3);g.lineBetween(x+6,y-4,x+6,y+3);
+      g.fillStyle(0x946a3d,1);g.fillRect(x-7,y+2,14,12);g.fillStyle(delivery.color,1);g.fillRect(x-4,y+5,8,5);
+    }
     if (this.surfacePlacement) {
       const placement = this.surfacePlacement, check = this.surfacePlacementCheck(),
         valid = !!check?.valid, color = valid ? 0x86e0c4 : 0xff987e,
@@ -3760,13 +3958,6 @@ export class MiningScene extends Phaser.Scene {
         g.lineStyle(1, 0xf0b779, 0.48);
         g.strokePoints(range, true);
       }
-      const bodyWidth = placement.kind === 'habitat' ? 86 : placement.kind === 'trade-post' ? 62 : placement.kind === 'warehouse' ? 76 : placement.kind === 'gate' ? 120 : placement.kind === 'wall' ? 38 : 26,
-        bodyHeight = placement.kind === 'wall' ? WORLD.tile - 8 : placement.kind === 'habitat' ? 48 : placement.kind === 'trade-post' ? 42 : placement.kind === 'warehouse' ? 38 : placement.kind === 'gate' ? 48 : 24,
-        ghost = [pointAt(-bodyWidth / 2, 8), pointAt(bodyWidth / 2, 8), pointAt(bodyWidth / 2, bodyHeight + 8), pointAt(-bodyWidth / 2, bodyHeight + 8)];
-      g.fillStyle(placement.kind === 'turret' || placement.kind === 'gate' ? 0xf0b779 : placement.kind === 'warehouse' ? 0xc58c4e : placement.kind === 'wall' ? 0x9faeb5 : 0xa4efd9, 0.36);
-      g.fillPoints(ghost, true);
-      g.lineStyle(1, 0xe5f6eb, 0.85);
-      g.strokePoints(ghost, true);
       g.lineStyle(3, 0x101b1c, 0.95);
       g.strokeCircle(anchor.x, anchor.y, 9);
       g.lineStyle(1.5, color, 1);
@@ -3775,6 +3966,8 @@ export class MiningScene extends Phaser.Scene {
       g.lineBetween(anchor.x, anchor.y - 12, anchor.x, anchor.y + 12);
       this.buildPlacementLabel.setVisible(false);
     } else this.buildPlacementLabel.setVisible(false);
+    for(const wreck of this.wrecks){if(!isOnScreen(wreck.x,wreck.y,150))continue;const p=project(wreck.x,wreck.y);drawWreck(g,p.x,p.y,this.stranded&&wreck===this.wrecks[this.wrecks.length-1]?this.deathAge:undefined,this.reducedMotion);let i=0;for(const ore of ORE_KEYS)if(wreck.cargo[ore]>0){g.fillStyle(ORES[ore].color,1);g.fillRect(p.x-20+(i++%5)*9,p.y+19+Math.floor((i-1)/5)*7,6,5);}}
+    if(this.buildingRepair&&this.tick-this.buildingRepair.at<FIELD_REPAIR.duration){const p=project(this.buildingRepair.x,this.buildingRepair.y-20);drawRepairDrones(g,p.x,p.y,this.tick-this.buildingRepair.at,this.reducedMotion);}
     for (const drop of this.oreDrops) {
       if (!isOnScreen(drop.x, drop.y, 24)) continue;
       const x = sx(drop.x), y = sy(drop.y), color = ORES[drop.ore].color;
@@ -3805,13 +3998,14 @@ export class MiningScene extends Phaser.Scene {
         g.lineBetween(tx + 9, ty - 9, tx - 9, ty + 9);
       }
       // Aim in chart coordinates; projection keeps the anatomy aligned with the globe.
-      drawCreature(g,project,{x:raider.x,y:raider.y,kind:'flyer',
+      if (raider.human) drawHumanRaider(g,project,raider,this.world,this.tick,this.reducedMotion);
+      else drawCreature(g,project,{x:raider.x,y:raider.y,kind:'flyer',
         angle:Math.atan2(this.pod.y-raider.y,this.pod.x-raider.x),time:this.tick+raider.phase,moving:1,
         mode:raider.timer<=0?'charge':'hunt',attack:raider.timer<=0?1:0,hit:raider.hitFlash>0,reduced:this.reducedMotion});
       if (raider.health < SURFACE_RAID.drillHitsToRepel || raider.timer <= 0) {
         const at=project(raider.x,raider.y);
         g.fillStyle(0x101b24,.9);g.fillRoundedRect(at.x-19,at.y-45,38,6,3);
-        g.fillStyle(0xffc27f,1);g.fillRoundedRect(at.x-18,at.y-44,36*Math.max(0,raider.health/SURFACE_RAID.drillHitsToRepel),4,2);
+        g.fillStyle(0xffc27f,1);g.fillRoundedRect(at.x-18,at.y-44,36*Math.max(0,raider.health/(raider.human ? raider.human.kind==='ground'?HUMAN_RAID.groundHealth:HUMAN_RAID.flightHealth : SURFACE_RAID.drillHitsToRepel)),4,2);
       }
 
 
@@ -3956,7 +4150,7 @@ export class MiningScene extends Phaser.Scene {
       g.fillPoints([minerLampPoint(x,y,vehicleScale,this.progress,this.vehiclePose,this.reducedMotion),...this.lampLight.ends.map(pt=>project(pt.x,pt.y))],true);
     }
     if(this.rigSwap)drawRigSwap(g,x,y,vehicleScale,this.progress,this.rigSwap.age,project(MOTHERSHIP.x+100,-70),this.reducedMotion);
-    else drawMiner(g, x, y, vehicleScale, this.progress, this.vehiclePose, this.reducedMotion, {x:beamX,y:beamY}, this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION?{age:this.tick-this.unloading.at,count:this.unloading.count}:undefined);
+    else if(!this.stranded||this.failureReason==='fuel') drawMiner(g, x, y, vehicleScale, this.progress, this.vehiclePose, this.reducedMotion, {x:beamX,y:beamY}, this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION?{age:this.tick-this.unloading.at,count:this.unloading.count}:undefined);
 
     }
     if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, true);

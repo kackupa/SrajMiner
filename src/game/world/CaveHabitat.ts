@@ -1,4 +1,4 @@
-import { CAVE_CREATURES, WORLD, depthAtWorldY } from '../config';
+import { OPENING_EXPEDITION, CAVE_CREATURES, WORLD, depthAtWorldY } from '../config';
 import type { TileWorld } from './TileWorld';
 const T=WORLD.tile;
 export function caveClear(world:TileWorld,x:number,y:number,r:number=CAVE_CREATURES.bodyRadius):boolean {
@@ -13,8 +13,14 @@ export function caveSight(world:TileWorld,a:{x:number;y:number},b:{x:number;y:nu
 }
 /** Homes use unmodified generation, so mining new tunnels never creates inhabitants. */
 export function caveHome(world:TileWorld,sx:number,sy:number) {
+ if(world.openingLayout) {
+  const a=OPENING_EXPEDITION;
+  if(sx===Math.floor(a.nestColumn/CAVE_CREATURES.sectorColumns)&&sy===Math.floor(a.nestRow/CAVE_CREATURES.sectorRows))
+   return {id:a.nestColumn+','+a.nestRow,x:(a.nestColumn+.5)*T,y:(a.nestRow+.5)*T};
+ }
  for(let y=sy*CAVE_CREATURES.sectorRows+1;y<(sy+1)*CAVE_CREATURES.sectorRows-1;y++)
  for(let x=sx*CAVE_CREATURES.sectorColumns+1;x<(sx+1)*CAVE_CREATURES.sectorColumns-1;x++){
+  if(world.openingLayout && x>=12 && x<=47 && y<=22)continue;
   if(x<1||x>=world.widthTiles-1||depthAtWorldY(y*T,world.planetChart)<(world.terrain?40:CAVE_CREATURES.minimumDepth))continue;
   let natural=true;
   for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)if(world.generate(x+dx,y+dy).type!=='empty')natural=false;

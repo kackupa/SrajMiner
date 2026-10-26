@@ -13,5 +13,5 @@ export function extractorStatus(map: MapId, structure: UndergroundStructure, led
   const seam = extractionSeam(map, structure, ledger), tier = EXTRACTOR_TIERS[Math.max(0, Math.min(EXTRACTOR_TIERS.length - 1, (structure.level ?? 1) - 1))],
     supported = (tier.ores as readonly Ore[]).includes(seam.ore),
     state = !supported ? 'Upgrade required' : seam.remaining <= 0 ? 'Deposit exhausted' : capacity - stored < 0.5 ? 'Storage full' : 'Mining';
-  return { ...seam, state, rate: state === 'Mining' ? tier.rate : 0, tierRate: tier.rate, supported };
+  return { ...seam, state, rate: state === 'Mining' ? tier.rate : 0, tierRate: tier.rate, supported, batchProgress: state === 'Mining' ? Math.max(0, Math.min(1, (structure.productionFraction ?? 0) * 2)) : 0, nextBatchSeconds: state === 'Mining' ? Math.max(1, Math.ceil((0.5 - Math.max(0, Math.min(.499999999, structure.productionFraction ?? 0))) * 3600 / tier.rate)) : 0 };
 }

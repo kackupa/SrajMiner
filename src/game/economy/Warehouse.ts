@@ -8,7 +8,7 @@ export const localProductionRoom = (structures: UndergroundStructure[], warehous
   Math.max(0, warehouseCapacity(structures) - cargoTotal(warehouse)) + Math.max(0, FRONTIER.shipCapacity - cargoTotal(ship));
 
 /** Generate into a bounded temporary output buffer, then route ore into distinct stores. */
-export function accumulateLocalProduction(structures: UndergroundStructure[], warehouse: Cargo, ship: Cargo, map: MapId, elapsed: number, extraction: ExtractionLedger) {
+export function accumulateLocalProduction(structures: UndergroundStructure[], warehouse: Cargo, ship: Cargo, map: MapId, elapsed: number, extraction: ExtractionLedger, onDelivery?: (id: string, ore: Ore, units: number, destination: 'planet' | 'ship') => void) {
   const localRoom = Math.max(0, warehouseCapacity(structures) - cargoTotal(warehouse));
   const output = emptyCargo();
   // Subtract building capacity because the established producer adds it itself.
@@ -17,6 +17,13 @@ export function accumulateLocalProduction(structures: UndergroundStructure[], wa
   for (const ore of ORE_KEYS) {
     const local = Math.min(room, output[ore]);
     warehouse[ore] += local; ship[ore] += output[ore] - local; room -= local;
+    let planetRemaining = local;
+    for (const batch of result.batches.filter(b => b.ore === ore)) {
+      const toPlanet = Math.min(planetRemaining, batch.units);
+      if (toPlanet > 0) onDelivery?.(batch.id, ore, toPlanet, 'planet');
+      if (batch.units > toPlanet) onDelivery?.(batch.id, ore, batch.units - toPlanet, 'ship');
+      planetRemaining -= toPlanet;
+    }
   }
   return result.produced;
 }
@@ -55,10 +62,10 @@ export function accumulateAutomatedProduction(
   structures: UndergroundStructure[], warehouse: Cargo, mapId: MapId, elapsedSeconds: number, extraCapacity = 0, extraction?: ExtractionLedger,
 ) {
   const elapsed = Number.isFinite(elapsedSeconds) ? Math.max(0, Math.min(UNDERGROUND_BUILDING.automation.offlineCapSeconds, elapsedSeconds)) : 0,
-    capacity = warehouseCapacity(structures) + extraCapacity, results: Record<string, number> = {};
+    capacity = warehouseCapacity(structures) + extraCapacity, results: Record<string, number> = {}, batches: {id: string; ore: Ore; units: number}[] = [];
   if (capacity <= 0) {
     for (const facility of structures) if (facility.kind === 'extractor') facility.productionFraction = 0;
-    return { warehouse, produced: results };
+    return { warehouse, produced: results, batches };
   }
   for (const facility of structures) {
     if (facility.kind !== 'extractor') continue;
@@ -68,6 +75,7 @@ export function accumulateAutomatedProduction(
       const accumulated = (facility.productionFraction ?? 0) + elapsed / 3600 * status.rate,
         room = capacity - ORE_KEYS.reduce((n, o) => n + warehouse[o], 0),
         accepted = Math.floor(Math.min(accumulated, room, status.remaining) * 2 + 1e-8) / 2;
+      if (accepted > 0) batches.push({id: facility.id, ore: status.ore, units: accepted});
       warehouse[status.ore] += accepted;
       extraction[status.key] = (extraction[status.key] ?? 0) + accepted;
       results[status.ore] = (results[status.ore] ?? 0) + accepted;
@@ -96,5 +104,5 @@ export function accumulateAutomatedProduction(
     // nearly half an ore for the next withdrawal/reload.
     facility.productionFraction = room - accepted <= 1e-8 ? 0 : Math.min(0.499999999, Math.max(0, units));
   }
-  return { warehouse, produced: results };
+  return { warehouse, produced: results, batches };
 }
