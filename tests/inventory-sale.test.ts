@@ -10,3 +10,12 @@ for(const source of ['miner','ship','planet'] as const){
  assert.equal(sellInventory(p,stocks[source],'helion',{...emptyCargo(),copper:-1},()=>true),0);
 }
 console.log('PASS named-inventory sales conserve other stores and roll back false/throw saves');
+import {quoteQuickSale} from '../src/game/economy/InventorySale';
+const quick=new Progress();quick.cargo={...emptyCargo(),copper:3.5,iron:6};
+const offer=quoteQuickSale(quick),moneyBefore=quick.money,unitsBefore={...quick.cargo};
+assert.ok(offer.total>0);assert.deepEqual(quick.cargo,unitsBefore,'quote does not sell');
+const amount=sellInventory(quick,quick.cargo,offer.buyer,offer.shipment,()=>true);
+assert.equal(amount,offer.total);assert.equal(quick.money-moneyBefore,offer.total);assert.deepEqual(quick.cargo,emptyCargo());
+assert.equal(sellInventory(quick,quick.cargo,offer.buyer,offer.shipment,()=>true),0,'repeated sale cannot pay twice');
+assert.equal(quoteQuickSale(quick).total,0);
+console.log('PASS quick-sale quote equals exact payout and repeat sale cannot duplicate Kredits');

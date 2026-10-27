@@ -1,3 +1,4 @@
+import { installGameButtons } from './game/ui/GameButtons';
 import '@fontsource/barlow-condensed/latin-500.css';
 import '@fontsource/barlow-condensed/latin-600.css';
 import '@fontsource/barlow-condensed/latin-700.css';
@@ -13,6 +14,8 @@ import './presentation.css';
 import './industrial.css';
 import './camp.css';
 document.querySelector('#app')!.innerHTML = '<div id="game"></div>';
+const stopButtonStyles=installGameButtons(document.querySelector<HTMLElement>('#app')!);
+if(import.meta.hot)import.meta.hot.dispose(stopButtonStyles);
 new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
@@ -36,8 +39,14 @@ import './game/ui/StarMap.css';
 import './game/ui/BuildingCatalogue.css';
 
 import './game/ui/RigWorkshop.css';
+import './game/ui/LoadoutView.css';
 
 import './game/ui/ColonyOverview.css';
 
 import './game/ui/ColonyOrders.css';
 import './game/ui/FreightView.css';
+import './game/ui/AccountPanel.css';
+import './game/ui/VerifiedMiningPanel.css';
+
+// Last: shared button tokens and states override legacy panel skins.
+import './game/ui/GameButtons.css';

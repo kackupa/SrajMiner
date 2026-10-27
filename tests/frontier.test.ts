@@ -12,7 +12,7 @@ const legacy = { ...p, version: 31, extraction: { 'cryo-shelf:near:0': 3.5 }, pr
     seed:i, x:680, y:-22, maxDepth:0, destroyed:['24,0'], discovered:[], drops:[], activeCharge:null, structures:[], warehouse:{...emptyCargo(),copper:80.5+i}, planetChart:STARTER_PLANET_CHART,
   }])), levels:{...p.levels,drill:17}, cargo:{...emptyCargo(),iron:100.5}, coreFuel:7.25 };
 delete (legacy as any).shipCargo; delete (legacy as any).specialistModules;
-const migrated=migrateSave(legacy)!; assert.ok(migrated); assert.equal(migrated.version,32);
+const migrated=migrateSave(legacy)!; assert.ok(migrated); assert.equal(migrated.version,37);
 assert.deepEqual(migrated.maps,legacy.maps); assert.equal(migrated.cargo.iron,100.5); assert.equal(migrated.coreFuel,7.25);
 assert.deepEqual(migrated.shipCargo,emptyCargo()); assert.deepEqual(migrateSave(migrated),migrated);
 assert.deepEqual(parseSaveFile(JSON.stringify(migrated)),migrated);
@@ -99,5 +99,5 @@ console.log('PASS Frontier: legacy excess battery/hull retained without service 
 const {localProductionRoom}=await import('../src/game/economy/Warehouse');
 assert.equal(localProductionRoom([],{...emptyCargo(),iron:90.5},emptyCargo()),50,'legacy local overflow does not conceal free ship capacity');
 const overflowStock={...emptyCargo(),iron:90.5},overflowShip=emptyCargo();
-accumulateLocalProduction([{id:'e',kind:'extractor',x:100,y:0,level:1}],overflowStock,overflowShip,'cryo-shelf',3600,{});
+accumulateLocalProduction([{id:'e',kind:'extractor',x:100,y:0,level:1}],overflowStock,overflowShip,'cryo-shelf',720,{});
 assert.equal(overflowStock.iron,90.5);assert.equal(overflowShip.copper,24);

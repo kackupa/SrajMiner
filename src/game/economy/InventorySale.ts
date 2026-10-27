@@ -1,6 +1,6 @@
-import { type CivilisationId } from '../config';
+import { CIVILISATION_KEYS, type CivilisationId } from '../config';
 import type { Cargo, Progress } from './Progress';
-import { settleCivilianShipment } from './Civilisations';
+import { quoteCivilianShipment, settleCivilianShipment } from './Civilisations';
 /** Commit one named inventory sale; other inventories are never debited. */
 export function sellInventory(p: Progress, stock: Cargo, buyer: CivilisationId, requested: Cargo, save:()=>boolean) {
  const previous={stock:{...stock},money:p.money,deliveries:p.deliveries};
@@ -10,4 +10,8 @@ export function sellInventory(p: Progress, stock: Cargo, buyer: CivilisationId, 
  let saved=false;try{saved=save();}catch{saved=false;}
  if(!saved){Object.assign(stock,previous.stock);p.money=previous.money;p.deliveries=previous.deliveries;return 0;}
  return result.total;
+}
+
+export function quoteQuickSale(p: Progress) {
+ return CIVILISATION_KEYS.map(buyer=>quoteCivilianShipment(p.cargo,p.cargo,buyer,p.deliveries)).sort((a,b)=>b.total-a.total)[0];
 }

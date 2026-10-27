@@ -1,18 +1,24 @@
+import type { SurfaceTerrain } from '../world/SurfaceTerrain';
+import { defaultLoadout, validLoadout, type Loadout } from '../economy/Loadout';
 import { validCargo } from '../economy/Freight';
 import { COLONY_ORDER_IDS } from '../economy/ColonyOrders';
 import { Progress, emptyCargo, type Cargo } from '../economy/Progress';
 import { structureIntegrity } from '../building/UndergroundStructures';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
-import { EXTRACTION_SEAMS, CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, CORE_FUEL, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
+import { MOTHERSHIP, EXTRACTION_SEAMS, CHARGE, ORE_KEYS, ORES, UPGRADE_KEYS, WORLD, PLANET_CHART, STARTER_PLANET_CHART, PREVIOUS_STARTER_PLANET_CHART, LEGACY_PLANET_CHART, MAPS, ROUTE_FRAGMENTS, ROUTE_SHIP_COMPONENTS, NAVIGATION_HASHES, CORE_RELICS, CORE_FUEL, POD_PAINT_KEYS, PILOT_SUIT_KEYS, POD_DECAL_KEYS, POD_PROFILE_KEYS, SPECIALIZATIONS, UNDERGROUND_BUILDING, SURFACE_RAID, type MapId, type Ore, type PodPaint, type PilotSuit, type PodDecal, type PodProfile, type Specialization } from '../config';
 import type { PlanetChartSize } from '../world/PlanetChart';
 import { MARKET_CONTRACT_IDS, MARKET_DEMAND_IDS } from '../economy/MarketContracts';
 import { SYSTEM_PROJECT_MILESTONES } from '../economy/SystemProjects';
 import { MAX_TOWN_ALTITUDE } from '../surface/SurfaceStation';
 export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
-export type ActiveCharge = { x: number; y: number; fuse: number; vy?: number };
+export type ActiveCharge = { mode?: 'focused' | 'excavation' | 'pulse'; x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 32;
+  version: 32 | 33 | 34 | 35 | 36 | 37;
+  mothershipHull?: number;
+  minerDisabled?: boolean;
+  disabledReason?: 'fuel'|'hull'|'impact';
+  loadout?: Loadout;
   shipCargo: Cargo;
   specialistModules: { reinforcedHull: boolean; efficientCooling: boolean };
   extraction: Record<string, number>;
@@ -52,11 +58,17 @@ export type SaveData = {
   pilotEscaping: boolean;
   grappleOwned: boolean;
 };
+export type MinerWreck = { id:string; x:number; y:number; cargo:Cargo };
 export type WorldSave = {
+  wrecks?: MinerWreck[];
   seed: number;
   x: number;
   y: number;
   maxDepth: number;
+  clearedCaves?: string[];
+  openingLayout?: boolean;
+  terrain?: SurfaceTerrain;
+  clearedTerritories?: string[];
   destroyed: string[];
   discovered: string[];
   drops: OreDrop[];
@@ -92,7 +104,7 @@ const dropMatchesMinedTile = (drop: OreDrop, seed: number, destroyed: string[], 
     destroyed.includes(`${match[2]},${match[3]}`);
 };
 const validCharge = (charge: ActiveCharge | null, columns: number) => charge === null || (
-  !!charge && finite(charge.x) && charge.x >= 0 && charge.x <= columns * WORLD.tile &&
+  !!charge && (charge.mode === undefined || ['focused','excavation','pulse'].includes(charge.mode)) && finite(charge.x) && charge.x >= 0 && charge.x <= columns * WORLD.tile &&
   finite(charge.y) && charge.y >= 0 && charge.y <= 1e7 && finite(charge.fuse) &&
   charge.fuse >= 0 && charge.fuse <= CHARGE.fuseSeconds &&
   (charge.vy === undefined || finite(charge.vy) && Math.abs(charge.vy) <= CHARGE.maxFallSpeed)
@@ -101,7 +113,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    d.version === 32 && validCargo(d.shipCargo) && validSpecialists(d.specialistModules) && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
+    (d.version === 32 || (d.version === 33 || d.version === 34 || d.version === 35 || d.version === 36 || d.version === 37) && validLoadout(d.loadout)) && (d.version<36 || finite(d.mothershipHull)&&d.mothershipHull>=0&&d.mothershipHull<=MOTHERSHIP.maxHull&&typeof d.minerDisabled==='boolean') && (d.disabledReason===undefined||['fuel','hull','impact'].includes(d.disabledReason)) && validCargo(d.shipCargo) && validSpecialists(d.specialistModules) && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
     (d.solarPosition === null || !!d.solarPosition && finite(d.solarPosition.x) && finite(d.solarPosition.y) && Math.abs(d.solarPosition.x) < 100000000 && Math.abs(d.solarPosition.y) < 100000000 && d.mothershipBoarded) && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
@@ -113,29 +125,24 @@ export function validateSave(s: unknown): s is SaveData {
         m.x > mapColumns(m, d.planetChart) * WORLD.tile - 13 || !finite(m.y) || m.y < -maxOrbitSaveAltitude || m.y > 1e7 ||
         !finite(m.maxDepth) || m.maxDepth < 0 || ![m.destroyed, m.discovered].every((a) =>
           Array.isArray(a) && a.length <= 500000 && a.every((v) => typeof v === 'string' && validTileKey(v, m.planetChart ?? d.planetChart))) ||
+        (m.openingLayout !== undefined && typeof m.openingLayout !== 'boolean') ||
+        (m.terrain !== undefined && (!m.terrain || typeof m.terrain!=='object' || !Array.isArray(m.terrain.heights) || m.terrain.heights.length !== (m.planetChart?.columns??d.planetChart?.columns??WORLD.width)*2 || m.terrain.heights.some(h=>!Number.isInteger(h)||h<0||h>4) || !Array.isArray(m.terrain.caves) || !Array.isArray(m.terrain.nests) || [...m.terrain.caves,...m.terrain.nests].some(i=>!Number.isInteger(i)||i<0||i>=m.terrain!.heights.length))) ||
+        (m.clearedTerritories !== undefined && (!Array.isArray(m.clearedTerritories)||m.clearedTerritories.length>10000||m.clearedTerritories.some(i=>typeof i!=='string'||!/^\d{1,4}$/.test(i)))) ||
+        (m.clearedCaves !== undefined && (!Array.isArray(m.clearedCaves) || m.clearedCaves.length>10000 || m.clearedCaves.some(k=>typeof k!=='string'||!validTileKey(k,m.planetChart??d.planetChart)))) ||
         !Array.isArray(m.drops) || m.drops.length > 500000 || !validCharge(m.activeCharge, mapColumns(m, d.planetChart)) ||
-          !Array.isArray(m.structures) || m.structures.length > UNDERGROUND_BUILDING.maxStructuresPerMap ||
+          !Array.isArray(m.structures) ||
           !m.warehouse || ORE_KEYS.some((ore) => !finite(m.warehouse[ore]) || m.warehouse[ore] < 0 || !Number.isInteger(m.warehouse[ore] * 2)) || m.structures.some((structure) =>
           !structure || typeof structure.id !== 'string' || structure.id.length > 80 ||
           !['platform', 'service', 'turret', 'trade-post', 'habitat', 'warehouse', 'extractor', 'wall', 'gate', 'fort'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
-          !finite(structure.y) || structure.y < (structure.kind === 'wall' ? -UNDERGROUND_BUILDING.wall.maxPerMap * WORLD.tile : 0) || structure.y > 1e7 ||
+          !finite(structure.y) || structure.y < (structure.kind === 'wall' ? -1e7 : 0) || structure.y > 1e7 ||
           (structure.kind === 'fort' && structure.y !== 0 && structure.y !== (chart?.radiusRows ?? LEGACY_PLANET_CHART.radiusRows) * WORLD.tile * 2) ||
           (structure.level !== undefined && (!['turret', 'warehouse', 'extractor'].includes(structure.kind) || !Number.isInteger(structure.level) || structure.level < 1 || structure.level > (structure.kind === 'warehouse' ? 4 : 3))) ||
           (structure.kind === 'extractor' && (structure.level ?? 1) > 3) ||
           (structure.productionFraction !== undefined && (structure.kind !== 'extractor' || !finite(structure.productionFraction) || structure.productionFraction < 0 || structure.productionFraction >= 0.5)) ||
           (structure.reload !== undefined && (!finite(structure.reload) || structure.reload < 0 || structure.reload > UNDERGROUND_BUILDING.turret.reloadSeconds)) ||
           (structure.integrity !== undefined && (!Number.isInteger(structure.integrity) || structure.integrity < 1 || structure.integrity > structureIntegrity(structure.kind)))) ||
-        new Set(m.structures.map((structure) => structure.id)).size !== m.structures.length ||
-        m.structures.filter((structure) => structure.kind === 'service').length > 1 ||
-        m.structures.filter((structure) => structure.kind === 'platform').length > 12 ||
-        m.structures.filter((structure) => structure.kind === 'turret').length > UNDERGROUND_BUILDING.turret.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'trade-post').length > UNDERGROUND_BUILDING['trade-post'].maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'habitat').length > UNDERGROUND_BUILDING.habitat.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'warehouse').length > UNDERGROUND_BUILDING.warehouse.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'extractor').length > UNDERGROUND_BUILDING.extractor.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'wall').length > UNDERGROUND_BUILDING.wall.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'fort').length > UNDERGROUND_BUILDING.fort.maxPerMap) return false;
-      if (m.structures.filter((structure) => structure.kind === 'gate').length > UNDERGROUND_BUILDING.gate.maxPerMap) return false;
+        new Set(m.structures.map((structure) => structure.id)).size !== m.structures.length) return false;
+      if(m.wrecks!==undefined&&(!Array.isArray(m.wrecks)||m.wrecks.some(w=>!w||typeof w.id!=='string'||w.id.length>80||!finite(w.x)||!finite(w.y)||!validCargo(w.cargo))||new Set(m.wrecks.map(w=>w.id)).size!==m.wrecks.length))return false;
       const ids = new Set<string>();
       return m.drops.every((drop) => {
         if (!validDrop(drop, mapColumns(m, d.planetChart)) || ids.has(drop.id) || !dropMatchesMinedTile(drop, m.seed, m.destroyed, m.planetChart ?? d.planetChart)) return false;
@@ -155,11 +162,11 @@ export function validateSave(s: unknown): s is SaveData {
     Array.isArray(d.ownedSuits) && d.ownedSuits.includes('hab') && d.ownedSuits.every((v) => PILOT_SUIT_KEYS.includes(v)) && new Set(d.ownedSuits).size === d.ownedSuits.length && PILOT_SUIT_KEYS.includes(d.selectedSuit) && d.ownedSuits.includes(d.selectedSuit) &&
     Array.isArray(d.ownedDecals) && d.ownedDecals.includes('standard') && d.ownedDecals.every((v) => POD_DECAL_KEYS.includes(v)) && new Set(d.ownedDecals).size === d.ownedDecals.length && POD_DECAL_KEYS.includes(d.selectedDecal) && d.ownedDecals.includes(d.selectedDecal) &&
     Array.isArray(d.ownedProfiles) && d.ownedProfiles.includes('standard') && d.ownedProfiles.every((v) => POD_PROFILE_KEYS.includes(v)) && new Set(d.ownedProfiles).size === d.ownedProfiles.length && POD_PROFILE_KEYS.includes(d.selectedProfile) && d.ownedProfiles.includes(d.selectedProfile) &&
-    finite(d.fuel) && d.fuel >= 0 && finite(d.hull) && d.hull >= 0 && (d.hull > 0 || d.pilotEscaping) && finite(d.maxDepth) && d.maxDepth >= 0 &&
+    finite(d.fuel) && d.fuel >= 0 && finite(d.hull) && d.hull >= 0 && (d.hull > 0 || d.pilotEscaping || d.version>=36&&d.minerDisabled===true) && finite(d.maxDepth) && d.maxDepth >= 0 &&
     typeof d.artifact === 'boolean' && !!d.levels && UPGRADE_KEYS.every(
       (k) => Number.isSafeInteger(d.levels[k]) && d.levels[k] >= 1,
     ) && !!d.cargo && ORE_KEYS.every((k) => finite(d.cargo[k]) && d.cargo[k] >= 0 && Number.isInteger(d.cargo[k] * 2)) &&
-    Array.isArray(d.milestones) && d.milestones.every((v) => ['mothership-origin', 'first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...COLONY_ORDER_IDS, ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
+    Array.isArray(d.milestones) && d.milestones.every((v) => ['opening-cave', 'opening-nest', 'mothership-origin', 'first-core-sample', 'basalt-vein', 'deep-scan', 'route-signal', 'core-crossing', ...COLONY_ORDER_IDS, ...MARKET_CONTRACT_IDS, ...MARKET_DEMAND_IDS, ...SYSTEM_PROJECT_MILESTONES, ...NAVIGATION_HASHES.map((entry) => entry.id), ...CORE_RELICS.map((entry) => entry.id)].includes(v)) &&
     Array.isArray(d.shipComponents) && d.shipComponents.every((v) => ['frame', 'propulsion', 'navigation', 'life-support'].includes(v)) &&
     Array.isArray(d.routeFragments) && d.routeFragments.every((v) => ROUTE_FRAGMENTS.some((fragment) => fragment.id === v)) &&
     finite(d.coreFuel) && d.coreFuel >= 0 && d.coreFuel <= 100000 &&
@@ -176,6 +183,13 @@ function addWorldToolState(maps: Record<string, Omit<WorldSave, 'drops' | 'activ
   }]));
 }
 export function migrateSave(s: unknown): SaveData | null {
+  if (s && typeof s === 'object' && (s as {version?:number}).version === 32) return migrateSave({ ...s, version: 33, loadout: defaultLoadout() });
+  if (s && typeof s === 'object' && (s as {version?:number}).version === 33 && validateSave(s)) {
+    return migrateSave({...s,version:34});
+  }
+  if (s && typeof s === 'object' && (s as {version?:number}).version === 34 && validateSave(s)) return migrateSave({...s,version:35});
+  if (s && typeof s==='object' && (s as {version?:number}).version===35 && validateSave(s)) return migrateSave({...s,version:36,mothershipHull:MOTHERSHIP.maxHull,minerDisabled:false});
+  if (s && typeof s==='object' && (s as {version?:number}).version===36 && validateSave(s)) return {...s, version:37};
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;
@@ -362,7 +376,7 @@ export class SaveManager {
       if (!raw) return null;
       const data: unknown = JSON.parse(raw);
       const migrated = migrateSave(data);
-      if (migrated) { this.migratedLegacyStock = (data as {version?:number}).version !== 32; return migrated; }
+      if (migrated) { this.migratedLegacyStock = Number((data as {version?:number}).version) < 32; return migrated; }
       this.warning = 'Save could not be read. A new expedition is ready.';
     } catch {
       this.warning = 'Storage unavailable. This session may not be saved.';
@@ -379,6 +393,7 @@ export class SaveManager {
     }
   }
   restore(p: Progress, d: SaveData) {
+    p.loadout = d.loadout ? structuredClone(d.loadout) : defaultLoadout();
     p.shipCargo = { ...d.shipCargo };
     p.specialistModules = { ...d.specialistModules };
     p.deliveries = { ...d.deliveries };

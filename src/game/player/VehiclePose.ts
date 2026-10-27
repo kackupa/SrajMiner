@@ -7,6 +7,11 @@ export type VehiclePose = {
   gear: number;
   drill: number;
   phase: number;
+  landing: number;
+  grounded: boolean;
+  lastVerticalSpeed: number;
+  stride: number;
+  lookX: number; lookY: number; fire: number;
 };
 export const restingVehiclePose = (): VehiclePose => ({
   bank: 0,
@@ -16,10 +21,13 @@ export const restingVehiclePose = (): VehiclePose => ({
   gear: 0,
   drill: 0,
   phase: 0,
+  lookX: 1, lookY: 0, fire: 0,
+  landing: 0, grounded: true, lastVerticalSpeed: 0, stride: 0,
 });
 export function advanceVehiclePose(
   pose: VehiclePose,
   input: {
+    lookingX?: number; lookingY?: number; firing?: boolean;
     sideSpeed: number;
     verticalSpeed: number;
     facing: number;
@@ -37,7 +45,15 @@ export function advanceVehiclePose(
   const clamp = (v: number, limit: number) => Math.max(-limit, Math.min(limit, v));
   const bank = input.reducedMotion ? 0 : clamp(input.sideSpeed / 650, 0.28);
   const pitch = input.reducedMotion || input.grounded ? 0 : clamp(input.verticalSpeed / 900, 0.24);
+  const impact = input.grounded && !pose.grounded ? Math.min(1, Math.abs(pose.lastVerticalSpeed) / 260) : 0;
   return {
+    lookX: pose.lookX+((input.lookingX??input.facing)-pose.lookX)*blend,
+    lookY: pose.lookY+((input.lookingY??0)-pose.lookY)*blend,
+    fire: input.reducedMotion ? 0 : input.firing ? 1 : pose.fire*Math.exp(-step*22),
+    landing: input.reducedMotion ? 0 : Math.max(impact, pose.landing * Math.exp(-step * 10)),
+    grounded: input.grounded,
+    lastVerticalSpeed: input.verticalSpeed,
+    stride: input.reducedMotion ? 0 : pose.stride + ((input.grounded ? Math.min(1, Math.abs(input.sideSpeed) / 90) : 0) - pose.stride) * blend,
     bank: input.reducedMotion ? 0 : pose.bank + (bank - pose.bank) * blend,
     pitch: input.reducedMotion ? 0 : pose.pitch + (pitch - pose.pitch) * blend,
     turn: pose.turn + (input.facing - pose.turn) * blend,

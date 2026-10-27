@@ -1,11 +1,13 @@
+import { caveHome, caveMove, caveSight, caveStep } from './CaveHabitat';
 import { turretStats } from '../building/UndergroundStructures';
-import { HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
+import { OPENING_EXPEDITION, CAVE_CREATURES, HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
 import type { UndergroundStructure } from '../building/UndergroundStructures';
 import type { TileWorld } from './TileWorld';
 import { planetCartesianToChart, planetChartToCartesian, planetChartVectorToCartesian } from './PlanetChart';
 
 export type RockSwimmerState = {
+  habitat?: string; homeX?: number; homeY?: number; contactCooldown?: number;
   kind?: 'rock-swimmer' | 'shard-manta' | 'hull-scrapper';
   mode?: 'hunt' | 'windup' | 'charge' | 'recover';
   x: number;
@@ -29,70 +31,78 @@ export function swimmerKindForEncounter(encounter: number, mapId: MapId = 'cryo-
   return mapId === 'hull-graveyard' ? 'hull-scrapper' : 'shard-manta';
 }
 
-/** A cave predator that phases through rock, pressures the pod, and can be deterred by turrets. */
+/** Seeded cave inhabitants. Solid terrain separates their territory from the miner. */
 export class RockSwimmer {
   active?: RockSwimmerState;
-  private wait: number = ROCK_SWIMMER.firstArrivalSeconds;
-  private encounter = 0;
-
-  constructor(private seed: number, private mapId: MapId) {}
+  private residents=new Map<string,RockSwimmerState>();
+  private surveyed=new Set<string>();
+  private navigationTime=0;
+  private waypoint?: {x:number;y:number};
+  withdraw(_dt: number) {
+    // Shelter/surface breaks pursuit. Residents remain in their existing open cave.
+    if(this.active){this.active.vx=0;this.active.vy=0;this.active.mode='hunt';}
+    this.active=undefined;
+  }
+  repel() {
+    if(this.active?.habitat){this.world?.clearedCaves.add(this.active.habitat);this.residents.delete(this.active.habitat);}
+    this.active=undefined;
+  }
+  constructor(private seed:number,private mapId:MapId,private world?:TileWorld) {}
+  private selectResident(x:number,y:number) {
+    const world=this.world;if(!world)return;
+    const sx=Math.floor(x/WORLD.tile/CAVE_CREATURES.sectorColumns),sy=Math.floor(y/WORLD.tile/CAVE_CREATURES.sectorRows);
+    for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
+      const a=sx+ox,b=sy+oy,key=a+','+b;if(a<0||b<0||this.surveyed.has(key))continue;
+      this.surveyed.add(key);const home=caveHome(world,a,b);if(!home||world.clearedCaves.has(home.id))continue;
+      const n=Math.floor(random(this.seed,a,b,141)*9),kind=world.openingLayout&&home.id===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow?'rock-swimmer':swimmerKindForEncounter(n,this.mapId);
+      this.residents.set(home.id,{habitat:home.id,homeX:home.x,homeY:home.y,x:home.x,y:home.y,kind,mode:'hunt',vx:0,vy:0,
+        life:0,phase:random(this.seed,a,b,143)*Math.PI*2,health:kind==='shard-manta'?SHARD_MANTA.drillHitsToDefeat:kind==='hull-scrapper'?HULL_SCRAPPER.drillHitsToDefeat:ROCK_SWIMMER.drillHitsToDefeat,drillCooldown:0,hitFlash:0});
+    }
+    const candidate=[...this.residents.values()].filter(r=>!world.clearedCaves.has(r.habitat!)&&Math.hypot(r.x-x,r.y-y)<CAVE_CREATURES.activationTiles*WORLD.tile)
+      .sort((a,b)=>Math.hypot(a.x-x,a.y-y)-Math.hypot(b.x-x,b.y-y))[0];
+    this.active=candidate;this.navigationTime=0;this.waypoint=undefined;
+  }
 
   update(dt: number, depth: number, podX: number, podY: number, structures: UndergroundStructure[] = [], onTurretFire: (x: number, y: number) => void = () => {}) {
     for (const turret of structures.filter((entry) => entry.kind === 'turret')) turret.reload = Math.max(0, (turret.reload ?? 0) - dt);
-    if (depth < ROCK_SWIMMER.firstDepth) {
-      this.active = undefined;
-      this.wait = ROCK_SWIMMER.firstArrivalSeconds;
-      return false;
-    }
-    if (!this.active) {
-      this.wait -= dt;
-      if (this.wait > 0) return false;
-      const n = this.encounter++;
-      const angle = random(this.seed, n, this.mapId.length, 141) * Math.PI * 2;
-      const kind = swimmerKindForEncounter(n, this.mapId)!,
-        distance = kind !== 'rock-swimmer'
-          ? 115 + random(this.seed, n, this.mapId.length, 142) * 48
-          : 125 + random(this.seed, n, this.mapId.length, 142) * 90;
-      this.active = {
-        kind,
-        mode: 'hunt',
-        modeTimer: 0,
-        x: podX + Math.cos(angle) * distance,
-        y: podY + Math.sin(angle) * distance * 0.62,
-        vx: Math.cos(angle + 1.6) * ROCK_SWIMMER.speed,
-        vy: Math.sin(angle + 1.6) * ROCK_SWIMMER.speed * 0.62,
-        life: ROCK_SWIMMER.swimSeconds,
-        phase: random(this.seed, n, this.mapId.length, 143) * Math.PI * 2,
-        health: kind === 'shard-manta' ? SHARD_MANTA.drillHitsToDefeat
-          : kind === 'hull-scrapper' ? HULL_SCRAPPER.drillHitsToDefeat : ROCK_SWIMMER.drillHitsToDefeat,
-        drillCooldown: 0,
-        hitFlash: 0,
-      };
-      return false;
-    }
+    if (depth <= 0) { this.withdraw(dt); return false; }
+    if(this.active?.habitat&&Math.hypot(this.active.x-podX,this.active.y-podY)>CAVE_CREATURES.activationTiles*WORLD.tile*1.5)this.active=undefined;
+    if(!this.active)this.selectResident(podX,podY);
+    if(!this.active)return false;
 
     const swimmer = this.active;
     swimmer.kind ??= 'rock-swimmer';
     swimmer.mode ??= 'hunt';
     swimmer.modeTimer ??= 0;
-    swimmer.life -= dt;
+    swimmer.life += dt;
+    swimmer.contactCooldown=Math.max(0,(swimmer.contactCooldown??0)-dt);
+    const oldX=swimmer.x,oldY=swimmer.y;
     swimmer.drillCooldown = Math.max(0, swimmer.drillCooldown - dt);
     swimmer.hitFlash = Math.max(0, swimmer.hitFlash - dt);
     swimmer.armorBlockedFlash = Math.max(0, (swimmer.armorBlockedFlash ?? 0) - dt);
-    const dx = podX - swimmer.x, dy = podY - swimmer.y;
+    const visible=!this.world||caveSight(this.world,swimmer,{x:podX,y:podY});
+    this.navigationTime-=dt;
+    if(this.world&&this.navigationTime<=0){
+      this.navigationTime=.3;
+      this.waypoint=caveStep(this.world,swimmer,{x:podX,y:podY});
+    }
+    const home={x:swimmer.homeX??swimmer.x,y:swimmer.homeY??swimmer.y};
+    const retreating=!!this.world?.openingLayout&&swimmer.habitat===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow&&Math.hypot(podX-home.x,podY-home.y)>OPENING_EXPEDITION.retreatRadius;
+    const homeStep=retreating&&this.world?caveStep(this.world,swimmer,home):undefined;
+    const goal=retreating?(homeStep??home):this.world&&!visible?(this.waypoint??{x:(swimmer.homeX??swimmer.x)+Math.sin(swimmer.life*.6)*18,y:(swimmer.homeY??swimmer.y)+Math.cos(swimmer.life*.5)*12}):{x:podX,y:podY};
+    const dx = goal.x - swimmer.x, dy = goal.y - swimmer.y;
     const distance = Math.hypot(dx, dy);
     for (const turret of structures) {
       if (turret.kind !== 'turret' || (turret.reload ?? 0) > 0) continue;
-      if (Math.hypot(turret.x - swimmer.x, turret.y - swimmer.y) <= turretStats(turret).range) {
+      if (Math.hypot(turret.x - swimmer.x, turret.y - swimmer.y) <= turretStats(turret).range && (!this.world || caveSight(this.world,turret,swimmer))) {
         turret.reload = turretStats(turret).reloadSeconds;
         onTurretFire(turret.x, turret.y);
-        this.active = undefined;
-        this.wait = ROCK_SWIMMER.repeatSeconds;
+        this.repel();
         return false;
       }
     }
     if (swimmer.kind === 'shard-manta') {
-      if (swimmer.mode === 'hunt' && distance <= SHARD_MANTA.windupDistance) {
+      if (swimmer.mode === 'hunt' && visible && distance <= SHARD_MANTA.windupDistance) {
         swimmer.mode = 'windup';
         swimmer.modeTimer = SHARD_MANTA.windupSeconds;
         swimmer.chargeX = dx / (distance || 1);
@@ -134,7 +144,7 @@ export class RockSwimmer {
           swimmer.vy *= SHARD_MANTA.huntSpeed / speed;
         }
         swimmer.x += swimmer.vx * dt;
-        swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 6 * dt;
+        swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + swimmer.life * 2.1) * 6 * dt;
       }
     } else {
       // The swimmer homes toward the pod, asking the player to keep moving and aim the drill.
@@ -149,20 +159,21 @@ export class RockSwimmer {
         swimmer.vy *= speedCap / speed;
       }
       swimmer.x += swimmer.vx * dt;
-      swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + (ROCK_SWIMMER.swimSeconds - swimmer.life) * 2.1) * 8 * dt;
+      swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + swimmer.life * 2.1) * 8 * dt;
     }
 
-    const collisionDistance = Math.hypot(podX - swimmer.x, podY - swimmer.y),
-      contactRadius = swimmer.kind === 'shard-manta' ? SHARD_MANTA.contactRadius
-        : swimmer.kind === 'hull-scrapper' ? HULL_SCRAPPER.contactRadius : ROCK_SWIMMER.contactRadius;
-    if (collisionDistance <= contactRadius) {
-      this.active = undefined;
-      this.wait = ROCK_SWIMMER.repeatSeconds;
-      return true;
+    if(this.world){
+      const wantedX=swimmer.x,wantedY=swimmer.y;swimmer.x=oldX;swimmer.y=oldY;
+      if(caveMove(this.world,swimmer,wantedX,wantedY)&&swimmer.mode==='charge'){
+        swimmer.mode='recover';swimmer.modeTimer=SHARD_MANTA.recoverSeconds;
+      }
     }
-    if (swimmer.life <= 0) {
-      this.active = undefined;
-      this.wait = ROCK_SWIMMER.repeatSeconds;
+    const collisionDistance=Math.hypot(podX-swimmer.x,podY-swimmer.y);
+    if(collisionDistance<=ROCK_SWIMMER.contactRadius && !swimmer.contactCooldown &&
+       (!this.world||caveSight(this.world,swimmer,{x:podX,y:podY}))){
+      swimmer.contactCooldown=CAVE_CREATURES.contactCooldown;
+      swimmer.vx=0;swimmer.vy=0;
+      return true;
     }
     return false;
   }
@@ -217,8 +228,7 @@ export class RockSwimmer {
       swimmer.vy = 0;
     }
     if (swimmer.health > 0) return false;
-    this.active = undefined;
-    this.wait = ROCK_SWIMMER.repeatSeconds;
+    this.repel();
     return true;
   }
 

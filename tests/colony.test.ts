@@ -24,14 +24,14 @@ const { extractionSeam, extractorStatus } = await import('../src/game/economy/Ex
 const { accumulateAutomatedProduction } = await import('../src/game/economy/Warehouse');
 const ledger:Record<string,number>={}, seamRig:UndergroundStructure={id:'seam',kind:'extractor',x:100,y:0,level:1};
 const seamStock=emptyCargo();
-accumulateAutomatedProduction([seamRig],seamStock,'cryo-shelf',3600,100,ledger);
+accumulateAutomatedProduction([seamRig],seamStock,'cryo-shelf',720,100,ledger);
 assert.equal(seamStock.copper,24);assert.equal(extractionSeam('cryo-shelf',seamRig,ledger).remaining,36);
 const key=extractionSeam('cryo-shelf',seamRig,ledger).key;ledger[key]=59.5;
-accumulateAutomatedProduction([seamRig,{...seamRig,id:'second'}],seamStock,'cryo-shelf',3600,100,ledger);
+accumulateAutomatedProduction([seamRig,{...seamRig,id:'second'}],seamStock,'cryo-shelf',720,100,ledger);
 assert.equal(seamStock.copper,24.5);assert.equal(ledger[key],60);
 assert.equal(extractorStatus('cryo-shelf',{...seamRig,id:'rebuilt'},JSON.parse(JSON.stringify(ledger)),0,100).state,'Deposit exhausted');
 const fullStock={...emptyCargo(),copper:100}, beforeLedger=JSON.stringify(ledger);
-accumulateAutomatedProduction([{...seamRig,x:400}],fullStock,'cryo-shelf',3600,100,ledger);
+accumulateAutomatedProduction([{...seamRig,x:400}],fullStock,'cryo-shelf',720,100,ledger);
 assert.equal(JSON.stringify(ledger),beforeLedger,'full storage never consumes seam');
 assert.equal(extractorStatus('cryo-shelf',{...seamRig,x:1100},ledger,0,100).state,'Upgrade required');
 console.log('PASS finite seams: shared depletion, exhaustion, storage pause, tier eligibility and reload persistence');
@@ -50,3 +50,25 @@ assert.equal(deliverColonyOrder(buyerProgress,buyerStore,'cryo-shelf',order.id,(
 assert.equal(deliverColonyOrder(buyerProgress,buyerStore,'mars-frontier',order.id,()=>true),false);
 assert.equal(buyerProgress.money,oldMoney+order.reward);
 console.log('PASS optional orders: pooled exact delivery, one-time reward, planet scope and save rollback');
+
+// Production UI reports the same half-unit boundary as the ledger.
+const countdownRig: UndergroundStructure = {id:'countdown',kind:'extractor',x:100,y:0,level:1,productionFraction:.25};
+assert.equal(extractorStatus('cryo-shelf',countdownRig,{},0,10).nextBatchSeconds,8);
+assert.equal(extractorStatus('cryo-shelf',countdownRig,{},0,10).batchProgress,.5);
+assert.equal(extractorStatus('cryo-shelf',countdownRig,{},10,10).nextBatchSeconds,0);
+const { accumulateLocalProduction } = await import('../src/game/economy/Warehouse');
+const localStock=emptyCargo(), shipStock=emptyCargo(), localLedger:Record<string,number>={};
+accumulateLocalProduction([countdownRig],localStock,shipStock,'cryo-shelf',8,localLedger);
+assert.equal(shipStock.copper,.5,'without a warehouse output goes to the ship');
+assert.equal(localStock.copper,0);
+const checkpoint=JSON.parse(JSON.stringify({countdownRig,localStock,shipStock,localLedger}));
+accumulateLocalProduction([checkpoint.countdownRig],checkpoint.localStock,checkpoint.shipStock,'cryo-shelf',0,checkpoint.localLedger);
+assert.equal(checkpoint.shipStock.copper,.5,'reloading a settled batch cannot duplicate it');
+console.log('PASS extractor feedback: batch countdown, ship destination and settled reload');
+
+// Delivery visuals receive only settled ore, including split destinations.
+const splitPlanet={...emptyCargo(),copper:39.5},splitShip=emptyCargo();
+const splitEvents:{units:number;destination:string}[]=[];
+accumulateLocalProduction([{id:'store',kind:'warehouse',x:0,y:0},{id:'mine',kind:'extractor',x:100,y:0,level:1}],splitPlanet,splitShip,'cryo-shelf',30,{},(_id,_ore,units,destination)=>splitEvents.push({units,destination}));
+assert.deepEqual(splitEvents,[{units:.5,destination:'planet'},{units:.5,destination:'ship'}]);
+assert.equal(splitPlanet.copper,40);assert.equal(splitShip.copper,.5);

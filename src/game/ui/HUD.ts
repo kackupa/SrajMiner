@@ -1,6 +1,7 @@
+import { buildingArt } from './BuildingArt';
 import { showTransit, arrivalMarkup } from './TravelPresentation';
 import { freightView, bindFreight, initialFreight, bestOreOffer } from './FreightView';
-import type { InventorySource } from '../economy/Freight';
+import { cargoTotal, type InventorySource } from '../economy/Freight';
 import { colonyOverview, buildingName } from './ColonyOverview';
 import { colonyOrdersPanel } from './ColonyOrders';
 import { colonyOrders } from '../economy/ColonyOrders';
@@ -39,7 +40,9 @@ import { contractReady, marketContract, marketDemand, marketDemandBonus } from '
 import type { WarehouseDirection } from '../economy/Warehouse';
 import { CARGO_TUG_PROJECT, SURVEY_ARRAY_PROJECT, VESPER_RELAY_PROJECT, cargoTugProgress, surveyArrayProgress, vesperRelayProgress } from '../economy/SystemProjects';
 import { pauseScreen } from './PauseScreen';
-import { campDock, campShell, servicePanel, workshopPanel, CAMP_MENUS, credits, type WorkshopSection } from './CampUI';
+import { AccountPanel } from './AccountPanel';
+import { onlineSignInErrorMessage } from '../online/AuthClient';
+import { campDock, campShell, equipmentArt, servicePanel, workshopPanel, CAMP_MENUS, credits, type WorkshopSection } from './CampUI';
 export const flightWarning = (input: {
   surface: boolean;
   inOrbit?: boolean;
@@ -133,6 +136,8 @@ export type UIActions = {
   sell: (buyerMapId?: MapId) => SaleReceipt | undefined;
   service: (key: 'fuel' | 'hull') => boolean;
   buy: (key: Upgrade) => boolean;
+  selectCharge: (id: string) => boolean;
+  fitEquipment: (id: string) => string;
   buyCharges: () => boolean;
   buyMagnet: () => boolean;
   buyStasis: () => boolean;
@@ -161,10 +166,11 @@ export type UIActions = {
   travelReady: () => boolean;
   mapIntel: () => Record<MapId, import('../campaign/SolarSystem').SolarPlanetIntel>;
   buildStructure: (kind: StructureKind) => boolean;
+  undergroundBuildReason?: (kind: StructureKind) => string;
   upgradeTurret: (id: string) => boolean;
   buildExtractor: () => boolean;
   upgradeExtractor: (id: string) => boolean;
-  upgradeWarehouse: () => boolean;
+  upgradeWarehouse: (id?: string) => boolean;
   warehouseStock: (mapId?: MapId) => Cargo;
   warehouseCapacity: (mapId?: MapId) => number;
   transferFreight: (source: InventorySource, target: InventorySource, ore: Ore, units: number) => number;
@@ -205,6 +211,7 @@ export class HUD {
   modal = 'intro';
   hasStarted = false;
   paused = true;
+  sheltered = false;
   nearSurface = true;
   onCrust = true;
   currentDepth = 0;
@@ -235,6 +242,7 @@ export class HUD {
   saveFailed = false;
   targetSignature = '';
   missionTipSignature = '';
+  private missionTipShownAt?: number;
   mapId: MapId = 'cryo-shelf';
   mapOpen = false;
   pendingImport?: SaveData;
@@ -247,6 +255,8 @@ export class HUD {
   warehouseSourceMap: MapId = 'cryo-shelf';
   returnFocus: HTMLElement | null = null;
   introStep: 'title' | 'atlas' | 'controls' = 'title';
+  private accountPanel?: AccountPanel;
+  private accountReturn: 'intro' | 'pause' = 'intro';
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     document.querySelector('#route-map-panel')!.classList.toggle('hidden', !this.mapOpen);
@@ -356,7 +366,7 @@ export class HUD {
         ? `CARGO FULL: EXCESS ORE DROPS HERE. CLEAR THE ROUTE; RETURN AFTER SELLING TO COLLECT IT.`
         : `CARGO SHORT: ${cargoSpace} OF ${overflowUnits} UNITS FIT. THE REST DROPS HERE FOR YOUR RETURN TRIP.`
       : '';
-    panel.innerHTML = `<div><b>${shipPart ? '✦ LEGACY SURVEY SAMPLE · ' : coreRelic ? '◈ PLANET CORE · ' : tile.geode ? '✦ PRISM GEODE · ' : regionalFind ? `✦ ${regionalFind.name} · ` : signalHash ? '◈ ARCHIVE HASH · ' : ''}${name.toUpperCase()}${ore && units !== 1 ? ` · +${units} UNITS` : ''}</b><span>${shipPart ? `SURVEY GRANT · +$${ROUTE_PART_RECOVERY_BONUS} CREDITS` : coreRelic ? `+${CORE_FUEL.unitsPerCore} CORE FUEL` : signalHash ? 'OPTIONAL HASH HAS NO CASH VALUE' : ore ? `$${ore.value} / unit` : 'NO ORE'} · ${width} BLOCK${width === 1 ? '' : 'S'} WIDE · ${this.p.drillTime(tile.hardness).toFixed(2)}s CUT</span></div><div class="cut-meter"><i style="width:${ratio * 100}%"></i></div><small>${full ? overflowWarning : laserVenting ? 'EMITTER VENTING · CUT PAUSED · RELEASE TO COOL FASTER' : shipPart ? `LEGACY SURVEY SAMPLE · CUTTING ${Math.round(ratio * 100)}%` : coreRelic ? `${coreRelic.detail} · CUT TO RECORD PLANET AND REFILL JUMPS · ${Math.round(ratio * 100)}%` : signalHash ? `${signalHash.detail} · CUTTING ${Math.round(ratio * 100)}%` : tile.geode ? `RARE CRYSTAL POCKET · GUARANTEED 3 UNITS · CUTTING ${Math.round(ratio * 100)}%` : regionalFind ? `${regionalFind.detail} · CUTTING ${Math.round(ratio * 100)}%` : `CUTTING ${Math.round(ratio * 100)}%`}</small>`;
+    panel.innerHTML = `<div><b>${shipPart ? '✦ LEGACY SURVEY SAMPLE · ' : coreRelic ? '◈ PLANET CORE · ' : tile.geode ? '✦ PRISM GEODE · ' : regionalFind ? `✦ ${regionalFind.name} · ` : signalHash ? '◈ ARCHIVE HASH · ' : ''}${name.toUpperCase()}${ore && units !== 1 ? ` · +${units} UNITS` : ''}</b><span>${shipPart ? `SURVEY GRANT · +K ${ROUTE_PART_RECOVERY_BONUS} KREDITS` : coreRelic ? `+${CORE_FUEL.unitsPerCore} CORE FUEL` : signalHash ? 'OPTIONAL HASH HAS NO CASH VALUE' : ore ? `K ${ore.value} / unit` : 'NO ORE'} · ${width} BLOCK${width === 1 ? '' : 'S'} WIDE · ${this.p.drillTime(tile.hardness).toFixed(2)}s CUT</span></div><div class="cut-meter"><i style="width:${ratio * 100}%"></i></div><small>${full ? overflowWarning : laserVenting ? 'EMITTER VENTING · CUT PAUSED · RELEASE TO COOL FASTER' : shipPart ? `LEGACY SURVEY SAMPLE · CUTTING ${Math.round(ratio * 100)}%` : coreRelic ? `${coreRelic.detail} · CUT TO RECORD PLANET AND REFILL JUMPS · ${Math.round(ratio * 100)}%` : signalHash ? `${signalHash.detail} · CUTTING ${Math.round(ratio * 100)}%` : tile.geode ? `RARE CRYSTAL POCKET · GUARANTEED 3 UNITS · CUTTING ${Math.round(ratio * 100)}%` : regionalFind ? `${regionalFind.detail} · CUTTING ${Math.round(ratio * 100)}%` : `CUTTING ${Math.round(ratio * 100)}%`}</small>`;
   }
   constructor(
     public p: Progress,
@@ -381,7 +391,7 @@ export class HUD {
       <button id="orbit-worlds" class="orbit-worlds-button hidden" title="Choose a planet from orbit"><span aria-hidden="true">⌖</span> Mothership · WORLDS</button>
       ${campDock()}
       <input id="save-import-input" type="file" accept="application/json,.json" hidden /><div id="modal-layer" class="modal-layer"></div></main>
-      <footer><div class="field-controls"><span><kbd>A D</kbd> Move</span><span><kbd>S</kbd> Drill</span><span><kbd>W</kbd> Fly up</span><span><kbd>E</kbd> Ship</span><span><kbd>B</kbd> Build</span></div><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>HOLD LEFT CLICK · AIM + DRILL <span></span>WHEEL ZOOM <span></span><kbd>S</kbd> <span id="control-s">DOWN / DROP</span> <span></span><kbd>W</kbd> <span id="control-w">THRUST</span> <span></span><kbd>E</kbd> <span id="control-e">INTERACT</span> <span></span><kbd>B</kbd> BUILD <span></span><kbd id="grapple-key" class="hidden">G</kbd> <span id="grapple-control" class="hidden">TOGGLE GRAPPLE</span> <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED CREDITS</span><b id="money">${credits(p.money)}</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
+      <footer><div class="field-controls"><span><kbd>A D</kbd> Move</span><span><kbd>S</kbd> Drill</span><span><kbd>W</kbd> Fly up</span><span><kbd>E</kbd> Ship</span><span><kbd>B</kbd> Build</span><span><kbd>F</kbd> Unload</span><span><kbd>G</kbd> Repair</span></div><div class="controls"><kbd>A</kbd><kbd>D</kbd> MOVE <span></span>HOLD LEFT CLICK · AIM + DRILL <span></span>WHEEL ZOOM <span></span><kbd>S</kbd> <span id="control-s">DOWN / DROP</span> <span></span><kbd>W</kbd> <span id="control-w">THRUST</span> <span></span><kbd>E</kbd> <span id="control-e">INTERACT</span> <span></span><kbd>B</kbd> BUILD <span></span><kbd id="grapple-key" class="hidden">H</kbd> <span id="grapple-control" class="hidden">TOGGLE GRAPPLE</span> <span></span><kbd>R</kbd> WINCH <span></span><kbd>Q</kbd> CHARGE <span></span><kbd>X</kbd> STASIS <span></span><kbd>M</kbd> MAP <span></span><kbd>ESC</kbd> PAUSE</div><div class="bank"><span>BANKED KREDITS</span><b id="money">${credits(p.money)}</b></div><div class="save-status" id="save-status">LOCAL SAVE · READY</div></footer>`;
     const tracker = document.createElement('div'); tracker.id = 'tracked-order'; tracker.className = 'tracked-order'; tracker.hidden = true;
     document.querySelector('#viewport')!.append(tracker);
     this.on('pause', () => actions.pause());
@@ -440,6 +450,12 @@ export class HUD {
     });
     document.querySelector('.brand')!.addEventListener('click', (e) => e.preventDefault());
     this.showIntro();
+    const url = new URL(location.href);
+    if (url.searchParams.get('account') === '1' || onlineSignInErrorMessage(url.hash)) {
+      url.searchParams.delete('account');
+      history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+      this.openAccount('intro');
+    }
   }
   on(id: string, fn: () => void) {
     document.getElementById(id)?.addEventListener('click', fn);
@@ -479,13 +495,20 @@ export class HUD {
     this.colonySelection = index; this.open('building');
   }
   open(name: string) {
+    this.accountPanel?.close();
     if(name === 'destinations') this.starMapReturn = this.modal;
-    if (name === 'service' && !this.actions.serviceAccess()) return;
-    if (['cargo', 'warehouse', 'sell'].includes(name)) { this.freightSelection.selling = name === 'sell'; this.freightSelection.notice = ''; }
+    if (name === 'service' && !this.actions.serviceAccess()) { this.toast('Visit the mothership, a mining camp or an underground shelter for repairs.'); return; }
+    if (['cargo', 'warehouse', 'sell'].includes(name)) {
+      this.freightSelection.selling = name === 'sell'; this.freightSelection.notice = ''; this.freightSelection.page = 0;
+      // The HUD cargo button always inspects the miner. Storage and selling open on usable stock.
+      const stores = { miner: this.p.cargo, ship: this.p.shipCargo, planet: this.actions.warehouseStock() };
+      this.freightSelection.source = name === 'cargo' ? 'miner' : (['miner', 'ship', 'planet'] as const).find(key => cargoTotal(stores[key]) > 0 && (key === 'miner' || key === 'ship' && this.actions.rechargeAccess() || key === 'planet' && this.actions.atWarehouse())) ?? 'miner';
+      this.freightSelection.target = this.freightSelection.source === 'miner' ? 'ship' : 'miner';
+    }
     if (name === 'sell') this.selectedSaleBuyer = this.mapId;
-    if (name === 'warehouse' && !this.actions.atWarehouse()) return;
+    // Inventory is always inspectable; freight actions enforce proximity individually.
     if (name === 'warehouse') this.warehouseSourceMap = this.mapId;
-    if (name === 'upgrades' && !this.nearSurface) return;
+    if (name === 'upgrades' && !this.actions.serviceAccess()) { this.toast('Visit the mothership, a mining camp or your shelter to change equipment.'); return; }
     if (!this.modal) {
       const active = document.activeElement;
       this.returnFocus = active instanceof HTMLElement && active.getClientRects().length ? active : null;
@@ -497,9 +520,10 @@ export class HUD {
   }
   close(deploy = true) {
     if (this.modal === 'transit') return;
-    // Return to mine must also release the landed ship's boarding state.
-    const leavingTerminal = CAMP_MENUS.includes(this.modal) || this.modal === 'intro' || this.modal === 'arrival';
-    if (deploy && leavingTerminal && !this.actions.leaveShip()) return;
+    // Every return to gameplay releases a landed miner, including nested
+    // cargo, discard and pause panels that are not in the camp navigation.
+    // Only explicit ship piloting keeps the boarding state.
+    if (deploy && !this.actions.leaveShip()) return;
     this.clearPages();
     this.modal = '';
     this.lastSale = undefined;
@@ -514,6 +538,7 @@ export class HUD {
     (document.querySelector('#game') as HTMLElement).focus();
   }
   showIntro() {
+    this.accountPanel?.close();
     this.clearPages();
     this.modal = 'intro';
     this.paused = true;
@@ -528,20 +553,20 @@ export class HUD {
           briefing: 'Drill for ore. Watch your battery. Fly home to sell your haul and build a better machine. Your tunnels stay yours.',
         }
       : {
-          eyebrow: 'ORE FRONTIER / FIRST DEPLOYMENT',
+          eyebrow: this.loaded ? 'ORE FRONTIER / YOUR EXPEDITION' : 'ORE FRONTIER / FIRST DEPLOYMENT',
           headline: 'A SMALL RIG.<br>A <em>BIG FRONTIER.</em>',
-          dek: 'Dig for ore. Build your outpost. Discover what lies beneath the ice.',
+          dek: 'Choose your equipment. Mine valuable ore. Build shelters and grow your operation.',
           loop: ['DRILL', 'RECOVER', 'DEPART'],
-          briefing: 'Start with a mothership, a mining rig and no credits. Use common ores to build in any order and upgrade your rig. Construction and upgrades use Miner, Ship, then Planet materials. A Market uplink lets you sell ore for optional equipment. Recharge free at the mothership. Recover the core for four travel fuel units. Depart for Mars through the Star map.',
+          briefing: 'Start with a mothership, a mining rig and no Kredits. Use common ores to build in any order and upgrade your rig. Construction and upgrades use Miner, Ship, then Planet materials. A Market uplink lets you sell ore for optional equipment. Recharge free at the mothership. Recover the core for four travel fuel units. Depart for Mars through the Star map.',
         };
     const touch = matchMedia('(any-pointer: coarse)').matches;
     const atlas = legacyMars ? '' : atlasMarkup(this.mapId);
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
-    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${intro.eyebrow}</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Return</b><small>Fly up your open tunnel</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button></nav></div>`;
+    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${intro.eyebrow}</div><h1>${this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Fly / brake</b><small>Fly up or slow your fall</small></div><div><kbd>${touch ? 'FIRE' : 'Shift + click'}</kbd><b>Shoot</b><small>Fit a weapon first</small></div><div><kbd>${touch ? 'Unload / Repair' : 'F / G'}</kbd><b>Unload / repair</b><small>F: ship / warehouse · G: ship repair</small></div><div><kbd>${touch ? 'Tools → Build' : 'B'}</kbd><b>Build</b><small>Place colony structures</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button><button type="button" id="intro-account">Account</button></nav></div>`;
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
-    const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP · BRAKE DESCENT</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>E</kbd><span>NEARBY STATION · BOARD AT SHIP</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>G</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">Q MINING CHARGE · X STASIS · R SURFACE WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
+    const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP · BRAKE DESCENT</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>SHIFT + LMB</kbd><span>FIRE FITTED WEAPON · AIM WITH MOUSE</span></div><div><kbd>G</kbd><span>FULL REPAIR + RECHARGE · NEAR SHIP · WORKS IN FLIGHT</span></div><div><kbd>F</kbd><span>FAST UNLOAD · SHIP OR WAREHOUSE · AVAILABLE STORAGE</span></div><div><kbd>E</kbd><span>OPEN SHIP / ENTER SHELTER</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>H</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">T SELL · J REPAIR BUILDING · Q CHARGE · X STASIS · R WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
-      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? matchMedia('(any-pointer: coarse)').matches ? `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">TOUCH FIELD GUIDE</span></div><h2>Two thumbs. One expedition.</h2><p>Use the left WASD pad: W thrusts upward or brakes a fall, A and D steer and drill sideways, and S drills down. Actions and Tools are on the right.</p><p>You can thrust and drill together. Release a button to stop its action. Tap Open ship for storage, recharge and repairs. Tools holds Build, Map and installed equipment. Sell ore after building a Market uplink.</p><p>Landscape gives you the widest view. The top-right pause button stops the expedition. Rotate or switch apps safely: held controls clear automatically.</p><p class="intro-risk">WATCH YOUR BATTERY · LEAVE ENOUGH FOR THE RETURN.</p><div class="intro-detail-actions">${launchButton}</div></div>` : controlsScreen : titleScreen}</section>`;
+      `<section class="modal intro ${atlas ? 'intro-with-atlas' : ''} intro-step-${step}" role="dialog" aria-modal="true" aria-label="Expedition start">${step === 'atlas' ? atlasScreen : step === 'controls' ? matchMedia('(any-pointer: coarse)').matches ? `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">TOUCH FIELD GUIDE</span></div><h2>Two thumbs. One expedition.</h2><p>Use the left WASD pad: W thrusts upward or brakes a fall, A and D steer and drill sideways, and S drills down. Actions and Tools are on the right.</p><p>You can thrust and drill together. Release a button to stop its action. Hold FIRE to shoot a fitted weapon. Tap Unload near a warehouse or mothership to transfer cargo into its available storage without opening a menu. Tap Repair near the mothership, including while flying, for a full rig exchange at the displayed cost. Tap Open ship for storage, recharge and repairs. Tools holds Build, Map and installed equipment. Beside a Market uplink, tap Sell to sell your miner cargo for the displayed Kredits.</p><p>Landscape gives you the widest view. The top-right pause button stops the expedition. Rotate or switch apps safely: held controls clear automatically.</p><p class="intro-risk">WATCH YOUR BATTERY · LEAVE ENOUGH FOR THE RETURN.</p><div class="intro-detail-actions">${launchButton}</div></div>` : controlsScreen : titleScreen}</section>`;
     document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((node) => node.addEventListener('click', () => {
       document.querySelectorAll<HTMLButtonElement>('.atlas-world').forEach((other) => {
         const selected = other === node;
@@ -552,6 +577,7 @@ export class HUD {
       document.querySelector('#atlas-copy')!.textContent = node.dataset.copy ?? '';
     }));
     this.on('intro-atlas', () => this.open('destinations'));
+    this.on('intro-account', () => this.openAccount('intro'));
     this.on('intro-controls', () => { this.introStep = 'controls'; this.showIntro(); });
     this.on('intro-back', () => { this.introStep = 'title'; this.showIntro(); });
     this.on('launch', () => {
@@ -566,6 +592,23 @@ export class HUD {
     document.getElementById(step === 'title' ? 'launch' : 'intro-back')?.focus();
   }
   private lastRenderedModal = "";
+  private openAccount(origin: 'intro' | 'pause') {
+    this.clearPages();
+    this.accountReturn = origin;
+    this.modal = 'account';
+    this.setMode(true);
+    const host = document.querySelector<HTMLElement>('#modal-layer')!;
+    this.accountPanel = new AccountPanel(host, () => {
+      this.accountPanel?.close();
+      if (this.accountReturn === 'intro') this.showIntro();
+      else this.open('pause');
+    }, () => {
+      this.saveFailed = false;
+      this.actions.save();
+      return !this.saveFailed;
+    });
+    void this.accountPanel.open();
+  }
   renderModal() {
     this.clearPages();
     const name = this.modal,
@@ -581,14 +624,16 @@ export class HUD {
       sub = '',
       content = '';
     if (name === 'hub') {
-      title = 'Ready for your next run?';
-      sub = 'Recharge, unload, then head back out.';
-      content = `<div class="hub-status"><span>Battery <b>${Math.ceil(p.fuel / p.max('fuel') * 100)}%</b></span><span>Hull <b>${Math.ceil(p.hull / p.max('hull') * 100)}%</b></span><span>Cargo <b>${p.count} / ${p.max('cargo')}</b></span></div><div class="hub-grid">${[
-        ['service', '01', 'Recharge & repair', 'Free battery charging. Repair your hull here.'],
-        [this.actions.hasTradePost() ? 'sell' : 'construction', '02', this.actions.hasTradePost() ? 'Sell your ore' : 'Build your colony', this.actions.hasTradePost() ? 'Turn your haul into upgrade credits.' : 'Choose storage, mining or services. Build in any order with shared planetary materials.'],
-        ['warehouse', '03', 'Freight', 'Load the ship or your local stockpile.'],
-        ['upgrades', '04', 'Upgrade your rig', 'A better drill. More room. Longer runs.'],
-      ].map(([page, number, heading, copy]) => `<button data-hub="${page}"><span>${number} / MOTHERSHIP</span><b>${heading} <i>↗</i></b><small>${copy}</small></button>`).join('')}</div>${this.mothershipBoarded && PREBUILD.travelEnabled ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Find a core to unlock flight'}</button>` : ''}<button data-hub="destinations" class="star-map-entry">Star map <small>Cryo Shelf ↔ Mars Frontier · Core fuel travel</small> ↗</button><p class="hub-note">Return to mine deploys your rig immediately. Your expedition is paused while this screen is open.</p>`;
+      title = 'Your mining operation.';
+      sub = 'Build, manage your ore or prepare your miner.';
+      content = `<div class="hub-status"><span>Battery <b>${Math.ceil(p.fuel / p.max('fuel') * 100)}%</b></span><span>Hull <b>${Math.ceil(p.hull / p.max('hull') * 100)}%</b></span><span>Miner cargo <b>${p.count} / ${p.max('cargo')}</b></span></div><div class="hub-grid operations-grid">${[
+        ['construction', 'BUILD', 'Build', 'Choose a building and place it on the planet.'],
+        ['colony', 'MANAGE', 'Your colony', 'Check production, storage and your existing buildings.'],
+        ['warehouse', 'ORE', 'My ore', this.actions.hasTradePost() ? 'Uplink online. Store, transfer or sell your ore.' : 'Store and transfer ore. Build a Market uplink to sell.'],
+        ['upgrades', 'EQUIP', 'My miner', 'Buy parts and change your fitted equipment.'],
+        ['service', 'RECOVER', 'Recharge & repair', 'Charge your battery free. Repair hull damage.'],
+        ['destinations', 'EXPLORE', 'Planets', 'View worlds and plan your next destination.'],
+      ].map(([page, category, heading, copy]) => `<button data-hub="${page}"><span class="hub-picture" aria-hidden="true">${page==='construction'?buildingArt('habitat'):page==='colony'?buildingArt('extractor'):page==='warehouse'?buildingArt('warehouse'):page==='upgrades'?podPortrait(p):equipmentArt(page==='service'?'hull':'scanner')}</span><b>${heading} <i aria-hidden="true">↗</i></b><small>${copy}</small></button>`).join('')}</div><div class="hub-secondary"><button data-hub="more">Paint, mining log & help →</button>${this.mothershipBoarded && PREBUILD.travelEnabled ? `<button id="pilot-ship" ${p.coreFuel <= 0 ? 'disabled' : ''}>Pilot mothership · ${p.coreFuel > 0 ? 'W to take off' : 'Core fuel required'}</button>` : ''}</div>`;
     } else if (name === 'more') {
       title = 'Explore your expedition'; sub = 'Optional tools, records and destinations.';
       content = `<div class="hub-grid">${[['paints', 'Paint shop'], ['archive', 'Mining log'], ['shipyard', 'Core drive'], ['codex', 'How things work']].map(([page,label]) => `<button data-hub="${page}"><b>${label} <i>↗</i></b></button>`).join('')}</div>`;
@@ -611,23 +656,7 @@ export class HUD {
       title = planetSurface ? 'Build your mining camp.' : 'Make a foothold.';
       sub = planetSurface ? 'PLANETARY BUILD YARD' : 'UNDERGROUND FABRICATOR';
       const structures = this.actions.structures();
-      const materials = (kind: StructureKind) => Object.entries(UNDERGROUND_BUILDING[kind].materials)
-        .map(([ore, units]) => `${units} ${ore.toUpperCase()}`).join(' · ');
-      const platformCount = structures.filter((entry) => entry.kind === 'platform').length;
-      const hasService = structures.some((entry) => entry.kind === 'service');
-      const turretCount = structures.filter((entry) => entry.kind === 'turret').length;
-      const option = (kind: StructureKind, label: string, description: string, owned: boolean) => {
-        const cost = UNDERGROUND_BUILDING[kind];
-        const affordable = canAffordStructure(kind, planetaryMaterials(p.cargo, this.actions.warehouseStock(), p.shipCargo), p.money);
-        const blocked = !affordable || owned || structures.length >= UNDERGROUND_BUILDING.maxStructuresPerMap;
-        const buttonText = owned ? 'ALREADY BUILT' : !affordable ? cost.credits ? 'NEED ORE / CREDITS' : 'NEED ORE' : cost.credits ? `BUILD · $${cost.credits}` : 'BUILD WITH ORE';
-        return `<article class="service-row"><div><b>${label}</b><small>${description}<br>BUILD COST · ${materials(kind)}${cost.credits ? ` + $${cost.credits}` : ' · No credits needed'}</small></div><button id="build-${kind}" ${blocked ? 'disabled' : ''}>${buttonText}</button></article>`;
-      };
-      if (planetSurface) {
-        content = buildingCatalogue(this.buildGroup, this.buildChoice, p.cargo, this.actions.warehouseStock(), p.money, structures, this.mapId, this.managedBuilding, p.shipCargo);
-      } else {
-        content = `<p>Build in a cleared cavern. Down drops through decks; local gravity decides which side catches you. Structures stay on this planet.</p><div class="upgrade-list">${option('platform', 'ANCHOR DECK', 'A five-tile landing and staging platform.', platformCount >= 12)}${option('service', 'REPAIR STATION', 'One per planet. Press E nearby to recharge or repair for hull repairs.', hasService)}${option('turret', 'SENTRY TURRET', `${turretCount}/3 built. Automatically intercepts rock swimmers in range.`, turretCount >= UNDERGROUND_BUILDING.turret.maxPerMap)}</div><p class="fine">Construction requires a 180 m+ site and open room around the build point.</p>`;
-      }
+      content = buildingCatalogue(planetSurface ? this.buildGroup : 'Underground', this.buildChoice, p.cargo, this.actions.warehouseStock(), p.money, structures, this.mapId, this.managedBuilding, p.shipCargo, planetSurface ? '' : this.actions.undergroundBuildReason?.((BUILD_GROUPS.Underground as readonly StructureKind[]).includes(this.buildChoice) ? this.buildChoice : 'service') ?? '');
     } else if (name === 'audio') {
       const mix = this.actions.audioMix();
       title = 'Tune the sound.';
@@ -647,7 +676,7 @@ export class HUD {
       content = arrivalMarkup(this.mapId, this.actions.arrivalSummary());
     } else if (name === 'service') {
       title = 'Recharge & repair.';
-      sub = 'Recharge at the mothership for free. Repairs cost credits.';
+      sub = 'Recharge at the mothership for free. Repairs cost Kredits.';
       content = servicePanel(p, this.actions.rechargeAccess());
     } else if (name === 'upgrades') {
       title = 'Build a better miner.';
@@ -671,13 +700,13 @@ export class HUD {
         const selected = POD_PAINTS[p.selectedPaint];
         content = `${switcher}<div class="paint-preview"><div class="paint-pod" style="--paint-hull:#${selected.hull.toString(16).padStart(6, '0')};--paint-trim:#${selected.trim.toString(16).padStart(6, '0')};--paint-light:#${selected.light.toString(16).padStart(6, '0')}"><i></i><b></b><span></span></div><div><small>ACTIVE FINISH</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_PAINT_KEYS.map((key) => {
           const item = POD_PAINTS[key], owned = p.ownedPaints.includes(key), active = p.selectedPaint === key;
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch" style="--paint-hull:#${item.hull.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="paint-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · $${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch" style="--paint-hull:#${item.hull.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="paint-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Pod paint changes hull, trim, and beacon light only.</p>`;
       } else if (this.styleSection === 'suit') {
         const selected = PILOT_SUITS[p.selectedSuit];
         content = `${switcher}<div class="paint-preview"><div class="suit-preview" style="--suit-body:#${selected.body.toString(16).padStart(6, '0')};--suit-trim:#${selected.trim.toString(16).padStart(6, '0')}"><i></i><b></b><span></span><small></small></div><div><small>ACTIVE PILOT KIT</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${PILOT_SUIT_KEYS.map((key) => {
           const item = PILOT_SUITS[key], owned = p.ownedSuits.includes(key), active = p.selectedSuit === key;
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch suit-swatch" style="--paint-hull:#${item.body.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="suit-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · $${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch suit-swatch" style="--paint-hull:#${item.body.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="suit-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Suit colors appear in the cockpit and change no stats or handling.</p>`;
       } else if (this.styleSection === 'decal') {
         const selected = POD_DECALS[p.selectedDecal];
@@ -685,7 +714,7 @@ export class HUD {
         content = `${switcher}<div class="paint-preview"><div class="decal-preview-mark" style="--decal-color:#${selected.color.toString(16).padStart(6, '0')}">${mark}</div><div><small>ACTIVE MARKING</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_DECAL_KEYS.map((key) => {
           const item = POD_DECALS[key], owned = p.ownedDecals.includes(key), active = p.selectedDecal === key;
           const icon = item.style === 'arrow' ? '↘' : item.style === 'crest' ? '✦' : item.style === 'prism' ? '◇' : '·';
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch decal-swatch" style="--paint-hull:#${item.color.toString(16).padStart(6, '0')}"><i>${icon}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="decal-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · $${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch decal-swatch" style="--paint-hull:#${item.color.toString(16).padStart(6, '0')}"><i>${icon}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="decal-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Decals are applied to the pod hull and are visual only.</p>`;
       } else {
         const selected = POD_PROFILES[p.selectedProfile];
@@ -693,7 +722,7 @@ export class HUD {
         content = `${switcher}<div class="paint-preview"><div class="profile-preview profile-${selected.style}"><i>${icon}</i><span style="--cabin-color:#${selected.cabin.toString(16).padStart(6, '0')}"></span></div><div><small>ACTIVE POD PROFILE</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_PROFILE_KEYS.map((key) => {
           const item = POD_PROFILES[key], owned = p.ownedProfiles.includes(key), active = p.selectedProfile === key;
           const glyph = item.style === 'antenna' ? '⌁' : item.style === 'stabilizers' ? '⋈' : item.style === 'armor' ? '⬟' : '◉';
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="profile-swatch profile-${item.style}" style="--cabin-color:#${item.cabin.toString(16).padStart(6, '0')}"><i>${glyph}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="profile-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'FITTED' : owned ? 'FIT →' : `BUY · $${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="profile-swatch profile-${item.style}" style="--cabin-color:#${item.cabin.toString(16).padStart(6, '0')}"><i>${glyph}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="profile-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'FITTED' : owned ? 'FIT →' : `BUY · K ${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Profiles change the pod's rendered silhouette only. Collision and drill clearance stay the same.</p>`;
       }
     } else if (name === 'pause') {
@@ -706,7 +735,7 @@ export class HUD {
       if (!d) { this.modal = 'pause'; this.renderModal(); return; }
       title = 'Replace this expedition?';
       sub = 'IMPORT EXPEDITION SAVE';
-      content = `<p>This will replace the save currently in this browser. Review the expedition before continuing.</p><div class="sale-total"><span>DESTINATION</span><b>${MAPS[d.activeMap].name.toUpperCase()}</b></div><div class="service-row"><div><b>CAMPAIGN STATUS</b><small>${Math.floor(d.maxDepth)} m deepest · $${Math.floor(d.money)} credits · ${d.routeFragments.length} route fragments</small></div></div><button id="confirm-import" class="primary danger">IMPORT & REPLACE SAVE</button><button id="cancel-import">CANCEL</button>`;
+      content = `<p>This will replace the save currently in this browser. Review the expedition before continuing.</p><div class="sale-total"><span>DESTINATION</span><b>${MAPS[d.activeMap].name.toUpperCase()}</b></div><div class="service-row"><div><b>CAMPAIGN STATUS</b><small>${Math.floor(d.maxDepth)} m deepest · K ${Math.floor(d.money)} Kredits · ${d.routeFragments.length} route fragments</small></div></div><button id="confirm-import" class="primary danger">IMPORT & REPLACE SAVE</button><button id="cancel-import">CANCEL</button>`;
     } else if (name === 'rescue') {
       title = 'Leave the haul behind?';
       sub = 'EMERGENCY RECOVERY';
@@ -716,25 +745,49 @@ export class HUD {
       title = 'Start a new frontier?';
       sub = 'REPLACE SAVED EXPEDITION';
       content =
-        '<p>This replaces your current mine, credits, and upgrades with a new world seed. This cannot be undone.</p><button id="confirm-new" class="primary danger">START NEW EXPEDITION →</button>';
+        '<p>This replaces your current mine, Kredits, and upgrades with a new world seed. This cannot be undone.</p><button id="confirm-new" class="primary danger">START NEW EXPEDITION →</button>';
+    } else if (name === 'defeat') {
+      title='Mothership lost.';sub='EXPEDITION ENDED';content='<p>Your mothership was destroyed. This expedition is over.</p><button id=defeat-new class=primary>Start a new expedition</button>';
     } else if (name === 'failure') {
       const reason = this.actions.failureReason();
       title = reason === 'fuel' ? 'The reserve ran dry.' : reason === 'hull' ? 'The hull gave way.' : 'The planet keeps its share.';
       sub = reason === 'fuel' ? 'STRANDED · RECOVERY IS YOUR CHOICE' : reason === 'hull' ? 'MINER DISABLED · RECOVERY IS YOUR CHOICE' : 'PILOT NEEDS RESCUE · RECOVERY IS YOUR CHOICE';
-      content = `<p>${reason === 'fuel' ? 'Your rig’s battery is empty. Your tunnels and loose ore are still here. Recharge if you can reach the mothership; otherwise recover and leave the carried ore behind.' : reason === 'hull' ? 'Impact damage disabled the miner at this location. Your tunnel, loose ore, credits, and upgrades are safe. Recover the pilot when you are ready to leave this haul.' : 'The pilot cannot reach a safe dock. Your tunnel, loose ore, credits, and upgrades remain saved. Recover to the surface when you are ready to leave this haul.'}</p><p>Recovery lands at your current longitude and keeps you on this crust. Unsold cargo is forfeited.</p>${reason === 'fuel' && this.actions.rechargeAccess() ? '<button id="service-all" class="primary">RECHARGE AT MOTHERSHIP</button>' : ''}<button id="recover-stranded" class="${reason === 'fuel' && this.actions.rechargeAccess() ? '' : 'primary'}">RECOVER HERE · FORFEIT UNSOLD CARGO</button>`;
+      content = `<p>${reason === 'fuel' ? 'Your rig’s battery is empty. Your tunnels and loose ore are still here. Recharge if you can reach the mothership; otherwise recover and leave the carried ore behind.' : reason === 'hull' ? 'Your miner was destroyed here. Your tunnel, loose ore, Kredits, and upgrades are safe. Recover the pilot when you are ready to return for this haul later.' : 'The pilot cannot reach a safe dock. Your tunnel, loose ore, Kredits, and upgrades remain saved. Recover to the surface when you are ready to return for this haul later.'}</p><p>Recovery lands at your current longitude and keeps you on this crust. Carried ore stays at the wreck for you to recover.</p>${reason === 'fuel' && this.actions.rechargeAccess() ? '<button id="service-all" class="primary">RECHARGE AT MOTHERSHIP</button>' : ''}<button id="recover-stranded" class="${reason === 'fuel' && this.actions.rechargeAccess() ? '' : 'primary'}">RECOVER PILOT · ORE STAYS AT WRECK</button>`;
     }
+    document.querySelector('#modal-layer')!.classList.remove('has-operation-tabs');
     const campMenu = CAMP_MENUS.includes(name);
     const campLinks = [
       ...(this.nearSurface ? ['hub'] : []),
-      ...(this.actions.sellAccess() ? ['sell'] : []),
+      
       ...(this.actions.serviceAccess() ? ['service'] : []),
-      ...(this.nearSurface ? ['upgrades', 'construction', 'more'] : []),
+      ...(this.nearSurface ? ['upgrades', 'construction', 'colony', 'more'] : []),
       ...(this.actions.atWarehouse() ? ['warehouse'] : []),
       ...(this.nearSurface ? ['destinations'] : []),
     ];
-    document.querySelector('#modal-layer')!.innerHTML = name === 'sell' || name === 'discard' || name === 'arrival' || name === 'warehouse' || name === 'codex' || name === 'cargo' || name === 'building' || name === 'orders' || name === 'colony' || name === 'upgrades' ? content : name === 'construction' && this.actions.planetSurfaceAccess() ? content : name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
+    document.querySelector('#modal-layer')!.innerHTML = name === 'sell' || name === 'discard' || name === 'arrival' || name === 'warehouse' || name === 'codex' || name === 'cargo' || name === 'building' || name === 'orders' || name === 'colony' || name === 'upgrades' ? content : name === 'construction' ? content : name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
       ? campShell(name, title, sub, content, p, this.mapId, campLinks, this.campNotice) :
-      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE CREDIT</span><b>$${p.money.toLocaleString()}</b></div></section>`;
+      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE KREDITS</span><b>K ${p.money.toLocaleString()}</b></div></section>`;
+    if(name==='defeat')document.querySelector('#modal-layer #close')?.remove();
+    if (['hub','service','construction','colony','upgrades','warehouse','sell','more','destinations','paints','archive','shipyard'].includes(name)) {
+      const root=document.querySelector('#modal-layer')!;
+      root.querySelector('.modal')?.classList.add('operations-panel');
+      const groups: [string,string,string[]][] = [
+        ['hub','Overview',['hub']],
+        ['warehouse','My ore',['warehouse','sell']],
+        ['construction','Buildings',['construction','colony']],
+        ['upgrades','My miner',['upgrades','service','paints']],
+        ['destinations','Planets',['destinations']],
+        ['more','Extras',['more','archive','shipyard']],
+      ];
+      const tabs = ['construction','colony'].includes(name) ? [['construction','Build new'],['colony','Your buildings']]
+        : ['upgrades','service','paints'].includes(name) ? [['upgrades','Equipment'],['service','Repair & recharge'],['paints','Paint']]
+        : [];
+      root.classList.toggle('has-operation-tabs',tabs.length>0);
+      root.insertAdjacentHTML('afterbegin',`<nav class="operations-nav" aria-label="Mothership operations">${groups.map(([key,label,pages])=>`<button data-hub="${key}" aria-current="${pages.includes(name)?'page':'false'}">${label}</button>`).join('')}</nav>${tabs.length?`<nav class="operations-tabs" aria-label="${name==='construction'||name==='colony'?'Buildings':'Miner'} options">${tabs.map(([key,label])=>`<button data-hub="${key}" aria-current="${name===key?'page':'false'}">${label}</button>`).join('')}</nav>`:''}`);
+
+    }
+    const exitButton=document.querySelector<HTMLButtonElement>('#modal-layer #close');
+    if(exitButton && name!=='defeat') { exitButton.textContent='Back to game'; exitButton.setAttribute('aria-label','Back to game'); }
     if (['cargo','warehouse','sell'].includes(name)) {
       const state=this.freightSelection, inventories={miner:p.cargo,ship:p.shipCargo,planet:this.actions.warehouseStock()}, capacities={miner:p.max('cargo'),ship:FRONTIER.shipCapacity,planet:this.actions.warehouseCapacity()};
       bindFreight(document.querySelector('#modal-layer')!,state,()=>this.renderModal(),()=>{
@@ -758,7 +811,7 @@ export class HUD {
       const previous=this.starMapReturn;
       if(previous==='intro'){this.showIntro();document.getElementById('intro-atlas')?.focus();}
       else if(previous&&previous!=='destinations'){this.open(previous);document.querySelector<HTMLButtonElement>('[data-hub="destinations"]')?.focus();}
-      else this.close(false);
+      else this.close();
     });
     const search = document.querySelector<HTMLInputElement>('#codex-search');
     if (search) { search.value = this.codexQuery; search.oninput = () => { const cursor=search.selectionStart; this.codexQuery=search.value; this.codexPage=0; this.renderModal(); const next=document.querySelector<HTMLInputElement>('#codex-search'); next?.focus(); if(cursor!==null) next?.setSelectionRange(cursor,cursor); }; }
@@ -768,6 +821,7 @@ export class HUD {
     this.on('codex-next', () => { this.codexPage++; this.renderModal(); });
     document.querySelectorAll<HTMLButtonElement>('[data-codex-section]').forEach(b => b.onclick = () => { this.codexSection=Number(b.dataset.codexSection); this.codexPage=0; this.renderModal(); });
     this.on('codex-back', () => this.open(this.codexReturn));
+    if (name === 'pause') this.on('account', () => this.openAccount('pause'));
     document.querySelectorAll<HTMLButtonElement>('[data-codex]').forEach(node => node.onclick = () => this.openCodex(node.dataset.codex!));
     for (const key of campLinks) this.on(`camp-nav-${key}`, () => this.open(key));
     document.querySelectorAll<HTMLButtonElement>('[data-hub]').forEach(node => node.onclick = () => this.open(node.dataset.hub!));
@@ -780,8 +834,8 @@ export class HUD {
         const quote = quoteCivilianShipment(this.p.cargo, this.shipment, this.civilianBuyer, this.p.deliveries);
         // Keep the active input and the next click target alive while editing.
         // Rebuilding the modal on blur used to discard the next field's edit.
-        document.querySelector('.shipment-checkout strong')!.textContent = `$${quote.total.toLocaleString()}`;
-        document.querySelector('.shipment-checkout div > span')!.textContent = `$${quote.gross} ore + $${quote.bonus} project premium`;
+        document.querySelector('.shipment-checkout strong')!.textContent = `K ${quote.total.toLocaleString()}`;
+        document.querySelector('.shipment-checkout div > span')!.textContent = `K ${quote.gross} ore + K ${quote.bonus} project premium`;
         document.querySelector<HTMLButtonElement>('#ship-selected')!.disabled = quote.total <= 0;
       };
       node.oninput = update;
@@ -794,7 +848,7 @@ export class HUD {
       this.renderModal();
     });
     for (const [attribute, direction] of [['store', 'store'], ['take', 'withdraw']] as const) document.querySelectorAll<HTMLButtonElement>('[data-'+attribute+']').forEach(node => node.onclick = () => { this.actions.transferWarehouse(node.dataset[attribute] as Ore, direction, 1); this.renderModal(); });
-    this.on('ship-selected', () => { const amount = this.actions.shipCivilian(this.civilianBuyer, this.shipment); if (amount) { this.shipment = emptyCargo(); this.campNotice = amount.toLocaleString()+' credits received from '+CIVILISATIONS[this.civilianBuyer].buyer+'. Shipment saved. Stored ore untouched.'; } this.renderModal(); });
+    this.on('ship-selected', () => { const amount = this.actions.shipCivilian(this.civilianBuyer, this.shipment); if (amount) { this.shipment = emptyCargo(); this.campNotice = amount.toLocaleString()+' Kredits received from '+CIVILISATIONS[this.civilianBuyer].buyer+'. Shipment saved. Stored ore untouched.'; } this.renderModal(); });
     this.on('sale-next-service', () => this.open('service'));
     for (const section of ['miner', 'equipment', 'pilot'] as const) this.on(`workshop-${section}`, () => {
       this.workshopSection = section;
@@ -803,6 +857,7 @@ export class HUD {
     });
     for (const key of UPGRADE_KEYS) this.on(`choose-${key}`, () => {
       this.selectedUpgrade = key;
+      this.rigItem = 0;
       this.campNotice = '';
       this.renderModal();
     });
@@ -828,11 +883,11 @@ export class HUD {
       document.getElementById('atmosphere-toggle')?.focus();
     });
     this.on('service-all', () => {
-      this.campNotice = this.actions.serviceAll() ? 'Battery charged. Hull repaired. Your rig is ready.' : 'Service could not be completed. Check your credits and save storage.';
+      this.campNotice = this.actions.serviceAll() ? 'Battery charged. Hull repaired. Your rig is ready.' : 'Service could not be completed. Check your Kredits and save storage.';
       this.renderModal();
     });
     for (const kind of ['platform', 'service'] as const) this.on(`build-${kind}`, () => {
-      if (this.actions.buildStructure(kind)) this.toast(kind === 'service' ? 'Recharge beacon built. E opens the underground service stop.' : 'Anchor deck built. It catches the pod under local gravity.');
+      if (this.actions.buildStructure(kind)) { this.close(); this.toast(kind === 'service' ? 'Shelter deploying. Stay nearby for four seconds.' : 'Anchor deck built.'); return; }
       else this.toast('Build site blocked. Clear a five-tile cavern and move away from other structures.');
       this.renderModal();
     });
@@ -840,7 +895,7 @@ export class HUD {
       ['habitat', 'turret', 'wall', 'gate', 'fort'].includes(entry.kind) && (entry.integrity ?? structureIntegrity(entry.kind)) < structureIntegrity(entry.kind))) {
       this.on(`repair-${encodeURIComponent(structure.id)}`, () => {
         if (this.actions.repairStructure(structure.id)) this.toast('COLONY DEFENSE REPAIRED · FULL INTEGRITY RESTORED.');
-        else this.toast(`REPAIR NEEDS $${SURFACE_RAID.repairCredits} AND A SURFACE BUILD YARD.`);
+        else this.toast(`REPAIR NEEDS K ${SURFACE_RAID.repairCredits} AND A SURFACE BUILD YARD.`);
         this.renderModal();
       });
     }
@@ -852,7 +907,7 @@ export class HUD {
     });
     if (this.nearSurface) for (const turret of this.actions.structures().filter(entry => entry.kind === 'turret')) {
       this.on(`upgrade-turret-${encodeURIComponent(turret.id)}`, () => {
-        this.toast(this.actions.upgradeTurret(turret.id) ? 'PYLON UPGRADED · RANGE AND RELOAD IMPROVED.' : 'UPGRADE FAILED · CHECK CREDITS AND SAVE STORAGE.');
+        this.toast(this.actions.upgradeTurret(turret.id) ? 'PYLON UPGRADED · RANGE AND RELOAD IMPROVED.' : 'UPGRADE FAILED · CHECK KREDITS AND SAVE STORAGE.');
         this.renderModal();
       });
     }
@@ -860,22 +915,22 @@ export class HUD {
       if (this.actions.buildStructure('trade-post')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
+          this.toast('Pick a spot. Build here. Repeat, or press Done.');
           return;
         }
         this.toast('Trading post established. Build another on a different planet to link the exchange.');
-      } else this.toast('Trading post needs the listed ore and credits, and can be built once per planet at the surface.');
+      } else this.toast('Trading post needs the listed ore and Kredits, and can be built once per planet at the surface.');
       this.renderModal();
     });
     this.on('build-warehouse', () => {
       if (this.actions.buildStructure('warehouse')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
+          this.toast('Pick a spot. Build here. Repeat, or press Done.');
           return;
         }
         this.toast('Ore warehouse online. Press E nearby to manage this planet’s stock.');
-      } else this.toast('Warehouse needs the listed ore and credits, and can be built once per planet at a clear surface site.');
+      } else this.toast('Warehouse needs the listed ore and Kredits, and can be built once per planet at a clear surface site.');
       this.renderModal();
     });
     for (const kind of ['wall', 'gate'] as const) this.on(`build-${kind}`, () => {
@@ -893,18 +948,18 @@ export class HUD {
       if (this.actions.buildStructure('habitat')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
+          this.toast('Pick a spot. Build here. Repeat, or press Done.');
           return;
         }
         this.toast('Colony habitat online. Press E nearby to service the miner.');
-      } else this.toast('Habitat needs the listed ore and credits, plus an open surface site.');
+      } else this.toast('Habitat needs the listed ore and Kredits, plus an open surface site.');
       this.renderModal();
     });
     this.on('build-turret', () => {
       if (this.actions.buildStructure('turret')) {
         if (this.actions.placementActive()) {
           this.close();
-          this.toast('BUILD MODE · Drag the map or move to its edges to pan. Click / Enter to build; touch: tap PLACE. Escape cancels.');
+          this.toast('Pick a spot. Build here. Repeat, or press Done.');
           return;
         }
         this.toast('Sentry online. It intercepts rock swimmers that enter range.');
@@ -923,6 +978,8 @@ export class HUD {
       if (this.actions.buyEscapeSuit()) this.toast('Escape suit packed. If the miner is destroyed, pilot controls switch to jetpack flight.');
       this.renderModal();
     });
+    document.querySelectorAll<HTMLButtonElement>('[data-charge-mode]').forEach(button => button.onclick = () => { this.campNotice = this.actions.selectCharge(button.dataset.chargeMode!) ? 'Charge mode saved.' : 'Save failed.'; this.renderModal(); });
+    document.querySelectorAll<HTMLButtonElement>('[data-fit-item]').forEach(button => button.onclick = () => { this.campNotice = this.actions.fitEquipment(button.dataset.fitItem!); this.renderModal(); });
     this.on('rig-back', () => this.open('hub'));
     document.querySelectorAll<HTMLButtonElement>('[data-rig-department]').forEach(button => button.onclick = () => { this.rigDepartment = button.dataset.rigDepartment as RigDepartment; this.rigItem = 0; this.campNotice = ''; this.renderModal(); });
     document.querySelectorAll<HTMLButtonElement>('[data-rig-item]').forEach(button => button.onclick = () => { this.rigItem = Number(button.dataset.rigItem); this.campNotice = ''; this.renderModal(); });
@@ -938,7 +995,7 @@ export class HUD {
     document.querySelectorAll<HTMLButtonElement>('[data-order-deliver]').forEach(button => button.onclick = () => {
       const id = button.dataset.orderDeliver!;
       const ok = this.actions.deliverColonyOrder(id);
-      this.campNotice = ok ? 'Delivered. Credits received and progress saved.' : 'Delivery not saved. Check materials and try again.';
+      this.campNotice = ok ? 'Delivered. Kredits received and progress saved.' : 'Delivery not saved. Check materials and try again.';
       if (ok && this.trackedOrder === id) this.trackedOrder = '';
       this.renderModal();
     });
@@ -996,18 +1053,19 @@ export class HUD {
     this.on('rescue', () => this.open('rescue'));
     this.on('new', () => this.open('new'));
     this.on('confirm-rescue', () => this.actions.rescue());
+    this.on('defeat-new',()=>this.open('new'));
     this.on('confirm-new', () => this.actions.newGame());
     this.on('sell', () => {
       const receipt = this.actions.sell(this.selectedSaleBuyer), n = receipt?.total ?? 0;
       if (receipt) this.lastSale = receipt;
       this.renderModal();
       if (n) {
-        document.querySelector('.sale-total span')!.textContent = 'CREDITS BANKED';
+        document.querySelector('.sale-total span')!.textContent = 'KREDITS BANKED';
         const total = document.querySelector('.sale-total b')!;
         let start = performance.now();
         const tick = () => {
           const t = Math.min(1, (performance.now() - start) / 650);
-          if (this.modal === 'sell') total.textContent = `+$${Math.round(n * (1 - (1 - t) ** 3))}`;
+          if (this.modal === 'sell') total.textContent = `+K ${Math.round(n * (1 - (1 - t) ** 3))}`;
           if (t < 1) requestAnimationFrame(tick);
         };
         tick();
@@ -1043,9 +1101,9 @@ export class HUD {
     document.querySelectorAll<HTMLButtonElement>('[data-discard-amount]').forEach(b=>b.onclick=()=>{const pending=this.pendingWarehouseDiscard!;pending.units=Math.min(p.cargo[pending.ore],b.dataset.discardAmount==='max'?Number.MAX_SAFE_INTEGER:Number(b.dataset.discardAmount));this.renderModal();});
     this.on('cancel-warehouse-discard',()=>{this.pendingWarehouseDiscard=undefined;this.open('cargo');});
     this.on('confirm-warehouse-discard',()=>{const pending=this.pendingWarehouseDiscard;if(!pending)return;const removed=this.actions.discardOre(pending.ore,pending.units);this.pendingWarehouseDiscard=undefined;this.open('cargo');this.toast(removed?'Discard saved.':'Discard failed. Miner cargo retained.');});
-    this.on('upgrade-warehouse', () => { this.toast(this.actions.upgradeWarehouse() ? 'WAREHOUSE CAPACITY UPGRADED.' : 'UPGRADE FAILED · CHECK CREDITS AND SAVE STORAGE.'); this.renderModal(); });
+    this.on('upgrade-warehouse', () => { this.toast(this.actions.upgradeWarehouse(this.modal === 'colony' ? this.actions.structures()[this.colonySelection]?.id : undefined) ? 'WAREHOUSE CAPACITY UPGRADED.' : 'UPGRADE FAILED · CHECK KREDITS AND SAVE STORAGE.'); this.renderModal(); });
     for (const extractor of this.actions.structures().filter((entry) => entry.kind === 'extractor')) this.on(`upgrade-extractor-${encodeURIComponent(extractor.id)}`, () => {
-      this.toast(this.actions.upgradeExtractor(extractor.id) ? 'EXTRACTOR UPGRADED · NEW ORES AND RATE ONLINE.' : 'UPGRADE FAILED · CHECK CREDITS, ORE AND SAVE STORAGE.'); this.renderModal();
+      this.toast(this.actions.upgradeExtractor(extractor.id) ? 'EXTRACTOR UPGRADED · NEW ORES AND RATE ONLINE.' : 'UPGRADE FAILED · CHECK KREDITS, ORE AND SAVE STORAGE.'); this.renderModal();
     });
     const buildExtractor = () => { if (this.actions.buildExtractor()) { this.close(); this.toast('CHOOSE EXTRACTOR SITE · PLACE / CANCEL'); } else { this.toast('BUILD FAILED · RETURN TO THE SURFACE.'); this.renderModal(); } };
     this.on('build-extractor', buildExtractor);
@@ -1064,7 +1122,7 @@ export class HUD {
     });
     for (const k of ['fuel', 'hull'] as const)
       this.on(`service-${k}`, () => {
-        this.campNotice = this.actions.service(k) ? (k === 'fuel' ? 'Battery fully charged.' : 'Hull repaired to full strength.') : 'Service could not be completed. Check your credits.';
+        this.campNotice = this.actions.service(k) ? (k === 'fuel' ? 'Battery fully charged.' : 'Hull repaired to full strength.') : 'Service could not be completed. Check your Kredits.';
         this.renderModal();
       });
     for (const k of UPGRADE_KEYS)
@@ -1214,7 +1272,7 @@ export class HUD {
       (_, i) => `<i class="${i < Math.ceil((p.count / p.max('cargo')) * 16) ? 'filled' : ''}"></i>`,
     ).join('');
     document.querySelector('#cargo-worth')!.textContent = p.count
-      ? `HAUL VALUE  $${p.cargoValue}`
+      ? `HAUL VALUE  K ${p.cargoValue}`
       : 'CARGO BAY EMPTY';
     document.querySelector('#charge-count')!.textContent = String(p.charges);
     document.querySelector('#tool-stock')!.classList.toggle('hidden', p.charges <= 0);
@@ -1268,8 +1326,9 @@ export class HUD {
     this.displayedMoney += (p.money - this.displayedMoney) * Math.min(1, dt * 9);
     if (Math.abs(p.money - this.displayedMoney) < 1) this.displayedMoney = p.money;
     document.querySelector('#money')!.textContent =
-      `$${Math.round(this.displayedMoney).toLocaleString()}`;
-    document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('hidden', !surface);
+      `K ${Math.round(this.displayedMoney).toLocaleString()}`;
+    document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('hidden', !surface && !this.actions.atWarehouse() && !this.actions.sellAccess());
+    document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('warehouse-only', !surface);
     document.querySelector<HTMLElement>('#orbit-worlds')!.classList.toggle('hidden', !this.inOrbit);
     document.getElementById('camp-sell-hint')!.textContent = !this.actions.hasTradePost() ? 'Build a Market uplink to unlock sales' : p.count ? `${p.count} ore on board · base value ${credits(p.cargoValue)}` : 'Sell ore from Miner, Mothership or Planet warehouse';
     const serviceTotal = p.serviceCost('fuel') + p.serviceCost('hull');
@@ -1292,17 +1351,20 @@ export class HUD {
     }
   }
   private updateMissionTip() {
-    const tip = document.querySelector<HTMLElement>('#tip')!;
-    const visible = this.hasStarted && !this.paused && !this.modal;
+    const tip = document.querySelector<HTMLElement>('#tip');
+    if (!tip) return;
+    if (this.missionTipShownAt !== undefined && performance.now() - this.missionTipShownAt >= 5000) { tip.remove(); return; }
+    const visible = this.hasStarted && !this.paused && !this.modal && !this.sheltered;
     tip.classList.toggle('hidden', !visible);
     if (!visible) return;
+    this.missionTipShownAt ??= performance.now();
     const touch = matchMedia('(any-pointer: coarse)').matches;
     let objective = !this.actions.hasTradePost()
-      ? { title: 'YOUR COLONY · YOUR CHOICE', body: 'Mine common ores for buildings. Open the Build yard for storage, extraction or a market uplink. Planetary storage supplies construction.' }
+      ? { title: 'EQUIP · EXPLORE · ESTABLISH', body: touch ? 'Buy parts at the workshop. Hold FIRE to shoot your fitted weapon. Tools → BUILD places shelters; Enter shelter starts recovery.' : 'Buy parts at the workshop. Shift + click fires your weapon. Build underground shelters with B; enter with E to recover safely.' }
       : campaignObjective(this.p, this.mapId, this.actions.tradeNetworkCount(), this.actions.hasTradePost(), this.inOrbit, this.mothershipBoarded);
     if (touch && !this.inOrbit && !this.p.pilotEscaping) {
       if (!this.onCrust && (this.p.count >= this.p.max('cargo') || this.p.fuel < this.p.max('fuel') * 0.3)) {
-        objective = { title: this.p.count >= this.p.max('cargo') ? 'CARGO FULL · RETURN HOME' : 'LOW BATTERY · RETURN HOME', body: 'Hold ↑ on the left pad. Follow the tunnel you mined back to the ship.' };
+        objective = { title: this.p.count >= this.p.max('cargo') ? 'CARGO FULL · RETURN HOME' : 'LOW BATTERY · RETURN HOME', body: 'Hold W on the left pad. Follow the tunnel you mined back to the ship.' };
       } else if (this.onCrust && this.p.count >= this.p.max('cargo')) {
         objective = { title: 'MAKE ROOM FOR BUILDING ORE', body: 'Open ship → Warehouse. Store spare ore, then take the materials you need. If both holds are full, discard a small amount from the miner.' };
       } else if (this.onCrust && this.p.fuel < this.p.max('fuel') * 0.7) {
@@ -1326,7 +1388,7 @@ export class HUD {
     const control = document.querySelector<HTMLElement>('#grapple-control');
     if (!control) return;
     control.textContent = `AUTO HOOK ${enabled ? 'ON' : 'OFF'}`;
-    control.setAttribute('aria-label', `Auto grapple ${enabled ? 'on' : 'off'}. Press G to toggle.`);
+    control.setAttribute('aria-label', `Auto grapple ${enabled ? 'on' : 'off'}. Press H to toggle.`);
   }
   setMothershipBoarded(active: boolean) {
     this.mothershipBoarded = active;

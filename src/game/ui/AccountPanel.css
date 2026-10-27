@@ -1,0 +1,51 @@
+.account-modal {
+  width: min(650px, calc(100vw - 24px));
+  height: min(640px, calc(100dvh - 24px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(16px, 3vw, 30px);
+}
+.account-modal h2 { margin: 0; font-size: clamp(28px, 5vw, 38px); }
+.account-modal p { margin: 0; line-height: 1.35; }
+.account-modal button { min-height: 44px; }
+.account-modal .primary { margin-top: 8px; padding: 10px 14px; }
+.account-modal label { display: block; margin: 12px 0 6px; font-size: 11px; }
+.account-modal input { width: 100%; min-height: 44px; padding: 10px; background: #0a191d; border: 1px solid #8aa39a; color: #eee2cb; font-size: 16px; }
+.account-state { color: #91d8c7 !important; font-weight: 700; }
+.account-card { border: 1px solid #607b75; padding: 10px 12px; display: grid; gap: 5px; }
+.account-choices { display: grid; gap: 8px; }
+.account-card b, .account-backups b { color: #eee2cb; font-size: 11px; letter-spacing: 1px; }
+.account-card button:not(.primary), .account-backups button, .account-actions button:not(.primary), .account-modal #account-campaigns { border: 1px solid #829890; background: #193035; color: #eee2cb; padding: 6px 12px; }
+.account-card button:disabled { opacity: .6; }
+.account-backups { display: grid; gap: 5px; min-height: 0; }
+.account-row, .account-backup, .account-pages, .account-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.account-row button, .account-backup button, .account-pages button { min-width: 86px; }
+.account-backup { border-top: 1px solid #607b75; font: 10px 'Space Mono', monospace; }
+.account-backup small { display: block; color: #a8bbb2; }
+.account-notice { min-height: 18px; color: #f4d18e !important; }
+.account-notice:empty { display: none; }
+.account-sign-out { align-self: flex-start; }
+@media (max-height: 500px) and (min-width: 600px) {
+  .account-choices { grid-template-columns: 1fr 1fr; }
+  .account-modal .account-card p { font-size: 10px; }
+}
+@media (max-height: 620px) {
+  .account-modal { gap: 5px; padding: 12px 18px; }
+  .account-modal h2 { font-size: 26px; }
+  .account-modal p { font-size: 10px; }
+  .account-card { padding: 6px 10px; gap: 2px; }
+  .account-modal button { min-height: 36px; }
+  .account-modal .primary { padding: 6px 10px; }
+}
+@media (max-width: 480px) {
+  .account-modal { width: calc(100vw - 12px); height: calc(100dvh - 12px); padding: 10px 12px; }
+}
+@media (max-width: 480px) and (max-height: 620px) {
+  .account-modal { gap: 3px; padding: 8px 10px; }
+  .account-choices { gap: 4px; }
+  .account-card { padding: 5px 8px; }
+  .account-card p { font-size: 10px; line-height: 1.2; }
+  .account-modal .primary { margin-top: 3px; }
+}

@@ -1,3 +1,4 @@
+import { defaultLoadout } from '../src/game/economy/Loadout';
 import assert from 'node:assert/strict';
 import { MAPS, MOTHERSHIP } from '../src/game/config';
 import { TileWorld, keyOf, type Tile } from '../src/game/world/TileWorld';
@@ -260,6 +261,8 @@ test('automated extraction costs, tiers, ore access, storage capacity and elapse
   assert.equal(canAffordStructure('extractor', { ...emptyCargo(), copper: 3, iron: 1 }, 220), true);
   assert.equal(canAffordStructure('extractor', emptyCargo(), 220), false);
   assert.equal(warehouseCapacity(structures), 40);
+  assert.equal(warehouseCapacity([warehouse, {...warehouse,id:'second',level:2}]),140);
+  assert.deepEqual(upgradeWarehouse([warehouse, {...warehouse,id:'second',level:2}],520,'second'),{credits:0,level:3});
   assert.deepEqual(upgradeWarehouse(structures, 240), { credits: 0, level: 2 });
   assert.equal(warehouseCapacity([{ ...warehouse, level: 2 }]), 100);
   assert.deepEqual(extractorOreEligibility('cryo-shelf', 1), ['copper', 'iron']);
@@ -269,7 +272,7 @@ test('automated extraction costs, tiers, ore access, storage capacity and elapse
   assert.equal(purchase?.level, 2);
   assert.equal(purchase?.credits, 0);
   assert.equal(purchase?.cargo.iron, 0);
-  const outputWarehouse = emptyCargo(), output = accumulateAutomatedProduction(structures, outputWarehouse, 'cryo-shelf', 3600);
+  const outputWarehouse = emptyCargo(), output = accumulateAutomatedProduction(structures, outputWarehouse, 'cryo-shelf', 720);
   assert.equal(Object.values(output.produced).reduce((sum, units) => sum + units, 0), 24);
   assert.equal(Object.values(accumulateAutomatedProduction(structures, emptyCargo(), 'cryo-shelf', -60).produced).reduce((a, b) => a + b, 0), 0);
   const full = { ...emptyCargo(), copper: 39.5 }, capStructure = [{ ...warehouse, level: 1 }, { ...facility }];
@@ -887,18 +890,18 @@ test('high-speed camp landings protect hull on both hemispheres and deck edges',
     assert.equal(pod.vy, 0, 'collision still stops the pod');
   }
 });
-test('surface trading posts place on either crust, one per planet, within the saved chart bounds', () => {
+test('surface trading posts place on either crust, without count caps, within the saved chart bounds', () => {
   const world = new TileWorld(813, [], [], 'cryo-shelf', STARTER_PLANET_CHART), centerX = WORLD.spawnX;
   const home = findSurfaceTradePostSite(world, centerX, WORLD.spawnY, []);
   assert.deepEqual(home, { x: centerX + 430, y: 0 });
   assert.equal(home!.x < world.widthTiles * WORLD.tile, true);
-  assert.equal(findSurfaceTradePostSite(world, centerX, WORLD.spawnY, [{ id: 'trade-post:1410:0', kind: 'trade-post', ...home! }]), undefined,
-    'a second trading post cannot be placed on the same planet');
+  assert.ok(findSurfaceTradePostSite(world, centerX, WORLD.spawnY, [{ id: 'trade-post:1410:0', kind: 'trade-post', ...home! }]),
+    'a second trading post can use another site');
   const far = findSurfaceTradePostSite(world, centerX, world.farSurfaceY + 22, []);
   assert.deepEqual(far, { x: centerX + 430, y: world.farSurfaceY });
-  assert.equal(findSurfaceTradePostSite(world, centerX, WORLD.spawnY, Array.from({ length: UNDERGROUND_BUILDING.maxStructuresPerMap }, (_, i) => ({
+  assert.ok(findSurfaceTradePostSite(world, centerX, WORLD.spawnY, Array.from({ length: 20 }, (_, i) => ({
     id: `platform:${i}`, kind: 'platform' as const, x: 300 + i * 250, y: 2000 + i * 300,
-  }))), undefined, 'the per-planet structure capacity applies to surface builds too');
+  }))), 'surface builds remain available beyond the old total cap');
 });
 test('surface habitats form spaced waystations on either crust and resolve local service range across the chart seam', () => {
   const world = new TileWorld(814, [], [], 'cryo-shelf', STARTER_PLANET_CHART), circumference = world.widthTiles * WORLD.tile;
@@ -915,7 +918,7 @@ test('surface habitats form spaced waystations on either crust and resolve local
   const third = findSurfaceHabitatSite(world, WORLD.spawnX, WORLD.spawnY, built);
   assert.equal(third?.y, 0, 'the remaining habitat site stays on the home crust');
   built.push({ id: `habitat:${third!.x}:0`, kind: 'habitat', ...third! });
-  assert.equal(findSurfaceHabitatSite(world, WORLD.spawnX, WORLD.spawnY, built), undefined, 'a fourth habitat is not allowed on one planet');
+  assert.ok(findSurfaceHabitatSite(world, WORLD.spawnX, WORLD.spawnY, built), 'a fourth habitat can use another site');
   const far = findSurfaceHabitatSite(world, WORLD.spawnX, world.farSurfaceY + 22, []);
   assert.deepEqual(far, { x: WORLD.spawnX + 140, y: world.farSurfaceY });
   const seamSite = { id: `habitat:${circumference - 50}:0`, kind: 'habitat' as const, x: circumference - 50, y: 0 };
@@ -932,7 +935,7 @@ test('surface habitats form spaced waystations on either crust and resolve local
   assert.equal(globeSurfaceDistance(world, 50, 0, circumference - 50, world.farSurfaceY), 100,
     'surface interaction distance remains continuous when crossing the twisted globe seam');
 });
-test('surface defense pylons place safely on both crusts and share the planetary turret cap', () => {
+test('surface defense pylons place safely on both crusts and have no planetary turret cap', () => {
   const world = new TileWorld(815, [], [], 'cryo-shelf', STARTER_PLANET_CHART);
   const first = findSurfaceTurretSite(world, WORLD.spawnX, WORLD.spawnY, []);
   assert.deepEqual(first, { x: WORLD.spawnX + 140, y: 0 });
@@ -942,24 +945,24 @@ test('surface defense pylons place safely on both crusts and share the planetary
   existing.push({ id: `turret:${second!.x}:0`, kind: 'turret', ...second! });
   assert.ok(findSurfaceTurretSite(world, WORLD.spawnX, WORLD.spawnY, existing), 'the third planetary pylon can be placed');
   existing.push({ id: 'turret:700:0', kind: 'turret', x: 700, y: 0 });
-  assert.equal(findSurfaceTurretSite(world, WORLD.spawnX, WORLD.spawnY, existing), undefined,
-    'surface and underground sentries share the three-turret world limit');
+  assert.ok(findSurfaceTurretSite(world, WORLD.spawnX, WORLD.spawnY, existing),
+    'additional sentries can use available sites');
   assert.deepEqual(findSurfaceTurretSite(world, WORLD.spawnX, world.farSurfaceY + 22, []), { x: WORLD.spawnX + 140, y: world.farSurfaceY });
 });
-test('a planet warehouse places once, respects surface spacing, and persists in map snapshots', () => {
+test('planet warehouses allow additional sites, respects surface spacing, and persists in map snapshots', () => {
   const world = new TileWorld(818, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
     first = findSurfaceWarehouseSite(world, WORLD.spawnX, WORLD.spawnY, []);
   assert.deepEqual(first, { x: WORLD.spawnX + 140, y: 0 });
   const built: UndergroundStructure[] = [{ id: `warehouse:${first!.x}:0`, kind: 'warehouse', ...first! }];
-  assert.equal(findSurfaceWarehouseSite(world, WORLD.spawnX, WORLD.spawnY, built), undefined, 'only one warehouse is allowed per world');
+  assert.ok(findSurfaceWarehouseSite(world, WORLD.spawnX, WORLD.spawnY, built), 'additional warehouses can use available sites');
   const blocked = validateSurfaceStructureSite(world, 'warehouse', { x: first!.x, y: first!.y }, built, { ...emptyCargo(), iron: 3, silver: 1 }, 1000);
-  assert.deepEqual(blocked, { valid: false, reason: 'LIMIT' });
+  assert.deepEqual(blocked, { valid: false, reason: 'OCCUPIED' });
   const stock = { ...emptyCargo(), gold: 2.5 };
   const snapshot = snapshotMapState(undefined, world, WORLD.spawnX, WORLD.spawnY, 0, [], undefined, built, stock);
   assert.deepEqual(snapshot.warehouse, stock);
   assert.deepEqual(restoreMapState(snapshot, 'cryo-shelf', world.seed).warehouse, stock);
 });
-test('globe surface build placement wraps across the seam and validates cost, footprint, and limits', () => {
+test('globe surface build placement wraps across the seam and validates cost, footprint, without count caps', () => {
   const world = new TileWorld(816, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
     cargo = { ...emptyCargo(), copper: 12, iron: 8, silver: 3, gold: 3, diamond: 0 }, credits = 5000,
     halfLoop = world.widthTiles * WORLD.tile,
@@ -978,9 +981,9 @@ test('globe surface build placement wraps across the seam and validates cost, fo
     { valid: false, reason: 'NEED MATERIALS / CREDITS' }, 'a preview explains missing uplink materials before placement');
   const threeHabitats: UndergroundStructure[] = [0, 1, 2].map((i) => ({ id: `habitat:${i}`, kind: 'habitat', x: 800 + i * 500, y: 0 }));
   assert.deepEqual(validateSurfaceStructureSite(world, 'habitat', { x: 2600, y: 0 }, threeHabitats, cargo, credits),
-    { valid: false, reason: 'LIMIT' }, 'surface placement repeats the per-planet habitat cap at confirmation');
+    { valid: true }, 'surface placement remains valid beyond the old habitat cap');
 });
-test('surface walls and gates can form modular barrier runs and stay within per-planet limits', () => {
+test('surface walls and gates can form modular barrier runs and have no per-planet count cap', () => {
   const world = new TileWorld(817, [], [], 'cryo-shelf', STARTER_PLANET_CHART),
     cargo = { ...emptyCargo(), copper: 12, iron: 8, silver: 3, gold: 3 }, credits = 5000,
     first = findSurfaceBarrierSite(world, WORLD.spawnX, WORLD.spawnY, [], 'wall');
@@ -991,10 +994,10 @@ test('surface walls and gates can form modular barrier runs and stay within per-
     'wall segments can touch to form a continuous barrier');
   assert.deepEqual(validateSurfaceStructureSite(world, 'habitat', first!, [wall], cargo, credits), { valid: false, reason: 'OCCUPIED' },
     'normal buildings cannot overlap a barrier');
-  const fullWalls: UndergroundStructure[] = Array.from({ length: UNDERGROUND_BUILDING.wall.maxPerMap }, (_, i) => ({
+  const fullWalls: UndergroundStructure[] = Array.from({ length: 12 }, (_, i) => ({
     id: `wall:${i}`, kind: 'wall', x: 300 + i * 60, y: 0,
   }));
-  assert.deepEqual(validateSurfaceStructureSite(world, 'wall', { x: 2000, y: 0 }, fullWalls, cargo, credits), { valid: false, reason: 'LIMIT' });
+  assert.deepEqual(validateSurfaceStructureSite(world, 'wall', { x: 2000, y: 0 }, fullWalls, cargo, credits), { valid: true });
   assert.ok(findSurfaceBarrierSite(world, WORLD.spawnX, WORLD.spawnY, [], 'gate'), 'a gate can be placed as a wider barrier segment');
 });
 test('surface walls can be stacked vertically without overlapping another wall in the same layer', () => {
@@ -1018,7 +1021,13 @@ test('underground builds require mined space, materials, credits, and persistabl
   for (let x = 22; x <= 26; x++) world.get(x, 28).type = 'rock';
   const site = findBuildSite(world, 980, 960, 1, 'platform', []);
   assert.ok(site, 'a cleared 180 m cavern can accept a deck');
-  assert.equal(findBuildSite(world, 980, 960, 1, 'service', []), undefined, 'service beacons require a taller cleared chamber');
+  const nearbyShelter = findBuildSite(world, 980, 960, 1, 'service', []);
+  assert.ok(nearbyShelter, 'snap to the nearby cleared chamber instead of rejecting a blocked exact anchor');
+  assert.notEqual(nearbyShelter.y, 1060, 'the blocked original anchor must not be selected');
+  const solidWorld = new TileWorld(705, [], [], 'cryo-shelf');
+  solidWorld.solid = () => true;
+  assert.equal(findBuildSite(solidWorld, 980, 960, 1, 'service', []), undefined, 'snapping never carves or accepts solid rock');
+  assert.equal(findBuildSite(world, 980, 80, 1, 'service', []), undefined, 'shallow depth restrictions still apply');
   for (let x = 22; x <= 26; x++) for (let y = 22; y <= 28; y++) world.break(x, y);
   const emptyCargo = { nickel:0, titanium:0, cobalt:0, cryocrystal:0, copper: 0, iron: 0, silver: 0, gold: 0, diamond: 0 } as const;
   const serviceSite = findBuildSite(world, 980, 960, 1, 'service', []);
@@ -1026,11 +1035,11 @@ test('underground builds require mined space, materials, credits, and persistabl
   const turretSite = findBuildSite(world, 980, 960, 1, 'turret', []);
   assert.ok(turretSite, 'a cleared cavern can host a sentry');
   assert.equal(canAffordStructure('turret', { ...emptyCargo, ...UNDERGROUND_BUILDING.turret.materials }, UNDERGROUND_BUILDING.turret.credits), true);
-  assert.equal(findBuildSite(world, 980, 960, 1, 'service', [{ id: 'service:1', kind: 'service', ...serviceSite }]), undefined, 'only one service stop can be built per planet');
+  assert.equal(findBuildSite(world, 980, 960, 1, 'service', [{ id: 'service:1', kind: 'service', ...serviceSite }]), undefined, 'shelters cannot overlap');
   assert.equal(findBuildSite(world, 980, 960, 1, 'platform', [{ id: 'nearby', kind: 'platform', x: 990, y: 1000 }]), undefined, 'structures need 240 px of spacing');
   assert.equal(canAffordStructure('platform', emptyCargo, 1000), false);
   assert.equal(canAffordStructure('platform', { ...emptyCargo, copper: 2, iron: 1 }, 140), true);
-  assert.equal(canAffordStructure('service', { ...emptyCargo, iron: 3, silver: 2 }, 420), true);
+  assert.equal(canAffordStructure('service', { ...emptyCargo, ...UNDERGROUND_BUILDING.service.materials }, 0), true);
   const deck: UndergroundStructure = { id: `platform:${site.x}:${site.y}`, kind: 'platform', ...site };
   const pod = new PlayerPod(world, new Progress());
   pod.structures = [deck];
@@ -1612,7 +1621,7 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
   } as const;
   const version19Save = { ...save, version: 19 as const, planetChart: PLANET_CHART, maps: { 'cryo-shelf': { ...save.maps['cryo-shelf'], structures: [] } }, escapeSuit: false, pilotEscaping: false };
   const version24Save = { ...version19Save, version: 24 as const, shipComponents: ['frame', 'propulsion', 'navigation', 'life-support'], grappleOwned: false, maps: { 'cryo-shelf': { ...version19Save.maps['cryo-shelf'], warehouse: emptyCargo() } } };
-  const currentSave = { ...version24Save, version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, coreFuel: 0, mothershipBoarded: false };
+  const currentSave = { ...version24Save, version: 37 as const, mothershipHull:3000, minerDisabled:false, maps:{'cryo-shelf':{...version24Save.maps['cryo-shelf'],wrecks:[]}}, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, coreFuel: 0, mothershipBoarded: false };
   assert.equal(validateSave(version24Save), false, 'version-24 saves migrate before current validation');
   assert.equal(validateSave(currentSave), true);
   const seamMigration = migrateSave({ ...currentSave, version: 30, extraction: undefined });
@@ -1636,13 +1645,13 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
       { id: 'warehouse:1000:0', kind: 'warehouse', x: 1000, y: 0 },
       { id: 'extractor:1400:0', kind: 'extractor', x: 1400, y: 0 },
     ] } } });
-  assert.equal(migratedMiningSave?.version, 32, 'v28 saves migrate into the current production schema');
+  assert.equal(migratedMiningSave?.version, 37, 'v28 saves migrate into the current production schema');
   assert.equal(migratedMiningSave?.maps['cryo-shelf']?.structures[0]?.level, 1);
   assert.equal(migratedMiningSave?.maps['cryo-shelf']?.structures[1]?.productionFraction, 0);
   assert.equal(migrateSave({ ...currentSave, version: 26, solarPosition: undefined })?.solarPosition, null);
   assert.equal(validateSave({ ...currentSave, coreFuel: 1.25, mothershipBoarded: true, solarPosition: { x: -200, y: 100 } }), true);
   assert.equal(validateSave({ ...currentSave, solarPosition: { x: NaN, y: 0 } }), false);
-  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 32, 'version-18 campaigns migrate with preserved planet geometry');
+  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 37, 'version-18 campaigns migrate with preserved planet geometry');
   assert.equal(validateSave({ ...currentSave, hull: 0, pilotEscaping: true }), true, 'a crashed miner can be saved while its pilot is alive in the escape suit');
   assert.equal(validateSave({ ...currentSave, hull: 0 }), false, 'zero hull without an active escape is rejected');
   assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'core records persist with the core-fuel save');
@@ -1660,7 +1669,7 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
   assert.equal(savedInOrbit?.mothershipBoarded, true, 'a flight-ready v25 save in orbit restores the player aboard the mothership');
   const migratedV14 = migrateSave(save);
   assert.deepEqual(migratedV14?.maps['cryo-shelf']?.structures, [], 'version-14 campaigns receive an empty construction list');
-  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 32, 'version-16 campaigns migrate through the chart schema');
+  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 37, 'version-16 campaigns migrate through the chart schema');
   assert.deepEqual(migrateSave(currentSave)?.milestones, NAVIGATION_HASHES.map((hash) => hash.id));
   const oldUnupgraded = migrateSave({ ...version19Save, version: 13, levels: { ...version19Save.levels, grapple: undefined } });
   assert.equal(oldUnupgraded?.levels.grapple, 1, 'v13 campaigns gain the baseline grapple level');
@@ -2331,45 +2340,19 @@ test('scanner upgrades expand fog of war until the full map width is surveyed', 
   fullWidthAndShallower.reveal(980, 400, 0, p.max('scanner'));
   assert.ok(fullWidthAndShallower.discovered.has('24,55'), 'post-five scanner tier reveals a deeper vertical band');
 });
-test('rock swimmers arrive below the opening, phase through terrain, and deal one avoidable hull hit', () => {
-  const swimmer = new RockSwimmer(991, 'cryo-shelf');
-  for (let i = 0; i < 30; i++) assert.equal(swimmer.update(1, 120, 980, 500), false);
-  assert.equal(swimmer.active, undefined, 'no swimmer appears in the opening depth band');
-  for (let i = 0; i < 40; i++) assert.equal(swimmer.update(1, 260, 980, 500), false);
-  assert.equal(swimmer.active, undefined, 'new pilots get a deeper calm stretch before the first encounter');
-  for (let i = 0; i < 18; i++) assert.equal(swimmer.update(1, 420, 980, 500), false);
-  assert.ok(swimmer.active, 'a swimmer crosses the scanner view after descending');
-  const startX = swimmer.active!.x;
-  swimmer.update(1, 420, 980, 500);
-  assert.notEqual(swimmer.active!.x, startX, 'the swimmer glides through solid geology without drilling a tunnel');
-  swimmer.active!.x = 980;
-  swimmer.active!.y = 500;
-  assert.equal(swimmer.update(1 / 60, 420, 980, 500), true, 'contact reports one hit so the scene can apply existing hull damage');
-  assert.equal(swimmer.active, undefined, 'the creature withdraws after contact');
-  for (let i = 0; i < 3; i++) assert.equal(swimmer.update(1, 420, 980, 500), false, 'the warning/cooldown prevents repeated hits');
-  swimmer.active = { x: 1040, y: 500, vx: 0, vy: 0, life: 10, phase: 0, health: ROCK_SWIMMER.drillHitsToDefeat, drillCooldown: 0, hitFlash: 0 };
-  const turret: UndergroundStructure = { id: 'turret:1100:500', kind: 'turret', x: 1100, y: 500 };
-  let fired = false;
-  assert.equal(swimmer.update(1 / 60, 420, 980, 500, [turret], () => { fired = true; }), false);
-  assert.equal(fired, true, 'a sentry intercepts a swimmer in range before it hits the pod');
-  assert.equal(swimmer.active, undefined);
-  assert.ok((turret.reload ?? 0) > 0, 'turret reload prevents continuous firing');
-
-  const surfaceSwimmer = new RockSwimmer(404, 'cryo-shelf');
-  surfaceSwimmer.active = { x: 1040, y: 350, vx: 0, vy: 0, life: 10, phase: 0, health: ROCK_SWIMMER.drillHitsToDefeat, drillCooldown: 0, hitFlash: 0 };
-  const surfaceTurret: UndergroundStructure = { id: 'turret:1120:0', kind: 'turret', x: 1120, y: 0 };
-  let surfaceShot = false;
-  surfaceSwimmer.update(1 / 60, 420, 980, 350, [surfaceTurret], () => { surfaceShot = true; });
-  assert.equal(surfaceShot, true, 'a colony defense pylon protects the nearby surface approach from swimmers');
-  assert.equal(surfaceSwimmer.active, undefined);
+test('underground inhabitants have no timed spawn without a cave habitat', () => {
+ const swimmer=new RockSwimmer(991,'cryo-shelf');
+ for(let i=0;i<300;i++)assert.equal(swimmer.update(1,420,980,500),false);
+ assert.equal(swimmer.active,undefined);
 });
+
 test('fort placement, wall joins, pylon upgrades and range links work across the surface seam', () => {
   const world = new TileWorld(8805, [], [], 'cryo-shelf', STARTER_PLANET_CHART);
   const cargo = { ...emptyCargo(), copper: 20, iron: 20, silver: 20, gold: 20, diamond: 20 };
   const fort: UndergroundStructure = { id: 'fort:220:0', kind: 'fort', x: 220, y: 0, integrity: 4 };
   assert.deepEqual(validateSurfaceStructureSite(world, 'fort', fort, [], cargo, 1400), { valid: true });
   assert.equal(validateSurfaceStructureSite(world, 'fort', fort, [], cargo, 1399).valid, false);
-  assert.deepEqual(validateSurfaceStructureSite(world, 'fort', { x: 2000, y: 0 }, [fort], cargo, 5000), { valid: false, reason: 'LIMIT' });
+  assert.deepEqual(validateSurfaceStructureSite(world, 'fort', { x: 2000, y: 0 }, [fort], cargo, 5000), { valid: true });
   assert.deepEqual(validateSurfaceStructureSite(world, 'wall', { x: 380, y: 0 }, [fort], cargo, 5000), { valid: true }, 'wall joins the fort edge');
   assert.equal(validateSurfaceStructureSite(world, 'wall', { x: 340, y: 0 }, [fort], cargo, 5000).valid, false, 'wall cannot overlap the fort');
   const turret: UndergroundStructure = { id: 'turret:far', kind: 'turret', x: world.widthTiles * WORLD.tile - 220, y: world.farSurfaceY };
@@ -2413,7 +2396,7 @@ test('fort raids arrive on schedule near the player and move at 60 Hz before dea
   assert.equal(farTarget.integrity, 3);
 });
 
-test('surface raids telegraph, can be drilled or intercepted, damage only optional colony pieces, and can be rebuilt', () => {
+test('surface raids telegraph, can be drilled or intercepted, damage colony buildings, and can be rebuilt', () => {
   const world = new TileWorld(8801, [], [], 'cryo-shelf', STARTER_PLANET_CHART);
   const habitat: UndergroundStructure = { id: 'habitat:1120:0', kind: 'habitat', x: 1120, y: 0, integrity: 2 };
   const structures = [habitat], raid = new SurfaceRaid(8801, 'cryo-shelf');
@@ -2459,8 +2442,8 @@ test('surface raids telegraph, can be drilled or intercepted, damage only option
 
   const tradePost: UndergroundStructure = { id: 'trade-post:1410:0', kind: 'trade-post', x: 1410, y: 0, integrity: 2 };
   const protectedRaid = new SurfaceRaid(8804, 'cryo-shelf');
-  assert.equal(protectedRaid.update(100, true, world, [tradePost]), undefined,
-    'the exchange is a progression anchor and is not selected for raids');
+  assert.equal(protectedRaid.update(100, true, world, [tradePost])?.type, 'warning',
+    'economic buildings can be targeted, with a warning before damage');
   assert.equal(tradePost.integrity, 2);
 });
 test('surface walls hold raiders and an approached gate opens a route for the miner', () => {
@@ -3057,7 +3040,7 @@ test('fresh compact Cryo core remains drillable under human-response braking', (
   }
   assert.equal(recovered, true, 'normal 400 ms response reaches and drills the Cryo core without a prepared shaft');
   assert.equal(progress.coreFuel, CORE_FUEL.unitsPerCore);
-  assert.equal(Math.round(damage * 10) / 10, 15, 'only the authored core-chamber drops damage the starter hull');
+  assert.equal(damage, 0, 'powered drill descent avoids impact damage along this controlled mining route');
 });
 test('collision remains solid at maximum engine speed and 50 ms frames', () => {
   const w = new TileWorld(13),
@@ -3142,7 +3125,7 @@ test('cosmetic progression stays visual-only and persists in versioned saves', (
   assert.equal(p.selectPaint('hab'), true);
   assert.equal(p.selectPaint('prism'), false);
   const save = {
-    version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
+    version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART, campaignSeed: 1, activeMap: 'cryo-shelf' as const,
     maps: { 'cryo-shelf': { seed: 1, x: 980, y: -22, maxDepth: 0, destroyed: [], discovered: [], drops: [], activeCharge: null, structures: [], warehouse: emptyCargo() } },
     money: p.money, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull, cargo: { ...p.cargo }, maxDepth: 0,
     artifact: false, milestones: ['contract-cryo'], shipComponents: [], routeFragments: [], coreFuel: p.coreFuel, mothershipBoarded: false, charges: 0,
@@ -3173,7 +3156,7 @@ test('large excavation and physical drops survive serialized save import', () =>
     vy: 0,
   }));
   const data: SaveData = {
-    version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false }, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: LEGACY_PLANET_CHART, campaignSeed: 123, activeMap: 'cryo-shelf',
+    version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false }, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: LEGACY_PLANET_CHART, campaignSeed: 123, activeMap: 'cryo-shelf',
     maps: { 'cryo-shelf': {
       seed: 123, x: WORLD.spawnX, y: WORLD.spawnY, maxDepth: 120000,
       destroyed, discovered: [...destroyed], drops, activeCharge: null, structures: [{ id: 'service:980:12000', kind: 'service', x: 980, y: 12000 }], warehouse: emptyCargo(),
@@ -3212,7 +3195,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     planetChart: PLANET_CHART,
   };
   const chartSave = {
-    version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART, campaignSeed: 123, activeMap: 'mars-frontier' as const,
+    version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: PLANET_CHART, campaignSeed: 123, activeMap: 'mars-frontier' as const,
     maps: { 'mars-frontier': { ...chartMap, warehouse: emptyCargo() } }, money: 80, levels: { ...p.levels }, fuel: p.fuel, hull: p.hull,
     cargo: { ...p.cargo }, maxDepth: 144, artifact: false, milestones: [], shipComponents: [], routeFragments: [], coreFuel: p.coreFuel, mothershipBoarded: false, charges: 0,
     ownedPaints: [...p.ownedPaints], selectedPaint: p.selectedPaint, salvageMagnet: false,
@@ -3221,7 +3204,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: p.grappleOwned,
   } satisfies SaveData;
   const migrated27 = migrateSave({ ...chartSave, version: 27 });
-  assert.equal(migrated27?.version, 32);
+  assert.equal(migrated27?.version, 37);
   assert.deepEqual(migrated27?.maps, chartSave.maps, 'v27 preserves excavations, pickups, warehouses and structures');
   const fortSave: SaveData = { ...chartSave, maps: { 'mars-frontier': { ...chartSave.maps['mars-frontier'], structures: [
     { id: 'fort:2000:0', kind: 'fort', x: 2000, y: 0, integrity: 3 },
@@ -3240,7 +3223,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
   assert.equal(validateSave(undergroundFort), false, 'forts are surface structures');
   const duplicateFort = structuredClone(fortSave);
   duplicateFort.maps['mars-frontier']!.structures.push({ id: 'fort:3000:0', kind: 'fort', x: 3000, y: 0 });
-  assert.equal(validateSave(duplicateFort), false);
+  assert.equal(validateSave(duplicateFort), true, 'multiple forts are allowed when their IDs are unique');
   assert.equal(validateSave(chartSave), true, 'three-digit tile columns and associated drops/charges/builds fit the compact chart');
   const orbitalSave = { ...chartSave, maps: { 'mars-frontier': { ...chartMap, x: WORLD.spawnX, y: -orbitAltitude(PLANET_CHART), warehouse: emptyCargo() } } };
   assert.equal(validateSave(orbitalSave), true, 'orbit position persists in the version-24 map snapshot without a save migration');
@@ -3289,20 +3272,20 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
   const stackedWall = { ...chartMap, warehouse: emptyCargo(), structures: [{ id: 'wall:16000:-48', kind: 'wall' as const, x: 16000, y: -WORLD.tile, integrity: SURFACE_RAID.integrity }] };
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': stackedWall } }), true, 'outward home-side wall layers persist in the existing save schema');
   const migratedV22 = migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV22?.version, 32, 'version-22 maps migrate through integrity, warehouses and core fuel');
+  assert.equal(migratedV22?.version, 37, 'version-22 maps migrate through integrity, warehouses and core fuel');
   assert.ok(migratedV22?.maps['mars-frontier']?.structures.every((structure) => structure.integrity === SURFACE_RAID.integrity),
     'existing buildings enter the raid system at full integrity');
   assert.deepEqual(migratedV22?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v22 storage migrates to an empty planet warehouse');
   const migratedV23 = migrateSave({ ...chartSave, version: 23, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV23?.version, 32, 'v23 campaigns migrate to the new warehouse and core-fuel schema');
+  assert.equal(migratedV23?.version, 37, 'v23 campaigns migrate to the new warehouse and core-fuel schema');
   assert.deepEqual(migratedV23?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v23 planets begin with empty warehouse stock');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, structures: [{ id: 'habitat:16000:0', kind: 'habitat' as const, x: 16000, y: 0, integrity: 0 }] } } }), false,
     'save validation rejects a structure with no remaining integrity instead of keeping a broken ghost');
-  assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, structures: Array.from({ length: 4 }, (_, i) => ({ id: `habitat:${15000 + i * 400}:0`, kind: 'habitat' as const, x: 15000 + i * 400, y: 0 })) } } }), false,
-    'save validation rejects more than three habitats on one planet');
-  assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...withTradePost, structures: [...withTradePost.structures, { id: 'trade-post:16100:0', kind: 'trade-post' as const, x: 16100, y: 0 }] } } }), false,
-    'each planet can have only one trading post');
-  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 32, 'version-22 campaigns migrate without losing their existing planet data');
+  assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, warehouse: emptyCargo(), structures: Array.from({ length: 4 }, (_, i) => ({ id: `habitat:${500 + i * 400}:0`, kind: 'habitat' as const, x: 500 + i * 400, y: 0 })) } } }), true,
+    'save validation accepts additional habitats on one planet');
+  assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...withTradePost, structures: [...withTradePost.structures, { id: 'trade-post:16100:0', kind: 'trade-post' as const, x: 16100, y: 0 }] } } }), true,
+    'each planet can have multiple trading posts');
+  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 37, 'version-22 campaigns migrate without losing their existing planet data');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, planetChart: { ...PLANET_CHART, columns: PLANET_CHART.columns - 1 } } } }), false,
     'unknown chart geometry cannot silently reinterpret saved coordinates');
   const legacySave = { ...chartSave, version: 18, maps: { 'mars-frontier': {
@@ -3310,7 +3293,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     drops: [{ id: '123:500,12', ore: 'gold' as const, units: 1, x: 20020, y: 480, vx: 0, vy: 0 }], activeCharge: null, structures: [],
   } } };
   const migrated = migrateSave(legacySave);
-  assert.equal(migrated?.version, 32);
+  assert.equal(migrated?.version, 37);
   assert.deepEqual(migrated?.planetChart, LEGACY_PLANET_CHART, 'v18 saves preserve their original 3,600 m radius');
   assert.equal(migrated?.maps['mars-frontier']?.planetChart, undefined, 'old map coordinates stay intact under the legacy campaign chart');
   assert.deepEqual(migrated?.maps['mars-frontier']?.destroyed, ['500,12']);
@@ -3323,7 +3306,7 @@ test('versioned save validation and reconstruction', () => {
   w.break(24, 0);
   w.reveal(980, 0);
   const d: SaveData = {
-    version: 32 as const, shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false }, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: LEGACY_PLANET_CHART,
+    version: 35 as const, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false }, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, planetChart: LEGACY_PLANET_CHART,
     campaignSeed: 2,
     activeMap: 'mars-frontier',
     maps: { 'mars-frontier': {
@@ -3363,7 +3346,7 @@ test('versioned save validation and reconstruction', () => {
     'save validation still rejects positions outside the supported orbit altitude');
   const migratedV12 = migrateSave({ ...d, version: 12, returnWinch: undefined });
   assert.ok(migratedV12);
-  assert.equal(migratedV12.version, 32);
+  assert.equal(migratedV12.version, 37);
   assert.equal(migratedV12.returnWinch, false, 'older campaigns receive the new optional module as unowned');
   const oldChargeSave = { ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, activeCharge: { x: 980, y: 280, fuse: 0.7 } } } };
   assert.ok(validateSave(oldChargeSave), 'existing active charges remain valid without a velocity field');
@@ -3372,7 +3355,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(validateSave({ ...d, version: 3 }), false);
   const migratedV3 = migrateSave({ ...d, version: 3, routeFragments: undefined } as unknown as SaveData);
   assert.ok(migratedV3);
-  assert.equal(migratedV3.version, 32);
+  assert.equal(migratedV3.version, 37);
   assert.deepEqual(migratedV3.routeFragments, []);
   assert.deepEqual(migratedV3.maps['mars-frontier']?.drops, []);
   assert.equal(migratedV3.charges, 0);
@@ -3380,29 +3363,32 @@ test('versioned save validation and reconstruction', () => {
   const legacyV4 = { ...d, version: 4, charges: undefined, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, drops: undefined, activeCharge: undefined } } };
   const migratedV4 = migrateSave(legacyV4);
   assert.ok(migratedV4);
-  assert.equal(migratedV4.version, 32);
+  assert.equal(migratedV4.version, 37);
   assert.deepEqual(migratedV4.maps['mars-frontier']?.drops, []);
   const legacyV7 = { ...d, version: 7, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV7 = migrateSave(legacyV7);
   assert.ok(migratedV7);
-  assert.equal(migratedV7.version, 32);
+  assert.equal(migratedV7.version, 37);
   assert.equal(migratedV7.selectedSuit, 'hab');
   assert.deepEqual(migratedV7.ownedSuits, ['hab']);
   const legacyV6 = { ...d, version: 6, salvageMagnet: undefined, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV6 = migrateSave(legacyV6);
   assert.ok(migratedV6);
-  assert.equal(migratedV6.version, 32);
+  assert.equal(migratedV6.version, 37);
   assert.equal(migratedV6.salvageMagnet, false);
   assert.equal(migratedV6.selectedSuit, 'hab');
   assert.deepEqual(migratedV6.ownedPaints, ['hab', 'polar']);
   const legacyV5 = { ...d, version: 5, ownedPaints: undefined, selectedPaint: undefined, salvageMagnet: undefined };
   const migratedV5 = migrateSave(legacyV5);
   assert.ok(migratedV5);
-  assert.equal(migratedV5.version, 32);
+  assert.equal(migratedV5.version, 37);
   assert.equal(migratedV5.salvageMagnet, false);
   assert.deepEqual(migratedV5.ownedPaints, ['hab']);
   const withDrop = { ...d, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, destroyed: [...d.maps['mars-frontier']!.destroyed, '24,3'], drops: [{ id: '2:24,3', ore: 'gold', units: 1.5, x: 980, y: 130, vx: 24, vy: -40 }] } } };
   assert.ok(validateSave(withDrop));
+  const manyBuildings = {...withDrop,maps:{'mars-frontier':{...withDrop.maps['mars-frontier']!,structures:Array.from({length:40},(_,i)=>({id:`warehouse:${i}`,kind:'warehouse',x:100+i*40,y:0}))}}};
+  assert.ok(validateSave(manyBuildings),'expanded colonies remain valid past the old total and warehouse caps');
+  assert.ok(parseSaveFile(JSON.stringify(manyBuildings)),'expanded colony survives save import');
   assert.equal(validateSave({ ...withDrop, maps: { 'mars-frontier': { ...withDrop.maps['mars-frontier']!, drops: [{ ...withDrop.maps['mars-frontier']!.drops[0], id: '3:24,3' }] } } }), false);
   assert.equal(validateSave({ ...withDrop, maps: { 'mars-frontier': { ...withDrop.maps['mars-frontier']!, drops: [{ ...withDrop.maps['mars-frontier']!.drops[0], units: -1 }] } } }), false);
   assert.equal(validateSave({ ...withDrop, maps: { 'mars-frontier': { ...withDrop.maps['mars-frontier']!, drops: [withDrop.maps['mars-frontier']!.drops[0], withDrop.maps['mars-frontier']!.drops[0]] } } }), false);
@@ -3415,7 +3401,7 @@ test('versioned save validation and reconstruction', () => {
   };
   const migrated = migrateSave(legacy);
   assert.ok(migrated);
-  assert.equal(migrated.version, 32);
+  assert.equal(migrated.version, 37);
   assert.equal(migrated.activeMap, 'mars-frontier');
   assert.equal(migrated.maps['mars-frontier']?.x, 980);
   assert.deepEqual(migrated.shipComponents, []);
@@ -3449,7 +3435,7 @@ test('versioned save validation and reconstruction', () => {
   const legacyV8 = { ...d, version: 8, ownedDecals: undefined, selectedDecal: undefined };
   const migratedV8 = migrateSave(legacyV8);
   assert.ok(migratedV8);
-  assert.equal(migratedV8.version, 32);
+  assert.equal(migratedV8.version, 37);
   assert.deepEqual(migratedV8.ownedDecals, ['standard']);
   assert.equal(migratedV8.selectedDecal, 'standard');
   assert.deepEqual(migratedV8.ownedProfiles, ['standard']);
@@ -3457,12 +3443,12 @@ test('versioned save validation and reconstruction', () => {
   const legacyV9 = { ...d, version: 9, ownedProfiles: undefined, selectedProfile: undefined };
   const migratedV9 = migrateSave(legacyV9);
   assert.ok(migratedV9);
-  assert.equal(migratedV9.version, 32);
+  assert.equal(migratedV9.version, 37);
   assert.deepEqual(migratedV9.ownedProfiles, ['standard']);
   assert.equal(migratedV9.specialization, 'balanced');
   const migratedV10 = migrateSave({ ...d, version: 10, specialization: undefined });
   assert.ok(migratedV10);
-  assert.equal(migratedV10.version, 32);
+  assert.equal(migratedV10.version, 37);
   assert.equal(migratedV10.specialization, 'balanced');
   assert.deepEqual(migratedV10.maps, d.maps, 'v10 migration preserves every region record');
   assert.equal(validateSave({ ...d, specialization: 'unknown' }), false);

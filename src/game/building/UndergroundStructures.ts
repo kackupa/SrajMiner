@@ -1,4 +1,4 @@
-import { EXTRACTOR_TIERS, MAPS, UNDERGROUND_BUILDING, SURFACE_RAID, TURRET_TIERS, WAREHOUSE_CAPACITY_TIERS, WORLD, depthAtWorldY, type MapId, type Ore } from '../config';
+import { EXTRACTOR_TIERS, BUILD_PLACEMENT, MAPS, UNDERGROUND_BUILDING, SURFACE_RAID, TURRET_TIERS, WAREHOUSE_CAPACITY_TIERS, WORLD, depthAtWorldY, type MapId, type Ore } from '../config';
 import type { Cargo } from '../economy/Progress';
 import type { TileWorld } from '../world/TileWorld';
 
@@ -7,11 +7,10 @@ export type SurfaceStructureKind = Exclude<StructureKind, 'platform' | 'service'
 export type UndergroundStructure = { id: string; kind: StructureKind; x: number; y: number; reload?: number; integrity?: number; level?: number; productionFraction?: number };
 
 export const warehouseCapacity = (structures: readonly UndergroundStructure[]) => {
-  const warehouse = structures.find((entry) => entry.kind === 'warehouse');
-  return warehouse ? WAREHOUSE_CAPACITY_TIERS[Math.max(0, Math.min(WAREHOUSE_CAPACITY_TIERS.length - 1, (warehouse.level ?? 1) - 1))]! : 0;
+  return structures.filter(entry => entry.kind === 'warehouse').reduce((total, warehouse) => total + WAREHOUSE_CAPACITY_TIERS[Math.max(0, Math.min(WAREHOUSE_CAPACITY_TIERS.length - 1, (warehouse.level ?? 1) - 1))]!, 0);
 };
-export function upgradeWarehouse(structures: readonly UndergroundStructure[], credits: number) {
-  const warehouse = structures.find((entry) => entry.kind === 'warehouse'), level = warehouse?.level ?? 1,
+export function upgradeWarehouse(structures: readonly UndergroundStructure[], credits: number, id?: string) {
+  const warehouse = structures.find((entry) => entry.kind === 'warehouse' && (!id || entry.id === id)), level = warehouse?.level ?? 1,
     cost = UNDERGROUND_BUILDING.warehouse.capacityUpgrade[level];
   if (!warehouse || cost === undefined || credits < cost) return undefined;
   return { credits: credits - cost, level: level + 1 };
@@ -60,8 +59,16 @@ export function surfaceArcPoint(world: TileWorld, coordinate: number, snap = tru
     wrapped = ((coordinate % full) + full) % full,
     s = snap ? Math.round(wrapped / WORLD.tile - 0.5) * WORLD.tile + WORLD.tile / 2 : wrapped;
   return s < half
-    ? { x: s, y: 0 }
-    : { x: s - half, y: world.farSurfaceY };
+    ? { x: s, y: world.surfaceHeight(s,0) }
+    : { x: s - half, y: world.surfaceHeight(s-half,world.farSurfaceY) };
+}
+
+/** New buildings use a level deck with feet on natural terrain. Existing coordinates stay untouched. */
+export function surfaceFoundation(world: TileWorld, kind: SurfaceStructureKind, site: {x:number;y:number}) {
+  const gravity=world.gravitySign(site.y), half=UNDERGROUND_BUILDING[kind].widthTiles*WORLD.tile/2;
+  const feet=[-half+4,0,half-4].map(dx=>{const x=site.x+dx,y=world.surfaceHeight(x,site.y);return {x,y,solid:world.solid(Math.floor(x/WORLD.tile),Math.floor((y+gravity*2)/WORLD.tile))};});
+  const y=gravity>0?Math.min(...feet.map(f=>f.y)):Math.max(...feet.map(f=>f.y));
+  return {x:site.x,y,feet,valid:feet.every(f=>f.solid&&Math.abs(f.y-y)<=BUILD_PLACEMENT.maxSupportDrop)};
 }
 
 export function validateSurfaceStructureSite(
@@ -71,31 +78,25 @@ export function validateSurfaceStructureSite(
   existing: readonly UndergroundStructure[],
   cargo: Record<Ore, number>,
   credits: number,
-): { valid: true } | { valid: false; reason: 'LIMIT' | 'OCCUPIED' | 'NEED MATERIALS / CREDITS' } {
+): { valid: true } | { valid: false; reason: 'OCCUPIED' | 'NEED MATERIALS / CREDITS' | 'NEEDS SOLID GROUND' } {
   const rule = UNDERGROUND_BUILDING[kind];
-  const playerStructures = existing.filter((entry) => !entry.id.startsWith('station:') && entry.id !== 'mothership');
-  if (playerStructures.length >= UNDERGROUND_BUILDING.maxStructuresPerMap ||
-      kind === 'habitat' && playerStructures.filter((entry) => entry.kind === 'habitat').length >= rule.maxPerMap ||
-      kind === 'turret' && playerStructures.filter((entry) => entry.kind === 'turret').length >= rule.maxPerMap ||
-      kind === 'trade-post' && playerStructures.some((entry) => entry.kind === 'trade-post') ||
-      kind === 'warehouse' && playerStructures.some((entry) => entry.kind === 'warehouse') ||
-      kind === 'fort' && playerStructures.some((entry) => entry.kind === 'fort') ||
-      kind === 'extractor' && playerStructures.filter((entry) => entry.kind === 'extractor').length >= rule.maxPerMap ||
-      (kind === 'wall' || kind === 'gate') && playerStructures.filter((entry) => entry.kind === kind).length >= rule.maxPerMap)
-    return { valid: false, reason: 'LIMIT' };
   if (!canAffordStructure(kind, cargo, credits)) return { valid: false, reason: 'NEED MATERIALS / CREDITS' };
   const candidateArc = surfaceArcCoordinate(world, site.x, site.y), half = world.widthTiles * WORLD.tile,
-    candidateSurfaceY = site.y < world.coreWorldY ? 0 : world.farSurfaceY,
+    candidateSurfaceY = world.surfaceHeight(site.x,site.y),
     candidateOutward = Math.abs(site.y - candidateSurfaceY),
     distanceOnGlobe = (a: number, b: number) => {
       const difference = Math.abs(a - b) % (half * 2);
       return Math.min(difference, half * 2 - difference);
     },
     candidateHalfWidth = rule.widthTiles * WORLD.tile / 2;
+  if(world.terrain && kind!=='wall' && !surfaceFoundation(world,kind,site).valid)
+    return {valid:false,reason:'NEEDS SOLID GROUND'};
+  if(world.terrain && kind==='wall' && candidateOutward===0 && !world.solid(Math.floor(site.x/WORLD.tile),Math.floor((site.y+world.gravitySign(site.y)*2)/WORLD.tile)))
+    return {valid:false,reason:'NEEDS SOLID GROUND'};
   let supportedWallLayer = candidateOutward === 0;
   for (const entry of existing) {
     if (kind === 'wall' && entry.kind === 'wall') {
-      const entrySurfaceY = entry.y < world.coreWorldY ? 0 : world.farSurfaceY,
+      const entrySurfaceY = world.surfaceHeight(entry.x,entry.y),
         entryArc = surfaceArcCoordinate(world, entry.x, entry.y), difference = Math.abs(candidateArc - entryArc),
         arcDistance = Math.min(difference, half * 2 - difference),
         radialDistance = Math.abs(candidateOutward - Math.abs(entry.y - entrySurfaceY)),
@@ -127,14 +128,14 @@ export function canAffordStructure(kind: StructureKind, cargo: Record<Ore, numbe
 
 /** Fill the first empty layer of a column; do not jump over missing supports. */
 export function nextWallStackSite(world: TileWorld, site: { x: number; y: number }, structures: readonly UndergroundStructure[]) {
-  const surfaceY = site.y < world.coreWorldY ? 0 : world.farSurfaceY;
+  const surfaceY = world.surfaceHeight(site.x,site.y);
   const gravity = world.gravitySign(surfaceY);
   const column = structures.filter(entry => entry.kind === 'wall' &&
     globeSurfaceDistance(world, site.x, surfaceY, entry.x, entry.y) <= WORLD.tile / 2)
     .sort((a, b) => globeSurfaceDistance(world, site.x, surfaceY, a.x, a.y) - globeSurfaceDistance(world, site.x, surfaceY, b.x, b.y))[0];
   const x = column?.x ?? site.x;
   let layer = 0;
-  while (layer < UNDERGROUND_BUILDING.wall.maxPerMap && structures.some(entry =>
+  while (layer <= structures.length && structures.some(entry =>
     entry.kind === 'wall' && globeSurfaceDistance(world, x, surfaceY, entry.x, entry.y) < 1 &&
     Math.abs(entry.y - (surfaceY - gravity * layer * WORLD.tile)) < 1)) layer++;
   return { x, y: surfaceY - gravity * layer * WORLD.tile };
@@ -142,8 +143,7 @@ export function nextWallStackSite(world: TileWorld, site: { x: number; y: number
 
 export function repairSurfaceStructure(structure: UndergroundStructure, credits: number) {
   const maximum = structureIntegrity(structure.kind);
-  if (!['habitat', 'turret', 'wall', 'gate', 'fort'].includes(structure.kind) ||
-      (structure.integrity ?? maximum) >= maximum || credits < SURFACE_RAID.repairCredits) return undefined;
+  if ((structure.integrity ?? maximum) >= maximum || credits < SURFACE_RAID.repairCredits) return undefined;
   return { credits: credits - SURFACE_RAID.repairCredits, integrity: maximum };
 }
 
@@ -153,7 +153,6 @@ export function findSurfaceTradePostSite(
   y: number,
   existing: readonly UndergroundStructure[],
 ) {
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap || existing.some((entry) => entry.kind === 'trade-post')) return undefined;
   const siteX = Math.min(x + 430, world.widthTiles * WORLD.tile - 140);
   if (siteX < 100) return undefined;
   return { x: siteX, y: world.gravitySign(y) > 0 ? 0 : world.farSurfaceY };
@@ -167,8 +166,6 @@ export function findSurfaceHabitatSite(
   existing: readonly UndergroundStructure[],
 ) {
   const rule = UNDERGROUND_BUILDING.habitat;
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap ||
-      existing.filter((entry) => entry.kind === 'habitat').length >= rule.maxPerMap) return undefined;
   const surfaceY = world.gravitySign(y) > 0 ? 0 : world.farSurfaceY;
   const minX = 100, maxX = world.widthTiles * WORLD.tile - 100;
   const spacing = Math.ceil(rule.widthTiles * WORLD.tile / 2) + 80;
@@ -213,7 +210,6 @@ export function findSurfaceWarehouseSite(
   existing: readonly UndergroundStructure[],
 ) {
   const rule = UNDERGROUND_BUILDING.warehouse;
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap || existing.some((entry) => entry.kind === 'warehouse')) return undefined;
   const surfaceY = world.gravitySign(y) > 0 ? 0 : world.farSurfaceY,
     minX = 100, maxX = world.widthTiles * WORLD.tile - 100,
     spacing = rule.widthTiles * WORLD.tile + 80,
@@ -234,8 +230,6 @@ export function findSurfaceBarrierSite(
   existing: readonly UndergroundStructure[],
   kind: 'wall' | 'gate',
 ) {
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap ||
-      existing.filter((entry) => entry.kind === kind).length >= UNDERGROUND_BUILDING[kind].maxPerMap) return undefined;
   const rule = UNDERGROUND_BUILDING[kind], origin = surfaceArcCoordinate(world, x, y), full = world.widthTiles * WORLD.tile * 2;
   for (let step = 5; step <= 48; step++) for (const direction of [1, -1]) {
     const site = surfaceArcPoint(world, origin + direction * step * WORLD.tile), arc = surfaceArcCoordinate(world, site.x, site.y), halfWidth = rule.widthTiles * WORLD.tile / 2;
@@ -264,8 +258,6 @@ export function findSurfaceTurretSite(
   existing: readonly UndergroundStructure[],
 ) {
   const rule = UNDERGROUND_BUILDING.turret;
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap ||
-      existing.filter((entry) => entry.kind === 'turret').length >= rule.maxPerMap) return undefined;
   const surfaceY = world.gravitySign(y) > 0 ? 0 : world.farSurfaceY;
   const minX = 100, maxX = world.widthTiles * WORLD.tile - 100;
   const circumference = world.widthTiles * WORLD.tile;
@@ -289,22 +281,32 @@ export function findBuildSite(
   existing: readonly UndergroundStructure[],
 ): { x: number; y: number } | undefined {
   const localDepth = depthAtWorldY(y, world.planetChart);
-  if (localDepth < UNDERGROUND_BUILDING.minimumDepthMeters || localDepth > world.coreDepthMeters - 200) return undefined;
+  if (localDepth < UNDERGROUND_BUILDING.minimumDepthMeters || localDepth > world.coreDepthMeters - 48) return undefined;
   const centerX = Math.floor(x / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
-  const deckY = Math.round((y + gravitySign * WORLD.tile * 2) / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
-  const row = Math.floor(deckY / WORLD.tile), tileX = Math.floor(centerX / WORLD.tile);
+  const deckY = kind === 'service'
+    ? (gravitySign > 0 ? Math.ceil((y + 16) / WORLD.tile) * WORLD.tile - 1 : Math.floor((y - 16) / WORLD.tile) * WORLD.tile + 1)
+    : Math.round((y + gravitySign * WORLD.tile * 2) / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
   const halfSpan = Math.floor(UNDERGROUND_BUILDING[kind].widthTiles / 2);
-  for (let dx = -halfSpan; dx <= halfSpan; dx++) {
-    for (let dy = kind === 'service' || kind === 'turret' ? -2 : 0; dy <= (kind === 'service' || kind === 'turret' ? 2 : 0); dy++) {
-      if (world.solid(tileX + dx, row + dy)) return undefined;
+  // Prefer the old anchor, then nearby clear space in this same chamber.
+  const offsets = [0, -1, 1, -2, 2];
+  for (const dy of offsets) for (const dx of offsets) {
+    const siteX = centerX + dx * WORLD.tile, siteY = deckY + dy * WORLD.tile;
+    if (depthAtWorldY(siteY, world.planetChart) < UNDERGROUND_BUILDING.minimumDepthMeters || depthAtWorldY(siteY, world.planetChart) > world.coreDepthMeters - 48) continue;
+    if (existing.some(entry => Math.hypot(entry.x - siteX, entry.y - siteY) < 240)) continue;
+    const row = Math.floor(siteY / WORLD.tile), column = Math.floor(siteX / WORLD.tile);
+    let clear = true;
+    for (let xx = -halfSpan; xx <= halfSpan; xx++) for (let yy = kind === 'service' || kind === 'turret' ? -2 : 0; yy <= (kind === 'turret' ? 2 : 0); yy++) {
+      if (world.solid(column + xx, row + yy * (kind === 'service' ? gravitySign : 1))) clear = false;
     }
+    // Do not snap a shelter through an unmined wall into another cavity.
+    const entranceY = siteY - gravitySign * 22;
+    const steps = Math.ceil(Math.hypot(siteX - x, entranceY - y) / 10);
+    for (let i = 1; clear && i <= steps; i++) {
+      if (world.solid(Math.floor((x + (siteX - x) * i / steps) / WORLD.tile), Math.floor((y + (entranceY - y) * i / steps) / WORLD.tile))) clear = false;
+    }
+    if (clear) return { x: siteX, y: siteY };
   }
-  if (existing.length >= UNDERGROUND_BUILDING.maxStructuresPerMap) return undefined;
-  if (kind === 'platform' && existing.filter((entry) => entry.kind === 'platform').length >= 12) return undefined;
-  if (kind === 'service' && existing.some((entry) => entry.kind === 'service')) return undefined;
-  if (kind === 'turret' && existing.filter((entry) => entry.kind === 'turret').length >= UNDERGROUND_BUILDING.turret.maxPerMap) return undefined;
-  if (existing.some((entry) => Math.hypot(entry.x - centerX, entry.y - deckY) < 240)) return undefined;
-  return { x: centerX, y: deckY };
+  return undefined;
 }
 
 export function crossedStructureDeck(

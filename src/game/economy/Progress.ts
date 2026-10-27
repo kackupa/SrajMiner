@@ -1,3 +1,4 @@
+import { defaultLoadout, rigMultiplier } from './Loadout';
 import {
   SPECIALIST_MODULES,
   ORES,
@@ -36,6 +37,7 @@ import { contractReady, marketContract } from './MarketContracts';
 export type Cargo = Record<Ore, number>;
 export const emptyCargo = (): Cargo => Object.fromEntries(ORE_KEYS.map(ore => [ore, 0])) as Cargo;
 export class Progress {
+  loadout = defaultLoadout();
   deliveries: Record<string, number> = {};
   money = 80;
   levels: Levels = { drill: 1, fuel: 1, cargo: 1, hull: 1, engine: 1, scanner: 1, grapple: 1 };
@@ -105,7 +107,7 @@ export class Progress {
   }
   selectSpecialization(key: Specialization) {
     if (!Object.hasOwn(SPECIALIZATIONS, key)) return false;
-    const cargoLimit = Math.round(value(this.levels, 'cargo') * SPECIALIZATIONS[key].cargoMultiplier * 2) / 2;
+    const cargoLimit = Math.round(value(this.levels, 'cargo') * rigMultiplier(this.loadout, 'cargo') * SPECIALIZATIONS[key].cargoMultiplier * 2) / 2;
     if (this.count > cargoLimit) return false;
     this.specialization = key;
     return true;
@@ -188,7 +190,7 @@ export class Progress {
     return ORE_KEYS.reduce((n, k) => n + this.cargo[k] * ORES[k].value, 0);
   }
   max(key: Upgrade) {
-    const base = value(this.levels, key);
+    const base = value(this.levels, key) * rigMultiplier(this.loadout, key);
     return key === 'cargo'
       ? Math.round(base * SPECIALIZATIONS[this.specialization].cargoMultiplier * 2) / 2
       : key === 'hull' && this.specialistModules.reinforcedHull ? base * SPECIALIST_MODULES.reinforcedHull.hullMultiplier : base;

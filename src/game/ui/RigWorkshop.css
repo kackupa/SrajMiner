@@ -11,3 +11,6 @@
 .rig-installed .rig-art{animation:rig-installed .65s ease-out}.rig-installed .rig-notice{color:#a4efd9}@keyframes rig-installed{0%{filter:brightness(1);transform:scale(1)}40%{filter:brightness(1.8);transform:scale(1.08)}100%{filter:brightness(1);transform:scale(1)}}@media(prefers-reduced-motion:reduce){.rig-installed .rig-art{animation:none}}
 
 #modal-layer .rig-workshop button{min-height:44px}.rig-workshop footer{display:block!important;flex-shrink:0}#modal-layer .rig-picker button{padding:5px}
+
+.rig-compact-pages{display:none}.charge-modes{display:flex;gap:4px}.charge-modes button{flex:1;min-width:0;padding:5px;font-size:10px}
+@media(max-width:700px){.rig-picker{display:none!important}.rig-compact-pages{display:flex;align-items:center;justify-content:space-between}.rig-compact-pages button{min-width:44px}.rig-workshop .rig-art{display:block;height:52px}.rig-workshop .rig-art svg{height:52px;width:70px}.rig-workshop .rig-layout{gap:4px}.rig-workshop .rig-detail{justify-content:center;gap:5px}.rig-workshop footer{display:none!important}}

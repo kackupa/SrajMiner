@@ -23,3 +23,14 @@ export function transferFreight(source: Cargo, target: Cargo, ore: Ore, requeste
   if (!saved) { Object.assign(source, beforeSource); Object.assign(target, beforeTarget); return 0; }
   return quote.moved;
 }
+
+/** One saved transaction for an entire haul; partial capacity never destroys the remainder. */
+export function unloadFreight(source: Cargo, target: Cargo, capacity: number, save: () => boolean) {
+ if(source===target || !validCargo(source)||!validCargo(target)||!Number.isFinite(capacity)||capacity<0)return 0;
+ const beforeSource={...source},beforeTarget={...target};let room=Math.max(0,capacity-cargoTotal(target)),moved=0;
+ for(const ore of ORE_KEYS){const n=Math.floor(Math.min(room,source[ore])*2)/2;source[ore]-=n;target[ore]+=n;room-=n;moved+=n;}
+ if(!moved)return 0;
+ let saved=false;try{saved=save();}catch{}
+ if(!saved){Object.assign(source,beforeSource);Object.assign(target,beforeTarget);return 0;}
+ return moved;
+}

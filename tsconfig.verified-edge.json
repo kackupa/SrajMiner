@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true
+  },
+  "include": [
+    "supabase/functions/verified-game/index.ts",
+    "supabase/functions/verified-game/engine.d.ts",
+    "supabase/functions/verified-game/deno-shim.d.ts"
+  ]
+}

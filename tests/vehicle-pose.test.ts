@@ -56,3 +56,21 @@ assert.deepEqual(
 console.log(
   'PASS vehicle presentation: banking, pilot reversal, climb, landing, pause, reduced motion and long-frame bounds',
 );
+
+let landing = advanceVehiclePose(restingVehiclePose(), {...input, verticalSpeed: 240}, .05);
+landing = advanceVehiclePose(landing, {...input, grounded:true, thrust:false, verticalSpeed:0}, .016);
+assert.ok(landing.landing > .9, 'touchdown compresses the suspension using approach velocity');
+const settled = advanceVehiclePose(landing, {...input, grounded:true, thrust:false, verticalSpeed:0}, .05);
+assert.ok(settled.landing < landing.landing, 'suspension recovers after impact');
+const reducedLanding = advanceVehiclePose(landing, {...input, grounded:true, reducedMotion:true}, .016);
+assert.equal(reducedLanding.landing, 0, 'reduced motion disables impact bounce');
+assert.equal(reducedLanding.stride, 0, 'reduced motion disables walking bob');
+console.log('PASS concept miner suspension: impact, recovery and reduced motion');
+
+let looking = restingVehiclePose();
+for(let i=0;i<60;i++)looking=advanceVehiclePose(looking,{...input,facing:-1,lookingX:-1,lookingY:-.6,firing:true},1/60);
+assert.ok(looking.lookX < -.99 && looking.lookY < -.59 && looking.turn < -.99);
+assert.equal(looking.fire,1);
+const released = advanceVehiclePose(looking,{...input,firing:false},.05);
+assert.ok(released.fire<looking.fire,'weapon recoil decays after release');
+console.log('PASS look direction, facing and firing pose');
