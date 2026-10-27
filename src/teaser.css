@@ -142,3 +142,26 @@ h1 em,h2 em { color:var(--gold); font-style:normal; }
 .official-x>span:not(.x-mark),.official-x small { color:var(--muted); font-size:12px; }
 .roadmap-grid { grid-template-columns:repeat(3,1fr); }
 @media(max-width:560px) { .roadmap-grid { grid-template-columns:1fr; } }
+/* Gameplay leads the page; all action links share the same treatment. */
+.hero { grid-template-columns:1fr; gap:28px; padding-top:30px; }
+.hero-copy { display:grid; grid-template-columns:1.05fr 1fr; column-gap:60px; align-items:start; }
+.hero-copy .eyebrow { grid-column:1/-1; }
+.hero h1 { grid-column:1; grid-row:2/5; margin:18px 0 0; font-size:clamp(64px,7.3vw,104px); }
+.hero-lede { grid-column:2; margin-top:24px; max-width:490px; font-size:18px; }
+.hero-actions { grid-column:2; margin-top:8px; flex-wrap:wrap; gap:18px; }
+.control-hint { grid-column:2; margin-top:20px; }
+.hero-art { border-radius:12px; }
+.hero-art img { aspect-ratio: 16/8; object-position:center; }
+.button,.header-cta { border-radius:8px; min-height:46px; display:inline-flex; align-items:center; justify-content:center; transition:background .18s, border-color .18s; }
+.button-primary:hover { background:#ffd29a; color:#101c23; }
+.header-cta:hover,.button-outline:hover { border-color:var(--gold); background:#efb96e12; }
+.operation-capture,.gameplay-frame,.roadmap-grid li { border-radius:10px; overflow:hidden; }
+.operation-capture img { transition:transform .4s; }
+.operation-capture:hover img { transform:scale(1.025); }
+.official-notice { font-size:12px; opacity:.8; }
+@media(max-width:850px) { .hero-copy { grid-template-columns:1fr; gap:0; }.hero h1,.hero-lede,.hero-actions,.control-hint { grid-column:1; grid-row:auto; }.hero h1 { font-size:clamp(58px,11vw,86px); }.hero-lede { font-size:16px; margin-top:22px; }.hero-art img { aspect-ratio:16/9; }.hero { padding-bottom:30px; }.hero-actions { flex-direction:row; align-items:center; }.header-cta { font-size:10px; } }
+@media(prefers-reduced-motion:reduce) { .operation-capture img,.button,.header-cta { transition:none; }.operation-capture:hover img { transform:none; } }
+.hero-art video { display:block; width:100%; aspect-ratio:16/9; object-fit:cover; }
+.hero-film-toggle { position:absolute; right:16px; bottom:16px; border:1px solid #efbb73; border-radius:8px; padding:12px 18px; color:#fff0d4; background:#0b1a24ed; font:500 14px 'DM Sans',sans-serif; cursor:pointer; }
+.hero-film-toggle:hover { background:#29424d; }.hero-film-toggle:focus-visible { outline:2px solid var(--mint); outline-offset:3px; }
+@media(max-width:560px) { .hero-caption { position:static; margin:0; border:0; padding:12px; font-size:8px; }.hero-film-toggle { bottom:40px; right:8px; padding:9px 13px; } }
