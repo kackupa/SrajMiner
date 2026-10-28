@@ -1,3 +1,5 @@
+import { installStudyControls } from './game/study/VisualStudy';
+import './game/study/VisualStudy.css';
 import { installGameButtons } from './game/ui/GameButtons';
 import '@fontsource/barlow-condensed/latin-500.css';
 import '@fontsource/barlow-condensed/latin-600.css';
@@ -50,3 +52,5 @@ import './game/ui/VerifiedMiningPanel.css';
 
 // Last: shared button tokens and states override legacy panel skins.
 import './game/ui/GameButtons.css';
+
+installStudyControls();

@@ -1,4 +1,6 @@
 import { atSurface, onPlanetSurface, surfaceTownTier, MAX_TOWN_ALTITUDE } from '../surface/SurfaceStation';
+import { planSurfaceStep } from '../study/SurfaceStep';
+import { SURFACE_STEP_STUDY } from '../config';
 import { WORLD, CORE, CORE_CROSSING_CLEARANCE, PHYSICS as P, FUEL, STASIS_MODULE, RETURN_WINCH, ESCAPE_SUIT, AUTO_GRAPPLE, surfaceYAt, value } from '../config';
 import { TileWorld, type Tile } from '../world/TileWorld';
 import { crossedStructureDeck, type UndergroundStructure } from '../building/UndergroundStructures';
@@ -114,11 +116,14 @@ export class PlayerPod {
   private grappleCooldown = 0;
   scannerRadius = 4;
   docked = true;
+  surfaceStepEnabled = false;
+  private surfaceStep?: { x: number; fromY: number; y: number; elapsed: number; screenDir: number };
   constructor(
     public world: TileWorld,
     public progress: Progress,
   ) {}
   reset() {
+    this.surfaceStep = undefined;
     this.docked = true;
     this.thrusting = false;
     this.stasisActive = false;
@@ -147,6 +152,21 @@ export class PlayerPod {
       )
         if (this.world.solid(tx, ty)) hits.push(this.world.get(tx, ty));
     return hits;
+  }
+  private horizontalClearance(nextX: number, cameraRotation: number): number | undefined {
+    const gravity = this.world.gravitySign(this.y);
+    // Check the complete lift/drop before moving sideways. Merely checking the
+    // destination could let the hull cut diagonally through a solid corner.
+    const clear = [true, true];
+    for (let offset = 1; offset <= P.horizontalCornerTolerance; offset++) {
+      for (let side = 0; side < 2; side++) {
+        if (!clear[side]) continue;
+        const y = this.y + (side === 0 ? -gravity : gravity) * offset;
+        if (this.overlaps(this.x, y, cameraRotation).length) { clear[side] = false; continue; }
+        if (!this.overlaps(nextX, y, cameraRotation).length) return y;
+      }
+    }
+    return undefined;
   }
   private townPlatformCrossing(x: number, fromY: number, toY: number, gravitySign: number, dropThrough: boolean) {
     if (dropThrough || x < 430 || x > 1540 || Math.abs(toY - fromY) < 0.00001) return undefined;
@@ -214,6 +234,26 @@ export class PlayerPod {
       engine = p.max('engine'),
       requestStasis = !!input.stasis && p.stasisModule && p.fuel > 0 && this.y > 0,
       requestWinch = !!input.reel && p.returnWinch && p.fuel > 0 && this.y > 0 && !requestStasis;
+    if (this.surfaceStep) {
+      const step = this.surfaceStep;
+      if (!this.surfaceStepEnabled || input.up || input.down || input.mothership || requestWinch || requestStasis ||
+          Number(input.right) - Number(input.left) !== step.screenDir) this.surfaceStep = undefined;
+      else {
+        step.elapsed = Math.min(SURFACE_STEP_STUDY.seconds, step.elapsed + dt);
+        const t = step.elapsed / SURFACE_STEP_STUDY.seconds, eased = t * t * (3 - 2 * t);
+        const y = step.fromY + (step.y - step.fromY) * eased;
+        if (this.overlaps(this.x, y, cameraRotation).length) this.surfaceStep = undefined;
+        else {
+          this.y = y; this.vy = 0; this.thrusting = false;
+          p.fuel = Math.max(0, p.fuel - dt * FUEL.moving);
+          if (t >= 1) {
+            if (!this.overlaps(step.x, this.y, cameraRotation).length) this.x = step.x;
+            this.surfaceStep = undefined;
+          }
+          return;
+        }
+      }
+    }
     if (this.docked) {
       if (!input.left && !input.right && !input.down && !input.up && !requestStasis) {
         this.vx = 0;
@@ -322,7 +362,26 @@ export class PlayerPod {
     for (let i = 0; i < steps; i++) {
       const nx = this.x + (this.vx * dt) / steps,
         hitsX = this.overlaps(nx, this.y, cameraRotation);
-      if (hitsX.length) {
+      if (hitsX.length && this.surfaceStepEnabled && screenDir && !input.up && !input.down && !input.mothership &&
+          !escapePack && !requestWinch && !requestStasis && !coreTransit && Math.abs(this.vx) < P.safeImpact) {
+        const step = planSurfaceStep(this.world, this, nx, (x, y) => this.overlaps(x, y, cameraRotation).length > 0);
+        if (step) {
+          this.surfaceStep = { x: step.x, y: step.y, fromY: this.y, elapsed: 0, screenDir };
+          this.vy = 0; this.thrusting = false;
+          return;
+        }
+      }
+      const clearance = hitsX.length && screenDir && !input.down && !input.mothership && !coreTransit &&
+        !requestWinch && !requestStasis && Math.abs(this.vy) < P.safeImpact && Math.abs(this.vx) < P.safeImpact &&
+        !hitsX.some(t => t.type === 'boundary')
+        ? this.horizontalClearance(nx, cameraRotation) : undefined;
+      if (clearance !== undefined) {
+        this.x = nx;
+        this.y = clearance;
+        // Let gravity settle the feet after the small adjustment; retain an
+        // intentional rise rather than cancelling thrust on a skimmed ledge.
+        if (this.vy * gravitySign > 0) this.vy = 0;
+      } else if (hitsX.length) {
         // Steering into any solid side contact means the player is trying to
         // pass it. Offer that obstruction to the drill, including on the globe
         // where tangent motion can map mostly onto chart Y rather than X.

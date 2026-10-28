@@ -1,3 +1,7 @@
+import { visualStudy, revisedArt, surfaceStepStudy } from './study/VisualStudy';
+import { StudyDrillEffects } from './study/StudyDrillEffects';
+import { drawStudySurface, drawStudyLandscape } from './study/StudySurface';
+import { prepareStudy, drawStudyRock, drawStudyCavity, drawStudySite, drawStudyContours } from './study/VisualStudyArt';
 import { BUILD_PLACEMENT } from './config';
 import { surfaceFoundation } from './building/UndergroundStructures';
 import { drawHumanRaider } from './world/HumanRaiderArt';
@@ -32,6 +36,7 @@ import { PlacementControls } from './ui/PlacementControls';
 import { planetaryMaterials, spendPlanetaryMaterials } from './building/PlanetaryMaterials';
 import { RenderGraphics } from './RenderGraphics';
 import { drawMiner, minerLampPoint, minerPoint } from './player/MinerArt';
+import { StudyMinerMotion, findFootContact } from './study/StudyMinerMotion';
 import { advanceVehiclePose, restingVehiclePose } from './player/VehiclePose';
 import { WallBuilder } from './ui/WallBuilder';
 import { TouchControls } from './ui/TouchControls';
@@ -296,6 +301,8 @@ export class MiningScene extends Phaser.Scene {
   landmarkLabels = new Map<string, Phaser.GameObjects.Text>();
   floating: { text: Phaser.GameObjects.Text; x: number; y: number; life: number }[] = [];
   particles: Particle[] = [];
+  studyDrilling = new StudyDrillEffects();
+  studyMiner = new StudyMinerMotion();
   atmosphere = new CaveAtmosphere();
   wallBuilder?: WallBuilder;
   placementControls?: PlacementControls;
@@ -345,6 +352,8 @@ export class MiningScene extends Phaser.Scene {
     if (event.matches) {
       this.shake = 0;
       this.particles.length = 0;
+      this.studyDrilling.clear();
+      this.studyMiner.reset();
       this.atmosphere.clear();
       this.cameraZoom = this.cameraZoomTarget;
     }
@@ -497,7 +506,7 @@ export class MiningScene extends Phaser.Scene {
     // Freeze the original campaign fallback for every visited legacy world
     // before later saves change the active planet's top-level chart.
     for (const state of Object.values(this.mapStates)) state.planetChart ??= { ...this.campaignChart };
-    this.campaignSeed = saved?.campaignSeed ?? crypto.getRandomValues(new Uint32Array(1))[0];
+    this.campaignSeed = saved?.campaignSeed ?? (visualStudy ? 271026 : crypto.getRandomValues(new Uint32Array(1))[0]);
     const savedMapState = this.mapStates[this.mapId];
     this.mothershipBoarded = saved?.mothershipBoarded ?? false;
     this.solarPosition = saved?.solarPosition ?? null;
@@ -510,6 +519,7 @@ export class MiningScene extends Phaser.Scene {
     this.activeCharge = mapState.activeCharge;
     this.world = mapState.world;
     this.world.miningOnly = true;
+    if (visualStudy) prepareStudy(this.world);
     this.surfaceFeatures = surfaceLandmarks(this.world, this.mapId);
     this.rockSwimmer = new RockSwimmer(this.world.seed, this.mapId, this.world);
     this.surfaceRaid = new SurfaceRaid(this.world.seed, this.mapId);
@@ -1236,6 +1246,8 @@ export class MiningScene extends Phaser.Scene {
           cargoCapacity: this.progress.max('cargo'),
           surveyedCells: this.world.discovered.size,
           vehiclePose: { ...this.vehiclePose },
+          studyContact: revisedArt ? structuredClone(this.studyMiner.contact) : null,
+          studyFragments: revisedArt ? this.studyDrilling.fragments.length : 0,
           lamp: {aim:{...this.lampAim},lit:[...this.lampLight.lit]},
           podScale: podVisualScale(this.progress.levels, this.progress.shipComponents.length),
           camera: { x: this.camX, y: this.camY },
@@ -2139,6 +2151,11 @@ export class MiningScene extends Phaser.Scene {
   }
   drillBurst(tile: Tile) {
     if (this.reducedMotion) return;
+    if (revisedArt) {
+      this.drillRecoil = Math.max(this.drillRecoil, tile.type === 'hard' ? 1 : 0.62);
+      this.studyDrilling.break(tile, this.pod);
+      return;
+    }
     const profile = drillImpactProfile(tile, this.mapId),
       drillTier = drillVisualTier(this.progress.levels.drill),
       x = tile.x * WORLD.tile + WORLD.tile / 2,
@@ -2375,6 +2392,7 @@ export class MiningScene extends Phaser.Scene {
   }
   update(_time: number, delta: number) {
     if (!this.ui) return;
+    if (this.pod) this.pod.surfaceStepEnabled = visualStudy && surfaceStepStudy;
     if(this.ui.hasStarted&&this.mothershipHull<=0){if(!['defeat','new'].includes(this.ui.modal??''))this.ui.open('defeat');return;}
     if(this.ui.hasStarted&&this.stranded&&this.deathAge===undefined&&!this.ui.modal)this.ui.open('failure');
     if(this.deathAge!==undefined&&!this.ui.paused){this.deathAge+=Math.min(delta/1000,.05);if(this.deathAge>=MINER_DEATH.duration){this.deathAge=undefined;this.ui.open('failure');}}
@@ -2887,6 +2905,10 @@ export class MiningScene extends Phaser.Scene {
     this.shake = Math.max(0, this.shake - dt * 15);
     this.world.prune(this.cameraSubject.y, this.cameraSubject.x);
     this.atmosphere.update(this.world, dt, this.atmosphereView(), this.reducedMotion, this.ui.paused);
+    if (!revisedArt) this.studyDrilling.clear();
+    else if (!this.ui.paused) this.studyDrilling.update(this.world, dt,
+      this.mining.ratio > 0 && !this.ui.modal ? this.mining.target : undefined,
+      this.pod, this.mining.ratio, this.reducedMotion);
     for (const particle of this.particles) {
       particle.life -= dt;
       if (particle.kind !== 'ring') {
@@ -2924,7 +2946,9 @@ export class MiningScene extends Phaser.Scene {
     const origin = this.worldPointToLocal(this.pod.x, this.pod.y, this.scale.width, this.scale.height);
     const velocityPoint = this.worldPointToLocal(this.pod.x + this.pod.vx * 0.05,
       this.pod.y + this.pod.vy * 0.05, this.scale.width, this.scale.height);
+    if (!this.ui.paused) { this.vehiclePose.bank -= this.studyMiner.appliedLean; this.studyMiner.appliedLean = 0; }
     this.vehiclePose = advanceVehiclePose(this.vehiclePose, {
+      mechanicalTurn: revisedArt,
       sideSpeed: (velocityPoint.x - origin.x) / 0.05,
       verticalSpeed: (velocityPoint.y - origin.y) / 0.05,
       lookingX: this.lookDirection.x, lookingY: this.lookDirection.y, firing: this.shots.length>0,
@@ -2932,6 +2956,20 @@ export class MiningScene extends Phaser.Scene {
       grounded: this.pod.docked || Math.abs(this.pod.vy) < 0.1 && !this.pod.thrusting,
       drilling: !!this.mining.target || this.tick<this.meleeUntil, paused: this.ui.paused, reducedMotion: this.reducedMotion,
     }, dt);
+    if (revisedArt && !this.ui.paused) {
+      const pose=this.vehiclePose, scale=podVisualScale(this.progress.levels,this.progress.shipComponents.length);
+      const center=this.worldPointToScreen(this.pod.x,this.pod.y,this.scale.width,this.scale.height);
+      this.studyMiner.appliedLean = this.reducedMotion ? 0 : this.studyMiner.lean;
+      pose.bank += this.studyMiner.appliedLean;
+      const fitted=this.progress.loadout.fitted, heavy=fitted.hull==='bastion', scout=fitted.hull==='scout';
+      const sole=(scout?28:heavy?23:25)-pose.gear*9+2;
+      const localWorld=(u:number,v:number,depth=0)=>{const pt=minerPoint(center.x,center.y,scale,pose,this.reducedMotion,u,v,depth);return this.screenPointToWorld(pt.x,pt.y,this.scale.width,this.scale.height);};
+      const footXs=[-1,1].map(side=>side*((heavy?23:scout?18:21)+pose.drill*2)-pose.gear*side*7+pose.stride*Math.sin(pose.phase*10+(side<0?0:Math.PI))*3);
+      const feet=footXs.map((u,i)=>pose.grounded&&!this.progress.pilotEscaping&&!this.mothershipBoarded&&!this.rigSwap
+        ?findFootContact(u,sole,(x,y)=>{const pt=localWorld(x,y,i===0?-7:7);return this.world.solid(Math.floor(pt.x/WORLD.tile),Math.floor(pt.y/WORLD.tile));}):{offset:0,angle:0,supported:false});
+      const impacts=this.studyMiner.update(pose,feet,dt,this.reducedMotion);
+      for(const i of impacts){const pt=localWorld(footXs[i],sole+feet[i].offset-1,i===0?-7:7);const tile=this.world.get(Math.floor(pt.x/WORLD.tile),Math.floor((pt.y+this.world.gravitySign(pt.y)*3)/WORLD.tile));this.studyDrilling.tread(pt,this.world.gravitySign(pt.y),tile,pose.landing>.12);}
+    } else if (!revisedArt) this.studyMiner.reset();
     if(!this.ui.paused) {
       const center=this.worldPointToScreen(this.pod.x,this.pod.y,this.scale.width,this.scale.height);
       const lens=minerLampPoint(center.x,center.y,podVisualScale(this.progress.levels,this.progress.shipComponents.length),this.progress,this.vehiclePose,this.reducedMotion);
@@ -3126,7 +3164,8 @@ export class MiningScene extends Phaser.Scene {
         g.fillRect(expandedViewport.x,expandedViewport.y,expandedViewport.width,expandedViewport.height);
       }
       drawSkyArt(g, this.mapId, expandedViewport);
-      if(this.mapId === 'cryo-shelf') drawCryoLandscape(g,project,this.world.planetChart.columns,T,this.tick,this.reducedMotion,Math.max(0,-Math.min(this.pod.y,this.world.farSurfaceY-this.pod.y)));
+      if(revisedArt) drawStudyLandscape(g,project,this.world.planetChart.columns,isOnScreen);
+      else if(this.mapId === 'cryo-shelf') drawCryoLandscape(g,project,this.world.planetChart.columns,T,this.tick,this.reducedMotion,Math.max(0,-Math.min(this.pod.y,this.world.farSurfaceY-this.pod.y)));
       const farSurface = this.pod.y >= this.world.coreWorldY;
       const surfaceRow = farSurface ? this.world.farSurfaceRow : 0;
       if(this.mapId !== 'cryo-shelf') drawSurfaceLandmarks(g, this.surfaceFeatures, this.mapId, localProject, (x, y) => isOnScreen(x, y, 260));
@@ -3250,10 +3289,10 @@ export class MiningScene extends Phaser.Scene {
         return project(x,y+(far?-1:1)*inset);
       });
       const rim=contour(0),inner=contour(T*2);
-      g.fillStyle(MAPS[this.mapId].palette[0]);
+      g.fillStyle(revisedArt ? 0x223740 : MAPS[this.mapId].palette[0]);
       g.fillPoints(rim,true);
       for(let i=0;i<count;i++) {
-        g.fillStyle(surfaceStyle.ground);
+        g.fillStyle(revisedArt ? 0x30444d : surfaceStyle.ground);
         g.fillPoints([rim[i],rim[i+1],inner[i+1],inner[i]],true);
         g.fillStyle(0x0d1c29,.46);
         g.fillPoints([rim[i],rim[i+1],inner[i+1],inner[i]],true);
@@ -3315,6 +3354,10 @@ export class MiningScene extends Phaser.Scene {
           beamDistance = Math.max(0, (dx * aimPolar.dx + dy * aimPolar.dy) / Math.max(0.001, Math.hypot(aimPolar.dx, aimPolar.dy))),
           lamp = Math.max(0, 1 - distance / Math.max(1, this.pod.scannerRadius * 1.25)),
           light = this.lampLight.lit.has(tileKey) ? Math.max(.55, 1-distance/14) : Math.max(0.19, lamp * 0.58);
+        if (!seen && revisedArt) {
+          drawStudyRock(g,this.world,{...tile,ore:undefined},x,y,[topLeft,topRight,bottomRight,bottomLeft],.25);
+          continue;
+        }
         if (!seen) {
           const crust = Math.min(y, this.world.farSurfaceRow - 1 - y) < 3;
           // Do not expose hidden chambers through their empty-cell material tint.
@@ -3323,6 +3366,10 @@ export class MiningScene extends Phaser.Scene {
           g.fillStyle(0x0d1c29, crust ? 0.46 : 0.8);
           g.fillPoints([topLeft, topRight, bottomRight, bottomLeft], true);
 
+          continue;
+        }
+        if (tile.type === 'empty' && revisedArt) {
+          drawStudyCavity(g,x,y,[topLeft,topRight,bottomRight,bottomLeft],this.tick,this.reducedMotion);
           continue;
         }
         if (tile.type === 'empty') {
@@ -3352,8 +3399,9 @@ export class MiningScene extends Phaser.Scene {
           g.fillRect(px + 7, py + 31, 2, 2);
           continue;
         }
-        drawGeology(g, this.world, tile, x, y, project, light, [topLeft, topRight, bottomRight, bottomLeft]);
-        if (tile.ore) {
+        if(revisedArt) drawStudyRock(g,this.world,tile,x,y,[topLeft,topRight,bottomRight,bottomLeft],light);
+        else drawGeology(g, this.world, tile, x, y, project, light, [topLeft, topRight, bottomRight, bottomLeft]);
+        if (tile.ore && !revisedArt) {
           const color = ORES[tile.ore].color;
           const silhouette = ORE_SILHOUETTES[tile.ore];
           const markerX = px + tileWidth / 2, markerY = py + tileHeight / 2,
@@ -3486,7 +3534,7 @@ export class MiningScene extends Phaser.Scene {
             g.fillRect(px + 16, py + 19, 8, 2);
           }
         }
-        if (this.mining.affected.some((target) => target.x === x && target.y === y)) {
+        if (!revisedArt && this.mining.affected.some((target) => target.x === x && target.y === y)) {
           g.lineStyle(1, 0xf5d59b, 0.7);
           g.strokeRect(px + 1, py + 1, T - 2, T - 2);
           g.lineStyle(2, 0x1d2528);
@@ -3501,7 +3549,10 @@ export class MiningScene extends Phaser.Scene {
           g.fillRect(px + 4, py + 34, (T - 8) * this.mining.ratio, 3);
         }
       }
-    drawSurfaceGround(g,this.world,project,isOnScreen,this.structures,this.tick,this.reducedMotion);
+    if(revisedArt) drawStudyContours(g,this.world,project,left,right,top,bottom);
+    drawSurfaceGround(g,this.world,project,isOnScreen,this.structures,this.tick,this.reducedMotion,!revisedArt);
+    if(revisedArt) drawStudySurface(g,this.world,project,isOnScreen,this.structures,this.tick,this.reducedMotion);
+    if(revisedArt) drawStudySite(g,this.world,project,this.tick,this.reducedMotion);
     if (ground > 0 && this.world.planetChart) {
       const surfaceRow = this.pod.y >= this.world.coreWorldY ? this.world.farSurfaceRow : 0;
       const coreRecords = this.progress.milestones.filter((id) => CORE_RELICS.some((relic) => relic.id === id));
@@ -4150,7 +4201,7 @@ export class MiningScene extends Phaser.Scene {
       g.fillPoints([minerLampPoint(x,y,vehicleScale,this.progress,this.vehiclePose,this.reducedMotion),...this.lampLight.ends.map(pt=>project(pt.x,pt.y))],true);
     }
     if(this.rigSwap)drawRigSwap(g,x,y,vehicleScale,this.progress,this.rigSwap.age,project(MOTHERSHIP.x+100,-70),this.reducedMotion);
-    else if(!this.stranded||this.failureReason==='fuel') drawMiner(g, x, y, vehicleScale, this.progress, this.vehiclePose, this.reducedMotion, {x:beamX,y:beamY}, this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION?{age:this.tick-this.unloading.at,count:this.unloading.count}:undefined);
+    else if(!this.stranded||this.failureReason==='fuel') drawMiner(g, x, y, vehicleScale, this.progress, this.vehiclePose, this.reducedMotion, {x:beamX,y:beamY}, this.unloading&&this.tick-this.unloading.at<UNLOAD_DURATION?{age:this.tick-this.unloading.at,count:this.unloading.count}:undefined,revisedArt?this.studyMiner.contact:undefined);
 
     }
     if (!this.reducedMotion) this.atmosphere.draw(g, this.world, this.atmosphereView(), sx, sy, true);
@@ -4164,7 +4215,8 @@ export class MiningScene extends Phaser.Scene {
         g.lineBetween(sx(this.pod.x), sy(this.pod.y), ax + T / 2, ay + T / 2);
       }
     }
-    if (!this.reducedMotion && this.mining.target && !this.ui.paused && Math.random() < 0.6) {
+    if (revisedArt) this.studyDrilling.draw(g, project, this.reducedMotion);
+    if (!revisedArt && !this.reducedMotion && this.mining.target && !this.ui.paused && Math.random() < 0.6) {
       const target = this.mining.target,
         profile = drillImpactProfile(target, this.mapId),
         targetDx = target.x * T + T / 2 - this.pod.x;
