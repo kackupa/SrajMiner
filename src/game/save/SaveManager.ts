@@ -1,3 +1,4 @@
+import { visualStudy } from '../study/VisualStudy';
 import type { SurfaceTerrain } from '../world/SurfaceTerrain';
 import { defaultLoadout, validLoadout, type Loadout } from '../economy/Loadout';
 import { validCargo } from '../economy/Freight';
@@ -368,9 +369,11 @@ export function parseSaveFile(contents: string): SaveData | null {
   }
 }
 export class SaveManager {
+  private studySave: SaveData | null = null;
   warning = '';
   migratedLegacyStock = false;
   load(): SaveData | null {
+    if (visualStudy) return this.studySave ? structuredClone(this.studySave) : null;
     try {
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
@@ -384,6 +387,7 @@ export class SaveManager {
     return null;
   }
   write(data: SaveData) {
+    if (visualStudy) { this.studySave = structuredClone(data); return true; }
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
       return true;

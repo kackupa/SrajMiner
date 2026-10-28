@@ -1,0 +1,4 @@
+.art-study-controls { position:fixed; z-index:10000; top:64px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:7px 10px; border:1px solid #8fb4ba66; border-radius:10px; background:#091922ed; color:#c5d9df; font:11px 'Space Mono',monospace; max-width:calc(100vw - 20px); }
+.art-study-controls button,.art-study-controls a { border:1px solid #8fb4ba66; border-radius:6px; background:#213b46; color:#fff0d4; padding:10px 12px; font:inherit; cursor:pointer; white-space:nowrap; text-decoration:none; }
+.art-study-controls button[aria-pressed=true] { border-color:#ffbb72; color:#ffbb72; }
+@media(max-width:600px) { .art-study-controls { top:58px; gap:5px; padding:5px; flex-wrap:wrap; justify-content:center; width:330px; }.art-study-controls span { flex-basis:100%; text-align:center; font-size:8px; }.art-study-controls button,.art-study-controls a { padding:10px 8px; font-size:10px; } }

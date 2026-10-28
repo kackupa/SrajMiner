@@ -5,9 +5,9 @@ import type {TileWorld} from '../world/TileWorld';
 import {random} from '../world/TileWorld';
 import type {UndergroundStructure} from '../building/UndergroundStructures';
 /** Low foreground scenery follows the globe and disappears when its supporting tile is mined. */
-export function drawSurfaceGround(g:Phaser.GameObjects.Graphics,world:TileWorld,project:(x:number,y:number)=>{x:number;y:number},visible:(x:number,y:number,pad:number)=>boolean,structures:UndergroundStructure[],time:number,reduced:boolean){
+export function drawSurfaceGround(g:Phaser.GameObjects.Graphics,world:TileWorld,project:(x:number,y:number)=>{x:number;y:number},visible:(x:number,y:number,pad:number)=>boolean,structures:UndergroundStructure[],time:number,reduced:boolean,scenery=true){
  const T=WORLD.tile,palette=MAPS[world.mapId].surface;
- for(const far of [false,true]){
+ if(scenery)for(const far of [false,true]){
   const sign=far?-1:1,baseRow=far?world.farSurfaceRow-1:0;
   for(let cell=2;cell<world.widthTiles-2;cell+=3){
    const r=random(world.seed,cell,baseRow,9831),x=(cell+.2+r*1.3)*T;

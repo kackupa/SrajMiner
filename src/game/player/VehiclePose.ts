@@ -12,6 +12,8 @@ export type VehiclePose = {
   lastVerticalSpeed: number;
   stride: number;
   lookX: number; lookY: number; fire: number;
+  /** Opt-in art study yaw, in radians. Never saved or used by movement. */
+  yaw?: number;
 };
 export const restingVehiclePose = (): VehiclePose => ({
   bank: 0,
@@ -28,6 +30,7 @@ export function advanceVehiclePose(
   pose: VehiclePose,
   input: {
     lookingX?: number; lookingY?: number; firing?: boolean;
+    mechanicalTurn?: boolean;
     sideSpeed: number;
     verticalSpeed: number;
     facing: number;
@@ -46,7 +49,10 @@ export function advanceVehiclePose(
   const bank = input.reducedMotion ? 0 : clamp(input.sideSpeed / 650, 0.28);
   const pitch = input.reducedMotion || input.grounded ? 0 : clamp(input.verticalSpeed / 900, 0.24);
   const impact = input.grounded && !pose.grounded ? Math.min(1, Math.abs(pose.lastVerticalSpeed) / 260) : 0;
+  const targetYaw=input.facing<0?Math.PI:0, oldYaw=pose.yaw??(pose.turn<0?Math.PI:0);
+  const yaw=input.reducedMotion?targetYaw:oldYaw+clamp(targetYaw-oldYaw,step*Math.PI/.22);
   return {
+    ...(input.mechanicalTurn?{yaw}:{}),
     lookX: pose.lookX+((input.lookingX??input.facing)-pose.lookX)*blend,
     lookY: pose.lookY+((input.lookingY??0)-pose.lookY)*blend,
     fire: input.reducedMotion ? 0 : input.firing ? 1 : pose.fire*Math.exp(-step*22),

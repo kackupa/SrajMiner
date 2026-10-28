@@ -75,6 +75,7 @@ export const depthAtWorldY = (y: number, chart?: PlanetChartSize) => {
   const coreY = coreWorldYFor(chart), farY = farSurfaceYFor(chart);
   return Math.max(0, Math.floor(((y < coreY ? y : farY - y) + 16) / WORLD.tile * WORLD.meters));
 };
+export const SURFACE_STEP_STUDY = { maxRise: 40, seconds: 0.18, footClearance: 22, maxFallSpeed: 60 };
 export const PHYSICS = {
   gravity: 430,
   acceleration: 650,
@@ -89,6 +90,8 @@ export const PHYSICS = {
   halfHeight: 16,
   /** A narrow physical hull lets the visible pod glide past jagged and curved tile corners. */
   horizontalCollisionInset: 8,
+  /** Auto-align around small floor/ceiling lips while steering, never through a full block. */
+  horizontalCornerTolerance: 8,
 };
 export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 60,
