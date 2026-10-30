@@ -1,5 +1,92 @@
+/** Equipment and encounters for the isolated uniform planet only. */
+export type StudyWeaponSpec = {
+  id:string; name:string; slot:'primary'|'secondary'; description:string; role:string;
+  credits:number; iron:number; copper:number; silver:number;
+  cooldown:number; speed:number; range:number; tracer:number; damage:number;
+  armor:number; blast:number; color:number; length:number;
+};
+export const STUDY_WEAPONS: StudyWeaponSpec[] = [
+  {id:'machine-gun',name:'Machine gun',slot:'primary',description:'Reliable rapid fire. Chips rock without destroying it.',role:'Soft targets',credits:0,iron:0,copper:0,silver:0,cooldown:.12,speed:1050,range:800,tracer:24,damage:8,armor:.35,blast:0,color:0xffd18a,length:16},
+  {id:'minigun',name:'Minigun',slot:'primary',description:'Spins up into a stream of rounds. Best against swarms.',role:'Crowd control',credits:80,iron:6,copper:2,silver:0,cooldown:.055,speed:1100,range:680,tracer:20,damage:5,armor:.25,blast:0,color:0xffbc72,length:22},
+  {id:'autocannon',name:'Autocannon',slot:'primary',description:'Heavy shells punch through armour and break the struck block.',role:'Armoured targets',credits:120,iron:8,copper:0,silver:2,cooldown:.55,speed:850,range:950,tracer:32,damage:34,armor:1,blast:0,color:0xff936e,length:23},
+  {id:'beam-laser',name:'Pulse laser',slot:'primary',description:'Fast, precise energy pulses cut through armour. Only weakens rock.',role:'Precision / armour',credits:160,iron:2,copper:10,silver:3,cooldown:.16,speed:9000,range:880,tracer:110,damage:15,armor:.85,blast:0,color:0x8aefe4,length:21},
+  {id:'arc',name:'Arc caster',slot:'primary',description:'Short-range discharge jumps to two nearby enemies. Rock blocks the arc.',role:'Clustered enemies',credits:140,iron:3,copper:8,silver:3,cooldown:.6,speed:2800,range:380,tracer:55,damage:24,armor:.55,blast:0,color:0xb9acff,length:19},
+  {id:'rocket',name:'Rocket pod',slot:'secondary',description:'Straight-flying rockets blast a small cluster of blocks. Ore is destroyed.',role:'Direct blast',credits:0,iron:0,copper:0,silver:0,cooldown:1.4,speed:440,range:950,tracer:14,damage:60,armor:.8,blast:62,color:0xffae67,length:19},
+  {id:'grenade',name:'Grenade launcher',slot:'secondary',description:'Lobs a bouncing charge. A short fuse clears tight caves. Stay clear of the blast.',role:'Caves / wide blast',credits:70,iron:5,copper:2,silver:0,cooldown:1.8,speed:260,range:650,tracer:9,damage:80,armor:.6,blast:90,color:0xa6d887,length:14},
+  {id:'missile',name:'Hunter missiles',slot:'secondary',description:'Tracks a visible airborne target near your aim. No lock needed to launch. Rock breaks the lock.',role:'Anti-air tracking',credits:130,iron:6,copper:4,silver:2,cooldown:1.8,speed:380,range:1100,tracer:18,damage:65,armor:1,blast:48,color:0x92d6ee,length:24},
+];
+export const UNIFORM_COMBAT = {
+  minigunSpinup:.3, damageGrace:.65, blastSelfDamage:18,
+  chainRange:125, chainFalloff:.65, chargeSpeed:170, attackRange:95, contactRange:42,
+  flyerAttackRange:300, flyerStandoff:170, spitSpeed:220, spitLifetime:3, gravity:120,
+  grenadeGravity:230, grenadeFuse:1.3, grenadeBounce:.55, missileTurnRate:2.5, missileLockCone:.65,
+  hull:100, repairPerSecond:24, rescueGrace:3, contactDamage:14, spitDamage:9,
+  aggro:390, territory:500, windup:.65, recover:1.2, crawlerSpeed:45, flyerSpeed:78,
+  enemyRadius:13, nestHealth:100, enemyHealth:48, armoredHealth:90, reward:18, nestReward:60,
+  shipRange:340, shipCooldown:.38, shipDamage:18,
+  sites:[
+    {name:'Ridge roost',x:450,y:-1775,kind:'flyer'},
+    {name:'Far-side roost',x:1775,y:180,kind:'flyer'},
+    {name:'Copper den',x:200,y:-1300,kind:'crawler'},
+    {name:'Armour hollow',x:-100,y:-750,kind:'armored'},
+    {name:'Core brood',x:220,y:-180,kind:'armored'},
+  ],
+} as const;
 export const WORK_LAMP = { range: 440, halfAngle: Math.PI / 6, rays: 40, step: 8 };
+/** One authored surface adventure in the disposable uniform planet. Angles run
+ * clockwise from the north pole; cell sizes remain Cartesian everywhere. */
+export const SURFACE_EXPEDITION = {
+  ridge: .075, crater: .36, mountain: .65, wreckAngle: .36,
+  ridgeHeight: 105, craterDepth: 88, mountainHeight: 195,
+  gunshipHealth: 180, patrolSpeed: 95, strafeSpeed: 210,
+  warningSeconds: .95, passSeconds: 1.65, turnSeconds: 2.2,
+  bulletSpeed: 310, burstInterval: .25, detection: 620,
+  leash: 950, gunshipRadius: 25, salvageKredits: 140, salvageIron: 6,
+  routeStep: 24, routeRange: 600, routeRefresh: .7, jumpSpeed: 165, creatureGravity: 340,
+} as const;
 export const WORLD = { tile: 40, width: 48, homeColumn: 24, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
+/** Separate, memory-only Cartesian terrain experiment. Never used by campaigns. */
+export const UNIFORM_PLANET_STUDY = {
+  radius: 1760, tile: 40, coreRadius: 125, bodyRadius: 16,
+  coreSurfaceRadius: 72, coreFuelPerCycle: 4, coreSecondsPerUnit: 2.5,
+  walkSpeed: 155, flightSpeed: 225, gravity: 340, maxFallSpeed: 240,
+  diveSpeed: 350, diveAcceleration: 1250,
+  thrustCornerClearance: 32, thrustClearanceProbe: 4, thrustClearanceSpeed: 120,
+  drillSeconds: .32, drillReach: 92, cargoCapacity: 48,
+  surfaceDrillRise: .42, undergroundDrillRise: .15,
+  stations: [
+    { name: 'Surface', x: 180, y: -1800 },
+    { name: 'Mid-depth', x: 0, y: -780 },
+    { name: 'Near core', x: 0, y: -220 },
+  ],
+} as const;
+/** Mobile mothership prototype only. No campaign economy migration. */
+export const FLEET_STUDY = {
+  testCredits:1000,
+  starterGun: { cooldown: .12, speed: 1050, range: 800, tracer: 24 },
+  missile: { cooldown: 1.4, speed: 440, range: 950, tracer: 14 },
+  terrainDamage: { bullet: .12, maxBulletWeakening: .66, blastRadius: 62 },
+  prices: { copper: 12, iron: 20, silver: 45 },
+  serviceRange: 290, flightSeconds: 7, flightHeight: 340,
+  rackCapacity: 72, drillMultiplier: 1.65, upgradedFlightMultiplier: .6,
+  modules: [
+    { id: 'rack', name: 'Hauler cargo rack', description: 'Carry 72 ore per trip. External pods fit onto your miner.', credits: 60, ore: { copper: 8, iron: 4, silver: 0 } },
+    { id: 'drill', name: 'Excavator head', description: 'Cut rock 65% faster with a wider rotary head.', credits: 40, ore: { copper: 4, iron: 6, silver: 0 } },
+    { id: 'thrusters', name: 'Vector thrusters', description: 'Relocate your mothership 40% faster. Visible engine nacelles.', credits: 120, ore: { copper: 0, iron: 8, silver: 3 } },
+  ],
+} as const;
+/** Disposable combat expedition. These rewards never enter campaign saves. */
+export const COMBAT_STUDY = {
+  pickupRadius: 72,
+  repairSupply: 20,
+  chargeSupply: 25,
+  crawler: { gravity: 360, speed: 44, lungeSpeed: 170, jumpSpeed: 110, windup: .65, charge: .45, recover: 1.1, range: 145 },
+  sites: [
+    { name: 'Lost survey camp', x: 35, y: 10, kind: 'rock-swimmer', ore: 'iron', units: 6 },
+    { name: 'Crystal hollow', x: 53, y: 13, kind: 'shard-manta', ore: 'silver', units: 4 },
+    { name: 'Buried drill rig', x: 70, y: 16, kind: 'hull-scrapper', ore: 'copper', units: 6 },
+  ],
+} as const;
 export type RigSlot = 'hull' | 'drill' | 'engine' | 'battery' | 'weapon' | 'utility';
 export type RigItem = { id: string; slot: RigSlot; name: string; description: string; power: number; materials: Partial<Record<Ore, number>>; stats?: Partial<Record<Upgrade, number>>; capacity?: number; weapon?: { cooldown: number; energy: number; damage: number; range: number; color: number } };
 export const RIG_ITEMS: RigItem[] = [
@@ -97,6 +184,7 @@ export const UNDERGROUND_BUILDING = {
   minimumDepthMeters: 60,
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
   service: { credits: 0, materials: { iron: 4, copper: 4 }, widthTiles: 5 },
+  light: { credits: 0, materials: { copper: 1, iron: 1 }, widthTiles: 1, range: 280, rays: 120, refreshSeconds: 0.3 },
   turret: { credits: 560, materials: { iron: 4, silver: 3 }, widthTiles: 3, range: 440, reloadSeconds: 1.4 },
   'trade-post': { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5 },
   habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, serviceRadius: 220 },

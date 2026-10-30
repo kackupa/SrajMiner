@@ -367,7 +367,7 @@ export class HUD {
         ? `CARGO FULL: EXCESS ORE DROPS HERE. CLEAR THE ROUTE; RETURN AFTER SELLING TO COLLECT IT.`
         : `CARGO SHORT: ${cargoSpace} OF ${overflowUnits} UNITS FIT. THE REST DROPS HERE FOR YOUR RETURN TRIP.`
       : '';
-    panel.innerHTML = `<div><b>${shipPart ? '✦ LEGACY SURVEY SAMPLE · ' : coreRelic ? '◈ PLANET CORE · ' : tile.geode ? '✦ PRISM GEODE · ' : regionalFind ? `✦ ${regionalFind.name} · ` : signalHash ? '◈ ARCHIVE HASH · ' : ''}${name.toUpperCase()}${ore && units !== 1 ? ` · +${units} UNITS` : ''}</b><span>${shipPart ? `SURVEY GRANT · +K ${ROUTE_PART_RECOVERY_BONUS} KREDITS` : coreRelic ? `+${CORE_FUEL.unitsPerCore} CORE FUEL` : signalHash ? 'OPTIONAL HASH HAS NO CASH VALUE' : ore ? `K ${ore.value} / unit` : 'NO ORE'} · ${width} BLOCK${width === 1 ? '' : 'S'} WIDE · ${this.p.drillTime(tile.hardness).toFixed(2)}s CUT</span></div><div class="cut-meter"><i style="width:${ratio * 100}%"></i></div><small>${full ? overflowWarning : laserVenting ? 'EMITTER VENTING · CUT PAUSED · RELEASE TO COOL FASTER' : shipPart ? `LEGACY SURVEY SAMPLE · CUTTING ${Math.round(ratio * 100)}%` : coreRelic ? `${coreRelic.detail} · CUT TO RECORD PLANET AND REFILL JUMPS · ${Math.round(ratio * 100)}%` : signalHash ? `${signalHash.detail} · CUTTING ${Math.round(ratio * 100)}%` : tile.geode ? `RARE CRYSTAL POCKET · GUARANTEED 3 UNITS · CUTTING ${Math.round(ratio * 100)}%` : regionalFind ? `${regionalFind.detail} · CUTTING ${Math.round(ratio * 100)}%` : `CUTTING ${Math.round(ratio * 100)}%`}</small>`;
+    panel.innerHTML = `<div><b>${shipPart ? '✦ LEGACY SURVEY SAMPLE · ' : coreRelic ? '◈ PLANET CORE · ' : tile.geode ? '✦ PRISM GEODE · ' : regionalFind ? `✦ ${regionalFind.name} · ` : signalHash ? '◈ ARCHIVE HASH · ' : ''}${name.toUpperCase()}${ore && units !== 1 ? ` · +${units} UNITS` : ''}</b><span>${shipPart ? `SURVEY GRANT · +₭${ROUTE_PART_RECOVERY_BONUS} KREDITS` : coreRelic ? `+${CORE_FUEL.unitsPerCore} CORE FUEL` : signalHash ? 'OPTIONAL HASH HAS NO CASH VALUE' : ore ? `₭${ore.value} / unit` : 'NO ORE'} · ${width} BLOCK${width === 1 ? '' : 'S'} WIDE · ${this.p.drillTime(tile.hardness).toFixed(2)}s CUT</span></div><div class="cut-meter"><i style="width:${ratio * 100}%"></i></div><small>${full ? overflowWarning : laserVenting ? 'EMITTER VENTING · CUT PAUSED · RELEASE TO COOL FASTER' : shipPart ? `LEGACY SURVEY SAMPLE · CUTTING ${Math.round(ratio * 100)}%` : coreRelic ? `${coreRelic.detail} · CUT TO RECORD PLANET AND REFILL JUMPS · ${Math.round(ratio * 100)}%` : signalHash ? `${signalHash.detail} · CUTTING ${Math.round(ratio * 100)}%` : tile.geode ? `RARE CRYSTAL POCKET · GUARANTEED 3 UNITS · CUTTING ${Math.round(ratio * 100)}%` : regionalFind ? `${regionalFind.detail} · CUTTING ${Math.round(ratio * 100)}%` : `CUTTING ${Math.round(ratio * 100)}%`}</small>`;
   }
   constructor(
     public p: Progress,
@@ -563,7 +563,7 @@ export class HUD {
     const touch = matchMedia('(any-pointer: coarse)').matches;
     const atlas = legacyMars ? '' : atlasMarkup(this.mapId);
     const launchButton = `<button class="primary" id="launch">${this.loaded ? 'CONTINUE EXPEDITION' : 'BEGIN EXPEDITION'} <span>↗</span></button>`;
-    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${visualStudy ? 'ORE FRONTIER / ART TEST' : intro.eyebrow}</div><h1>${visualStudy ? 'THE LANDING SITE.<br><em>A PLAYABLE ART TEST.</em>' : this.loaded ? 'MOTHERSHIP<br><em>STANDING BY.</em>' : intro.headline}</h1><p>${visualStudy ? 'Head right to the work lights and enter the mine. Compare the artwork with the button above. This test resets when you reload; your expedition stays untouched.' : this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Fly / brake</b><small>Fly up or slow your fall</small></div><div><kbd>${touch ? 'FIRE' : 'Shift + click'}</kbd><b>Shoot</b><small>Fit a weapon first</small></div><div><kbd>${touch ? 'Unload / Repair' : 'F / G'}</kbd><b>Unload / repair</b><small>F: ship / warehouse · G: ship repair</small></div><div><kbd>${touch ? 'Tools → Build' : 'B'}</kbd><b>Build</b><small>Place colony structures</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button><button type="button" id="intro-account">Account</button></nav></div>`;
+    const titleScreen = `<div class="intro-screen intro-title-screen"><div class="eyebrow">${visualStudy ? 'ORE FRONTIER / ART TEST' : intro.eyebrow}</div><h1>${visualStudy ? 'The landing site.<br><em>A playable art test.</em>' : this.loaded ? 'Mothership<br><em>standing by.</em>' : intro.headline}</h1><p>${visualStudy ? 'Head right to the work lights and enter the mine. Compare the artwork with the button above. This test resets when you reload; your expedition stays untouched.' : this.migrationNotice ? 'Old stock stays on each planet. Your new empty 50-unit ship hold travels with you.' : this.loaded ? 'Your rig, buildings and tunnels are saved. Continue your mining operation.' : intro.dek}</p><div class="learn-loop"><div><kbd>${'A D'}</kbd><b>Move</b><small>Steer across the surface</small></div><div><kbd>${touch ? 'S' : 'S / Mouse'}</kbd><b>Mine</b><small>Hold to drill into rock</small></div><div><kbd>${touch ? 'W' : 'W / ↑'}</kbd><b>Fly / brake</b><small>Fly up or slow your fall</small></div><div><kbd>${touch ? 'FIRE' : 'Shift + click'}</kbd><b>Shoot</b><small>Fit a weapon first</small></div><div><kbd>${touch ? 'Unload / Repair' : 'F / G'}</kbd><b>Unload / repair</b><small>F: ship / warehouse · G: ship repair</small></div><div><kbd>${touch ? 'Tools → Build' : 'B'}</kbd><b>Build</b><small>Place colony structures</small></div></div>${launchButton}<nav class="intro-secondary" aria-label="Expedition information">${atlas ? '<button type="button" id="intro-atlas">View worlds</button>' : ''}<button type="button" id="intro-controls">How to play</button><button type="button" id="intro-account">Account</button></nav></div>`;
     const atlasScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">EXPEDITION ROUTE</span></div><h2>Worlds in the Vesper system</h2><p>Start on the Cryo Shelf. Other worlds open as your expedition ship comes online.</p>${atlas}<div class="intro-detail-actions">${launchButton}</div></div>`;
     const controlsScreen = `<div class="intro-screen intro-detail-screen"><div class="intro-detail-heading"><button type="button" class="intro-back" id="intro-back">← Back</button><span class="eyebrow">FIELD GUIDE</span></div><h2>How to play</h2><p>${intro.briefing}</p><div class="intro-controls" aria-label="Game controls"><div><kbd>A</kbd><kbd>D</kbd><span>STEER</span></div><div><kbd>S</kbd><span>DESCEND / DRILL</span></div><div><kbd>W</kbd><span>THRUST UP · BRAKE DESCENT</span></div><div><kbd>LMB</kbd><span>AIM · HOLD TO DRILL</span></div><div><kbd>SHIFT + LMB</kbd><span>FIRE FITTED WEAPON · AIM WITH MOUSE</span></div><div><kbd>G</kbd><span>FULL REPAIR + RECHARGE · NEAR SHIP · WORKS IN FLIGHT</span></div><div><kbd>F</kbd><span>FAST UNLOAD · SHIP OR WAREHOUSE · AVAILABLE STORAGE</span></div><div><kbd>E</kbd><span>OPEN SHIP / ENTER SHELTER</span></div><div><kbd>B</kbd><span>BUILD</span></div><div><kbd>H</kbd><span>TOGGLE AUTO GRAPPLE · RELEASE TETHER</span></div><div><kbd>M</kbd><span>EXPLORED MAP</span></div><div><kbd>ESC</kbd><span>PAUSE</span></div></div><p class="intro-risk">ORE FILLS CARGO · WATCH YOUR BATTERY.</p><small class="intro-note">T SELL · J REPAIR BUILDING · Q CHARGE · X STASIS · R WINCH</small><div class="intro-detail-actions">${launchButton}</div></div>`;
     document.querySelector('#modal-layer')!.innerHTML =
@@ -702,13 +702,13 @@ export class HUD {
         const selected = POD_PAINTS[p.selectedPaint];
         content = `${switcher}<div class="paint-preview"><div class="paint-pod" style="--paint-hull:#${selected.hull.toString(16).padStart(6, '0')};--paint-trim:#${selected.trim.toString(16).padStart(6, '0')};--paint-light:#${selected.light.toString(16).padStart(6, '0')}"><i></i><b></b><span></span></div><div><small>ACTIVE FINISH</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_PAINT_KEYS.map((key) => {
           const item = POD_PAINTS[key], owned = p.ownedPaints.includes(key), active = p.selectedPaint === key;
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch" style="--paint-hull:#${item.hull.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="paint-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch" style="--paint-hull:#${item.hull.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="paint-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · ₭${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Pod paint changes hull, trim, and beacon light only.</p>`;
       } else if (this.styleSection === 'suit') {
         const selected = PILOT_SUITS[p.selectedSuit];
         content = `${switcher}<div class="paint-preview"><div class="suit-preview" style="--suit-body:#${selected.body.toString(16).padStart(6, '0')};--suit-trim:#${selected.trim.toString(16).padStart(6, '0')}"><i></i><b></b><span></span><small></small></div><div><small>ACTIVE PILOT KIT</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${PILOT_SUIT_KEYS.map((key) => {
           const item = PILOT_SUITS[key], owned = p.ownedSuits.includes(key), active = p.selectedSuit === key;
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch suit-swatch" style="--paint-hull:#${item.body.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="suit-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch suit-swatch" style="--paint-hull:#${item.body.toString(16).padStart(6, '0')};--paint-trim:#${item.trim.toString(16).padStart(6, '0')}"><i></i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="suit-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · ₭${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Suit colors appear in the cockpit and change no stats or handling.</p>`;
       } else if (this.styleSection === 'decal') {
         const selected = POD_DECALS[p.selectedDecal];
@@ -716,7 +716,7 @@ export class HUD {
         content = `${switcher}<div class="paint-preview"><div class="decal-preview-mark" style="--decal-color:#${selected.color.toString(16).padStart(6, '0')}">${mark}</div><div><small>ACTIVE MARKING</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_DECAL_KEYS.map((key) => {
           const item = POD_DECALS[key], owned = p.ownedDecals.includes(key), active = p.selectedDecal === key;
           const icon = item.style === 'arrow' ? '↘' : item.style === 'crest' ? '✦' : item.style === 'prism' ? '◇' : '·';
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch decal-swatch" style="--paint-hull:#${item.color.toString(16).padStart(6, '0')}"><i>${icon}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="decal-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · K ${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="paint-swatch decal-swatch" style="--paint-hull:#${item.color.toString(16).padStart(6, '0')}"><i>${icon}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="decal-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'EQUIPPED' : owned ? 'EQUIP →' : `BUY · ₭${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Decals are applied to the pod hull and are visual only.</p>`;
       } else {
         const selected = POD_PROFILES[p.selectedProfile];
@@ -724,7 +724,7 @@ export class HUD {
         content = `${switcher}<div class="paint-preview"><div class="profile-preview profile-${selected.style}"><i>${icon}</i><span style="--cabin-color:#${selected.cabin.toString(16).padStart(6, '0')}"></span></div><div><small>ACTIVE POD PROFILE</small><b>${selected.name.toUpperCase()}</b><p>${selected.description}</p></div></div><div class="paint-grid">${POD_PROFILE_KEYS.map((key) => {
           const item = POD_PROFILES[key], owned = p.ownedProfiles.includes(key), active = p.selectedProfile === key;
           const glyph = item.style === 'antenna' ? '⌁' : item.style === 'stabilizers' ? '⋈' : item.style === 'armor' ? '⬟' : '◉';
-          return `<article class="paint-card ${active ? 'active' : ''}"><div class="profile-swatch profile-${item.style}" style="--cabin-color:#${item.cabin.toString(16).padStart(6, '0')}"><i>${glyph}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="profile-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'FITTED' : owned ? 'FIT →' : `BUY · K ${item.cost}`}</button></article>`;
+          return `<article class="paint-card ${active ? 'active' : ''}"><div class="profile-swatch profile-${item.style}" style="--cabin-color:#${item.cabin.toString(16).padStart(6, '0')}"><i>${glyph}</i></div><b>${item.name.toUpperCase()}</b><small>${item.description}</small><button id="profile-${key}" ${active || (!owned && p.money < item.cost) ? 'disabled' : ''}>${active ? 'FITTED' : owned ? 'FIT →' : `BUY · ₭${item.cost}`}</button></article>`;
         }).join('')}</div><p class="fine">Profiles change the pod's rendered silhouette only. Collision and drill clearance stay the same.</p>`;
       }
     } else if (name === 'pause') {
@@ -737,7 +737,7 @@ export class HUD {
       if (!d) { this.modal = 'pause'; this.renderModal(); return; }
       title = 'Replace this expedition?';
       sub = 'IMPORT EXPEDITION SAVE';
-      content = `<p>This will replace the save currently in this browser. Review the expedition before continuing.</p><div class="sale-total"><span>DESTINATION</span><b>${MAPS[d.activeMap].name.toUpperCase()}</b></div><div class="service-row"><div><b>CAMPAIGN STATUS</b><small>${Math.floor(d.maxDepth)} m deepest · K ${Math.floor(d.money)} Kredits · ${d.routeFragments.length} route fragments</small></div></div><button id="confirm-import" class="primary danger">IMPORT & REPLACE SAVE</button><button id="cancel-import">CANCEL</button>`;
+      content = `<p>This will replace the save currently in this browser. Review the expedition before continuing.</p><div class="sale-total"><span>DESTINATION</span><b>${MAPS[d.activeMap].name.toUpperCase()}</b></div><div class="service-row"><div><b>CAMPAIGN STATUS</b><small>${Math.floor(d.maxDepth)} m deepest · ₭${Math.floor(d.money)} Kredits · ${d.routeFragments.length} route fragments</small></div></div><button id="confirm-import" class="primary danger">IMPORT & REPLACE SAVE</button><button id="cancel-import">CANCEL</button>`;
     } else if (name === 'rescue') {
       title = 'Leave the haul behind?';
       sub = 'EMERGENCY RECOVERY';
@@ -768,7 +768,7 @@ export class HUD {
     ];
     document.querySelector('#modal-layer')!.innerHTML = name === 'sell' || name === 'discard' || name === 'arrival' || name === 'warehouse' || name === 'codex' || name === 'cargo' || name === 'building' || name === 'orders' || name === 'colony' || name === 'upgrades' ? content : name === 'construction' ? content : name === 'destinations' ? starMapMarkup(this.mapId) : name === 'pause' ? content : campMenu
       ? campShell(name, title, sub, content, p, this.mapId, campLinks, this.campNotice) :
-      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE KREDITS</span><b>K ${p.money.toLocaleString()}</b></div></section>`;
+      `<section class="modal ${['upgrades', 'archive', 'shipyard', 'destinations', 'paints', 'construction'].includes(name) ? 'wide' : ''}" role="dialog" aria-modal="true" aria-label="${sub}"><button class="close" id="close" aria-label="Close panel">×</button><header class="modal-head"><div class="eyebrow">${sub}</div><h2>${title}</h2></header><div class="modal-body">${content}</div><div class="modal-bank"><span>AVAILABLE KREDITS</span><b>₭${p.money.toLocaleString()}</b></div></section>`;
     if(name==='defeat')document.querySelector('#modal-layer #close')?.remove();
     if (['hub','service','construction','colony','upgrades','warehouse','sell','more','destinations','paints','archive','shipyard'].includes(name)) {
       const root=document.querySelector('#modal-layer')!;
@@ -836,8 +836,8 @@ export class HUD {
         const quote = quoteCivilianShipment(this.p.cargo, this.shipment, this.civilianBuyer, this.p.deliveries);
         // Keep the active input and the next click target alive while editing.
         // Rebuilding the modal on blur used to discard the next field's edit.
-        document.querySelector('.shipment-checkout strong')!.textContent = `K ${quote.total.toLocaleString()}`;
-        document.querySelector('.shipment-checkout div > span')!.textContent = `K ${quote.gross} ore + K ${quote.bonus} project premium`;
+        document.querySelector('.shipment-checkout strong')!.textContent = `₭${quote.total.toLocaleString()}`;
+        document.querySelector('.shipment-checkout div > span')!.textContent = `₭${quote.gross} ore + ₭${quote.bonus} project premium`;
         document.querySelector<HTMLButtonElement>('#ship-selected')!.disabled = quote.total <= 0;
       };
       node.oninput = update;
@@ -888,16 +888,16 @@ export class HUD {
       this.campNotice = this.actions.serviceAll() ? 'Battery charged. Hull repaired. Your rig is ready.' : 'Service could not be completed. Check your Kredits and save storage.';
       this.renderModal();
     });
-    for (const kind of ['platform', 'service'] as const) this.on(`build-${kind}`, () => {
-      if (this.actions.buildStructure(kind)) { this.close(); this.toast(kind === 'service' ? 'Shelter deploying. Stay nearby for four seconds.' : 'Anchor deck built.'); return; }
-      else this.toast('Build site blocked. Clear a five-tile cavern and move away from other structures.');
+    for (const kind of ['platform', 'service', 'light'] as const) this.on(`build-${kind}`, () => {
+      if (this.actions.buildStructure(kind)) { this.close(); this.toast(kind === 'light' ? 'Tunnel light on. This chamber stays lit when you leave.' : kind === 'service' ? 'Shelter deploying. Stay nearby for four seconds.' : 'Anchor deck built.'); return; }
+      else this.toast(kind === 'light' ? 'Move into a clear tunnel, at least 2 blocks from another light.' : 'Build site blocked. Clear a five-tile cavern and move away from other structures.');
       this.renderModal();
     });
     if (this.nearSurface) for (const structure of this.actions.structures().filter((entry) =>
       ['habitat', 'turret', 'wall', 'gate', 'fort'].includes(entry.kind) && (entry.integrity ?? structureIntegrity(entry.kind)) < structureIntegrity(entry.kind))) {
       this.on(`repair-${encodeURIComponent(structure.id)}`, () => {
         if (this.actions.repairStructure(structure.id)) this.toast('COLONY DEFENSE REPAIRED · FULL INTEGRITY RESTORED.');
-        else this.toast(`REPAIR NEEDS K ${SURFACE_RAID.repairCredits} AND A SURFACE BUILD YARD.`);
+        else this.toast(`REPAIR NEEDS ₭${SURFACE_RAID.repairCredits} AND A SURFACE BUILD YARD.`);
         this.renderModal();
       });
     }
@@ -1067,7 +1067,7 @@ export class HUD {
         let start = performance.now();
         const tick = () => {
           const t = Math.min(1, (performance.now() - start) / 650);
-          if (this.modal === 'sell') total.textContent = `+K ${Math.round(n * (1 - (1 - t) ** 3))}`;
+          if (this.modal === 'sell') total.textContent = `+₭${Math.round(n * (1 - (1 - t) ** 3))}`;
           if (t < 1) requestAnimationFrame(tick);
         };
         tick();
@@ -1274,7 +1274,7 @@ export class HUD {
       (_, i) => `<i class="${i < Math.ceil((p.count / p.max('cargo')) * 16) ? 'filled' : ''}"></i>`,
     ).join('');
     document.querySelector('#cargo-worth')!.textContent = p.count
-      ? `HAUL VALUE  K ${p.cargoValue}`
+      ? `HAUL VALUE  ₭${p.cargoValue}`
       : 'CARGO BAY EMPTY';
     document.querySelector('#charge-count')!.textContent = String(p.charges);
     document.querySelector('#tool-stock')!.classList.toggle('hidden', p.charges <= 0);
@@ -1328,7 +1328,7 @@ export class HUD {
     this.displayedMoney += (p.money - this.displayedMoney) * Math.min(1, dt * 9);
     if (Math.abs(p.money - this.displayedMoney) < 1) this.displayedMoney = p.money;
     document.querySelector('#money')!.textContent =
-      `K ${Math.round(this.displayedMoney).toLocaleString()}`;
+      `₭${Math.round(this.displayedMoney).toLocaleString()}`;
     document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('hidden', !surface && !this.actions.atWarehouse() && !this.actions.sellAccess());
     document.querySelector<HTMLElement>('#station-dock')!.classList.toggle('warehouse-only', !surface);
     document.querySelector<HTMLElement>('#orbit-worlds')!.classList.toggle('hidden', !this.inOrbit);

@@ -44,13 +44,13 @@ const freeShot=weaponRay(globe,{x:700,y:-100},{x:700,y:-500},340,[]);
 assert.equal(freeShot.hit,-1,'empty sky needs no target');
 assert.ok(Math.hypot(freeShot.end.x-700,freeShot.end.y+100)>300,'empty sky shot travels to range');
 const legacy={...new Progress(),version:32,extraction:{},productionUpdatedAt:1,solarPosition:null,planetChart:STARTER_PLANET_CHART,campaignSeed:12,activeMap:'cryo-shelf',mothershipBoarded:false,maps:{'cryo-shelf':{seed:12,x:555,y:-22,maxDepth:0,destroyed:[],discovered:[],drops:[],activeCharge:null,structures:[],warehouse:emptyCargo(),planetChart:STARTER_PLANET_CHART}}};
-const migrated=migrateSave(legacy)!;assert.ok(migrated);assert.equal(migrated.version,37);assert.deepEqual(migrated.loadout,defaultLoadout());assert.deepEqual(migrateSave(migrated),migrated);
+const migrated=migrateSave(legacy)!;assert.ok(migrated);assert.equal(migrated.version,38);assert.deepEqual(migrated.loadout,defaultLoadout());assert.deepEqual(migrateSave(migrated),migrated);
 assert.equal(validateSave({...migrated,loadout:{...defaultLoadout(),owned:['invented']}}),false);
 assert.equal(migrated.cargo.iron,legacy.cargo.iron);
 console.log('PASS loadout: direct purchase, capacity, cargo protection, no free recharge, rollback, migration, wall occlusion and enemy retreat');
 
 const v33={...migrated,version:33};
-assert.equal(migrateSave(v33)?.version,37);
+assert.equal(migrateSave(v33)?.version,38);
 assert.deepEqual(migrateSave(v33)?.maps,migrated.maps,'migration preserves ore and excavation exactly');
 assert.equal(validateSave({...migrated,maps:{'cryo-shelf':{...migrated.maps['cryo-shelf'],clearedCaves:['bad']}}}),false);
 

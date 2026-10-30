@@ -1,0 +1,1421 @@
+.fleet-console {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: #09131b;
+  color: #e4ebe9;
+  font:
+    14px 'Inter Variable',
+    sans-serif;
+  overflow: hidden;
+  --line: #30414a;
+  --muted: #9cacae;
+  --gold: #edbc7c;
+  --mint: #9ad1bc;
+}
+.fleet-console[hidden] {
+  display: none;
+}
+.fleet-console * {
+  box-sizing: border-box;
+}
+.fleet-console button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #15232d;
+  color: #dce6e5;
+  padding: 10px 16px;
+  font:
+    600 13px 'Inter Variable',
+    sans-serif;
+  cursor: pointer;
+  transition:
+    background 0.16s,
+    border-color 0.16s,
+    box-shadow 0.16s;
+}
+.fleet-console button:hover:not(:disabled) {
+  background: #263841;
+  border-color: #829a9e;
+}
+.fleet-console button:active:not(:disabled) {
+  background: #324650;
+}
+.fleet-console button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -4px;
+}
+.fleet-console button:disabled {
+  color: #84918f;
+  cursor: default;
+  background: #1c292e;
+  border-color: #344146;
+}
+.fleet-console button[aria-pressed='true'] {
+  border-color: var(--gold);
+  background: #2b302d;
+  box-shadow: inset 0 -2px var(--gold);
+}
+.fleet-console .primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #182029;
+  font-weight: 750;
+  margin: 0;
+  width: auto;
+}
+.fleet-console .primary:hover:not(:disabled) {
+  background: #ffd49c;
+  border-color: #ffd49c;
+}
+.fleet-console .primary:disabled {
+  background: #263a3c;
+  color: #acc1bb;
+  border-color: #41595a;
+}
+.fleet-console small {
+  font:
+    10px 'IBM Plex Mono',
+    monospace;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.fleet-console h1,
+.fleet-console h2,
+.fleet-console h3,
+.fleet-console p {
+  margin: 0;
+}
+.fleet-console h1,
+.fleet-console h2 {
+  font-family: 'Inter Variable', sans-serif;
+  letter-spacing: -0.045em;
+}
+.fleet-header {
+  height: 94px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--line);
+  background: #101c24;
+}
+.fleet-brand {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+}
+.fleet-brand h1 {
+  font-size: 27px;
+  font-weight: 650;
+  margin-top: 2px;
+}
+.fleet-brand small {
+  color: var(--gold);
+  letter-spacing: 0.22em;
+}
+.fleet-emblem {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 48px;
+  border: 1px solid #997b53;
+  color: var(--gold);
+  font-size: 40px;
+  line-height: 1;
+}
+.fleet-balance {
+  text-align: right;
+}
+.fleet-balance strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 550;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  margin-top: 3px;
+}
+.fleet-return kbd {
+  margin-left: 20px;
+  color: var(--muted);
+  font: 10px monospace;
+  border: 1px solid #46565c;
+  padding: 3px;
+}
+.fleet-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 204px minmax(220px, 0.85fr) minmax(440px, 1.65fr);
+}
+.fleet-shell > nav {
+  padding: 28px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid var(--line);
+  background: #0c1820;
+}
+.fleet-shell > nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+  padding: 17px 10px;
+  min-height: 72px;
+}
+.fleet-shell > nav button[aria-pressed='true'] {
+  background: linear-gradient(90deg, #edbc7c20, transparent);
+  box-shadow: inset 2px 0 var(--gold);
+  border-color: #a98b5345;
+}
+.fleet-shell > nav button b {
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+}
+.fleet-shell > nav button em {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  margin-top: 6px;
+  font-weight: 400;
+}
+.fleet-shell > nav button i {
+  font-style: normal;
+  margin-left: auto;
+  color: var(--gold);
+}
+.fleet-shell > nav button[aria-pressed='true'] small {
+  color: var(--gold);
+}
+.fleet-shell > nav .fleet-move {
+  margin-top: 20px;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+}
+.nav-note {
+  margin-top: auto !important;
+  font: 9px monospace;
+  color: var(--muted);
+  padding: 16px 8px;
+}
+.fleet-live {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 10px #9ad1bc66;
+  margin-right: 7px;
+}
+.fleet-bay {
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+  padding: 28px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 50% 35%, #38515b66, transparent 65%),
+    repeating-linear-gradient(0deg, transparent 0 59px, #91aeb507 60px), #101f29;
+}
+.bay-label {
+  display: flex;
+  align-items: center;
+  font: 10px monospace;
+  letter-spacing: 0.18em;
+  color: #b5c6c6;
+}
+.bay-label > span:last-child {
+  margin-left: auto;
+  color: #7f9298;
+}
+.bay-rig {
+  flex: 1;
+  min-height: 100px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.bay-rig .pod-portrait {
+  width: 115%;
+  height: 100%;
+  max-height: 360px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 14px 15px #0005);
+}
+.bay-platform {
+  position: absolute;
+  bottom: 9%;
+  width: 86%;
+  height: 14%;
+  border: 1px solid #78959c55;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #6e9fa21a, transparent 70%);
+  transform: rotateX(30deg);
+}
+.bay-caption {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bay-caption h2 {
+  font-size: 22px;
+  font-weight: 550;
+  margin: 8px 0;
+}
+.bay-caption p {
+  color: var(--muted);
+  font-size: 11px;
+}
+.bay-loadout {
+  padding: 12px 0;
+  display: grid;
+  gap: 8px;
+}
+.bay-loadout > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.bay-loadout svg {
+  width: 64px;
+  height: 40px;
+}
+.bay-loadout b {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+.bay-loadout small {
+  font-size: 8px;
+}
+.bay-foot {
+  font: 8px monospace;
+  letter-spacing: 0.12em;
+  color: #7d949c;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.bay-foot span {
+  font-size: 7px;
+}
+.fleet-content {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 18px;
+  padding: 26px clamp(20px, 3vw, 56px);
+  background: radial-gradient(ellipse at 90% 0, #1e323c55, transparent 70%);
+}
+.fleet-heading {
+  margin-bottom: 8px;
+}
+.fleet-heading > small {
+  font-size: 9px;
+  color: var(--gold);
+}
+.fleet-heading h2 {
+  font-size: 36px;
+  font-weight: 550;
+  margin: 8px 0;
+}
+.fleet-heading p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.fleet-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  background: #15242d;
+  border: 1px solid var(--line);
+  padding: 20px;
+}
+.fleet-summary > div {
+  min-width: 0;
+}
+.fleet-summary b {
+  display: block;
+  font-size: 30px;
+  font-weight: 500;
+  margin: 8px 0;
+}
+.fleet-summary b span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.fleet-summary .primary {
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.fleet-meter {
+  height: 3px;
+  background: #33454d;
+  width: 90%;
+  margin-top: 12px;
+}
+.fleet-meter i {
+  display: block;
+  height: 100%;
+  background: var(--mint);
+}
+.fleet-muted {
+  font-size: 10px;
+  color: var(--muted);
+}
+.fleet-ore-heading {
+  display: grid;
+  grid-template-columns: 1fr 100px 118px;
+  padding: 0 16px;
+  font: 9px monospace;
+  color: #8b9eaa;
+  letter-spacing: 0.1em;
+  margin-bottom: -9px;
+}
+.fleet-ore-heading span:last-child {
+  text-align: right;
+}
+.fleet-ores {
+  display: grid;
+  gap: 8px;
+}
+.fleet-ores article {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #13212b;
+  border: 1px solid #2e4049;
+  border-radius: 4px;
+}
+.fleet-ore-icon {
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+}
+.fleet-ore-icon svg {
+  width: 100%;
+  height: 100%;
+}
+.fleet-ore-icon.copper {
+  color: #d5a27e;
+}
+.fleet-ore-icon.iron {
+  color: #94b5bb;
+}
+.fleet-ore-icon.silver {
+  color: #d0d5e8;
+}
+.fleet-ores article > div {
+  flex: 1;
+}
+.fleet-ores h3 {
+  font-size: 14px;
+  font-weight: 550;
+  margin-bottom: 4px;
+}
+.fleet-ores small {
+  font-size: 8px;
+}
+.ore-quantities {
+  min-width: 70px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.ore-quantities b {
+  font-weight: 500;
+}
+.ore-quantities span {
+  color: #627882;
+}
+.fleet-ores button {
+  width: 116px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  padding: 10px;
+}
+.fleet-ores button b {
+  color: var(--gold);
+}
+.fleet-ores button:disabled b {
+  color: #8b999a;
+}
+.fleet-help {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.fleet-sale {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  background: #26332d;
+  border: 1px solid #8c7955;
+  border-radius: 4px;
+}
+.fleet-sale p {
+  flex: 1;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.fleet-sale p small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+.fleet-sale button {
+  padding: 9px 10px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.fleet-slots {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.fleet-slots button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  padding: 12px;
+  min-width: 0;
+}
+.fleet-slots b {
+  display: block;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.fleet-slots small {
+  font-size: 8px;
+  letter-spacing: 0.03em;
+}
+.fleet-slots svg {
+  width: 60px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.fleet-catalogue {
+  display: flex;
+  gap: 6px;
+}
+.fleet-catalogue button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: #12212b;
+}
+.fleet-catalogue svg {
+  height: 45px;
+  width: 100%;
+  max-width: 80px;
+}
+.fleet-catalogue span {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+.fleet-catalogue small {
+  font-size: 8px;
+  letter-spacing: 0;
+}
+.fleet-equipment {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(0, 1.3fr);
+  gap: 22px;
+  align-items: center;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  min-height: 0;
+}
+.fleet-module-art {
+  text-align: center;
+  min-width: 0;
+  background: radial-gradient(ellipse, #617c8233, transparent 70%);
+}
+.fleet-module-art svg {
+  display: block;
+  width: 100%;
+  height: 140px;
+  filter: drop-shadow(0 8px 10px #0006);
+}
+.fleet-module-art small {
+  font-size: 9px;
+  letter-spacing: 0;
+  display: block;
+  margin-top: 12px;
+  color: var(--gold);
+  line-height: 1.4;
+}
+.fleet-detail h2 {
+  font-size: 26px;
+  font-weight: 550;
+  margin: 7px 0 10px;
+}
+.fleet-detail p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #aebfc3;
+}
+.fleet-item-state {
+  font-size: 8px !important;
+  color: var(--mint) !important;
+}
+.fleet-detail .primary {
+  width: 100%;
+  font-size: 12px;
+}
+.fleet-cost {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.fleet-cost span {
+  padding: 5px 7px;
+  background: #172933;
+  border: 1px solid #30434a;
+  border-radius: 3px;
+  font-size: 10px;
+}
+.fleet-console .ready {
+  color: #a8d6bc;
+}
+.fleet-console .missing {
+  color: #f1a7a0;
+}
+.fleet-weapon-stats {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 9px;
+  color: var(--muted);
+}
+.fleet-weapon-stats b {
+  display: block;
+  font-size: 15px;
+  font-weight: 550;
+  color: #d5e1e1;
+  margin-bottom: 3px;
+}
+.fleet-page {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fleet-page button {
+  width: 44px;
+  padding: 6px;
+  font-size: 18px;
+}
+.fleet-page span {
+  font: 9px monospace;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.fleet-console > footer {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--line);
+  background: #0c1922;
+  flex-shrink: 0;
+}
+.fleet-console > footer p {
+  flex: 1;
+  font-size: 11px;
+  color: #a8b9bc;
+  line-height: 1.4;
+}
+.fleet-console > footer button {
+  font-size: 10px;
+  padding: 8px 12px;
+}
+.fleet-prototype {
+  font: 8px monospace;
+  letter-spacing: 0.08em;
+  color: #819397;
+}
+.uniform-console .uniform-operations {
+  position: absolute;
+  bottom: 78px;
+  right: 24px;
+}
+.uniform-console .uniform-placement {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #10232ff5;
+  border: 1px solid #40575f;
+  border-radius: 10px;
+  padding: 14px;
+  pointer-events: auto;
+  max-width: calc(100% - 24px);
+  text-align: center;
+}
+.uniform-placement p {
+  margin: 0 0 10px;
+}
+.uniform-placement[hidden] {
+  display: none;
+}
+.uniform-console.relocating .uniform-instructions,
+.uniform-console.relocating .uniform-notice,
+.uniform-console.relocating .uniform-touch {
+  display: none;
+}
+@media (min-width: 1101px) and (max-height: 800px) {
+  .fleet-content {
+    gap: 12px;
+    padding-block: 18px;
+  }
+  .fleet-heading {
+    margin-bottom: 0;
+  }
+  .fleet-heading h2 {
+    font-size: 30px;
+    margin: 5px 0;
+  }
+  .fleet-equipment {
+    padding: 12px 0;
+  }
+  .fleet-catalogue svg {
+    height: 36px;
+  }
+  .fleet-header {
+    height: 80px;
+  }
+  .fleet-bay {
+    padding-top: 22px;
+  }
+}
+@media (max-width: 1100px) {
+  .fleet-shell {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+  .fleet-bay {
+    display: none;
+  }
+  .fleet-content {
+    padding: 20px 32px;
+  }
+  .fleet-shell > nav {
+    padding: 20px 8px;
+  }
+  .fleet-header {
+    height: 80px;
+    padding: 14px 24px;
+  }
+  .fleet-prototype {
+    display: none;
+  }
+  .fleet-heading h2 {
+    font-size: 30px;
+  }
+}
+@media (max-width: 600px) {
+  .fleet-header {
+    height: 76px;
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .fleet-emblem {
+    display: none;
+  }
+  .fleet-brand h1 {
+    font-size: 20px;
+  }
+  .fleet-brand small {
+    font-size: 8px;
+    letter-spacing: 0.12em;
+  }
+  .fleet-balance small {
+    display: none;
+  }
+  .fleet-balance strong {
+    font-size: 20px;
+  }
+  .fleet-return {
+    font-size: 10px !important;
+    padding: 8px !important;
+    max-width: 90px;
+  }
+  .fleet-return kbd {
+    display: none;
+  }
+  .fleet-shell {
+    display: flex;
+    flex-direction: column;
+  }
+  .fleet-shell > nav {
+    flex-direction: row;
+    padding: 8px 12px;
+    gap: 4px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+  .fleet-shell > nav button {
+    flex: 1;
+    min-width: 0;
+    min-height: 48px;
+    padding: 8px 3px;
+    justify-content: center;
+    text-align: center;
+    gap: 0;
+  }
+  .fleet-shell > nav button b {
+    font-size: 11px;
+  }
+  .fleet-shell > nav button small,
+  .fleet-shell > nav button em,
+  .fleet-shell > nav button i,
+  .nav-note {
+    display: none;
+  }
+  .fleet-shell > nav .fleet-move {
+    margin: 0;
+    border: 1px solid transparent;
+  }
+  .fleet-content {
+    padding: 18px 16px;
+    flex: 1;
+    gap: 12px;
+  }
+  .fleet-heading {
+    margin: 0;
+  }
+  .fleet-heading > small {
+    font-size: 8px;
+  }
+  .fleet-heading h2 {
+    font-size: 27px;
+    margin: 6px 0;
+  }
+  .fleet-heading p {
+    font-size: 11px;
+  }
+  .fleet-summary {
+    padding: 14px;
+    gap: 12px;
+  }
+  .fleet-summary b {
+    font-size: 26px;
+  }
+  .fleet-summary small {
+    font-size: 8px;
+  }
+  .fleet-ore-heading {
+    grid-template-columns: 1fr 70px 110px;
+    padding: 0 10px;
+    font-size: 8px;
+  }
+  .fleet-ores article {
+    padding: 10px;
+    gap: 8px;
+  }
+  .fleet-ore-icon {
+    width: 25px;
+    height: 30px;
+  }
+  .fleet-ores h3 {
+    font-size: 13px;
+  }
+  .ore-quantities {
+    min-width: 42px;
+    font-size: 11px;
+  }
+  .fleet-ores button {
+    width: 104px;
+    font-size: 10px;
+    gap: 5px;
+    padding: 8px;
+  }
+  .fleet-sale {
+    padding: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .fleet-sale p {
+    flex-basis: 100%;
+    font-size: 11px;
+  }
+  .fleet-sale button {
+    flex: 1;
+  }
+  .fleet-sale p small {
+    display: none;
+  }
+  .fleet-help {
+    font-size: 10px;
+  }
+  .fleet-slots {
+    gap: 6px;
+  }
+  .fleet-slots button {
+    padding: 9px 7px;
+  }
+  .fleet-slots small {
+    font-size: 7px;
+  }
+  .fleet-slots b {
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .fleet-slots svg {
+    width: 38px;
+    height: 32px;
+  }
+  .fleet-catalogue {
+    gap: 4px;
+  }
+  .fleet-catalogue button {
+    padding: 6px 2px;
+    gap: 4px;
+  }
+  .fleet-catalogue svg {
+    height: 35px;
+  }
+  .fleet-catalogue span {
+    font-size: 8px;
+  }
+  .fleet-catalogue small {
+    font-size: 7px;
+  }
+  .fleet-equipment {
+    gap: 12px;
+    padding: 14px 0;
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+  .fleet-module-art svg {
+    height: 100px;
+  }
+  .fleet-module-art small {
+    font-size: 8px;
+    margin-top: 8px;
+  }
+  .fleet-detail h2 {
+    font-size: 21px;
+    margin: 5px 0 7px;
+  }
+  .fleet-detail p {
+    font-size: 11px;
+    line-height: 1.45;
+  }
+  .fleet-cost {
+    gap: 4px;
+    margin: 10px 0;
+  }
+  .fleet-cost span {
+    font-size: 9px;
+    padding: 4px;
+  }
+  .fleet-weapon-stats {
+    gap: 8px;
+    font-size: 8px;
+    margin-top: 10px;
+  }
+  .fleet-weapon-stats b {
+    font-size: 13px;
+  }
+  .fleet-detail .primary {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .fleet-console > footer {
+    padding: 8px 12px;
+    gap: 10px;
+    min-height: 62px;
+  }
+  .fleet-console > footer p {
+    font-size: 9px;
+  }
+  .fleet-console > footer button {
+    font-size: 9px;
+    padding: 7px;
+  }
+  .uniform-console .uniform-operations {
+    right: 12px;
+    bottom: 78px;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .fleet-content {
+    gap: 8px;
+    padding: 10px 14px;
+  }
+  .fleet-heading h2 {
+    font-size: 23px;
+    margin: 4px 0;
+  }
+  .fleet-heading p {
+    display: none;
+  }
+  .fleet-catalogue svg {
+    height: 28px;
+  }
+  .fleet-catalogue button {
+    gap: 3px;
+    padding: 5px 2px;
+  }
+  .fleet-detail h2 {
+    font-size: 19px;
+  }
+  .fleet-equipment {
+    padding: 10px 0;
+    gap: 9px;
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .fleet-detail p {
+    font-size: 10px;
+    line-height: 1.4;
+  }
+  .fleet-weapon-stats {
+    margin-top: 7px;
+  }
+  .fleet-cost {
+    margin: 7px 0;
+  }
+  .fleet-console > footer {
+    min-height: 60px;
+  }
+  .fleet-summary {
+    padding: 10px;
+    gap: 9px;
+  }
+  .fleet-summary b {
+    margin: 5px 0;
+  }
+  .fleet-ores article {
+    padding: 8px;
+  }
+  .fleet-ore-heading {
+    margin-bottom: 0;
+  }
+  .fleet-sale {
+    padding: 8px;
+  }
+  .fleet-slots button {
+    padding: 7px;
+  }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .fleet-header {
+    height: 56px;
+    padding: 6px 16px;
+    gap: 18px;
+  }
+  .fleet-brand h1 {
+    font-size: 19px;
+  }
+  .fleet-brand small {
+    font-size: 8px;
+  }
+  .fleet-emblem {
+    width: 30px;
+    height: 33px;
+    font-size: 27px;
+  }
+  .fleet-balance strong {
+    font-size: 20px;
+  }
+  .fleet-balance small {
+    display: none;
+  }
+  .fleet-return kbd {
+    display: none;
+  }
+  .fleet-shell {
+    grid-template-columns: 136px minmax(0, 1fr);
+  }
+  .fleet-shell > nav {
+    padding: 8px;
+    gap: 2px;
+  }
+  .fleet-shell > nav button {
+    min-height: 49px;
+    padding: 9px 6px;
+    gap: 6px;
+  }
+  .fleet-shell > nav button b {
+    font-size: 12px;
+  }
+  .fleet-shell > nav button em {
+    display: none;
+  }
+  .fleet-shell > nav .fleet-move {
+    margin-top: 8px;
+  }
+  .nav-note {
+    font-size: 7px;
+    padding: 8px 0;
+  }
+  .fleet-content {
+    padding: 8px 16px;
+    gap: 6px;
+    justify-content: center;
+  }
+  .fleet-heading {
+    display: none;
+  }
+  .fleet-summary {
+    padding: 8px 12px;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: center;
+  }
+  .fleet-summary .primary {
+    grid-column: auto;
+  }
+  .fleet-summary b {
+    font-size: 21px;
+    margin: 3px 0;
+  }
+  .fleet-summary small {
+    font-size: 8px;
+  }
+  .fleet-meter {
+    margin-top: 4px;
+  }
+  .fleet-ore-heading {
+    display: none;
+  }
+  .fleet-ores {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+  }
+  .fleet-ores article {
+    flex-wrap: wrap;
+    padding: 8px;
+    gap: 6px;
+  }
+  .fleet-ores button {
+    width: 100%;
+    min-height: 44px;
+  }
+  .fleet-ores h3 {
+    font-size: 12px;
+  }
+  .fleet-ore-icon {
+    width: 25px;
+    height: 25px;
+  }
+  .ore-quantities {
+    min-width: 30px;
+    font-size: 10px;
+  }
+  .fleet-sale {
+    padding: 6px 10px;
+  }
+  .fleet-sale p small {
+    display: none;
+  }
+  .fleet-help {
+    font-size: 9px;
+  }
+  .fleet-content[data-page='weapons'] {
+    display: grid;
+    grid-template-columns: 145px minmax(0, 1fr);
+    grid-template-rows: 58px minmax(0, 1fr) 44px;
+    gap: 6px 10px;
+  }
+  .fleet-slots {
+    grid-column: 1;
+    grid-row: 1/3;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+  .fleet-slots button {
+    padding: 9px 7px;
+  }
+  .fleet-slots svg {
+    width: 30px;
+  }
+  .fleet-slots b {
+    font-size: 10px;
+  }
+  .fleet-slots small {
+    font-size: 7px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-catalogue {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .fleet-catalogue button {
+    padding: 3px;
+    gap: 2px;
+  }
+  .fleet-catalogue svg {
+    height: 22px;
+  }
+  .fleet-catalogue span {
+    font-size: 8px;
+  }
+  .fleet-catalogue small {
+    font-size: 7px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-equipment {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .fleet-equipment {
+    grid-template-columns: 85px minmax(0, 1fr);
+    padding: 4px 0;
+    gap: 10px;
+  }
+  .fleet-module-art svg {
+    height: 75px;
+  }
+  .fleet-module-art small {
+    font-size: 7px;
+    margin-top: 2px;
+  }
+  .fleet-detail h2 {
+    font-size: 17px;
+    margin: 3px 0;
+  }
+  .fleet-detail p {
+    font-size: 9px;
+    line-height: 1.3;
+  }
+  .fleet-item-state {
+    font-size: 7px !important;
+  }
+  .fleet-weapon-stats {
+    font-size: 7px;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .fleet-weapon-stats b {
+    font-size: 11px;
+    display: inline;
+  }
+  .fleet-cost {
+    gap: 4px;
+    margin: 4px 0;
+  }
+  .fleet-cost span {
+    font-size: 8px;
+    padding: 3px 4px;
+  }
+  .fleet-detail .primary {
+    font-size: 10px;
+    min-height: 44px;
+    padding: 6px 10px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-page {
+    grid-column: 1/-1;
+    grid-row: 3;
+  }
+  .fleet-page button {
+    height: 44px;
+  }
+  .fleet-console > footer {
+    min-height: 52px;
+    padding: 4px 14px;
+    gap: 12px;
+  }
+  .fleet-console > footer p {
+    font-size: 9px;
+  }
+  .fleet-console > footer button {
+    font-size: 9px;
+    padding: 7px 10px;
+  }
+  .fleet-content[data-page='equipment'] {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 44px;
+    gap: 6px 14px;
+  }
+  .fleet-content[data-page='equipment'] .fleet-catalogue {
+    flex-direction: column;
+  }
+  .fleet-content[data-page='equipment'] .fleet-catalogue button {
+    flex-direction: row;
+    justify-content: center;
+    gap: 5px;
+  }
+  .fleet-content[data-page='equipment'] .fleet-catalogue svg {
+    width: 35px;
+  }
+  .fleet-content[data-page='equipment'] .fleet-page {
+    grid-column: 1/-1;
+  }
+  .uniform-console .uniform-operations {
+    bottom: 66px;
+    right: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fleet-console button {
+    transition: none;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .fleet-content[data-page='weapons'] .fleet-heading > small {
+    display: none;
+  }
+  .fleet-content[data-page='weapons'] .fleet-heading h2 {
+    margin: 0;
+    font-size: 22px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-equipment {
+    grid-template-columns: minmax(0, 1fr);
+    flex-shrink: 0;
+  }
+  .fleet-content[data-page='weapons'] .fleet-module-art {
+    display: none;
+  }
+  .fleet-content[data-page='weapons'] .fleet-detail h2 {
+    font-size: 19px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-detail p {
+    font-size: 10px;
+  }
+  .fleet-content[data-page='weapons'] .fleet-detail .fleet-cost {
+    margin: 6px 0;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .fleet-content[data-page='cargo'] {
+    justify-content: center;
+    gap: 8px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-heading {
+    display: none;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary {
+    grid-template-columns: 1fr 1fr 80px;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary .primary {
+    grid-column: auto;
+    padding: 8px;
+    font-size: 11px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary .primary span {
+    display: none;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary small {
+    font-size: 7px;
+    letter-spacing: 0;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary b {
+    font-size: 22px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-summary b span {
+    font-size: 10px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-muted {
+    font-size: 8px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-meter {
+    margin-top: 6px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-ores article {
+    padding: 6px 8px;
+  }
+  .fleet-content[data-page='cargo'] .fleet-sale {
+    flex-shrink: 0;
+  }
+}
+/* The refit display uses the same textured rig as gameplay. */
+.bay-rig .forge-portrait {
+  width: 120%;
+  height: 100%;
+  max-height: 440px;
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 14px 16px #0006);
+}
+.fleet-console .forge-item-art {
+  object-fit: contain;
+  display: block;
+  max-width: 100%;
+  filter: drop-shadow(0 3px 3px #0005);
+}
+.bay-loadout .forge-item-art {
+  width: 64px;
+  height: 40px;
+}
+.fleet-slots .forge-item-art {
+  width: 60px;
+  height: 36px;
+}
+.fleet-catalogue .forge-item-art {
+  height: 45px;
+  width: 100%;
+  max-width: 80px;
+}
+.fleet-module-art .forge-item-art {
+  width: 100%;
+  height: 140px;
+}
+@media (max-width: 600px) {
+  .fleet-catalogue .forge-item-art {
+    height: 35px;
+  }
+  .fleet-slots .forge-item-art {
+    width: 38px;
+    height: 32px;
+  }
+  .fleet-module-art .forge-item-art {
+    height: 100px;
+  }
+}
+@media (max-width: 600px) and (max-height: 740px) {
+  .fleet-catalogue .forge-item-art {
+    height: 28px;
+  }
+}
+@media (min-width: 601px) and (max-height: 500px) {
+  .fleet-catalogue .forge-item-art {
+    height: 22px;
+  }
+  .fleet-slots .forge-item-art {
+    width: 30px;
+    height: 36px;
+  }
+  .fleet-module-art .forge-item-art {
+    height: 75px;
+  }
+  .fleet-content[data-page='equipment'] .fleet-catalogue .forge-item-art {
+    width: 35px;
+  }
+}

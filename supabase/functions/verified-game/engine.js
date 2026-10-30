@@ -47,6 +47,7 @@ const o = { tile: 40, width: 48, homeColumn: 24, chunk: 16, meters: 12, spawnX: 
   minimumDepthMeters: 60,
   platform: { credits: 140, materials: { copper: 2, iron: 1 }, widthTiles: 5 },
   service: { credits: 0, materials: { iron: 4, copper: 4 }, widthTiles: 5 },
+  light: { credits: 0, materials: { copper: 1, iron: 1 }, widthTiles: 1, range: 280, rays: 120, refreshSeconds: 0.3 },
   turret: { credits: 560, materials: { iron: 4, silver: 3 }, widthTiles: 3, range: 440, reloadSeconds: 1.4 },
   "trade-post": { credits: 0, materials: { copper: 4, iron: 4, silver: 2 }, widthTiles: 5 },
   habitat: { credits: 0, materials: { copper: 6, iron: 4 }, widthTiles: 7, serviceRadius: 220 },
@@ -749,7 +750,7 @@ Object.fromEntries(Object.entries(we).map(([r, e]) => [r, e.oreFactors]));
 function De(r, e, t, s, i, n, l) {
   if (!(l || Math.abs(s - t) < 1e-5))
     for (const a of r) {
-      if (a.kind === "trade-post" || a.kind === "warehouse" || a.kind === "wall" || a.kind === "gate" || a.kind === "fort") continue;
+      if (a.kind === "light" || a.kind === "trade-post" || a.kind === "warehouse" || a.kind === "wall" || a.kind === "gate" || a.kind === "fort") continue;
       const p = lt[a.kind].widthTiles * o.tile / 2;
       if (Math.abs(e - a.x) > p) continue;
       const h = t + i * n - a.y, u = s + i * n - a.y;
@@ -1072,6 +1073,8 @@ class $t {
     return (t - s) * this.gravitySign(t) < 8;
   }
   clearedCaves = /* @__PURE__ */ new Set();
+  /** Transient authored test habitats; deliberately absent from save snapshots. */
+  studyHabitats;
   chunks = /* @__PURE__ */ new Map();
   destroyed = /* @__PURE__ */ new Set();
   discovered = /* @__PURE__ */ new Set();

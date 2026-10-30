@@ -22,7 +22,7 @@ export class WallBuilder {
     if (!active || signature === this.signature) return;
     this.signature = signature;
     this.root.querySelector('#wall-layer')!.textContent = `LAYER ${layer}`;
-    this.root.querySelector('#wall-budget')!.textContent = `${count} blocks built · K ${UNDERGROUND_BUILDING.wall.credits} + ${UNDERGROUND_BUILDING.wall.materials.copper} copper each`;
+    this.root.querySelector('#wall-budget')!.textContent = `${count} blocks built · ₭${UNDERGROUND_BUILDING.wall.credits} + ${UNDERGROUND_BUILDING.wall.materials.copper} copper each`;
     this.root.querySelector('[data-wall="auto"]')!.setAttribute('aria-pressed', String(auto));
     this.root.querySelector<HTMLButtonElement>('[data-wall="lower"]')!.disabled = layer <= 1;
     this.root.querySelector<HTMLButtonElement>('[data-wall="place"]')!.disabled = !valid;

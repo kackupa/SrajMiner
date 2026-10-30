@@ -4,7 +4,7 @@ import { planetaryMaterials } from '../building/PlanetaryMaterials';
 import type { Cargo } from '../economy/Progress';
 import { buildingArt } from './BuildingArt';
 export const BUILD_GROUPS = {
-  Underground: ['service', 'platform', 'turret'],
+  Underground: ['service', 'light', 'platform', 'turret'],
   Services: ['habitat', 'trade-post'],
   'Mining & storage': ['extractor', 'warehouse'],
   Defence: ['wall', 'turret', 'fort'],
@@ -14,9 +14,10 @@ const groupGuide: Record<BuildGroup, [string, string]> = {
   Services: ['Keep your operation running', 'Recharge and repair at a camp. Sell ore through a market uplink.'],
   'Mining & storage': ['Produce and store ore', 'Automate extraction and expand shared planetary storage.'],
   Defence: ['Defend your colony', 'Protect valuable buildings with pylons and reinforce them with a fort.'],
-  Underground: ['Build below the surface', 'Create a safe shelter, a landing deck or a defensive position.'],
+  Underground: ['Build below the surface', 'Light your tunnels, build a shelter or defend a chamber.'],
 };
 const descriptions: Partial<Record<StructureKind, [string, string, string]>> = {
+  light: ['Tunnel light', 'Light up this chamber and reveal nearby rock. Stays on when you leave. Solid walls block the light. No fuel needed.', 'scanner'],
   service: ['Underground shelter', 'Build in a cleared chamber. Enter with E to escape creatures and recover automatically while the world keeps running.', 'hull'],
   platform: ['Anchor deck', 'A landing deck for your underground operation.', 'hull'],
   habitat: ['Mining camp', 'A service base wherever you need one. Recharge and repair your miner here.', 'hull'],

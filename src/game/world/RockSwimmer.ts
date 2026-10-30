@@ -1,4 +1,5 @@
 import { caveHome, caveMove, caveSight, caveStep } from './CaveHabitat';
+import { stepStudyCrawler } from '../study/StudyCreatureMotion';
 import { turretStats } from '../building/UndergroundStructures';
 import { OPENING_EXPEDITION, CAVE_CREATURES, HULL_SCRAPPER, ROCK_SWIMMER, SHARD_MANTA, UNDERGROUND_BUILDING, WORLD, type MapId } from '../config';
 import { random } from './TileWorld';
@@ -54,7 +55,7 @@ export class RockSwimmer {
     for(let oy=-1;oy<=1;oy++)for(let ox=-1;ox<=1;ox++){
       const a=sx+ox,b=sy+oy,key=a+','+b;if(a<0||b<0||this.surveyed.has(key))continue;
       this.surveyed.add(key);const home=caveHome(world,a,b);if(!home||world.clearedCaves.has(home.id))continue;
-      const n=Math.floor(random(this.seed,a,b,141)*9),kind=world.openingLayout&&home.id===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow?'rock-swimmer':swimmerKindForEncounter(n,this.mapId);
+      const n=Math.floor(random(this.seed,a,b,141)*9),kind=world.studyHabitats?.find(h=>h.id===home.id)?.kind ?? (world.openingLayout&&home.id===OPENING_EXPEDITION.nestColumn+','+OPENING_EXPEDITION.nestRow?'rock-swimmer':swimmerKindForEncounter(n,this.mapId));
       this.residents.set(home.id,{habitat:home.id,homeX:home.x,homeY:home.y,x:home.x,y:home.y,kind,mode:'hunt',vx:0,vy:0,
         life:0,phase:random(this.seed,a,b,143)*Math.PI*2,health:kind==='shard-manta'?SHARD_MANTA.drillHitsToDefeat:kind==='hull-scrapper'?HULL_SCRAPPER.drillHitsToDefeat:ROCK_SWIMMER.drillHitsToDefeat,drillCooldown:0,hitFlash:0});
     }
@@ -101,7 +102,9 @@ export class RockSwimmer {
         return false;
       }
     }
-    if (swimmer.kind === 'shard-manta') {
+    const studyCrawler=!!this.world?.studyHabitats&&swimmer.kind!=='shard-manta';
+    if(studyCrawler) stepStudyCrawler(this.world!,swimmer,dt,goal,visible);
+    else if (swimmer.kind === 'shard-manta') {
       if (swimmer.mode === 'hunt' && visible && distance <= SHARD_MANTA.windupDistance) {
         swimmer.mode = 'windup';
         swimmer.modeTimer = SHARD_MANTA.windupSeconds;
@@ -162,7 +165,7 @@ export class RockSwimmer {
       swimmer.y += swimmer.vy * dt + Math.sin(swimmer.phase + swimmer.life * 2.1) * 8 * dt;
     }
 
-    if(this.world){
+    if(this.world&&!studyCrawler){
       const wantedX=swimmer.x,wantedY=swimmer.y;swimmer.x=oldX;swimmer.y=oldY;
       if(caveMove(this.world,swimmer,wantedX,wantedY)&&swimmer.mode==='charge'){
         swimmer.mode='recover';swimmer.modeTimer=SHARD_MANTA.recoverSeconds;

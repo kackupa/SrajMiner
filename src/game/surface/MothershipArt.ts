@@ -1,7 +1,10 @@
 import { cargoPhase, UNLOAD_DURATION } from './CargoHandling';
+import { drawStudyTurret } from '../study/StudyTurret';
+import { drawVolume } from '../study/StudyVolume';
 import type Phaser from 'phaser';
 import type { VehiclePose } from '../player/VehiclePose';
-export type ShipActivity = { unload?: {age:number;source:{x:number;y:number};count:number;sources?:{x:number;y:number}[]}; time: number; target?: {x:number;y:number}; firing?: boolean; shotAge?: number; reduced?: boolean };
+import { landingFoot, type LandingSurface } from './LandingGear';
+export type ShipActivity = { landingSurface?:LandingSurface; dimensional?:boolean; vectorThrusters?:boolean; unload?: {age:number;source:{x:number;y:number};count:number;sources?:{x:number;y:number}[]}; time: number; target?: {x:number;y:number}; firing?: boolean; shotAge?: number; reduced?: boolean };
 /** Workhorse: asymmetric expedition carrier. Shared by world and transit presentation. */
 export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number,y:number)=>{x:number;y:number}, thrust:boolean, motion?:VehiclePose, activity?:ShipActivity) {
  const t=activity?.reduced?0:activity?.time??motion?.phase??0, gear=motion?.gear??0;
@@ -10,6 +13,11 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  const at=(x:number,y:number)=>project((x*c-(y+58)*s)*1.5,(-58+x*s+(y+58)*c)*1.5);
  const poly=(color:number,p:number[][],a=1)=>{g.fillStyle(color,a);g.fillPoints(p.map(([x,y])=>at(x,y)),true);};
  const box=(x:number,y:number,w:number,h:number,color:number)=>poly(color,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]]);
+ const solid=(color:number,p:number[][],depth:number,sideColor=color)=>{
+   if(activity?.dimensional)drawVolume(g,p,depth,(x,y,z)=>at(x-z*.5,y+z*.38),sideColor);
+   poly(color,p);
+ };
+ const module=(x:number,y:number,w:number,h:number,color:number,depth=8)=>solid(color,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],depth);
  const line=(p:number[][],color:number,w=1,a=1)=>{g.lineStyle(w,color,a);g.strokePoints(p.map(([x,y])=>at(x,y)),false);};
  const dot=(x:number,y:number,r:number,color:number,a=1)=>{const p=at(x,y);g.fillStyle(color,a);g.fillCircle(p.x,p.y,r*1.5);};
  const dark=0x10232d, steel=0x586e70, edge=0xa8b6a7, amber=0xb77a32, gold=0xe7b65e;
@@ -17,32 +25,46 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  for(const x of [-110,65])for(let i=0;i<5;i++){const q=(t*.22+i/5)%1;dot(x+Math.sin(q*5+x)*5,-86-q*45,3+q*9,0x97abb1,(1-q)*.11);}
  poly(0x020e16,[[-145,0],[-94,-9],[105,-9],[154,2],[92,8],[-100,7]],.45);
  for(const x of [-102,-64,65,106]){
- const foot=x+Math.sign(x)*(12-gear*10),y=-4-gear*25;
+ const landing=landingFoot(x,gear,activity?.landingSurface),foot=landing.x,y=landing.y;
  line([[x,-47],[foot-8,-23],[foot,y]],dark,10);line([[x,-43],[foot,y]],edge,3);
  poly(steel,[[x-9,-48],[x+8,-48],[foot+6,-23],[foot-7,-25]]);
- box(foot-13,y,27,5,dark);line([[foot-12,y],[foot+12,y]],gold,2);
+ if(activity?.landingSurface){poly(dark,[landing.pad(-13,-5),landing.pad(14,-5),landing.pad(14,0),landing.pad(-13,0)]);line([landing.pad(-12,-5),landing.pad(12,-5)],gold,2);}
+ else {box(foot-13,y,27,5,dark);line([[foot-12,y],[foot+12,y]],gold,2);}
  dot(x,-42,3.4,dark);dot(x,-42,1.5,edge);
  line([[x+3,-38],[foot+3,y-5]],0xd4d2bb,1.5);
- box(foot-9,y+2,5,2,steel);box(foot+5,y+2,5,2,steel);
+ if(!activity?.landingSurface){box(foot-9,y+2,5,2,steel);box(foot+5,y+2,5,2,steel);}
  }
  // Articulated landing struts show piston sleeves, clevis joints and broad foot pads.
  for(const x of [-102,106]){
-   const foot=x+Math.sign(x)*(12-gear*10),y=-4-gear*25;
+   const landing=landingFoot(x,gear,activity?.landingSurface),foot=landing.x,y=landing.y;
    line([[x,-37],[foot,y-6]],dark,7);
    line([[x,-37],[x+(foot-x)*.55,-37+(y+31)*.55]],steel,5);
    line([[x+(foot-x)*.5,-37+(y+31)*.5],[foot,y-6]],0xd4d2bb,2);
    dot(foot,y-5,3,dark);dot(foot,y-5,1.5,gold);
-   poly(steel,[[foot-15,y],[foot+14,y],[foot+18,y+5],[foot-18,y+5]]);
-   for(let n=-10;n<=10;n+=5)line([[foot+n,y+1],[foot+n-2,y+4]],dark,1);
+   if(activity?.landingSurface){
+     poly(edge,[landing.pad(-15,-5),landing.pad(-11,-8),landing.pad(18,-8),landing.pad(14,-5)]);
+     poly(steel,[landing.pad(-15,-5),landing.pad(14,-5),landing.pad(18,0),landing.pad(-18,0)]);
+     line([landing.pad(-18,0),landing.pad(18,0)],dark,1.5);
+     for(let n=-10;n<=10;n+=5)line([landing.pad(n,-4),landing.pad(n-2,-1)],dark,1);
+   }else{
+     solid(steel,[[foot-15,y],[foot+14,y],[foot+18,y+5],[foot-18,y+5]],9);
+     for(let n=-10;n<=10;n+=5)line([[foot+n,y+1],[foot+n-2,y+4]],dark,1);
+   }
  }
  // Cargo spine and angular amber bow preserve the selected concept's silhouette.
- poly(dark,[[-143,-75],[-117,-93],[85,-91],[148,-72],[134,-31],[-126,-31]]);
+ solid(dark,[[-143,-75],[-117,-93],[85,-91],[148,-72],[134,-31],[-126,-31]],30,steel);
+ if(activity?.dimensional){
+   line([[-102,-104],[100,-102],[162,-83]],edge,1.3);
+   for(let i=0;i<6;i++){const x=-76+i*28;line([[x,-92],[x+13,-102]],0x263e48,2);line([[x+2,-92],[x+15,-102]],0x8c9d92,1);}
+   // Two recessed ducts across the upper deck, with grilles inside their rims.
+   for(const x of [-57,23]){poly(0x233b43,[[x,-95],[x+27,-95],[x+36,-101],[x+9,-101]]);for(let j=0;j<5;j++)line([[x+3+j*5,-96],[x+9+j*5,-100]],steel,1);}
+ }
  poly(steel,[[-139,-73],[-115,-88],[85,-86],[137,-69],[123,-39],[-124,-38]]);
  poly(edge,[[-115,-88],[85,-86],[116,-77],[-130,-77]]);
  poly(amber,[[78,-87],[123,-83],[151,-67],[138,-41],[110,-35],[95,-61]]);
  poly(gold,[[80,-87],[123,-83],[151,-67],[143,-64],[117,-77],[84,-78]]);
  line([[101,-70],[135,-64],[124,-48],[111,-46]],dark,3);
- for(let i=0;i<5;i++){const x=-69+i*29;box(x,-75,25,28,i%2?0x657b78:0x485e60);line([[x,-75],[x+24,-75],[x+24,-49]],edge);box(x+3,-58,17,6,dark);dot(x+20,-69,1,gold);}
+ for(let i=0;i<5;i++){const x=-69+i*29;module(x,-75,25,28,i%2?0x657b78:0x485e60,8);line([[x,-75],[x+24,-75],[x+24,-49]],edge);box(x+3,-58,17,6,dark);dot(x+20,-69,1,gold);}
  // Recessed panel joints, bolted ribs, service vents and worn edge strips.
  for(let i=0;i<5;i++){
    const x=-69+i*29;
@@ -91,7 +113,7 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  dot(worker,-40,1.3,dark);box(worker-1.4,-39,2.8,4,dark);
  for(let x=-54;x<-20;x+=11)box(x,-43,1.5,10,steel);
  // Exposed engine and cycling heat vanes.
- box(-126,-69,48,30,dark);
+ module(-126,-69,48,30,dark,12);
  for(let i=0;i<3;i++){box(-122+i*14,-65,10,20,steel);box(-120+i*14,-61,6,11,0x81ccb1);dot(-117+i*14,-55,7,0x81ccb1,.08+.04*Math.sin(t*2+i));}
  for(const x of [-135,68]){box(x,-89,10,23,dark);for(let k=0;k<4;k++)box(x+2,-85+k*4,6,1.5+Math.sin(t*.7+k)*.5,edge);}
  for(let i=0;i<3;i++){
@@ -100,24 +122,34 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
    box(x+2,-47,7,3,amber);dot(x+5,-60,1.4,0xd3ffe9,.65+.2*Math.sin(t*1.7+i));
  }
  // External aft propulsion pod: flared nozzle, recessed throat and cooling ribs.
- poly(dark,[[-150,-79],[-128,-78],[-122,-59],[-130,-40],[-152,-43],[-159,-51],[-159,-70]]);
+ solid(dark,[[-150,-79],[-128,-78],[-122,-59],[-130,-40],[-152,-43],[-159,-51],[-159,-70]],18,steel);
  poly(steel,[[-150,-75],[-132,-74],[-127,-59],[-133,-45],[-150,-47]]);
  poly(edge,[[-150,-75],[-132,-74],[-129,-70],[-148,-70]]);
  poly(dark,[[-155,-70],[-146,-67],[-146,-53],[-155,-49]]);
  line([[-154,-67],[-154,-53]],thrust?0xc2fff0:0x5b9f99,3);
  for(let n=0;n<4;n++)line([[-143+n*4,-71],[-140+n*4,-49]],0x2a4148,2);
  if(thrust)poly(0x8eddd4,[[-156,-67],[-185-Math.sin(t*23)*8,-60],[-156,-53]],.6);
+ if(activity?.vectorThrusters){
+   for(const x of [-140,110]){
+     module(x-8,-50,19,13,steel,10);box(x-5,-47,13,5,dark);line([[x-4,-45],[x+7,-45]],0x9ce9df,3);
+     if(thrust)poly(0x9ce9df,[[x-4,-37],[x+8,-37],[x+2,-18+Math.sin(t*25)*4]],.8);
+   }
+ }
  // Lift thrusters have bell mouths and separate hydraulic lines.
  for(const x of [-111,102]){
    box(x-5,-43,23,10,0x263e48);
-   poly(dark,[[x-3,-34],[x+14,-34],[x+19,-23],[x-8,-23]]);
+   solid(dark,[[x-3,-34],[x+14,-34],[x+19,-23],[x-8,-23]],12,steel);
    poly(steel,[[x,-34],[x+11,-34],[x+15,-26],[x-4,-26]]);
    line([[x-6,-23],[x+17,-23]],edge,2);
    line([[x-10,-46],[x-13,-39],[x-13,-29]],amber,2);
  }
  // Raised port bridge, warm glass and individually moving crew silhouettes.
- box(-108,-114,47,27,steel);
- poly(dark,[[-132,-124],[-109,-137],[-61,-134],[-45,-120],[-55,-104],[-122,-106]]);
+ module(-108,-114,47,27,steel,22);
+ solid(dark,[[-132,-124],[-109,-137],[-61,-134],[-45,-120],[-55,-104],[-122,-106]],24,steel);
+ if(activity?.dimensional){
+   line([[-97,-146],[-49,-143],[-33,-129]],edge,1.2);
+   for(const x of [-93,-78,-63])line([[x,-136],[x+11,-144]],0x354d55,1);
+ }
  poly(edge,[[-132,-124],[-109,-137],[-61,-134],[-45,-120],[-61,-122],[-117,-124]]);
  poly(gold,[[-124,-121],[-61,-119],[-54,-115],[-60,-108],[-119,-110]]);
  for(let i=0;i<3;i++){
@@ -138,12 +170,22 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  // Radar sweeps; aerial beacon breathes rather than strobing.
  line([[-89,-136],[-89,-149]],edge,2);
  const sweep=Math.sin(t*.65)*9;
- poly(steel,[[-102+sweep,-153],[-88,-145],[-76+sweep,-153],[-88,-157]]);line([[-88,-149],[-85+sweep,-157]],gold);
+ if(activity?.dimensional){
+   // A curved dish yaws on its mast: rim and ribs foreshorten together.
+   const yaw=t*.45,cs=Math.cos(yaw),sn=Math.sin(yaw);
+   const dish=(u:number,v:number,z=0)=>at(-88+u*cs+z*sn*.6,-153+v+u*sn*.22-z*.25);
+   const rim=Array.from({length:24},(_,i)=>{const a=i*Math.PI/12;return [Math.cos(a)*15,Math.sin(a)*6];});
+   drawVolume(g,rim,4,dish,steel);
+   g.fillStyle(steel);g.fillPoints(rim.map(([u,v])=>dish(u,v)),true);
+   g.lineStyle(1,edge);g.strokePoints(rim.map(([u,v])=>dish(u,v)),true);
+   const hub=dish(0,1,3);for(let n=0;n<6;n++){const a=n*Math.PI/3,p=dish(Math.cos(a)*14,Math.sin(a)*5);g.lineStyle(1,dark);g.lineBetween(hub.x,hub.y,p.x,p.y);}
+   const feed=dish(0,0,16);g.lineStyle(2,gold);g.lineBetween(hub.x,hub.y,feed.x,feed.y);g.fillStyle(edge);g.fillCircle(feed.x,feed.y,2);
+ }else{poly(steel,[[-102+sweep,-153],[-88,-145],[-76+sweep,-153],[-88,-157]]);line([[-88,-149],[-85+sweep,-157]],gold);}
  line([[-124,-127],[-124,-147]],edge);dot(-124,-147,1.7,gold,.65+.25*Math.sin(t*2));
  // Suspended cargo crane and boarding ramp.
  const hoist= Math.sin(t*.45)*3*docked-gear*12;
  line([[-39,-39],[-39,-23],[13,-23]],edge,3);line([[7,-23],[7,-13+hoist]],dark,2);
- box(-1,-14+hoist,16,10,amber);line([[2,-13+hoist],[2,-5+hoist]],gold);
+ module(-1,-14+hoist,16,10,amber,8);line([[2,-13+hoist],[2,-5+hoist]],gold);
  box(4,-13+hoist,3,8,0x554d37);dot(7,-23,2,amber);
  line([[-39,-25],[-34,-20],[8,-20]],dark,1.5);
  box(28,-44,30,28,0x273c43);box(30,-42,26,24,dark);box(33,-39,20,4,gold);
@@ -152,7 +194,7 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  for(const x of [28,56]){box(x,-33,2,14,amber);dot(x+1,-35,1,0x9ce8ca);}
  if(docked>.5){poly(gold,[[34,-34],[51,-34],[61,-17],[25,-17]],.055);}
 
- poly(steel,[[31,-18],[55,-18],[66-gear*11,-2-gear*16],[21+gear*10,-2-gear*16]]);
+ solid(steel,[[31,-18],[55,-18],[66-gear*11,-2-gear*16],[21+gear*10,-2-gear*16]],5);
  for(let i=0;i<4;i++){
  const y=-15+i*4*docked-gear*3;
  line([[29-i*2*docked,y],[57+i*2*docked,y]],edge,1);
@@ -168,6 +210,7 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  }
  // Two physical gun mounts track the actual projected target; flashes follow muzzle positions.
  for(const [i,x] of [-24,60].entries()){
+ if(activity?.dimensional){box(x-13,-96,26,10,dark);box(x-10,-94,20,7,steel);line([[x-10,-88],[x+10,-88]],edge,2);const pivot=at(x,-99),horizon=at(x+20,-99);drawStudyTurret(g,pivot,Math.atan2(horizon.y-pivot.y,horizon.x-pivot.x),t,i,activity.target,activity.firing?activity.shotAge:undefined);continue;}
  box(x-12,-91,25,6,dark);box(x-9,-95,19,5,steel);
  line([[x-9,-94],[x+9,-94]],edge,1.5);
  box(x-5,-103,10,10,dark);dot(x,-95,4,amber);
@@ -236,6 +279,7 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
      const c=Math.cos(angle),s=Math.sin(angle),pt=(u:number,v:number)=>({x:x+u*c-v*s,y:y+u*s+v*c});
      const face=(color:number,p:number[][])=>{g.fillStyle(color);g.fillPoints(p.map(([u,v])=>pt(u,v)),true);};
      const r=size/2;
+     if(activity?.dimensional)drawVolume(g,[[-r,-r],[r,-r],[r,r],[-r,r]],size*.32,(u,v,z)=>pt(u-z*.5,v+z*.38),0xc79250);
      face(dark,[[-r-1,-r-1],[r+1,-r-1],[r+1,r+1],[-r-1,r+1]]);
      face(0xc79250,[[-r,-r],[r,-r],[r,r],[-r,r]]);
      face(0xf0c27c,[[-r,-r],[r,-r],[r,-r+3],[-r,-r+3]]);

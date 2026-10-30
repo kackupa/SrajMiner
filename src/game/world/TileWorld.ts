@@ -43,6 +43,8 @@ export class TileWorld {
   atTerrainSurface(x:number,y:number) { const h=this.surfaceHeight(x,y); return (y-h)*this.gravitySign(y)<8; }
 
   clearedCaves = new Set<string>();
+  /** Transient authored test habitats; deliberately absent from save snapshots. */
+  studyHabitats?: { id:string; x:number; y:number; kind:'rock-swimmer'|'shard-manta'|'hull-scrapper' }[];
   chunks = new Map<string, Tile[]>();
   destroyed = new Set<string>();
   discovered = new Set<string>();

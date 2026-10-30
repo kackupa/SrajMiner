@@ -2,8 +2,8 @@ import { EXTRACTOR_TIERS, BUILD_PLACEMENT, MAPS, UNDERGROUND_BUILDING, SURFACE_R
 import type { Cargo } from '../economy/Progress';
 import type { TileWorld } from '../world/TileWorld';
 
-export type StructureKind = 'platform' | 'service' | 'turret' | 'trade-post' | 'habitat' | 'warehouse' | 'extractor' | 'wall' | 'gate' | 'fort';
-export type SurfaceStructureKind = Exclude<StructureKind, 'platform' | 'service'>;
+export type StructureKind = 'platform' | 'service' | 'light' | 'turret' | 'trade-post' | 'habitat' | 'warehouse' | 'extractor' | 'wall' | 'gate' | 'fort';
+export type SurfaceStructureKind = Exclude<StructureKind, 'platform' | 'service' | 'light'>;
 export type UndergroundStructure = { id: string; kind: StructureKind; x: number; y: number; reload?: number; integrity?: number; level?: number; productionFraction?: number };
 
 export const warehouseCapacity = (structures: readonly UndergroundStructure[]) => {
@@ -282,6 +282,14 @@ export function findBuildSite(
 ): { x: number; y: number } | undefined {
   const localDepth = depthAtWorldY(y, world.planetChart);
   if (localDepth < UNDERGROUND_BUILDING.minimumDepthMeters || localDepth > world.coreDepthMeters - 48) return undefined;
+  // A compact lamp mounts on the cave's rear wall, without a collision deck.
+  if (kind === 'light') {
+    const column = Math.floor(x / WORLD.tile), row = Math.floor(y / WORLD.tile);
+    const site = { x: (column + .5) * WORLD.tile, y: (row + .5) * WORLD.tile };
+    if (site.x < 100 || site.x > world.widthTiles * WORLD.tile - 100 || world.solid(column, row) ||
+      existing.some(entry => entry.kind === 'light' && Math.hypot(entry.x-site.x,entry.y-site.y)<WORLD.tile*2)) return undefined;
+    return site;
+  }
   const centerX = Math.floor(x / WORLD.tile) * WORLD.tile + WORLD.tile / 2;
   const deckY = kind === 'service'
     ? (gravitySign > 0 ? Math.ceil((y + 16) / WORLD.tile) * WORLD.tile - 1 : Math.floor((y - 16) / WORLD.tile) * WORLD.tile + 1)
@@ -292,7 +300,7 @@ export function findBuildSite(
   for (const dy of offsets) for (const dx of offsets) {
     const siteX = centerX + dx * WORLD.tile, siteY = deckY + dy * WORLD.tile;
     if (depthAtWorldY(siteY, world.planetChart) < UNDERGROUND_BUILDING.minimumDepthMeters || depthAtWorldY(siteY, world.planetChart) > world.coreDepthMeters - 48) continue;
-    if (existing.some(entry => Math.hypot(entry.x - siteX, entry.y - siteY) < 240)) continue;
+    if (existing.some(entry => entry.kind !== 'light' && Math.hypot(entry.x - siteX, entry.y - siteY) < 240)) continue;
     const row = Math.floor(siteY / WORLD.tile), column = Math.floor(siteX / WORLD.tile);
     let clear = true;
     for (let xx = -halfSpan; xx <= halfSpan; xx++) for (let yy = kind === 'service' || kind === 'turret' ? -2 : 0; yy <= (kind === 'turret' ? 2 : 0); yy++) {
@@ -320,7 +328,7 @@ export function crossedStructureDeck(
 ) {
   if (dropThrough || Math.abs(toY - fromY) < 0.00001) return undefined;
   for (const structure of structures) {
-    if (structure.kind === 'trade-post' || structure.kind === 'warehouse' || structure.kind === 'wall' || structure.kind === 'gate' || structure.kind === 'fort') continue;
+    if (structure.kind === 'light' || structure.kind === 'trade-post' || structure.kind === 'warehouse' || structure.kind === 'wall' || structure.kind === 'gate' || structure.kind === 'fort') continue;
     const width = UNDERGROUND_BUILDING[structure.kind].widthTiles * WORLD.tile / 2;
     if (Math.abs(x - structure.x) > width) continue;
     const fromFeet = fromY + gravitySign * halfHeight - structure.y;
