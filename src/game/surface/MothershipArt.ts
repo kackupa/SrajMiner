@@ -1,20 +1,21 @@
+import { shipLocalPoint } from '../study/StudyPilot';
 import { cargoPhase, UNLOAD_DURATION } from './CargoHandling';
 import { drawStudyTurret } from '../study/StudyTurret';
 import { drawVolume } from '../study/StudyVolume';
 import type Phaser from 'phaser';
 import type { VehiclePose } from '../player/VehiclePose';
 import { landingFoot, type LandingSurface } from './LandingGear';
-export type ShipActivity = { landingSurface?:LandingSurface; dimensional?:boolean; vectorThrusters?:boolean; unload?: {age:number;source:{x:number;y:number};count:number;sources?:{x:number;y:number}[]}; time: number; target?: {x:number;y:number}; firing?: boolean; shotAge?: number; reduced?: boolean };
+export type ShipActivity = { yaw?:number; drive?:number; boost?:boolean; missileAge?:number; landingSurface?:LandingSurface; dimensional?:boolean; vectorThrusters?:boolean; unload?: {age:number;source:{x:number;y:number};count:number;sources?:{x:number;y:number}[]}; time: number; target?: {x:number;y:number}; firing?: boolean; shotAge?: number; firingTurret?:number; shotTarget?:{x:number;y:number}; reduced?: boolean };
 /** Workhorse: asymmetric expedition carrier. Shared by world and transit presentation. */
 export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number,y:number)=>{x:number;y:number}, thrust:boolean, motion?:VehiclePose, activity?:ShipActivity) {
  const t=activity?.reduced?0:activity?.time??motion?.phase??0, gear=motion?.gear??0;
  const docked=1-gear;
- const bank=(motion?.bank??0)*.45,c=Math.cos(bank),s=Math.sin(bank);
- const at=(x:number,y:number)=>project((x*c-(y+58)*s)*1.5,(-58+x*s+(y+58)*c)*1.5);
+ const at3=(x:number,y:number,z=0)=>{const p=shipLocalPoint(x,y,z,motion?.bank??0,activity?.yaw);return project(p.x*1.5,p.y*1.5);};
+ const at=(x:number,y:number)=>at3(x,y);
  const poly=(color:number,p:number[][],a=1)=>{g.fillStyle(color,a);g.fillPoints(p.map(([x,y])=>at(x,y)),true);};
  const box=(x:number,y:number,w:number,h:number,color:number)=>poly(color,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]]);
  const solid=(color:number,p:number[][],depth:number,sideColor=color)=>{
-   if(activity?.dimensional)drawVolume(g,p,depth,(x,y,z)=>at(x-z*.5,y+z*.38),sideColor);
+   if(activity?.dimensional)drawVolume(g,p,depth,(x,y,z)=>at3(x,y,z),sideColor);
    poly(color,p);
  };
  const module=(x:number,y:number,w:number,h:number,color:number,depth=8)=>solid(color,[[x,y],[x+w,y],[x+w,y+h],[x,y+h]],depth);
@@ -52,8 +53,24 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
    }
  }
  // Cargo spine and angular amber bow preserve the selected concept's silhouette.
- solid(dark,[[-143,-75],[-117,-93],[85,-91],[148,-72],[134,-31],[-126,-31]],30,steel);
- if(activity?.dimensional){
+ solid(dark,[[-143,-75],[-117,-93],[85,-91],[148,-72],[134,-31],[-126,-31]],activity?.yaw===undefined?30:72,steel);
+ if(activity?.yaw!==undefined){
+   const face3=(color:number,points:number[][])=>{g.fillStyle(color);g.fillPoints(points.map(([x,y,z])=>at3(x,y,z)),true);};
+   // Bevelled end armour, twin recessed engine throats and top deck plating.
+   face3(0x354d55,[[-143,-72,-8],[-143,-77,-57],[-143,-64,-68],[-143,-42,-62],[-143,-37,-10]]);
+   for(const z of [-51,-22]){
+     face3(0x142a35,[[-144,-67,z-9],[-144,-67,z+9],[-144,-45,z+9],[-144,-45,z-9]]);
+     face3(thrust?0x9de4d6:0x4b777c,[[-145,-62,z-5],[-145,-62,z+5],[-145,-49,z+5],[-145,-49,z-5]]);
+     for(let y=-64;y<-44;y+=5){const a=at3(-146,y,z-7),b=at3(-146,y,z+7);g.lineStyle(1,dark);g.lineBetween(a.x,a.y,b.x,b.y);}
+   }
+   face3(amber,[[140,-67,-8],[140,-70,-55],[140,-60,-65],[140,-40,-55],[140,-38,-8]]);
+   face3(gold,[[141,-66,-13],[141,-67,-50],[141,-62,-56],[141,-59,-12]]);
+   for(let x=-80;x<80;x+=32){
+     face3(0x536b6d,[[x,-91,-8],[x+27,-91,-8],[x+27,-91,-61],[x,-91,-61]]);
+     face3(0x253e48,[[x+4,-92,-20],[x+23,-92,-20],[x+23,-92,-49],[x+4,-92,-49]]);
+   }
+ }
+ if(activity?.dimensional && activity.yaw===undefined){
    line([[-102,-104],[100,-102],[162,-83]],edge,1.3);
    for(let i=0;i<6;i++){const x=-76+i*28;line([[x,-92],[x+13,-102]],0x263e48,2);line([[x+2,-92],[x+15,-102]],0x8c9d92,1);}
    // Two recessed ducts across the upper deck, with grilles inside their rims.
@@ -128,7 +145,14 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  poly(dark,[[-155,-70],[-146,-67],[-146,-53],[-155,-49]]);
  line([[-154,-67],[-154,-53]],thrust?0xc2fff0:0x5b9f99,3);
  for(let n=0;n<4;n++)line([[-143+n*4,-71],[-140+n*4,-49]],0x2a4148,2);
- if(thrust)poly(0x8eddd4,[[-156,-67],[-185-Math.sin(t*23)*8,-60],[-156,-53]],.6);
+ const drive=activity?.drive??Number(thrust);
+ if(thrust&&activity?.yaw===undefined)poly(0x8eddd4,[[-156,-67],[-185-Math.sin(t*23)*8,-60],[-156,-53]],.6);
+ if(thrust&&activity?.yaw!==undefined&&drive>.03){
+   const plume=(activity?.boost?190:95)*drive;
+   poly(0x5ecfcf,[[-156,-70],[-170-plume-Math.sin(t*23)*10,-60],[-156,-50]],.25);
+   poly(0x8eddd4,[[-156,-67],[-163-plume*.8,-60],[-156,-53]],.75);
+   poly(0xe2fff2,[[-156,-64],[-162-plume*.48,-60],[-156,-56]],.9);
+ }
  if(activity?.vectorThrusters){
    for(const x of [-140,110]){
      module(x-8,-50,19,13,steel,10);box(x-5,-47,13,5,dark);line([[x-4,-45],[x+7,-45]],0x9ce9df,3);
@@ -146,7 +170,7 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  // Raised port bridge, warm glass and individually moving crew silhouettes.
  module(-108,-114,47,27,steel,22);
  solid(dark,[[-132,-124],[-109,-137],[-61,-134],[-45,-120],[-55,-104],[-122,-106]],24,steel);
- if(activity?.dimensional){
+ if(activity?.dimensional && activity.yaw===undefined){
    line([[-97,-146],[-49,-143],[-33,-129]],edge,1.2);
    for(const x of [-93,-78,-63])line([[x,-136],[x+11,-144]],0x354d55,1);
  }
@@ -201,16 +225,22 @@ export function drawMothership(g: Phaser.GameObjects.Graphics, project:(x:number
  dot(28-i*2*docked,y, .8,gold,.5+.2*Math.sin(t*2-i));
  }
  poly(gold,[[33,-35],[53,-35],[73,-3],[12,-3]],.045);
- for(const x of [-108,104]){box(x,-38,18,9,dark);if(thrust){const f=20+Math.sin(t*31+x)*4;poly(0x8ee3da,[[x+2,-29],[x+16,-29],[x+9,f]],.65);poly(0xffdfad,[[x+6,-29],[x+12,-29],[x+9,f*.6]]);}}
+ for(const x of [-108,104]){box(x,-38,18,9,dark);if(thrust){const f=(activity?.boost?65:20)+Math.sin(t*31+x)*4;poly(0x8ee3da,[[x+2,-29],[x+16,-29],[x+9,f]],.65);poly(0xffdfad,[[x+6,-29],[x+12,-29],[x+9,f*.6]]);}}
  // Ramp handrails hinge with the deck instead of floating above it.
  if(docked>.1)for(const side of [-1,1]){
    const a=43+side*12,b=43+side*(22-gear*10);
    line([[a,-20],[a,-28],[b,-12-gear*10],[b,-3-gear*16]],dark,3);
    line([[a,-28],[b,-12-gear*10]],edge,1.4);
  }
+ // Armoured vertical launch cell; opening leaves and exhaust follow the hull transform.
+ if(activity?.missileAge!==undefined){
+   const age=activity.missileAge,open=Math.max(0,1-age/.7);
+   box(11,-88,18,7,dark);box(10-7*open,-91,10,4,steel);box(20+7*open,-91,10,4,steel);
+   if(age<.25){poly(0xf7c680,[[16,-88],[24,-88],[20,-124+age*80]],1-age/.25);dot(20,-89,6,0xffe2b1,1-age/.25);}
+ }
  // Two physical gun mounts track the actual projected target; flashes follow muzzle positions.
  for(const [i,x] of [-24,60].entries()){
- if(activity?.dimensional){box(x-13,-96,26,10,dark);box(x-10,-94,20,7,steel);line([[x-10,-88],[x+10,-88]],edge,2);const pivot=at(x,-99),horizon=at(x+20,-99);drawStudyTurret(g,pivot,Math.atan2(horizon.y-pivot.y,horizon.x-pivot.x),t,i,activity.target,activity.firing?activity.shotAge:undefined);continue;}
+ if(activity?.dimensional){box(x-13,-96,26,10,dark);box(x-10,-94,20,7,steel);line([[x-10,-88],[x+10,-88]],edge,2);const pivot=at(x,-99),horizon=activity.yaw===undefined?at(x+20,-99):{x:pivot.x+project(20,0).x-project(0,0).x,y:pivot.y+project(20,0).y-project(0,0).y};drawStudyTurret(g,pivot,Math.atan2(horizon.y-pivot.y,horizon.x-pivot.x),t,i,(activity.firing && (activity.firingTurret===undefined || activity.firingTurret===i) ? activity.shotTarget : undefined) ?? activity.target,activity.firing && (activity.firingTurret===undefined || activity.firingTurret===i)?activity.shotAge:undefined,activity.yaw===undefined?1:Math.hypot(project(1,0).x-project(0,0).x,project(1,0).y-project(0,0).y)*1.5);continue;}
  box(x-12,-91,25,6,dark);box(x-9,-95,19,5,steel);
  line([[x-9,-94],[x+9,-94]],edge,1.5);
  box(x-5,-103,10,10,dark);dot(x,-95,4,amber);

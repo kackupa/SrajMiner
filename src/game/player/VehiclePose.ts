@@ -6,6 +6,11 @@ export type VehiclePose = {
   lift: number;
   gear: number;
   drill: number;
+  /** Test-rig presentation target in planet-local coordinates; never saved. */
+  drillAim?: {x:number;y:number};
+  /** Disposable utility-hand placement pose, shoulder-relative. */
+  clawAction?: {x:number;y:number;angle:number;holding:boolean;bracing?:boolean};
+  clawHandling?:{material:'rock'|'copper'|'iron'|'silver';held:boolean;hatch:number;weight:number};
   phase: number;
   landing: number;
   grounded: boolean;
@@ -14,11 +19,15 @@ export type VehiclePose = {
   lookX: number;
   lookY: number;
   fire: number;
+  /** Optional Forge primary deployment, transient and never saved. */
+  gunDeployment?: number;
   /** Opt-in art study yaw, in radians. Never saved or used by movement. */
   yaw?: number;
   /** Distance-driven step cycle for the dimensional rig, separate from idle time. */
   walkPhase?: number;
   dive?: number;
+  /** Signed lateral thrust input for the disposable Forge renderer. */
+  strafe?: number;
   forge?: import('./ForgeMotion').ForgeMotion;
 };
 export const restingVehiclePose = (): VehiclePose => ({
@@ -45,6 +54,7 @@ export function advanceVehiclePose(
     firing?: boolean;
     mechanicalTurn?: boolean;
     downThrust?: boolean;
+    sideThrust?: number;
     sideSpeed: number;
     verticalSpeed: number;
     facing: number;
@@ -76,6 +86,7 @@ export function advanceVehiclePose(
   return {
     ...(input.mechanicalTurn
       ? {
+          strafe:(pose.strafe??0)+((input.grounded?0:clamp(input.sideThrust??0,1))-(pose.strafe??0))*(1-Math.exp(-step*20)),
           dive:
             (pose.dive ?? 0) +
             ((input.downThrust && !input.grounded ? 1 : 0) - (pose.dive ?? 0)) *

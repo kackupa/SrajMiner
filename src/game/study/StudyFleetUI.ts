@@ -43,7 +43,7 @@ export class StudyFleetUI {
       unload: () => void;
       sold: () => void;
       bought: () => void;
-      relocate: () => void;
+      board: () => void;
     },
     private forge = false,
     private art?: ForgeSpriteRig,
@@ -112,8 +112,8 @@ export class StudyFleetUI {
           actions.bought();
         }
       }
-      if (button.hasAttribute('data-relocate')) {
-        actions.relocate();
+      if (button.hasAttribute('data-board')) {
+        actions.board();
         return;
       }
       if (button.hasAttribute('data-supplies')) {
@@ -198,7 +198,7 @@ export class StudyFleetUI {
       )
       .join(
         '',
-      )}<button data-relocate class="fleet-move"><small>↗</small><span><b>Move ship</b><em>Choose a landing site</em></span></button><p class="nav-note"><span class="fleet-live"></span> EXPEDITION PAUSED</p></nav>
+      )}<button data-board class="fleet-move"><small>↗</small><span><b>Board &amp; fly</b><em>Take the helm</em></span></button><p class="nav-note"><span class="fleet-live"></span> EXPEDITION PAUSED</p></nav>
     ${this.bay()}<main class="fleet-content" data-page="${this.page}"><div class="fleet-heading"><small>SHIP OPERATIONS / ${this.page.toUpperCase()}</small><h2>${titles[this.page][0]}</h2><p>${titles[this.page][1]}</p></div>${this.page === 'cargo' ? this.cargoPanel() : this.page === 'equipment' ? this.equipmentPanel() : this.weaponPanel()}</main></div>
     <footer><p role="status">${this.status}</p><span class="fleet-prototype">TEST EXPEDITION · RELOAD RESETS</span><button data-supplies ${f.testSuppliesUsed ? 'disabled' : ''}>${f.testSuppliesUsed ? 'Test supplies used' : 'Load test supplies'}</button></footer>`;
   }

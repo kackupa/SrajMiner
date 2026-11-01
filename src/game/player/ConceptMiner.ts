@@ -4,6 +4,7 @@ import { restingVehiclePose, mechanicalFootstep, type VehiclePose } from './Vehi
 import type { MinerGroundContact } from '../study/StudyMinerMotion';
 import { weaponPlates } from '../study/StudyWeaponArt';
 import { STUDY_WEAPONS } from '../config';
+import { forgeGunFold } from './ForgeArm';
 
 export type RigMark = (
   | { kind: 'poly'; color: number; points: number[][]; alpha: number }
@@ -29,7 +30,7 @@ export function minerLampSocket(p: Progress, pose: VehiclePose) {
   const length = Math.hypot(pose.lookX, pose.lookY) || 1,
     dx = pose.lookX / length,
     dy = pose.lookY / length;
-  const pivot = { x: -16, y: -26 + minerBodyOffset(p, pose) };
+  const pivot = { x: pose.forge ? -16*Math.cos(pose.yaw??0) : -16, y: (pose.forge?-40:-26) + minerBodyOffset(p, pose) };
   return { pivot, dx, dy, lens: { x: pivot.x + dx * 6, y: pivot.y + dy * 6 } };
 }
 
@@ -39,6 +40,15 @@ export function minerGunSocket(p: Progress, pose: VehiclePose) {
     dy = pose.lookY / norm;
   const bodyY = minerBodyOffset(p, pose),
     length = STUDY_WEAPONS.find((w) => w.id === p.loadout.fitted.weapon)?.length ?? 16;
+    if(pose.forge){
+      const fold=forgeGunFold(pose.drill,pose.gunDeployment),face=Math.cos(pose.yaw??0);
+      const pivot={x:16*face,y:-14+bodyY-33*(1-fold)};
+      const reach=5-pose.fire*1.2;
+      const origin={x:pivot.x+dx*reach*(1-fold),y:pivot.y+dy*reach*(1-fold)};
+      const aim=Math.atan2(dy,dx),delta=Math.atan2(Math.sin(-Math.PI/2-aim),Math.cos(-Math.PI/2-aim));
+      const angle=aim+delta*fold,gx=Math.cos(angle),gy=Math.sin(angle);
+      return {origin,pivot,dx:gx,dy:gy,length,muzzle:{x:origin.x+gx*length,y:origin.y+gy*length}};
+    }
   const origin = {
     x: 21 + dx * 4 - dx * pose.fire * 3,
     y: -3 + bodyY + dy * 7 - dy * pose.fire * 3,

@@ -1,5 +1,6 @@
 import { FLEET_STUDY, UNIFORM_COMBAT as C, SURFACE_EXPEDITION as E, UNIFORM_PLANET_STUDY as P, type StudyWeaponSpec } from '../config';
 import type { Point, UniformPlanet } from './UniformPlanet';
+import { shipDeckPoint } from './StudyPilot';
 import { caveRoute, clearCreaturePath } from './CaveRoutes';
 export type CombatBody = Point & {
   id: number;
@@ -27,10 +28,17 @@ export class UniformCombat {
   kills = 0;
   reward = 0;
   shipTimer = 0;
-  shipShot?:{target:Point;age:number};
+  shipShot?:{target:Point;age:number;turret:number};
+  shipTarget?:Point;
+  shipShots = 0;
+  /** Deck mounts match the dimensional mothership art (1.5x local coordinates). */
+  shipMount(ship:Point,turret:number,bank=0,yaw?:number,frameAngle?:number):Point {
+    return shipDeckPoint(ship,turret===0?-36:90,-148.5,bank,yaw,frameAngle);
+  }
   beams: { a: Point; b: Point; life: number; color: number }[] = [];
   constructor(world: UniformPlanet) {
     C.sites.forEach((s, site) => {
+      if(Math.hypot(s.x,s.y)<C.coreExclusionRadius+25)return;
       if(world.relief&&s.kind==='flyer')return;
       const n = this.add(s, 'nest', site, C.nestHealth);
       // Seat cave nests on their existing floor, without excavating or regenerating terrain.
@@ -139,12 +147,12 @@ export class UniformCombat {
     }
     return true;
   }
-  blast(world: UniformPlanet, p: Point, w: StudyWeaponSpec, miner: Point) {
+  blast(world: UniformPlanet, p: Point, w: StudyWeaponSpec, miner: Point, damageMiner=true) {
     // Resolve cover before the scene removes rock. Enemies behind a wall are protected for this blast.
     for (const b of this.bodies)
       if (b.hp > 0 && Math.hypot(b.x - p.x, b.y - p.y) <= w.blast + 13 && this.sight(world, p, b))
         this.damage(b, w.damage, w.armor);
-    if (Math.hypot(miner.x - p.x, miner.y - p.y) < w.blast && this.sight(world, p, miner))
+    if (damageMiner && Math.hypot(miner.x - p.x, miner.y - p.y) < w.blast && this.sight(world, p, miner))
       this.hurt(C.blastSelfDamage);
   }
   hurt(n: number) {
@@ -162,7 +170,7 @@ export class UniformCombat {
         avoids.push(...this.bodies.filter(other=>other!==b&&other.hp>0&&other.kind!=='nest'));
         if(avoids.some(p=>Math.hypot(x-p.x,y-p.y)<30&&Math.hypot(x-p.x,y-p.y)<Math.hypot(b.x-p.x,b.y-p.y)))continue;
         const radius = Math.hypot(x, y);
-        if (
+        if (radius < C.coreExclusionRadius + C.enemyRadius ||
           (b.kind === 'flyer' && radius < world.surfaceRadiusAt({x,y}) + (b.gunship?45:20)) ||
           (b.kind !== 'flyer' && radius > world.surfaceRadiusAt({x,y}) - 10)
         )
@@ -231,13 +239,14 @@ export class UniformCombat {
     b.heading=(b.heading??0)+((heading<0?Math.PI:0)-(b.heading??0))*(1-Math.exp(-dt*5));
     b.moving=speed/E.strafeSpeed;
   }
-  update(world: UniformPlanet, dt: number, miner: Point, ship: Point, shipLanded: boolean) {
+  update(world: UniformPlanet, dt: number, miner: Point, ship: Point, shipLanded: boolean, piloting=false, bank=0, controls?:{aim:Point;fire:boolean;yaw?:number;frameAngle?:number}) {
     dt = Math.min(0.05, Math.max(0, dt));
     this.grace = Math.max(0, this.grace - dt);
     this.shipTimer -= dt;
     if(this.shipShot&&(this.shipShot.age+=dt)>.38)this.shipShot=undefined;
-    const safe = shipLanded && Math.hypot(miner.x - ship.x, miner.y - ship.y) < FLEET_STUDY.serviceRange;
-    if (safe) this.hull = Math.min(C.hull, this.hull + C.repairPerSecond * dt);
+    const atShip = shipLanded && Math.hypot(miner.x - ship.x, miner.y - ship.y) < FLEET_STUDY.serviceRange;
+    const safe = piloting || atShip || Math.hypot(miner.x,miner.y)<C.coreExclusionRadius;
+    if (atShip) this.hull = Math.min(C.hull, this.hull + C.repairPerSecond * dt);
     this.beams = this.beams.filter((b) => (b.life -= dt) > 0);
     for (const b of this.bodies) {
       b.flash = Math.max(0, b.flash - dt);
@@ -329,7 +338,7 @@ export class UniformCombat {
       for (let i = 0; i < steps; i++) {
         s.x += (s.vx * dt) / steps;
         s.y += (s.vy * dt) / steps;
-        if (world.solidAt(s)) return false;
+        if (world.solidAt(s) || Math.hypot(s.x,s.y)<C.coreExclusionRadius) return false;
         if (Math.hypot(s.x - miner.x, s.y - miner.y) < 18) {
           if (!safe) this.hurt(C.spitDamage);
           return false;
@@ -337,18 +346,40 @@ export class UniformCombat {
       }
       return s.life > 0;
     });
-    if (shipLanded && this.shipTimer <= 0) {
-      const enemy = this.bodies.find(
-        (b) =>
-          b.kind === 'flyer' &&
-          b.hp > 0 &&
-          Math.hypot(b.x - ship.x, b.y - ship.y) < C.shipRange &&
-          this.sight(world, ship, b),
-      );
-      if (enemy) {
+    this.shipTarget=undefined;
+    if(piloting){
+      if(!controls)return;
+      this.shipTarget={...controls.aim};
+      if(!controls.fire||this.shipTimer>0)return;
+      const turret=this.shipShots%2,origin=this.shipMount(ship,turret,bank,controls.yaw,controls.frameAngle);
+      const dx=controls.aim.x-origin.x,dy=controls.aim.y-origin.y,length=Math.hypot(dx,dy);
+      if(length<1)return;
+      let end={...origin};
+      // A swept cannon ray stops at the first rock or creature. Empty-space shots work too.
+      const range=Math.min(length,C.shipFlightRange);
+      for(let d=0;d<=range;d+=2){
+        end={x:origin.x+dx/length*d,y:origin.y+dy/length*d};
+        if(world.solidAt(end))break;
+        const hit=this.target(end);
+        if(hit){this.damage(hit,C.shipDamage);break;}
+      }
+      this.shipTimer=C.shipCooldown;
+      this.shipShot={target:end,age:0,turret};this.shipShots++;
+    } else if (shipLanded) {
+      const range=piloting?C.shipFlightRange:C.shipRange;
+      const candidates=this.bodies.filter(b=>b.kind==='flyer'&&b.hp>0&&!world.solidAt(b))
+        .sort((a,b)=>Math.hypot(a.x-ship.x,a.y-ship.y)-Math.hypot(b.x-ship.x,b.y-ship.y));
+      // Alternate guns, but use the other mount if terrain blocks the preferred one.
+      const preferred=this.shipShots%2;
+      const mounts=[preferred,1-preferred].map(turret=>({turret,origin:this.shipMount(ship,turret,bank,controls?.yaw)}));
+      const enemy=candidates.find(b=>mounts.some(m=>Math.hypot(b.x-m.origin.x,b.y-m.origin.y)<range&&this.sight(world,m.origin,b)));
+      const mount=enemy&&mounts.find(m=>Math.hypot(enemy.x-m.origin.x,enemy.y-m.origin.y)<range&&this.sight(world,m.origin,enemy));
+      if(enemy)this.shipTarget={x:enemy.x,y:enemy.y};
+      if (enemy && mount && this.shipTimer <= 0) {
         this.shipTimer = C.shipCooldown;
         this.damage(enemy, C.shipDamage);
-        this.shipShot={target:{x:enemy.x,y:enemy.y},age:0};
+        this.shipShot={target:{x:enemy.x,y:enemy.y},age:0,turret:mount.turret};
+        this.shipShots++;
       }
     }
   }

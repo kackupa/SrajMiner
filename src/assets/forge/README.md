@@ -9,3 +9,7 @@ Original game assets generated with the built-in image generation tool on 29 Oct
 The original PNGs are preserved. Source rectangles and the shin separation mask live in `src/game/player/ForgeSpriteRig.ts`; that renderer trims transparent gutters at load time and assembles the moving rig around the existing gameplay sockets. The same compositor produces the refit portrait. Changing an atlas requires reviewing those rectangles and checking the assembled rig and all thumbnails in the browser.
 
 Only the disposable uniform test scene loads this rig. Campaign saves and collision geometry are unchanged. `&miner=legacy` retains the previous procedural miner for comparison. The approved marketing concepts remain in ignored `output/marketing/miner-concepts/`.
+
+The helmet is separately masked from each normalized directional frame for independent pitch. `HEADS` in `ForgeSpriteRig.ts` defines its outline and neck pivot; review those masks if replacing the torso atlas. This extraction happens in memory and does not alter the original PNG.
+
+The forearm now uses a separate compact crop of the original arm pistons and elbow casing, excluding the large shoulder plate. Per-frame `joints` are measured before trimming and translated into trimmed coordinates during extraction, keeping the artwork's hinges attached to the animated bones.

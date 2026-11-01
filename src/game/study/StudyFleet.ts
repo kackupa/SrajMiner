@@ -12,7 +12,10 @@ const deltaAngle = (a: number, b: number) => Math.atan2(Math.sin(b - a), Math.co
 
 /** In-memory expedition economy. Never reads or writes campaign data. */
 export class StudyFleet {
-  constructor(private readonly world?:UniformPlanet) {}
+  constructor(private world?:UniformPlanet) {}
+  pilotedPosition?:Point;
+  yaw?:number;
+  setWorld(world:UniformPlanet){this.world=world;}
   readonly miner = empty();
   readonly storage = empty();
   readonly modules = new Set<FleetModule>();
@@ -46,6 +49,7 @@ export class StudyFleet {
     return C.drillSeconds / (this.modules.has('drill') ? F.drillMultiplier : 1);
   }
   get position(): Point {
+    if(this.pilotedPosition)return {...this.pilotedPosition};
     const flight = this.flight,
       q = flight ? Math.min(1, flight.elapsed / flight.duration) : 0;
     const ease = q * q * (3 - 2 * q);

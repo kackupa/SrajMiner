@@ -33,6 +33,7 @@ export function drawStudyTurret(
   index: number,
   target?: Point,
   age?: number,
+  scale=1,
 ) {
   const dx = target
     ? (target.x - pivot.x) * Math.cos(base) + (target.y - pivot.y) * Math.sin(base)
@@ -49,7 +50,8 @@ export function drawStudyTurret(
     ? Math.atan2(-dy, Math.abs(dx))
     : 0.22 + Math.sin(time * 0.23 + index) * 0.08;
   const recoil = age === undefined ? 0 : Math.max(0, 1 - age / 0.18) * 5;
-  const at = turretProjection(pivot, base, yaw, pitch, recoil);
+  const projection = turretProjection(pivot, base, yaw, pitch, recoil);
+  const at=(x:number,y:number,z:number,barrel=false)=>{const p=projection(x,y,z,barrel);return {x:pivot.x+(p.x-pivot.x)*scale,y:pivot.y+(p.y-pivot.y)*scale};};
   const poly = (points: number[][], color: number, barrel = false) => {
     g.fillStyle(color);
     g.fillPoints(
@@ -122,9 +124,9 @@ export function drawStudyTurret(
   };
   // Fixed circular mounting ring, rotating armored head, twin elevating cannons.
   g.fillStyle(0x101f29);
-  g.fillEllipse(pivot.x, pivot.y + 8, 44, 17);
+  g.fillEllipse(pivot.x, pivot.y + 8*scale, 44*scale, 17*scale);
   g.lineStyle(2, 0xa6b5a7);
-  g.strokeEllipse(pivot.x, pivot.y + 5, 39, 12);
+  g.strokeEllipse(pivot.x, pivot.y + 5*scale, 39*scale, 12*scale);
   box(-12, 0, -9, 24, 12, 18);
   box(-14, 4, 9, 12, 9, 5);
   for (const z of [-6, 6]) {
@@ -145,9 +147,9 @@ export function drawStudyTurret(
     if (target && age !== undefined) {
       if (age < 0.1) {
         g.fillStyle(0xffce7b, 0.22);
-        g.fillCircle(muzzle.x, muzzle.y, 12);
+        g.fillCircle(muzzle.x, muzzle.y, 12*scale);
         g.fillStyle(0xfff0cf);
-        g.fillCircle(muzzle.x, muzzle.y, 3);
+        g.fillCircle(muzzle.x, muzzle.y, 3*scale);
       }
       const p = Math.min(1, age / 0.25),
         q = Math.max(0, p - 0.2);
@@ -162,5 +164,5 @@ export function drawStudyTurret(
   }
   const sensor = at(3, 16, 0);
   g.fillStyle(0xffc783);
-  g.fillCircle(sensor.x, sensor.y, 2);
+  g.fillCircle(sensor.x, sensor.y, 2*scale);
 }

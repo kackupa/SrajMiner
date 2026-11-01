@@ -172,3 +172,20 @@ assert(Math.hypot(shaftMiner.x,shaftMiner.y)>C.radius,'W returns from a naturall
 assert(shaftMiner.thrustAssists>0);
 assert.equal(shaftWorld.cells.size,shaftCells);
 console.log('PASS gradual clearance and physical return from an angled mined shaft');
+import { studyWind } from '../src/game/study/StudyWind';
+for(const altitude of [-1000,0,C.windStart])assert.deepEqual(studyWind(altitude,3),{strength:0,cross:0,down:0});
+for(const fps of [30,60,120]){
+ const m=new UniformMiner();m.teleport({x:500,y:-1850});
+ let strongest=0;
+ for(let i=0;i<fps*12;i++){
+  m.step(world,0,true,1/fps);
+  strongest=Math.max(strongest,m.wind.strength);
+  assert(!world.collides(m),'Wind cannot push miner into rock');
+ }
+ assert(strongest>.8,'Sustained flight reaches strong upper winds');
+ assert(Math.hypot(m.x,m.y)<C.radius+490,'Wind limits climb before the hard airspace boundary');
+ for(let i=0;i<fps*14&&!m.grounded;i++)m.step(world,0,false,1/fps,true);
+ assert(m.grounded,'Can descend and land out of strong wind');
+ assert.equal(m.wind.strength,0,'Ground returns to calm');
+}
+console.log('PASS wind altitude gating, bounded climb and safe descent at 30/60/120 Hz');

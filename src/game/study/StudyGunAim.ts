@@ -7,6 +7,12 @@ import type { Point } from './UniformPlanet';
 /** Aim the articulated barrel at a screen point independently of body turn smoothing. */
 export function aimStudyGun(at:Point,scale:number,p:Progress,pose:VehiclePose,target:Point) {
  const socket=minerGunSocket(p,minerLocalLook(pose,false));
+ if(pose.forge){
+  const shoulder=minerPartPoint(at.x,at.y,scale,pose,false,socket.pivot.x,socket.pivot.y,socket.pivot);
+  const dx=target.x-shoulder.x,dy=target.y-shoulder.y,n=Math.hypot(dx,dy)||1;
+  const aimed={...pose,lookX:dx/n,lookY:dy/n};
+  return {pose:aimed,muzzle:minerGunPoint(at.x,at.y,scale,p,aimed,false),direction:{x:aimed.lookX,y:aimed.lookY}};
+ }
  const base=minerPartPoint(at.x,at.y,scale,pose,false,
   socket.origin.x-socket.dx*(4-pose.fire*3),
   socket.origin.y-socket.dy*(7-pose.fire*3),pose.yaw===undefined?undefined:socket.pivot);

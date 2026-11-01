@@ -3,7 +3,7 @@ import { StudyFleet } from '../src/game/study/StudyFleet';
 import { UniformPlanet } from '../src/game/study/UniformPlanet';
 import { UniformCombat } from '../src/game/study/UniformCombat';
 import { StudyOrdnance } from '../src/game/study/StudyOrdnance';
-import { STUDY_WEAPONS as W, UNIFORM_PLANET_STUDY as P } from '../src/game/config';
+import { STUDY_WEAPONS as W, UNIFORM_PLANET_STUDY as P, UNIFORM_COMBAT as C } from '../src/game/config';
 import { weaponPlates } from '../src/game/study/StudyWeaponArt';
 const f = new StudyFleet();
 assert.equal(f.primary, 'machine-gun');
@@ -37,8 +37,8 @@ for (const w of W)
 const world = new UniformPlanet(),
   combat = new UniformCombat(world),
   original = world.cells.size;
-assert.equal(combat.bodies.filter((b) => b.kind === 'nest').length, 5);
-assert(combat.bodies.length >= 12);
+assert.equal(combat.bodies.filter((b) => b.kind === 'nest').length, 4);
+assert(combat.bodies.length >= 10);
 for (let i = 0; i < 1200; i++) {
   const target = i < 600 ? { x: 0, y: -760 } : { x: 460, y: -1790 };
   combat.update(world, 1 / 60, target, { x: -440, y: -1710 }, true);
@@ -113,3 +113,68 @@ const defence=new UniformCombat(new UniformPlanet()),intruder=defence.bodies.fin
 intruder.x=100;intruder.y=-1840;defence.update(new UniformPlanet(),.05,{x:0,y:-1780},{x:0,y:-1768},true);
 assert(defence.shipShot,'Ship records a turret shot at the visible attacker');assert(intruder.hp<intruder.maxHp);
 console.log('PASS arc chain and mothership turret defence');
+
+// No authored residents, pursuit, or projectiles in the core sanctuary.
+for(const relief of [false,true]){
+  const w=new UniformPlanet(relief), c=new UniformCombat(w);
+  assert(c.bodies.every(b=>Math.hypot(b.x,b.y)>C.coreExclusionRadius+ C.enemyRadius));
+  const guard=c.bodies.find(b=>b.kind==='crawler')!;
+  Object.assign(guard,{x:0,y:-420,home:{x:0,y:-420}});
+  c.hull=65;
+  for(let i=0;i<900;i++)c.update(w,1/60,{x:0,y:-90},{x:0,y:-1800},false);
+  assert(Math.hypot(guard.x,guard.y)>=C.coreExclusionRadius+C.enemyRadius,'Gravity and pursuit cannot enter core');
+  assert.equal(c.hull,65,'Core is safe but does not provide free repairs');
+  c.shots.push({x:0,y:-401,vx:0,vy:220,life:3});
+  c.update(w,.05,{x:0,y:-90},{x:0,y:-1800},false);
+  assert.equal(c.shots.length,0,'Hostile shots stop at core boundary');
+}
+console.log('PASS core exclusion for spawn, movement, attacks and projectiles');
+
+// Forge VLS captures the launch aim, clears the backpack, then turns without retargeting.
+for(const fps of [30,60,120]){
+ const sky=new UniformPlanet(),targets=new UniformCombat(sky);targets.bodies=[];
+ const vls=new StudyOrdnance(),aim={x:350,y:-2400},source={x:0,y:-2400};
+ const spec=W.find(w=>w.id==='rocket')!;
+ vls.step(1/fps,true,source,{x:1,y:0},spec,sky,targets,source,{up:{x:0,y:-1},target:aim});
+ assert.equal(vls.bullets[0].vx,0,'Missile initially leaves vertically');
+ assert(vls.bullets[0].vy<0);aim.x=-350;
+ assert.equal(vls.bullets[0].aimPoint!.x,350,'Launch aim is copied, not a live cursor reference');
+ let impacts:ReturnType<StudyOrdnance['step']>=[];
+ for(let frame=0;frame<fps*4;frame++)impacts.push(...vls.step(1/fps,false,source,{x:-1,y:0},spec,sky,targets));
+ assert.equal(impacts.length,1,'Turns and reaches original cursor point');
+ assert(Math.hypot(impacts[0].point.x-350,impacts[0].point.y+2400)<C.backpackTargetRadius+1);
+ assert.equal(vls.shots,1);
+ const ceiling=Object.assign(new UniformPlanet(),{solidAt:(p:{x:number;y:number})=>p.y<=-2415});
+ const blocked=new StudyOrdnance();
+ let collisions=blocked.step(.05,true,source,{x:1,y:0},spec,ceiling,targets,source,{up:{x:0,y:-1},target:{x:350,y:-2400}});
+ collisions.push(...blocked.step(.05,false,source,{x:1,y:0},spec,ceiling,targets));
+ assert.equal(collisions.length,1,'Vertical launch still collides with a low cave ceiling');
+ assert.equal(blocked.bullets.length,0);
+}
+console.log('PASS backpack vertical clearance, captured cursor guidance, frame rates and ceiling collision');
+
+
+// Aboard: no autonomous fire; cursor-controlled shots work without a creature lock.
+for(const angle of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+ const w=new UniformPlanet(),c=new UniformCombat(w),b=c.bodies.find(b=>b.kind==='flyer')!;
+ const ship={x:Math.sin(angle)*2400,y:-Math.cos(angle)*2400};
+ const mount=c.shipMount(ship,0),tangent={x:Math.cos(angle),y:Math.sin(angle)};
+ Object.assign(b,{x:mount.x+tangent.x*500,y:mount.y+tangent.y*500,hp:100,maxHp:100});b.home={x:b.x,y:b.y};c.bodies=[b];
+ c.update(w,.01,ship,ship,false,true);assert.equal(c.shipShots,0,'No auto-fire aboard');
+ const controls={aim:{x:b.x,y:b.y},fire:false};
+ c.update(w,.01,ship,ship,false,true,0,controls);assert(c.shipTarget);assert.equal(c.shipShots,0);
+ controls.fire=true;c.update(w,.01,ship,ship,false,true,0,controls);assert.equal(c.shipShots,1);assert.equal(b.hp,82);
+ c.update(w,.01,ship,ship,false,true,0,controls);assert.equal(c.shipShots,1,'Cooldown');
+ c.bodies=[];for(let i=0;i<40;i++)c.update(w,.01,ship,ship,false,true,0,controls);
+ assert.equal(c.shipShots,2,'Can fire into empty space');assert.equal(c.shipShot!.turret,1);
+ controls.fire=false;for(let i=0;i<80;i++)c.update(w,.01,ship,ship,true,true,0,controls);
+ assert.equal(c.shipShots,2,'Release stops firing even when landed aboard');
+}
+{
+ const w=new UniformPlanet(),c=new UniformCombat(w),b=c.bodies.find(b=>b.kind==='flyer')!;
+ const ship={x:0,y:-2400};Object.assign(b,{x:500,y:-2550,home:{x:500,y:-2550}});c.bodies=[b];
+ w.solidAt=p=>p.x>200&&p.x<300;
+ c.update(w,.05,ship,ship,false,true,0,{aim:b,fire:true});assert.equal(b.hp,b.maxHp,'Rock stops cannon damage');
+ assert(c.shipShot!.target.x<=202,'Tracer stops at rock');
+}
+console.log('PASS manual mothership aim, no autonomous pilot fire, empty-space shots, alternating barrels, cooldown, release and cover');

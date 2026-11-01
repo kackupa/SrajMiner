@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { drawCaveDweller, drawCaveNest } from './CaveCreatureArt';
 import { drawStudyCreature } from './StudyCreatureArt';
 import type { UniformCombat } from './UniformCombat';
 import type { Point } from './UniformPlanet';
@@ -44,26 +45,9 @@ export function drawUniformCombat(
     if (b.gunship) {
       drawRaider(g,b,at,project,time,scale);
     } else if (b.kind === 'nest') {
-      const pulse = 1 + Math.sin(time * 3 + b.id) * 0.05;
-      for (let i = 0; i < 7; i++) {
-        const x = (i - 3) * 8,
-          y = Math.sin(i * 1.7) * 5;
-        g.fillStyle(i % 2 ? 0x4d655d : 0x78917e);
-        g.fillPoints(
-          [at(x - 10, y + 17), at(x - 7, y - 5), at(x, y - 16 * pulse), at(x + 10, y + 14)],
-          true,
-        );
-        g.lineStyle(1.3 * scale, 0xaab79b);
-        g.strokePoints([at(x - 7, y - 5), at(x, y - 16 * pulse)]);
-      }
-      const q = at(0, 0);
-      g.fillStyle(b.flash ? 0xffe5b9 : 0x162e32);
-      g.fillEllipse(q.x, q.y, 34 * scale, 26 * scale);
-      g.fillStyle(0xe7ad78, 0.8);
-      for (let i = 0; i < 3; i++) {
-        const q = at((i - 1) * 8, Math.sin(time * 2 + i) * 2);
-        g.fillCircle(q.x, q.y, 3 * scale);
-      }
+      drawCaveNest(g, at, b, time, scale);
+    } else if (b.kind !== 'flyer') {
+      drawCaveDweller(g, at, b, time, scale);
     } else {
       drawStudyCreature(g, at, {
         x: 0,

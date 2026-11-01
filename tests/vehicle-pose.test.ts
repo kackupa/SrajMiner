@@ -74,3 +74,18 @@ assert.equal(looking.fire,1);
 const released = advanceVehiclePose(looking,{...input,firing:false},.05);
 assert.ok(released.fire<looking.fire,'weapon recoil decays after release');
 console.log('PASS look direction, facing and firing pose');
+
+for(const fps of [30,60,120]){
+  let lateral=restingVehiclePose();
+  for(let i=0;i<fps/2;i++)lateral=advanceVehiclePose(lateral,{...input,mechanicalTurn:true,sideThrust:1},1/fps);
+  assert(lateral.strafe!>.99,'Right flight activates opposite-side lateral jet');
+  const paused=advanceVehiclePose(lateral,{...input,mechanicalTurn:true,sideThrust:-1,paused:true},1/fps);
+  assert.equal(paused,lateral,'Pause freezes thrusters');
+  for(let i=0;i<fps/2;i++)lateral=advanceVehiclePose(lateral,{...input,mechanicalTurn:true,sideThrust:-1},1/fps);
+  assert(lateral.strafe!<-.99,'Left flight switches exhaust sides');
+  for(let i=0;i<fps;i++)lateral=advanceVehiclePose(lateral,{...input,mechanicalTurn:true,sideThrust:0,sideSpeed:180,thrust:false},1/fps);
+  assert(Math.abs(lateral.strafe!)<.001,'Drift or wind without input cannot fire lateral boosters');
+  for(let i=0;i<fps;i++)lateral=advanceVehiclePose(lateral,{...input,mechanicalTurn:true,sideThrust:1,grounded:true,thrust:false},1/fps);
+  assert(Math.abs(lateral.strafe!)<.001,'Walking does not use lateral flight thrusters');
+}
+console.log('PASS directional thrusters: both input directions, pause, release, drift and grounded suppression at 30/60/120 Hz');

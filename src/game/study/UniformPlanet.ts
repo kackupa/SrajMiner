@@ -1,5 +1,6 @@
 import { UNIFORM_PLANET_STUDY as C, FLEET_STUDY as F } from '../config';
 import { UniformCore } from './UniformCore';
+import { studyWind } from './StudyWind';
 import { expeditionRadius, expeditionCave, radialPoint, surfaceAngle } from './ExpeditionTerrain';
 
 export type Point = { x: number; y: number };
@@ -17,12 +18,12 @@ export class UniformPlanet {
   readonly excavated = new Set<string>();
   readonly fractures = new Map<string,number>();
   revision = 0;
-  constructor(readonly relief = false) {
+  constructor(readonly relief = false, readonly variant=0) {
     const n = Math.ceil((C.radius + (relief ? 220 : 0)) / C.tile);
     for (let y = -n; y < n; y++) for (let x = -n; x < n; x++) {
       const polygon = cellPolygon(x, y, relief ? this.outline : undefined);
       if (polygon.length < 3 || this.cave(x, y)) continue;
-      const wave = y - 2.5 * Math.sin(x * .19) - .35 * x;
+      const wave = y - 2.5 * Math.sin(x * .19+variant*2) - .35 * x+variant*3;
       const vein = ((wave % 8) + 8) % 8 < 1.4;
       const depth = C.radius - Math.hypot((x + .5) * C.tile, (y + .5) * C.tile);
       const material: StudyMaterial = !vein ? 'rock' : depth > 1250 ? 'silver' : depth > 600 ? 'iron' : 'copper';
@@ -184,6 +185,8 @@ function circlePolygon(p: Point, radius: number, polygon: Point[]) {
 }
 
 export class UniformMiner {
+  wind=studyWind(0,0);
+  private airTime=0;
   x: number = C.stations[0].x; y: number = C.stations[0].y;
   sideSpeed = 0; fallSpeed = 0; grounded = false;
   diving = false;
@@ -202,10 +205,12 @@ export class UniformMiner {
   }
   private integrate(world: UniformPlanet, side: number, flying: boolean, dt: number, descend: boolean) {
     const { out, tangent } = this.basis();
+    this.airTime+=dt;
+    this.wind=studyWind(Math.hypot(this.x,this.y)-world.surfaceRadiusAt(this),this.airTime);
     this.grounded = world.collides({ x: this.x - out.x * 2, y: this.y - out.y * 2 });
     this.diving = descend && !flying && !this.grounded;
-    this.sideSpeed += (side * C.walkSpeed - this.sideSpeed) * (1 - Math.exp(-dt * 14));
-    this.fallSpeed = flying ? Math.max(-C.flightSpeed, this.fallSpeed - C.gravity * 2.7 * dt)
+    this.sideSpeed += (side * C.walkSpeed + (this.grounded?0:this.wind.cross) - this.sideSpeed) * (1 - Math.exp(-dt * 14));
+    this.fallSpeed = flying ? Math.max(-C.flightSpeed+this.wind.down, this.fallSpeed - C.gravity * 2.7 * dt)
       : this.diving ? Math.min(C.diveSpeed, this.fallSpeed + C.diveAcceleration * dt)
       : this.fallSpeed > C.maxFallSpeed ? Math.max(C.maxFallSpeed, this.fallSpeed - C.gravity * dt)
       : Math.min(C.maxFallSpeed, this.fallSpeed + C.gravity * dt);

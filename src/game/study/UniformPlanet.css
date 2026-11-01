@@ -672,3 +672,41 @@ body.uniform-planet-study,
 @media(max-width:600px) and (min-height:501px){
  .uniform-console .uniform-notice,.uniform-console.near-core .uniform-notice{top:260px;bottom:auto;left:12px;max-width:calc(100vw - 24px);padding:7px 10px;font-size:10px}
 }
+
+/* Navigation remains an overlay; it never changes the gameplay camera. */
+.uniform-console .uniform-map { position:absolute; inset:0; z-index:30; background:#06111bc2; display:grid; place-items:center; pointer-events:none; backdrop-filter:blur(5px); }
+.uniform-console .uniform-map[hidden], .uniform-console .uniform-flight[hidden], .uniform-console .uniform-board[hidden] { display:none; }
+.uniform-map > div { width:min(460px,88vw,80vh); padding:20px; background:#0d1e2bee; border:1px solid #41616e; border-radius:18px; box-shadow:0 24px 80px #0008; text-align:center; }
+.uniform-map h2 { margin:8px 0 0; font-size:24px; font-weight:600; }
+.uniform-map small { color:#a6bdc7; font-size:11px; letter-spacing:.08em; }
+.uniform-map svg { display:block; width:100%; max-height:55vh; }
+.uniform-map p { display:flex; justify-content:center; gap:30px; margin:0 0 16px; }
+.map-you { color:#86eee0; }.map-ship { color:#f3be72; }
+.map-you::before { content:'● '; }.map-ship::before { content:'■ '; }
+.uniform-console .uniform-board { position:absolute; right:24px; bottom:168px; padding:16px 22px; min-width:160px; background:#edbd78; color:#10212c; border-color:#f7d7a4; font-weight:650; box-shadow:0 5px 18px #0005; }
+.uniform-console .uniform-flight { position:absolute; top:178px; left:24px; display:grid; gap:9px; max-width:420px; padding:18px 22px; border:1px solid #42616e; border-radius:12px; background:#0b1c29e8; box-shadow:0 10px 30px #0005; }
+.uniform-flight b { color:#f3cd92; font-size:18px; }.uniform-flight span { color:#b5cdd6; font-size:12px; }
+@media(max-width:600px) { .uniform-console .uniform-board { right:14px; bottom:242px; padding:12px; min-width:145px; } .uniform-console .uniform-flight { left:12px; right:12px; top:170px; padding:12px; gap:6px; } .uniform-flight b { font-size:15px; } .uniform-flight span { font-size:11px; } }
+.uniform-console.piloting .uniform-telemetry, .uniform-console.piloting .uniform-combat-status, .uniform-console.piloting [data-station], .uniform-console.piloting [data-grid] { display:none; }
+.uniform-console.piloting .uniform-flight { top:132px; }
+@media(max-width:600px) { .uniform-console.piloting .uniform-flight { top:120px; } }
+
+@media(max-width:600px) and (min-height:501px) { .uniform-console.piloting .uniform-board { bottom:310px; } }
+
+.uniform-console .uniform-boost {position:absolute;right:24px;bottom:110px;padding:14px 20px;}
+.uniform-console .uniform-boost[hidden]{display:none;}
+@media(max-width:600px) and (min-height:501px){.uniform-console .uniform-boost{right:14px;bottom:100px;padding:14px;}}
+
+.uniform-flight .space-destinations {display:flex;gap:8px;margin-top:4px;}
+.uniform-flight .space-destinations[hidden] {display:none;}
+.uniform-flight .space-destinations button {display:flex;align-items:center;justify-content:center;gap:8px;flex:1;min-height:44px;padding:8px 12px;font-size:12px;}
+.uniform-flight .space-destinations button[aria-pressed="true"]{border-color:#e4bb77;background:#293a40;color:#f5d8a5;}
+.space-destinations i {width:20px;height:20px;flex:none;border-radius:50%;background:radial-gradient(circle at 30% 25%,#bcdfdf,#476a83 50%,#0c1e2c 80%);box-shadow:0 0 9px #76c5da30;}
+.space-destinations [data-destination="1"] i {background:radial-gradient(circle at 30% 25%,#dfb379,#8d543d 50%,#2b1920 80%);}
+@media(max-height:500px){.uniform-console.piloting .uniform-flight{top:76px;padding:10px;gap:4px;max-width:330px;}.uniform-flight .space-destinations button{min-height:36px;}}
+
+.uniform-console [data-space-recover][hidden]{display:none;}
+.uniform-console .uniform-charge{position:absolute;right:24px;bottom:236px;min-height:44px;padding:12px 16px;border-color:#a98c60;color:#f0cc95;}
+.uniform-console .uniform-charge[hidden]{display:none;}
+@media(max-width:600px) and (min-height:501px){.uniform-console .uniform-charge{right:14px;bottom:400px;padding:10px 12px;}}
+@media(max-width:600px) and (min-height:501px){.uniform-console.piloting .uniform-notice{top:306px;bottom:auto;}}

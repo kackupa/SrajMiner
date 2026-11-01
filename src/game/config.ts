@@ -1,4 +1,5 @@
 /** Equipment and encounters for the isolated uniform planet only. */
+export const CLAW_HANDLING_STUDY={scoop:.18,oreRelease:.52,dirtRelease:.4,duration:.72,fragmentLife:.7};
 export type StudyWeaponSpec = {
   id:string; name:string; slot:'primary'|'secondary'; description:string; role:string;
   credits:number; iron:number; copper:number; silver:number;
@@ -16,22 +17,24 @@ export const STUDY_WEAPONS: StudyWeaponSpec[] = [
   {id:'missile',name:'Hunter missiles',slot:'secondary',description:'Tracks a visible airborne target near your aim. No lock needed to launch. Rock breaks the lock.',role:'Anti-air tracking',credits:130,iron:6,copper:4,silver:2,cooldown:1.8,speed:380,range:1100,tracer:18,damage:65,armor:1,blast:48,color:0x92d6ee,length:24},
 ];
 export const UNIFORM_COMBAT = {
+  coreExclusionRadius:400,
   minigunSpinup:.3, damageGrace:.65, blastSelfDamage:18,
   chainRange:125, chainFalloff:.65, chargeSpeed:170, attackRange:95, contactRange:42,
   flyerAttackRange:300, flyerStandoff:170, spitSpeed:220, spitLifetime:3, gravity:120,
   grenadeGravity:230, grenadeFuse:1.3, grenadeBounce:.55, missileTurnRate:2.5, missileLockCone:.65,
+  backpackLaunchTime:.16, backpackLaunchSpeed:180, backpackTurnRate:6, backpackTargetRadius:8,
   hull:100, repairPerSecond:24, rescueGrace:3, contactDamage:14, spitDamage:9,
   aggro:390, territory:500, windup:.65, recover:1.2, crawlerSpeed:45, flyerSpeed:78,
   enemyRadius:13, nestHealth:100, enemyHealth:48, armoredHealth:90, reward:18, nestReward:60,
-  shipRange:340, shipCooldown:.38, shipDamage:18,
+  shipRange:340, shipFlightRange:720, shipCooldown:.38, shipDamage:18,
   sites:[
     {name:'Ridge roost',x:450,y:-1775,kind:'flyer'},
     {name:'Far-side roost',x:1775,y:180,kind:'flyer'},
     {name:'Copper den',x:200,y:-1300,kind:'crawler'},
     {name:'Armour hollow',x:-100,y:-750,kind:'armored'},
-    {name:'Core brood',x:220,y:-180,kind:'armored'},
   ],
 } as const;
+export const CLAW_CHARGE_STUDY = { supply:6, reach:32, minReach:16, placementSeconds:.7, placementTimeout:2, fuse:2.4, radius:72, damage:75 };
 export const WORK_LAMP = { range: 440, halfAngle: Math.PI / 6, rays: 40, step: 8 };
 /** One authored surface adventure in the disposable uniform planet. Angles run
  * clockwise from the north pole; cell sizes remain Cartesian everywhere. */
@@ -47,6 +50,7 @@ export const SURFACE_EXPEDITION = {
 export const WORLD = { tile: 40, width: 48, homeColumn: 24, chunk: 16, meters: 12, spawnX: 980, spawnY: -22 };
 /** Separate, memory-only Cartesian terrain experiment. Never used by campaigns. */
 export const UNIFORM_PLANET_STUDY = {
+  windStart:170, windFull:370, windDrift:65, windDowndraft:300,
   radius: 1760, tile: 40, coreRadius: 125, bodyRadius: 16,
   coreSurfaceRadius: 72, coreFuelPerCycle: 4, coreSecondsPerUnit: 2.5,
   walkSpeed: 155, flightSpeed: 225, gravity: 340, maxFallSpeed: 240,
@@ -61,6 +65,18 @@ export const UNIFORM_PLANET_STUDY = {
   ],
 } as const;
 /** Mobile mothership prototype only. No campaign economy migration. */
+export const PILOT_STUDY = {
+  surfaceSpeed:360, cruiseSpeed:1400, riseSpeed:420, acceleration:750,
+  turnRate:2.6,
+  spaceCache:{x:-720,y:-4400,range:420,copper:12,iron:8,silver:2,kredits:60},
+  orbitHeight:650, reentryHeight:480, spaceZoom:.3, spaceZoomMobile:.22, landingHeight:110, footprint:240, thrusterBoost:1.4,
+  boostDuration:1.4, boostCooldown:5, boostMultiplier:1.9, bankLimit:.24,
+  missile:{cooldown:1.6,speed:650,range:2200,damage:95,blast:70},
+  worlds:[
+    {name:'Cryo Shelf',x:0,y:0,color:0x648a9b},
+    {name:'Ember Reach',x:-2200,y:-8800,color:0xa8795d},
+  ],
+} as const;
 export const FLEET_STUDY = {
   testCredits:1000,
   starterGun: { cooldown: .12, speed: 1050, range: 800, tracer: 24 },
@@ -72,7 +88,7 @@ export const FLEET_STUDY = {
   modules: [
     { id: 'rack', name: 'Hauler cargo rack', description: 'Carry 72 ore per trip. External pods fit onto your miner.', credits: 60, ore: { copper: 8, iron: 4, silver: 0 } },
     { id: 'drill', name: 'Excavator head', description: 'Cut rock 65% faster with a wider rotary head.', credits: 40, ore: { copper: 4, iron: 6, silver: 0 } },
-    { id: 'thrusters', name: 'Vector thrusters', description: 'Relocate your mothership 40% faster. Visible engine nacelles.', credits: 120, ore: { copper: 0, iron: 8, silver: 3 } },
+    { id: 'thrusters', name: 'Vector thrusters', description: 'Fly your mothership 40% faster. Visible engine nacelles.', credits: 120, ore: { copper: 0, iron: 8, silver: 3 } },
   ],
 } as const;
 /** Disposable combat expedition. These rewards never enter campaign saves. */

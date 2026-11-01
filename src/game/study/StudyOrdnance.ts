@@ -9,6 +9,9 @@ export type Ordnance = Point & {
   tail: Point;
   spec: StudyWeaponSpec;
   target?: number;
+  aimPoint?: Point;
+  trail?: Point[];
+  bounceAt?:number;
 };
 export class StudyOrdnance {
   bullets: Ordnance[] = [];
@@ -26,6 +29,7 @@ export class StudyOrdnance {
     world: UniformPlanet,
     combat: UniformCombat,
     base = muzzle,
+    verticalLaunch?: { up: Point; target: Point },
   ) {
     dt = Math.min(0.05, Math.max(0, dt));
     this.cooldown = Math.max(0, this.cooldown - dt);
@@ -46,7 +50,7 @@ export class StudyOrdnance {
         }
       }
       const target =
-        spec.id === 'missile'
+        spec.id === 'missile' && !verticalLaunch
           ? combat.bodies
               .filter(
                 (b) =>
@@ -63,21 +67,34 @@ export class StudyOrdnance {
           : undefined;
       this.bullets.push({
         ...source,
-        vx: dir.x * spec.speed,
-        vy: dir.y * spec.speed,
+        vx: (verticalLaunch?.up.x ?? dir.x) * (verticalLaunch?C.backpackLaunchSpeed:spec.speed),
+        vy: (verticalLaunch?.up.y ?? dir.y) * (verticalLaunch?C.backpackLaunchSpeed:spec.speed),
         tail: { ...source },
         age: 0,
         distance: 0,
         spec,
         target: target?.id,
+        aimPoint: verticalLaunch ? {...verticalLaunch.target} : undefined,
+        trail: verticalLaunch ? [{...source}] : undefined,
       });
     }
     this.bullets = this.bullets.filter((b) => {
       b.age += dt;
       b.tail = { x: b.x, y: b.y };
+      if(b.trail && Math.hypot(b.x-b.trail[b.trail.length-1].x,b.y-b.trail[b.trail.length-1].y)>6){
+        b.trail.push({...b.tail});if(b.trail.length>18)b.trail.shift();
+      }
       const w = b.spec;
       const target = combat.bodies.find((e) => e.id === b.target && e.hp > 0);
-      if (target && combat.sight(world, b, target)) {
+      if(b.aimPoint){
+        if(b.age>C.backpackLaunchTime){
+          const a=Math.atan2(b.vy,b.vx),to=Math.atan2(b.aimPoint.y-b.y,b.aimPoint.x-b.x);
+          const turn=Math.atan2(Math.sin(to-a),Math.cos(to-a));
+          const angle=a+Math.max(-dt*C.backpackTurnRate,Math.min(dt*C.backpackTurnRate,turn));
+          const speed=Math.min(w.speed,Math.hypot(b.vx,b.vy)+w.speed*dt*3);
+          b.vx=Math.cos(angle)*speed;b.vy=Math.sin(angle)*speed;
+        }
+      } else if (target && combat.sight(world, b, target)) {
         const a = Math.atan2(b.vy, b.vx),
           to = Math.atan2(target.y - b.y, target.x - b.x),
           turn = Math.atan2(Math.sin(to - a), Math.cos(to - a));
@@ -101,6 +118,7 @@ export class StudyOrdnance {
         const p = { x: b.x + (b.vx * dt) / n, y: b.y + (b.vy * dt) / n };
         if (world.solidAt(p)) {
           if (w.id === 'grenade' && !world.solidAt(b)) {
+            b.bounceAt=b.age;
             if (world.solidAt({ x: p.x, y: b.y })) b.vx *= -C.grenadeBounce;
             if (world.solidAt({ x: b.x, y: p.y })) b.vy *= -C.grenadeBounce;
             break;
@@ -111,6 +129,7 @@ export class StudyOrdnance {
         }
         b.x = p.x;
         b.y = p.y;
+        if(b.aimPoint&&b.age>C.backpackLaunchTime&&Math.hypot(b.x-b.aimPoint.x,b.y-b.aimPoint.y)<C.backpackTargetRadius)return explode();
         if (combat.target(b)) return explode();
       }
       if (w.id === 'grenade' && b.age >= C.grenadeFuse) return explode();

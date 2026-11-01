@@ -3,7 +3,10 @@ import type { Point, UniformPlanet } from './UniformPlanet';
 
 export function clearCreaturePath(world:UniformPlanet,a:Point,b:Point){
  const n=Math.max(1,Math.ceil(Math.hypot(b.x-a.x,b.y-a.y)/4));
- for(let i=1;i<=n;i++)if(world.collides({x:a.x+(b.x-a.x)*i/n,y:a.y+(b.y-a.y)*i/n},C.enemyRadius))return false;
+ for(let i=1;i<=n;i++){
+  const p={x:a.x+(b.x-a.x)*i/n,y:a.y+(b.y-a.y)*i/n};
+  if(Math.hypot(p.x,p.y)<C.coreExclusionRadius+C.enemyRadius||world.collides(p,C.enemyRadius))return false;
+ }
  return true;
 }
 /** Bounded search through real open space, constrained to floors and short
