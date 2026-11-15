@@ -494,12 +494,12 @@ export class ForgeSpriteRig {
     const da = cutter.angle + pose.bank,
       wide = p.loadout.fitted.drill === 'excavator';
     if(index===1){
-      const grip=pose.clawHandling?(pose.clawHandling.held?.12:.8):pose.clawAction?(pose.clawAction.bracing?.48:pose.clawAction.holding?.18:1):pose.drill>.1?.75:.3+Math.sin(pose.phase*1.5)*.035;
+      const grip=pose.clawRip?.open??(pose.clawHandling?(pose.clawHandling.held?.12:.8):pose.clawAction?(pose.clawAction.bracing?.48:pose.clawAction.holding?.18:1):pose.drill>.1?.75:.3+Math.sin(pose.phase*1.5)*.035);
       drawForgeClaw(ctx,wrist.x,wrist.y,da,pose.yaw??0,grip,pose.clawAction?.holding,pose.clawHandling?.held?pose.clawHandling.material:undefined);
       continue;
     }
     ctx.save();
-    ctx.filter = pose.drill > 0.1 ? `brightness(${1 + Math.sin(pose.phase * 48) * 0.07})` : 'none';
+    ctx.filter = pose.drill > 0.1 && pose.miningTool!=='claw' ? `brightness(${1 + Math.sin(pose.phase * 48) * 0.07})` : 'none';
     part(
       wide ? 'excavator' : 'drill',
       wrist,

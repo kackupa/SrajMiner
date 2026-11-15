@@ -1,5 +1,5 @@
 /** Equipment and encounters for the isolated uniform planet only. */
-export const CLAW_HANDLING_STUDY={scoop:.18,oreRelease:.52,dirtRelease:.4,duration:.72,fragmentLife:.7};
+export const CLAW_HANDLING_STUDY={scoop:.18,oreRelease:.52,dirtRelease:.4,duration:.72,fragmentLife:.7,rippedRate:2.5};
 export type StudyWeaponSpec = {
   id:string; name:string; slot:'primary'|'secondary'; description:string; role:string;
   credits:number; iron:number; copper:number; silver:number;
@@ -57,7 +57,6 @@ export const UNIFORM_PLANET_STUDY = {
   diveSpeed: 350, diveAcceleration: 1250,
   thrustCornerClearance: 32, thrustClearanceProbe: 4, thrustClearanceSpeed: 120,
   drillSeconds: .32, drillReach: 92, cargoCapacity: 48,
-  surfaceDrillRise: .42, undergroundDrillRise: .15,
   stations: [
     { name: 'Surface', x: 180, y: -1800 },
     { name: 'Mid-depth', x: 0, y: -780 },

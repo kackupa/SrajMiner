@@ -1,22 +1,22 @@
 import {CLAW_HANDLING_STUDY as C} from '../config';
 import type {Point,StudyMaterial} from './UniformPlanet';
-type Haul={material:StudyMaterial;source:Point;age:number;released:boolean;units:number};
+type Haul={material:StudyMaterial;source:Point;age:number;released:boolean;units:number;ripped?:boolean};
 /** Presentation only. Mining credits inventory immediately; this never awards ore. */
 export class StudyClawHandling {
  current?:Haul;
  pending?:Haul;
  completed=0;
- enqueue(material:StudyMaterial,source:Point){
-  const haul={material,source:{...source},age:0,released:false,units:1};
+ enqueue(material:StudyMaterial,source:Point,ripped=false){
+  const haul={material,source:{...source},age:ripped?C.scoop:0,released:false,units:1,ripped};
   if(!this.current){this.current=haul;return;}
   // One bounded follow-up scoop; valuable material takes precedence over spoil.
   if(!this.pending)this.pending=haul;
-  else {this.pending.units++;if(material!=='rock'){this.pending.material=material;this.pending.source={...source};}}
+  else {this.pending.units++;if(material!=='rock'){this.pending.material=material;this.pending.source={...source};this.pending.age=0;this.pending.ripped=false;}}
  }
  step(dt:number,interrupted=false){
   if(interrupted){this.current=undefined;this.pending=undefined;return;}
   const h=this.current,step=Math.max(0,Math.min(.05,dt));if(!h||!step)return;
-  h.age+=step;
+  h.age+=step*(h.ripped?C.rippedRate:1);
   const release=h.material==='rock'?C.dirtRelease:C.oreRelease;
   let event:StudyMaterial|undefined;
   if(!h.released&&h.age>=release){h.released=true;event=h.material;}

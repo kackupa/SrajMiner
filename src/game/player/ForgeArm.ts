@@ -25,12 +25,13 @@ export function forgeCutterGoals(pose:VehiclePose):ForgeCutters {
       ? Math.max(12,Math.min(17,length*.23))+Math.sin(pose.phase*9)*active*.2
       : Math.max(18,Math.min(28,length*.45))+Math.sin(pose.phase*17+side*1.3)*active*.65;
     const spread=side*.07,angle=a+spread+(side===1?-.18:0);
-    const extension=active*(utility?.4:1);
+    const working=active*(!utility&&pose.miningTool==='claw'?0:1);
+    const extension=working*(utility?.4:1);
     const x=rest.x+(Math.cos(angle)*reach-rest.x)*extension;
     const y=rest.y+(Math.sin(angle)*reach-rest.y)*extension;
     const parked=utility?Math.atan2(1-air*.35,-face*(.12+air*.5)):Math.atan2(.9-air*.45,face*.75||.001);
     const delta=Math.atan2(Math.sin(angle-parked),Math.cos(angle-parked));
-    return {x,y,vx:0,vy:0,angle:parked+delta*active};
+    return {x,y,vx:0,vy:0,angle:parked+delta*working};
   }) as ForgeCutters;
 }
 

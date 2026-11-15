@@ -8,6 +8,9 @@ export type VehiclePose = {
   drill: number;
   /** Test-rig presentation target in planet-local coordinates; never saved. */
   drillAim?: {x:number;y:number};
+  /** Uniform test only: same mining input, material-specific presentation. */
+  miningTool?: 'claw'|'drill';
+  clawRip?: {pull:number;open:number;angle:number};
   /** Disposable utility-hand placement pose, shoulder-relative. */
   clawAction?: {x:number;y:number;angle:number;holding:boolean;bracing?:boolean};
   clawHandling?:{material:'rock'|'copper'|'iron'|'silver';held:boolean;hatch:number;weight:number};

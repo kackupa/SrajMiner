@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { captureCargoSources, crateLaunchTime } from '../src/game/surface/CargoHandling';
-import { UniformPlanet, UniformMiner } from '../src/game/study/UniformPlanet';
+import { UniformPlanet, UniformMiner, cellPolygon } from '../src/game/study/UniformPlanet';
 import { UniformDrill } from '../src/game/study/UniformDrill';
 import { advanceVehiclePose, restingVehiclePose, mechanicalFootstep } from '../src/game/player/VehiclePose';
 import { UNIFORM_PLANET_STUDY as C } from '../src/game/config';
@@ -38,9 +38,25 @@ for(const angle of [0,.7,1.6,3,4.4]){
  const out={x:Math.cos(angle),y:Math.sin(angle)},tangent={x:-out.y,y:out.x};
  const rising={x:tangent.x+out.x*.3,y:tangent.y+out.y*.3};
  assert(world.drillDirectionAllowed({x:out.x*1776,y:out.y*1776},rising));
- assert(!world.drillDirectionAllowed({x:out.x*1776,y:out.y*1776},out),'no outward drilling');
- assert(!world.drillDirectionAllowed({x:out.x*700,y:out.y*700},rising),'no new underground ceiling drilling');
+ assert(world.drillDirectionAllowed({x:out.x*1776,y:out.y*1776},out),'outward aim is valid in the sandbox');
+ assert(world.drillDirectionAllowed({x:out.x*700,y:out.y*700},rising),'rising cave walls remain mineable');
+ const room=new UniformPlanet();room.cells.clear();
+ const cx=Math.floor(out.x*700/C.tile),cy=Math.floor(out.y*700/C.tile);
+ const origin={x:(cx+.5)*C.tile,y:(cy+.5)*C.tile};
+ for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++)if(x!==cx||y!==cy)room.cells.set(`${x},${y}`,{x,y,material:'rock',polygon:cellPolygon(x,y)});
+ for(let degree=0;degree<360;degree+=5){
+  const direction={x:Math.cos(degree*Math.PI/180),y:Math.sin(degree*Math.PI/180)};
+  assert(room.drillDirectionAllowed(origin,direction),`No dead aim sector at ${degree} degrees`);
+  const exposed=room.drillFace(origin,direction),single=new UniformDrill();
+  assert(exposed.length,`Find the cave wall/ceiling at ${degree} degrees`);
+  const removed=single.step(exposed,true,C.drillSeconds,C.drillSeconds,()=>0,()=>true);
+  assert(removed&&room.remove(removed),'One cycle actually excavates the aimed face');
+  assert(!room.remove(removed),'The same cut cannot award ore twice');
+  room.cells.set(`${removed.x},${removed.y}`,removed);
+ }
 }
+assert(!world.drillDirectionAllowed(from,{x:0,y:0}),'Zero aim cannot cut');
+assert(!world.drillDirectionAllowed(from,{x:NaN,y:1}),'Invalid aim cannot cut');
 const input={sideSpeed:100,verticalSpeed:0,facing:1,thrust:false,grounded:true,drilling:false,paused:false,reducedMotion:false,mechanicalTurn:true};
 let pose=restingVehiclePose();for(let i=0;i<60;i++)pose=advanceVehiclePose(pose,input,1/60);
 assert(Math.abs(pose.bank)<.04,'grounded cabin is steady');

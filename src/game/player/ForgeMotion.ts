@@ -86,7 +86,7 @@ export function advanceForgeMotion(
   // Facing is deliberately absent: looking backwards must not reverse inertia.
   const command=limit(pose.strafe??speed/130,1);
   const travel=air>.05?command*.9+limit(speed/130,1)*.1:speed/130;
-  const wanted = limit(travel+(pose.clawAction?.bracing?Math.cos(pose.clawAction.angle)*.18:0)-(pose.clawHandling?.weight??0)*facing*.13,1);
+  const wanted = limit(travel+(pose.clawAction?.bracing?Math.cos(pose.clawAction.angle)*.18:0)-(pose.clawHandling?.weight??0)*facing*.13-(pose.clawRip?Math.cos(pose.clawRip.angle)*pose.clawRip.pull*.4:0),1);
   const acceleration = limit((speed - old.lastSpeed) / Math.max(step, 0.001) / 650, 1);
   const radial = limit((pose.lastVerticalSpeed - old.lastFall) / Math.max(step, 0.001) / 800, 1);
   let armLag = old.armLag,
@@ -97,7 +97,7 @@ export function advanceForgeMotion(
     suspensionVelocity = old.suspensionVelocity;
   const armTarget = air * (-command * 6 - acceleration * 1.8 + wind);
   const legTarget = air * (-command * 9 - acceleration * 2.5 + wind * 1.5);
-  const suspensionTarget = air * (radial * 2 + pose.pitch * 6) + pose.landing * 3 + (pose.grounded?pose.drill*2:0) + (pose.clawAction&&pose.grounded?4:0);
+  const suspensionTarget = air * (radial * 2 + pose.pitch * 6) + pose.landing * 3 + (pose.grounded?pose.drill*2:0) + (pose.clawAction&&pose.grounded?4:0) - (pose.clawRip?Math.sin(pose.clawRip.angle)*pose.clawRip.pull*2:0);
   // Critically damped-ish chassis suspension; substeps keep long frames stable.
   for (let left = step; left > 0;) {
     const h = Math.min(left, 1 / 120);

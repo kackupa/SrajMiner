@@ -7,6 +7,7 @@ import { advanceForgeMotion, type ForgeMotion } from '../player/ForgeMotion';
 import {forgeClawSocket,forgeCargoHatch,CLAW_GRIP,CLAW_CONTACT} from '../player/ForgeClaw';
 import {StudyClawBrace} from './StudyClawBrace';
 import {StudyClawHandling,handlingGoal} from './StudyClawHandling';
+import {clawRockContact,clawTearGoal} from './StudyClawExcavation';
 import {StudyCharges,chargeSpec} from './StudyCharges';
 import {drawStudyExplosion,drawPlacedCharge,type StudyExplosion} from './StudyExplosions';
 import Phaser from 'phaser';
@@ -474,7 +475,7 @@ export class UniformPlanetScene extends Phaser.Scene {
       walk: { phase: this.pose.walkPhase, stride: this.pose.stride, bank: this.pose.bank,
         yaw:this.pose.yaw, hipsYaw:this.forgeMotion?.hipsYaw, pivot:this.forgeMotion?.pivot },
       drillProgress: this.drilling,
-      toolPose:{drill:this.pose.drill,gunDeployment:this.gunDeployment,gunFold:this.forge?forgeGunFold(this.pose.drill,this.gunDeployment):0},
+      toolPose:{drill:this.pose.drill,aim:this.pose.drillAim,miningTool:this.pose.miningTool,rip:this.pose.clawRip,gunDeployment:this.gunDeployment,gunFold:this.forge?forgeGunFold(this.pose.drill,this.gunDeployment):0},
       charges:{supply:this.charges.supply,pending:this.charges.pending,placed:this.charges.placed,hand:this.clawWorld(),pose:this.pose.clawAction},
       clawBrace:this.clawBrace.contact,
       clawHandling:{current:this.clawHandling.current,pending:this.clawHandling.pending,completed:this.clawHandling.completed,stow:this.oreStow,spoil:this.thrownSpoil,pose:this.pose.clawHandling},
@@ -721,6 +722,15 @@ export class UniformPlanetScene extends Phaser.Scene {
     const contact=this.clawBrace.update(this.planet,this.clawWorld().shoulder,direction,active&&!this.pose.clawAction);
     if(contact)this.pose.clawAction=this.utilityGoal(contact.point,CLAW_CONTACT,false,true);
   }
+  private poseRockRip(active:boolean){
+    if(!active||this.target?.material!=='rock'||this.pose.clawAction)return;
+    const surface=clawRockContact(this.target.polygon,this.clawWorld().shoulder);
+    const goal=this.utilityGoal(surface,CLAW_CONTACT);
+    const duration=Math.max(.001,this.fleet.drillSeconds*(1-this.planet.weakening(this.target)));
+    const rip=clawTearGoal(goal,this.drilling/duration);
+    this.pose.clawAction=rip.goal;
+    this.pose.clawRip={pull:rip.pull,open:rip.open,angle:rip.angle};
+  }
   private poseHandling(dt:number){
     const current=this.clawHandling.current;
     this.handledRelease=this.clawHandling.step(dt,!!this.pose.clawAction||!!current&&Math.hypot(current.source.x-this.miner.x,current.source.y-this.miner.y)>180);
@@ -823,7 +833,9 @@ export class UniformPlanetScene extends Phaser.Scene {
               x: this.miner.x - this.miner.outward.x * 100,
               y: this.miner.y - this.miner.outward.y * 100,
             };
-      const useDown = this.down('s') || this.down('arrowdown'),
+      // Explicit pointer mining wins over S's grounded quick-dig shortcut.
+      // Holding the down thruster must not redirect a cursor-aimed cut.
+      const useDown = !this.pressing && (this.down('s') || this.down('arrowdown')),
         direction = useDown
           ? { x: -this.miner.outward.x, y: -this.miner.outward.y }
           : { x: aim.x - this.miner.x, y: aim.y - this.miner.y },
@@ -856,11 +868,13 @@ export class UniformPlanetScene extends Phaser.Scene {
         dt,
       );
       if (this.forge) {
+        this.pose.miningTool=active&&this.target?.material==='rock'?'claw':'drill';
         this.pose.drillAim={x:direction.x*c+direction.y*s,y:-direction.x*s+direction.y*c};
         if(useDown)this.pose.drillAim={x:0,y:60};
         this.poseCharge();
         this.poseHandling(dt);
-        this.poseBrace(active&&!!this.target,direction);
+        this.poseRockRip(active);
+        this.poseBrace(active&&!!this.target&&this.pose.miningTool!=='claw',direction);
         this.gunDeployment=advanceForgeGun(this.gunDeployment,trigger,drillRequested,dt);
         this.forgeMotion = advanceForgeMotion(this.forgeMotion, this.pose, facing, actualWalk, dt, false,this.miner.wind.cross/C.windDrift);
         this.pose = { ...this.pose, gunDeployment:this.gunDeployment, yaw: this.forgeMotion.yaw, forge: this.forgeMotion };
@@ -920,8 +934,8 @@ export class UniformPlanetScene extends Phaser.Scene {
   }
   private mine(dt: number, direction: Point, active: boolean) {
     const core = this.planet.core,
-      downward = this.planet.drillDirectionAllowed(this.miner, direction);
-    this.coreImpact = downward ? this.planet.coreHit(this.miner, direction) : undefined;
+      allowed = this.planet.drillDirectionAllowed(this.miner, direction);
+    this.coreImpact = allowed ? this.planet.coreHit(this.miner, direction) : undefined;
     const extracting = active && !!this.coreImpact && this.onCore(),
       fuel = core.mine(dt, extracting);
     if (fuel) {
@@ -936,7 +950,7 @@ export class UniformPlanetScene extends Phaser.Scene {
       this.coreSparks(false);
       this.coreSparkTimer = 0.1;
     }
-    this.face = downward && !this.coreImpact ? this.planet.drillFace(this.miner, direction) : [];
+    this.face = allowed && !this.coreImpact ? this.planet.drillFace(this.miner, direction) : [];
     const cut = this.cutter.step(
       this.face,
       active,
@@ -951,7 +965,10 @@ export class UniformPlanetScene extends Phaser.Scene {
       this.message = 'Cargo full. Return to your ship and press F to unload.';
     if (cut && this.planet.remove(cut)) {
       if (cut.material !== 'rock') this.fleet.collect(cut.material);
-      if(this.forge)this.clawHandling.enqueue(cut.material,{x:(cut.x+.5)*C.tile,y:(cut.y+.5)*C.tile});
+      if(this.forge){
+        const ripped=cut.material==='rock'&&!!this.pose.clawRip;
+        this.clawHandling.enqueue(cut.material,ripped?this.clawWorld().grip:{x:(cut.x+.5)*C.tile,y:(cut.y+.5)*C.tile},ripped);
+      }
       this.burst(cut);
     }
   }

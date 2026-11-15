@@ -12,6 +12,7 @@ import {UniformPlanet} from '../src/game/study/UniformPlanet';
 import {CLAW_CHARGE_STUDY} from '../src/game/config';
 import {StudyClawBrace} from '../src/game/study/StudyClawBrace';
 import {StudyClawHandling,handlingGoal} from '../src/game/study/StudyClawHandling';
+import {clawRockContact,clawTearGoal} from '../src/game/study/StudyClawExcavation';
 const input={sideSpeed:0,verticalSpeed:0,facing:-1,thrust:false,grounded:true,drilling:false,paused:false,reducedMotion:false,mechanicalTurn:true};
 let pose={...restingVehiclePose(),yaw:0};
 let previous=minerPoint(0,0,1,pose,false,20,-10);
@@ -278,3 +279,30 @@ for(const fps of [30,60,120])for(const direction of [-1,1]){
  assert.equal(still.armLag,0);assert.equal(still.legTrail,0);assert.equal(still.chestRoll,0);
 }
 console.log('PASS booster body response: input-led lean, counter-facing inertia, separated chest/hips, reversal, airborne settle, pause and reduced motion at 30/60/120 Hz');
+
+const clipped=[{x:0,y:10},{x:20,y:0},{x:20,y:30},{x:0,y:30}];
+assert.deepEqual(clawRockContact(clipped,{x:10,y:5}),{x:10,y:5},'Grip uses the clipped sloping boundary');
+assert.deepEqual(clawRockContact(clipped,{x:30,y:12}),{x:20,y:12},'Sideways work uses the exposed side');
+for(const fps of [30,60,120])for(const facing of [-1,1]){
+ const rockPose={...restingVehiclePose(),yaw:facing<0?Math.PI:0,drill:1,miningTool:'claw' as const,drillAim:{x:facing*60,y:0}};
+ const rock=forgeCutterGoals(rockPose),ore=forgeCutterGoals({...rockPose,miningTool:'drill'});
+ assert(Math.hypot(rock[0].x,rock[0].y)<17&&Math.hypot(ore[0].x,ore[0].y)>26,'Drill tucks for rock and reaches for ore');
+ const contact={x:26*facing,y:0,angle:facing>0?0:Math.PI};
+ const first=clawTearGoal(contact,0),last=clawTearGoal(contact,1);
+ assert(first.open>last.open&&Math.abs(first.goal.x)>Math.abs(last.goal.x),'Fingers close and elbow pulls back');
+ let motion:ForgeMotion|undefined;
+ for(let frame=0;frame<fps;frame++){
+  const rip=clawTearGoal(contact,frame/fps);
+  motion=advanceForgeMotion(motion,{...rockPose,clawAction:rip.goal,clawRip:rip},facing,0,1/fps);
+  assert(Math.hypot(motion.cutters![1].x,motion.cutters![1].y)<=29,'Rip never locks or stretches the arm');
+ }
+ assert(motion!.lean*facing<-.1,'Chassis pulls against the gripped rock');
+ const haul=new StudyClawHandling();haul.enqueue('rock',{x:1,y:2},true);
+ let tosses=0;for(let frame=0;frame<Math.ceil(fps*.3);frame++)if(haul.step(1/fps)==='rock')tosses++;
+ assert.equal(tosses,1);assert(!haul.current,'Already gripped dirt is tossed before the next standard cut');
+ haul.enqueue('rock',{x:1,y:2});haul.enqueue('rock',{x:1,y:2},true);haul.enqueue('silver',{x:4,y:5});
+ assert.equal(haul.pending!.age,0);assert(!haul.pending!.ripped,'Ore replacing queued spoil keeps the full collection motion');
+ const reset=advanceVehiclePose({...rockPose,clawRip:last}, {...input,facing,drilling:false},1/fps);
+ assert(!reset.clawRip&&!reset.miningTool,'Release cannot retain a stale tear pose');
+}
+console.log('PASS material mining: exposed contact, automatic tool poses, grip/pull, body resistance, arm bounds, fast toss, ore priority and release');

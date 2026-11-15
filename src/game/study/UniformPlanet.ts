@@ -105,12 +105,9 @@ export class UniformPlanet {
   }
   drillDirectionAllowed(from: Point, direction: Point) {
     const radius = Math.hypot(from.x, from.y), length = Math.hypot(direction.x, direction.y);
-    if (!radius || !length) return false;
-    // A rising surface lip may be slightly above the local tangent. This small
-    // allowance stops a sideways cut flickering off as gravity/camera rotate;
-    // it does not permit drilling a ceiling or drilling straight outward.
-    const rise = radius >= this.surfaceRadiusAt(from) - C.tile ? C.surfaceDrillRise : C.undergroundDrillRise;
-    return (direction.x * from.x + direction.y * from.y) / (radius * length) <= rise;
+    // This sandbox rig can work all around itself, including cave ceilings.
+    // Reach and the first exposed face still constrain the actual cut.
+    return Number.isFinite(radius) && Number.isFinite(length) && radius > 0 && length > .001;
   }
   /** Cut a rig-width passage, including a cell edge under either foot. A thin
    * centre ray alone leaves the miner caught on sub-pixel lips of adjacent cells. */
