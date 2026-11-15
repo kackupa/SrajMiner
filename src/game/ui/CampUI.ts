@@ -2,7 +2,7 @@ import { UPGRADES, UPGRADE_KEYS, upgradeValue, upgradeGateLabel, DRILL_TIERS, dr
 import type { Progress } from '../economy/Progress';
 import { podPortrait } from './PodPortrait';
 
-export const credits = (n: number) => `K ${Math.ceil(n).toLocaleString()}`;
+export const credits = (n: number) => `₭${Math.ceil(n).toLocaleString()}`;
 const number = (n: number) => Number(n.toFixed(2)).toLocaleString();
 export type WorkshopSection = 'miner' | 'equipment' | 'pilot';
 export const CAMP_MENUS = ['hub', 'more', 'codex', 'sell', 'service', 'upgrades', 'paints', 'archive', 'shipyard', 'destinations', 'warehouse', 'construction'];

@@ -13,6 +13,7 @@ export function caveSight(world:TileWorld,a:{x:number;y:number},b:{x:number;y:nu
 }
 /** Homes use unmodified generation, so mining new tunnels never creates inhabitants. */
 export function caveHome(world:TileWorld,sx:number,sy:number) {
+ if(world.studyHabitats) return world.studyHabitats.find(h=>Math.floor(h.x/T/CAVE_CREATURES.sectorColumns)===sx&&Math.floor(h.y/T/CAVE_CREATURES.sectorRows)===sy);
  if(world.openingLayout) {
   const a=OPENING_EXPEDITION;
   if(sx===Math.floor(a.nestColumn/CAVE_CREATURES.sectorColumns)&&sy===Math.floor(a.nestRow/CAVE_CREATURES.sectorRows))

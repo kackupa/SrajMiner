@@ -1621,7 +1621,7 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
   } as const;
   const version19Save = { ...save, version: 19 as const, planetChart: PLANET_CHART, maps: { 'cryo-shelf': { ...save.maps['cryo-shelf'], structures: [] } }, escapeSuit: false, pilotEscaping: false };
   const version24Save = { ...version19Save, version: 24 as const, shipComponents: ['frame', 'propulsion', 'navigation', 'life-support'], grappleOwned: false, maps: { 'cryo-shelf': { ...version19Save.maps['cryo-shelf'], warehouse: emptyCargo() } } };
-  const currentSave = { ...version24Save, version: 37 as const, mothershipHull:3000, minerDisabled:false, maps:{'cryo-shelf':{...version24Save.maps['cryo-shelf'],wrecks:[]}}, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, coreFuel: 0, mothershipBoarded: false };
+  const currentSave = { ...version24Save, version: 38 as const, mothershipHull:3000, minerDisabled:false, maps:{'cryo-shelf':{...version24Save.maps['cryo-shelf'],wrecks:[]}}, loadout: defaultLoadout(), shipCargo: emptyCargo(), specialistModules: { reinforcedHull: false, efficientCooling: false } as const, extraction: {}, deliveries: {}, productionUpdatedAt: 1, solarPosition: null, coreFuel: 0, mothershipBoarded: false };
   assert.equal(validateSave(version24Save), false, 'version-24 saves migrate before current validation');
   assert.equal(validateSave(currentSave), true);
   const seamMigration = migrateSave({ ...currentSave, version: 30, extraction: undefined });
@@ -1645,13 +1645,13 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
       { id: 'warehouse:1000:0', kind: 'warehouse', x: 1000, y: 0 },
       { id: 'extractor:1400:0', kind: 'extractor', x: 1400, y: 0 },
     ] } } });
-  assert.equal(migratedMiningSave?.version, 37, 'v28 saves migrate into the current production schema');
+  assert.equal(migratedMiningSave?.version, 38, 'v28 saves migrate into the current production schema');
   assert.equal(migratedMiningSave?.maps['cryo-shelf']?.structures[0]?.level, 1);
   assert.equal(migratedMiningSave?.maps['cryo-shelf']?.structures[1]?.productionFraction, 0);
   assert.equal(migrateSave({ ...currentSave, version: 26, solarPosition: undefined })?.solarPosition, null);
   assert.equal(validateSave({ ...currentSave, coreFuel: 1.25, mothershipBoarded: true, solarPosition: { x: -200, y: 100 } }), true);
   assert.equal(validateSave({ ...currentSave, solarPosition: { x: NaN, y: 0 } }), false);
-  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 37, 'version-18 campaigns migrate with preserved planet geometry');
+  assert.equal(migrateSave({ ...version19Save, version: 18, planetChart: undefined })?.version, 38, 'version-18 campaigns migrate with preserved planet geometry');
   assert.equal(validateSave({ ...currentSave, hull: 0, pilotEscaping: true }), true, 'a crashed miner can be saved while its pilot is alive in the escape suit');
   assert.equal(validateSave({ ...currentSave, hull: 0 }), false, 'zero hull without an active escape is rejected');
   assert.equal(validateSave({ ...currentSave, milestones: ['core-cryo'] }), true, 'core records persist with the core-fuel save');
@@ -1669,7 +1669,7 @@ test('optional navigation hashes are guaranteed map-specific tiles and survive i
   assert.equal(savedInOrbit?.mothershipBoarded, true, 'a flight-ready v25 save in orbit restores the player aboard the mothership');
   const migratedV14 = migrateSave(save);
   assert.deepEqual(migratedV14?.maps['cryo-shelf']?.structures, [], 'version-14 campaigns receive an empty construction list');
-  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 37, 'version-16 campaigns migrate through the chart schema');
+  assert.equal(migrateSave({ ...version19Save, version: 16, escapeSuit: undefined, pilotEscaping: undefined })?.version, 38, 'version-16 campaigns migrate through the chart schema');
   assert.deepEqual(migrateSave(currentSave)?.milestones, NAVIGATION_HASHES.map((hash) => hash.id));
   const oldUnupgraded = migrateSave({ ...version19Save, version: 13, levels: { ...version19Save.levels, grapple: undefined } });
   assert.equal(oldUnupgraded?.levels.grapple, 1, 'v13 campaigns gain the baseline grapple level');
@@ -3204,7 +3204,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     stasisModule: false, returnWinch: false, escapeSuit: false, pilotEscaping: false, grappleOwned: p.grappleOwned,
   } satisfies SaveData;
   const migrated27 = migrateSave({ ...chartSave, version: 27 });
-  assert.equal(migrated27?.version, 37);
+  assert.equal(migrated27?.version, 38);
   assert.deepEqual(migrated27?.maps, chartSave.maps, 'v27 preserves excavations, pickups, warehouses and structures');
   const fortSave: SaveData = { ...chartSave, maps: { 'mars-frontier': { ...chartSave.maps['mars-frontier'], structures: [
     { id: 'fort:2000:0', kind: 'fort', x: 2000, y: 0, integrity: 3 },
@@ -3272,12 +3272,12 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
   const stackedWall = { ...chartMap, warehouse: emptyCargo(), structures: [{ id: 'wall:16000:-48', kind: 'wall' as const, x: 16000, y: -WORLD.tile, integrity: SURFACE_RAID.integrity }] };
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': stackedWall } }), true, 'outward home-side wall layers persist in the existing save schema');
   const migratedV22 = migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV22?.version, 37, 'version-22 maps migrate through integrity, warehouses and core fuel');
+  assert.equal(migratedV22?.version, 38, 'version-22 maps migrate through integrity, warehouses and core fuel');
   assert.ok(migratedV22?.maps['mars-frontier']?.structures.every((structure) => structure.integrity === SURFACE_RAID.integrity),
     'existing buildings enter the raid system at full integrity');
   assert.deepEqual(migratedV22?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v22 storage migrates to an empty planet warehouse');
   const migratedV23 = migrateSave({ ...chartSave, version: 23, maps: { 'mars-frontier': { ...chartMap } } });
-  assert.equal(migratedV23?.version, 37, 'v23 campaigns migrate to the new warehouse and core-fuel schema');
+  assert.equal(migratedV23?.version, 38, 'v23 campaigns migrate to the new warehouse and core-fuel schema');
   assert.deepEqual(migratedV23?.maps['mars-frontier']?.warehouse, emptyCargo(), 'v23 planets begin with empty warehouse stock');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, structures: [{ id: 'habitat:16000:0', kind: 'habitat' as const, x: 16000, y: 0, integrity: 0 }] } } }), false,
     'save validation rejects a structure with no remaining integrity instead of keeping a broken ghost');
@@ -3285,7 +3285,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     'save validation accepts additional habitats on one planet');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...withTradePost, structures: [...withTradePost.structures, { id: 'trade-post:16100:0', kind: 'trade-post' as const, x: 16100, y: 0 }] } } }), true,
     'each planet can have multiple trading posts');
-  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 37, 'version-22 campaigns migrate without losing their existing planet data');
+  assert.equal(migrateSave({ ...chartSave, version: 22, maps: { 'mars-frontier': { ...chartMap } } })?.version, 38, 'version-22 campaigns migrate without losing their existing planet data');
   assert.equal(validateSave({ ...chartSave, maps: { 'mars-frontier': { ...chartMap, planetChart: { ...PLANET_CHART, columns: PLANET_CHART.columns - 1 } } } }), false,
     'unknown chart geometry cannot silently reinterpret saved coordinates');
   const legacySave = { ...chartSave, version: 18, maps: { 'mars-frontier': {
@@ -3293,7 +3293,7 @@ test('version-25 per-planet chart metadata accepts mixed geometry, warehouses, a
     drops: [{ id: '123:500,12', ore: 'gold' as const, units: 1, x: 20020, y: 480, vx: 0, vy: 0 }], activeCharge: null, structures: [],
   } } };
   const migrated = migrateSave(legacySave);
-  assert.equal(migrated?.version, 37);
+  assert.equal(migrated?.version, 38);
   assert.deepEqual(migrated?.planetChart, LEGACY_PLANET_CHART, 'v18 saves preserve their original 3,600 m radius');
   assert.equal(migrated?.maps['mars-frontier']?.planetChart, undefined, 'old map coordinates stay intact under the legacy campaign chart');
   assert.deepEqual(migrated?.maps['mars-frontier']?.destroyed, ['500,12']);
@@ -3346,7 +3346,7 @@ test('versioned save validation and reconstruction', () => {
     'save validation still rejects positions outside the supported orbit altitude');
   const migratedV12 = migrateSave({ ...d, version: 12, returnWinch: undefined });
   assert.ok(migratedV12);
-  assert.equal(migratedV12.version, 37);
+  assert.equal(migratedV12.version, 38);
   assert.equal(migratedV12.returnWinch, false, 'older campaigns receive the new optional module as unowned');
   const oldChargeSave = { ...d, maps: { ...d.maps, 'mars-frontier': { ...d.maps['mars-frontier']!, activeCharge: { x: 980, y: 280, fuse: 0.7 } } } };
   assert.ok(validateSave(oldChargeSave), 'existing active charges remain valid without a velocity field');
@@ -3355,7 +3355,7 @@ test('versioned save validation and reconstruction', () => {
   assert.equal(validateSave({ ...d, version: 3 }), false);
   const migratedV3 = migrateSave({ ...d, version: 3, routeFragments: undefined } as unknown as SaveData);
   assert.ok(migratedV3);
-  assert.equal(migratedV3.version, 37);
+  assert.equal(migratedV3.version, 38);
   assert.deepEqual(migratedV3.routeFragments, []);
   assert.deepEqual(migratedV3.maps['mars-frontier']?.drops, []);
   assert.equal(migratedV3.charges, 0);
@@ -3363,25 +3363,25 @@ test('versioned save validation and reconstruction', () => {
   const legacyV4 = { ...d, version: 4, charges: undefined, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, drops: undefined, activeCharge: undefined } } };
   const migratedV4 = migrateSave(legacyV4);
   assert.ok(migratedV4);
-  assert.equal(migratedV4.version, 37);
+  assert.equal(migratedV4.version, 38);
   assert.deepEqual(migratedV4.maps['mars-frontier']?.drops, []);
   const legacyV7 = { ...d, version: 7, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV7 = migrateSave(legacyV7);
   assert.ok(migratedV7);
-  assert.equal(migratedV7.version, 37);
+  assert.equal(migratedV7.version, 38);
   assert.equal(migratedV7.selectedSuit, 'hab');
   assert.deepEqual(migratedV7.ownedSuits, ['hab']);
   const legacyV6 = { ...d, version: 6, salvageMagnet: undefined, ownedSuits: undefined, selectedSuit: undefined };
   const migratedV6 = migrateSave(legacyV6);
   assert.ok(migratedV6);
-  assert.equal(migratedV6.version, 37);
+  assert.equal(migratedV6.version, 38);
   assert.equal(migratedV6.salvageMagnet, false);
   assert.equal(migratedV6.selectedSuit, 'hab');
   assert.deepEqual(migratedV6.ownedPaints, ['hab', 'polar']);
   const legacyV5 = { ...d, version: 5, ownedPaints: undefined, selectedPaint: undefined, salvageMagnet: undefined };
   const migratedV5 = migrateSave(legacyV5);
   assert.ok(migratedV5);
-  assert.equal(migratedV5.version, 37);
+  assert.equal(migratedV5.version, 38);
   assert.equal(migratedV5.salvageMagnet, false);
   assert.deepEqual(migratedV5.ownedPaints, ['hab']);
   const withDrop = { ...d, maps: { 'mars-frontier': { ...d.maps['mars-frontier']!, destroyed: [...d.maps['mars-frontier']!.destroyed, '24,3'], drops: [{ id: '2:24,3', ore: 'gold', units: 1.5, x: 980, y: 130, vx: 24, vy: -40 }] } } };
@@ -3401,7 +3401,7 @@ test('versioned save validation and reconstruction', () => {
   };
   const migrated = migrateSave(legacy);
   assert.ok(migrated);
-  assert.equal(migrated.version, 37);
+  assert.equal(migrated.version, 38);
   assert.equal(migrated.activeMap, 'mars-frontier');
   assert.equal(migrated.maps['mars-frontier']?.x, 980);
   assert.deepEqual(migrated.shipComponents, []);
@@ -3435,7 +3435,7 @@ test('versioned save validation and reconstruction', () => {
   const legacyV8 = { ...d, version: 8, ownedDecals: undefined, selectedDecal: undefined };
   const migratedV8 = migrateSave(legacyV8);
   assert.ok(migratedV8);
-  assert.equal(migratedV8.version, 37);
+  assert.equal(migratedV8.version, 38);
   assert.deepEqual(migratedV8.ownedDecals, ['standard']);
   assert.equal(migratedV8.selectedDecal, 'standard');
   assert.deepEqual(migratedV8.ownedProfiles, ['standard']);
@@ -3443,12 +3443,12 @@ test('versioned save validation and reconstruction', () => {
   const legacyV9 = { ...d, version: 9, ownedProfiles: undefined, selectedProfile: undefined };
   const migratedV9 = migrateSave(legacyV9);
   assert.ok(migratedV9);
-  assert.equal(migratedV9.version, 37);
+  assert.equal(migratedV9.version, 38);
   assert.deepEqual(migratedV9.ownedProfiles, ['standard']);
   assert.equal(migratedV9.specialization, 'balanced');
   const migratedV10 = migrateSave({ ...d, version: 10, specialization: undefined });
   assert.ok(migratedV10);
-  assert.equal(migratedV10.version, 37);
+  assert.equal(migratedV10.version, 38);
   assert.equal(migratedV10.specialization, 'balanced');
   assert.deepEqual(migratedV10.maps, d.maps, 'v10 migration preserves every region record');
   assert.equal(validateSave({ ...d, specialization: 'unknown' }), false);

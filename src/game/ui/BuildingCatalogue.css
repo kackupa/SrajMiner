@@ -8,3 +8,13 @@
 
 #modal-layer .build-catalogue button{min-height:44px}.build-catalogue .build-bottom{display:block!important;flex-shrink:0}
 @media(max-width:400px){.build-top{height:96px;display:grid;grid-template-columns:1fr auto 1fr;gap:4px;padding:6px 10px}.build-top>div{grid-column:1/-1;grid-row:1;text-align:center}.build-top h1{font-size:23px}.build-top>button{grid-row:2;padding:5px;font-size:10px}.build-top #close{justify-self:stretch}}
+/* Four underground choices must fit alongside the detail panel on short screens. */
+.build-tabs:has(button:only-child){display:none}
+@media(min-width:701px) and (max-height:500px){
+ #modal-layer .build-body{grid-template-columns:280px minmax(0,1fr)}
+ #modal-layer .build-choices{display:grid;grid-template-columns:1fr 1fr;align-content:start;gap:8px}
+ #modal-layer .build-choices button{min-height:52px;padding:7px;gap:4px;font-size:10px}
+ #modal-layer .build-choices button small{display:none}
+ #modal-layer .build-choices svg{width:26px;height:30px;flex-shrink:0}
+ #modal-layer .modal.build-catalogue .build-place{min-height:44px!important}
+}

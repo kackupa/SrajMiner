@@ -1,6 +1,11 @@
 /** Shared timing keeps the rig ejector and carrier loader in sync. Cosmetic only. */
 export const UNLOAD_DURATION = 3.4;
 export const crateLaunchTime = (index:number) => .3+index*.18;
+/** Capture each crate at ejection, not at the initial unload command. Coordinates
+ * stay in world space so neither the moving rig nor camera drags launched cargo. */
+export function captureCargoSources(sources: {x:number;y:number}[], age:number, count:number, socket:{x:number;y:number}) {
+ for(let i=sources.length;i<count&&age>=crateLaunchTime(i);i++)sources.push({...socket});
+}
 export function cargoPhase(age:number,index:number) {
  const elapsed=age-crateLaunchTime(index);
  if(elapsed<0)return {stage:'waiting' as const,t:0};

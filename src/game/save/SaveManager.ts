@@ -15,7 +15,7 @@ export const SAVE_KEY = 'mars-miner.v1';
 export type OreDrop = { id: string; ore: Ore; units: number; x: number; y: number; vx: number; vy: number };
 export type ActiveCharge = { mode?: 'focused' | 'excavation' | 'pulse'; x: number; y: number; fuse: number; vy?: number };
 export type SaveData = {
-  version: 32 | 33 | 34 | 35 | 36 | 37;
+  version: 32 | 33 | 34 | 35 | 36 | 37 | 38;
   mothershipHull?: number;
   minerDisabled?: boolean;
   disabledReason?: 'fuel'|'hull'|'impact';
@@ -114,7 +114,7 @@ export function validateSave(s: unknown): s is SaveData {
   if (!s || typeof s !== 'object') return false;
   const d = s as SaveData;
   return (
-    (d.version === 32 || (d.version === 33 || d.version === 34 || d.version === 35 || d.version === 36 || d.version === 37) && validLoadout(d.loadout)) && (d.version<36 || finite(d.mothershipHull)&&d.mothershipHull>=0&&d.mothershipHull<=MOTHERSHIP.maxHull&&typeof d.minerDisabled==='boolean') && (d.disabledReason===undefined||['fuel','hull','impact'].includes(d.disabledReason)) && validCargo(d.shipCargo) && validSpecialists(d.specialistModules) && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
+    (d.version === 32 || (d.version === 33 || d.version === 34 || d.version === 35 || d.version === 36 || d.version === 37 || d.version === 38) && validLoadout(d.loadout)) && (d.version<36 || finite(d.mothershipHull)&&d.mothershipHull>=0&&d.mothershipHull<=MOTHERSHIP.maxHull&&typeof d.minerDisabled==='boolean') && (d.disabledReason===undefined||['fuel','hull','impact'].includes(d.disabledReason)) && validCargo(d.shipCargo) && validSpecialists(d.specialistModules) && !!d.extraction && typeof d.extraction === 'object' && !Array.isArray(d.extraction) && Object.entries(d.extraction).every(([key, value]) => /^(mars-frontier|cryo-shelf|hull-graveyard|prism-fault|cinder-vale|vesper-9):(near|far):\d{1,4}$/.test(key) && finite(value) && value >= 0 && value <= EXTRACTION_SEAMS.units && Number.isInteger(value * 2)) && !!d.deliveries && typeof d.deliveries === 'object' && !Array.isArray(d.deliveries) && Object.entries(d.deliveries).every(([key, value]) => /^(helion|kepler|verdant|lyra):(copper|iron|silver|gold|diamond|nickel|titanium|cobalt|cryocrystal)$/.test(key) && finite(value) && value >= 0 && Number.isInteger(value * 2)) && finite(d.productionUpdatedAt) && d.productionUpdatedAt >= 0 &&
     (d.solarPosition === null || !!d.solarPosition && finite(d.solarPosition.x) && finite(d.solarPosition.y) && Math.abs(d.solarPosition.x) < 100000000 && Math.abs(d.solarPosition.y) < 100000000 && d.mothershipBoarded) && chartIsSupported(d.planetChart) &&
     Object.hasOwn(SPECIALIZATIONS, d.specialization) &&
     Number.isInteger(d.campaignSeed) &&
@@ -134,7 +134,7 @@ export function validateSave(s: unknown): s is SaveData {
           !Array.isArray(m.structures) ||
           !m.warehouse || ORE_KEYS.some((ore) => !finite(m.warehouse[ore]) || m.warehouse[ore] < 0 || !Number.isInteger(m.warehouse[ore] * 2)) || m.structures.some((structure) =>
           !structure || typeof structure.id !== 'string' || structure.id.length > 80 ||
-          !['platform', 'service', 'turret', 'trade-post', 'habitat', 'warehouse', 'extractor', 'wall', 'gate', 'fort'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
+          !['platform', 'service', 'light', 'turret', 'trade-post', 'habitat', 'warehouse', 'extractor', 'wall', 'gate', 'fort'].includes(structure.kind) || !finite(structure.x) || structure.x < 100 || structure.x > mapColumns(m, d.planetChart) * WORLD.tile - 100 ||
           !finite(structure.y) || structure.y < (structure.kind === 'wall' ? -1e7 : 0) || structure.y > 1e7 ||
           (structure.kind === 'fort' && structure.y !== 0 && structure.y !== (chart?.radiusRows ?? LEGACY_PLANET_CHART.radiusRows) * WORLD.tile * 2) ||
           (structure.level !== undefined && (!['turret', 'warehouse', 'extractor'].includes(structure.kind) || !Number.isInteger(structure.level) || structure.level < 1 || structure.level > (structure.kind === 'warehouse' ? 4 : 3))) ||
@@ -190,7 +190,8 @@ export function migrateSave(s: unknown): SaveData | null {
   }
   if (s && typeof s === 'object' && (s as {version?:number}).version === 34 && validateSave(s)) return migrateSave({...s,version:35});
   if (s && typeof s==='object' && (s as {version?:number}).version===35 && validateSave(s)) return migrateSave({...s,version:36,mothershipHull:MOTHERSHIP.maxHull,minerDisabled:false});
-  if (s && typeof s==='object' && (s as {version?:number}).version===36 && validateSave(s)) return {...s, version:37};
+  if (s && typeof s==='object' && (s as {version?:number}).version===36 && validateSave(s)) return migrateSave({...s, version:37});
+  if (s && typeof s==='object' && (s as {version?:number}).version===37 && validateSave(s)) return {...s,version:38};
   if (validateSave(s)) return s;
   if (!s || typeof s !== 'object') return null;
   const version = (s as { version?: number }).version;

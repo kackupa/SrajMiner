@@ -6,7 +6,7 @@ import type { UndergroundStructure } from '../building/UndergroundStructures';
 import { dismantleRefund } from '../building/ColonyManagement';
 import { buildingArt } from './BuildingArt';
 import type { extractorStatus } from '../economy/ExtractionSeams';
-export const buildingName = (s: UndergroundStructure) => ({extractor:'Ore extractor',warehouse:'Ore warehouse',habitat:'Mining camp','trade-post':'Market uplink',turret:'Defence pylon',wall:'Perimeter wall',gate:'Security gate',fort:'Colony fort',platform:'Platform',service:'Underground shelter'}[s.kind]);
+export const buildingName = (s: UndergroundStructure) => ({light:'Tunnel light',extractor:'Ore extractor',warehouse:'Ore warehouse',habitat:'Mining camp','trade-post':'Market uplink',turret:'Defence pylon',wall:'Perimeter wall',gate:'Security gate',fort:'Colony fort',platform:'Platform',service:'Underground shelter'}[s.kind]);
 export function colonyOverview(structures: readonly UndergroundStructure[], stock: Cargo, capacity: number, map: MapId, selected: number, page: number, confirm: boolean, survey: (s: UndergroundStructure) => ReturnType<typeof extractorStatus>, progress?: Progress) {
  const total=ORE_KEYS.reduce((n,o)=>n+stock[o],0), pages=Math.max(1,Math.ceil(structures.length/6)), current=Math.min(page,pages-1), visible=structures.slice(current*6,current*6+6), chosen=structures[selected], full=total>=capacity, rate=structures.filter(s=>s.kind==='extractor').reduce((n,s)=>n+(survey(s).state==='Mining'?survey(s).rate:0),0);
  const level=chosen?.level??1,tier=EXTRACTOR_TIERS[level-1],cost=chosen?.kind==='warehouse'?UNDERGROUND_BUILDING.warehouse.capacityUpgrade[level]:tier?.upgradeCredits;

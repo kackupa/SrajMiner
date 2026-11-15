@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import { StudyGun } from '../src/game/study/StudyGun';
+import { UniformPlanet } from '../src/game/study/UniformPlanet';
+import { Progress } from '../src/game/economy/Progress';
+import { minerGunSocket, conceptMiner } from '../src/game/player/ConceptMiner';
+import { minerGunPoint, minerLocalLook, minerPartPoint } from '../src/game/player/MinerArt';
+import { restingVehiclePose } from '../src/game/player/VehiclePose';
+import { aimStudyGun } from '../src/game/study/StudyGunAim';
+import { FLEET_STUDY, UNIFORM_PLANET_STUDY } from '../src/game/config';
+import { studyFractures } from '../src/game/study/StudyFractures';
+
+const gun=new StudyGun();
+assert(gun.step(.016,true,{x:0,y:0},{x:1,y:0},()=>false).fired,'No creature required');
+assert.equal(gun.shots,1);
+assert(!gun.step(.016,true,{x:0,y:0},{x:1,y:0},()=>false).fired,'Cadence is bounded');
+for(let i=0;i<60;i++)gun.step(1/60,true,{x:0,y:0},{x:1,y:0},()=>false);
+assert(gun.shots>=8&&gun.shots<=10);
+const count=gun.shots;
+for(let i=0;i<100;i++)gun.step(.05,false,{x:0,y:0},{x:1,y:0},()=>false);
+assert.equal(gun.shots,count);assert.equal(gun.bullets.length,0,'Shots expire at range');
+const wall=new StudyGun();
+const hit=wall.step(.05,true,{x:0,y:0},{x:1,y:0},p=>p.x>=20&&p.x<=22);
+assert.equal(hit.impacts.length,1,'Swept collision catches thin walls');assert.equal(wall.bullets.length,0);
+const corner=new StudyGun();
+assert.equal(corner.step(.05,true,{x:30,y:0},{x:1,y:0},p=>p.x>=10&&p.x<=12,{x:0,y:0}).impacts.length,1,'A protruding barrel cannot fire through rock');
+const world=new UniformPlanet(),rockGun=new StudyGun(),size=world.cells.size;
+for(let i=0;i<200;i++)rockGun.step(.05,true,{x:0,y:-600},{x:1,y:0},p=>world.solidAt(p));
+assert(rockGun.hits>0);assert.equal(world.cells.size,size);assert.equal(world.excavated.size,0,'Gunfire does not mine or duplicate ore');
+const p=new Progress();p.loadout.fitted.weapon='machine-gun';
+for(const yaw of [0,Math.PI/2,Math.PI])for(const fire of [0,1])for(const angle of [-2,-.4,1.5]){
+ const pose={...restingVehiclePose(),yaw,fire,bank:.2,lookX:Math.cos(angle),lookY:Math.sin(angle)};
+ const local=minerLocalLook(pose,false),socket=minerGunSocket(p,local),marks=conceptMiner(p,local);
+ const muzzle=minerGunPoint(60,80,.9,p,pose,false);
+ const expected=minerPartPoint(60,80,.9,pose,false,socket.muzzle.x,socket.muzzle.y,socket.pivot);
+ assert(Math.hypot(muzzle.x-expected.x,muzzle.y-expected.y)<1e-6);
+ const actualBrake=marks.filter(m=>m.kind==='line'&&m.width===2&&m.color===0x102431&&m.anchor?.x===15).at(-1)!;
+ assert(actualBrake.kind==='line');
+ const mid={x:(actualBrake.points[0][0]+actualBrake.points[1][0])/2,y:(actualBrake.points[0][1]+actualBrake.points[1][1])/2};
+ assert(Math.hypot(mid.x-socket.muzzle.x,mid.y-socket.muzzle.y)<1e-6,'Bullet socket is the actual drawn muzzle through turn and recoil');
+}
+for(const yaw of [0,Math.PI/2,Math.PI])for(const bank of [-.28,0,.28])for(const fire of [0,1])for(const distance of [50,180,600])for(const angle of [-3,-1.5,-.3,.8,2]){
+ const target={x:640+Math.cos(angle)*distance,y:416+Math.sin(angle)*distance};
+ const aimed=aimStudyGun({x:640,y:416},.68,p,{...restingVehiclePose(),yaw,bank,fire,lookX:-1,lookY:0},target);
+ const dx=target.x-aimed.muzzle.x,dy=target.y-aimed.muzzle.y;
+ assert(Math.abs(dx*aimed.direction.y-dy*aimed.direction.x)<.001,'Barrel axis intersects cursor without waiting for body rotation');
+ assert(dx*aimed.direction.x+dy*aimed.direction.y>0,'Target lies in front of the muzzle');
+ const shot=new StudyGun();shot.step(.016,true,aimed.muzzle,aimed.direction,()=>false);
+ const b=shot.bullets[0];
+ assert(Math.abs((target.x-b.x)*b.dy-(target.y-b.y)*b.dx)<.001,'Actual bullet passes through the cursor');
+}
+console.log('Starter gun: cursor alignment through turn/bank/recoil, cadence, swept collision and no terrain mutation passed.');
+
+const damaged=new UniformPlanet(),ore=[...damaged.cells.values()].find(c=>c.material==='copper'&&c.polygon.length===4)!;
+const point={x:(ore.x+.5)*40,y:(ore.y+.5)*40},initial=damaged.cells.size;
+for(let i=0;i<100;i++)damaged.weaken(point);
+assert.equal(damaged.cells.size,initial,'Machine gun cannot destroy rock even with sustained fire');
+assert.equal(damaged.weakening(ore),FLEET_STUDY.terrainDamage.maxBulletWeakening);
+assert(studyFractures(ore,damaged.weakening(ore)).length>=5,'Accumulated damage leaves branching scars');
+assert.equal(damaged.excavated.size,0,'Weakening gives no ore or excavation');
+const removed=damaged.blast(point);
+assert(removed.length>=2&&removed.length<=9,'Blast destroys a small, bounded cluster');
+assert(removed.includes(ore),'Blast destroys ore-bearing rock without harvesting it');
+assert.equal(damaged.weakening(ore),0,'Removed blocks lose their fracture state');
+assert.equal(damaged.cells.size,initial-removed.length);
+assert.equal(damaged.blast(point).length,0,'Repeat blast cannot remove the same cells twice');
+assert(removed.every(c=>Math.hypot((c.x+.5)*40-point.x,(c.y+.5)*40-point.y)<=FLEET_STUDY.terrainDamage.blastRadius));
+const coreFuel=damaged.core.remaining;
+damaged.blast({x:0,y:-UNIFORM_PLANET_STUDY.coreSurfaceRadius});damaged.weaken({x:0,y:0});
+assert.equal(damaged.core.remaining,coreFuel,'Weapons never grant or consume core fuel');
+assert(damaged.solidAt({x:0,y:0}),'Solid core support survives blasts');
+const rocket=new StudyGun(FLEET_STUDY.missile);
+assert(rocket.step(.05,true,{x:0,y:0},{x:1,y:0},()=>false).fired);
+assert(!rocket.step(.05,true,{x:0,y:0},{x:1,y:0},()=>false).fired,'Secondary cooldown is enforced');
+assert(rocket.bullets[0].distance<100,'Missiles visibly travel slower than machine-gun rounds');
+console.log('PASS capped weakening, scars, bounded ore-free blast destruction, core protection and missile cooldown');
